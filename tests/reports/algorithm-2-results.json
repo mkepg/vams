@@ -1,0 +1,100 @@
+{
+  "sourceLevel": [
+    {
+      "scenario": "single-POINTS",
+      "matchesPushPop": true,
+      "transformsOrdered": true,
+      "callbacksRegistered": true,
+      "deterministic": true
+    },
+    {
+      "scenario": "single-LINES",
+      "matchesPushPop": true,
+      "transformsOrdered": true,
+      "callbacksRegistered": true,
+      "deterministic": true
+    },
+    {
+      "scenario": "single-LINE_STRIP",
+      "matchesPushPop": true,
+      "transformsOrdered": true,
+      "callbacksRegistered": true,
+      "deterministic": true
+    },
+    {
+      "scenario": "single-LINE_LOOP",
+      "matchesPushPop": true,
+      "transformsOrdered": true,
+      "callbacksRegistered": true,
+      "deterministic": true
+    },
+    {
+      "scenario": "single-TRIANGLES",
+      "matchesPushPop": true,
+      "transformsOrdered": true,
+      "callbacksRegistered": true,
+      "deterministic": true
+    },
+    {
+      "scenario": "single-TRIANGLE_STRIP",
+      "matchesPushPop": true,
+      "transformsOrdered": true,
+      "callbacksRegistered": true,
+      "deterministic": true
+    },
+    {
+      "scenario": "single-TRIANGLE_FAN",
+      "matchesPushPop": true,
+      "transformsOrdered": true,
+      "callbacksRegistered": true,
+      "deterministic": true
+    },
+    {
+      "scenario": "single-QUADS",
+      "matchesPushPop": true,
+      "transformsOrdered": true,
+      "callbacksRegistered": true,
+      "deterministic": true
+    },
+    {
+      "scenario": "single-QUAD_STRIP",
+      "matchesPushPop": true,
+      "transformsOrdered": true,
+      "callbacksRegistered": true,
+      "deterministic": true
+    },
+    {
+      "scenario": "single-POLYGON",
+      "matchesPushPop": true,
+      "transformsOrdered": true,
+      "callbacksRegistered": true,
+      "deterministic": true
+    },
+    {
+      "scenario": "single-tri-with-transform",
+      "matchesPushPop": true,
+      "transformsOrdered": true,
+      "callbacksRegistered": true,
+      "deterministic": true
+    },
+    {
+      "scenario": "all-callbacks-registered",
+      "matchesPushPop": true,
+      "transformsOrdered": true,
+      "callbacksRegistered": true,
+      "deterministic": true
+    },
+    {
+      "scenario": "mixed-scene",
+      "matchesPushPop": true,
+      "transformsOrdered": true,
+      "callbacksRegistered": true,
+      "deterministic": true
+    }
+  ],
+  "summary": {
+    "scenarios": 13,
+    "correctnessRate": 1
+  },
+  "visualLevel": "See tests/reports/manual-compile-procedure.md"
+}

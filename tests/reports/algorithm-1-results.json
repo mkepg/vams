@@ -1,0 +1,23 @@
+[
+  {
+    "scenario": "single-node",
+    "meanMs": 0.0038940000000047804,
+    "sdMs": 0.023771978546203366,
+    "meanPositionalError": 0,
+    "correctnessRate": 1
+  },
+  {
+    "scenario": "two-level",
+    "meanMs": 0.0021450000000095316,
+    "sdMs": 0.003969669381686831,
+    "meanPositionalError": 0,
+    "correctnessRate": 1
+  },
+  {
+    "scenario": "three-level",
+    "meanMs": 0.003793999999988955,
+    "sdMs": 0.002492902725727207,
+    "meanPositionalError": 3.469446951953614e-18,
+    "correctnessRate": 1
+  }
+]
