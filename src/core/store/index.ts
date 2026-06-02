@@ -12,6 +12,7 @@ import { createRuntimeSlice } from '@/core/store/runtime-slice';
 import { createLessonSlice } from '@/core/store/lesson-slice';
 import { createCallbacksSlice } from '@/core/store/callbacks-slice';
 import { createTextureSlice } from '@/core/store/texture-slice';
+import { createHelpSlice } from '@/core/store/help-slice';
 
 enableMapSet();
 export const useVamsStore = create<VamsState>()(
@@ -27,6 +28,7 @@ export const useVamsStore = create<VamsState>()(
       ...createLessonSlice(...a),
       ...createCallbacksSlice(...a),
       ...createTextureSlice(...a),
+      ...createHelpSlice(...a),
       resetProject: () => {
         localStorage.removeItem('vams-storage');
         window.location.reload();
@@ -55,6 +57,7 @@ export const useVamsStore = create<VamsState>()(
         activeSection: state.activeSection,
         callbacks: state.callbacks,
         uploadedTextures: state.uploadedTextures,
+        hasSeenWelcome: state.hasSeenWelcome,
       }),
     }
   )

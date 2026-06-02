@@ -1,6 +1,7 @@
 import './scene-hierarchy-panel.scss';
 import './scene-hierarchy-groups.scss';
-import { useState, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import {
   Layers, Shapes, Type, Eye, EyeOff, Copy, Trash2,
   FolderOpen, Folder, FolderX, Edit3
@@ -28,7 +29,6 @@ export default function SceneHierarchyPanel() {
   const [editName, setEditName] = useState<string>('');
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dragPosition, setDragPosition] = useState<'before' | 'after' | 'inside' | null>(null);
-  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const getRootObjects = () =>
     objects.filter(obj => !obj.parentId || !objects.find(o => o.id === obj.parentId));
   const getChildren = (parentId: string) =>
@@ -51,24 +51,42 @@ export default function SceneHierarchyPanel() {
     else newSelection.add(id);
     setSelectedObjects(newSelection);
   };
+  // Single click selects immediately (no artificial delay); double-click or F2
+  // starts an inline rename.
   const handleItemClick = (id: string, e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
-    if (e.detail === 1) {
-      clickTimerRef.current = setTimeout(() => {
-        toggleObjectSelection(id);
-      }, 200);
-    } else if (e.detail === 2) {
-      if (clickTimerRef.current) {
-        clearTimeout(clickTimerRef.current);
-        clickTimerRef.current = null;
-      }
-      const obj = objects.find(o => o.id === id);
-      if (obj) {
-        setEditingId(id);
-        setEditName(obj.textContent || obj.name);
-      }
+    toggleObjectSelection(id);
+  };
+  const startRename = (id: string) => {
+    const obj = objects.find(o => o.id === id);
+    if (obj) {
+      setEditingId(id);
+      setEditName(obj.textContent || obj.name);
     }
   };
+  const deleteWithUndo = (id: string, isGroup: boolean) => {
+    const obj = objects.find(o => o.id === id);
+    const name = obj?.textContent || obj?.name || 'Object';
+    if (isGroup) deleteGroup(id);
+    else deleteObject(id);
+    toast(`Deleted “${name}”`, {
+      action: { label: 'Undo', onClick: () => useVamsStore.getState().undo() },
+    });
+  };
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'F2') return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (!isMultiSelectMode && selectedObjectId) {
+        e.preventDefault();
+        startRename(selectedObjectId);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMultiSelectMode, selectedObjectId, objects]);
   const handleCreateGroup = () => {
     if (selectedObjects.size < 2) return;
     createGroup(Array.from(selectedObjects));
@@ -128,6 +146,7 @@ export default function SceneHierarchyPanel() {
             }
           }}
           onClick={(e) => handleItemClick(obj.id, e)}
+          onDblClick={(e) => { e.stopPropagation(); startRename(obj.id); }}
         >
           <span className="label">
             {isGroup ? (
@@ -154,18 +173,7 @@ export default function SceneHierarchyPanel() {
                   if (e.key === 'Escape') setEditingId(null);
                 }}
                 onClick={(e) => e.stopPropagation()}
-                style={{
-                  flex: 1,
-                  background: 'rgba(0,0,0,0.2)',
-                  border: '1px solid #3b82f6',
-                  color: 'white',
-                  borderRadius: '3px',
-                  padding: '2px 4px',
-                  fontSize: 'inherit',
-                  fontFamily: 'inherit',
-                  outline: 'none',
-                  minWidth: 0,
-                }}
+                className="rename-input"
               />
             ) : (
               <span className="name" title="Double-click to rename">
@@ -179,13 +187,10 @@ export default function SceneHierarchyPanel() {
           <div className="item-actions">
             {}
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditingId(obj.id);
-                setEditName(obj.textContent || obj.name);
-              }}
+              onClick={(e) => { e.stopPropagation(); startRename(obj.id); }}
               className="action-btn"
               title="Rename"
+              aria-label="Rename"
             >
               <Edit3 size={14} />
             </button>
@@ -194,6 +199,7 @@ export default function SceneHierarchyPanel() {
               onClick={(e) => { e.stopPropagation(); toggleObjectVisibility(obj.id); }}
               className={`action-btn ${effectivelyHidden ? 'active-dim' : ''}`}
               title={effectivelyHidden ? 'Show (excluded from output)' : 'Hide (exclude from output)'}
+              aria-label={effectivelyHidden ? 'Show object' : 'Hide object'}
             >
               {effectivelyHidden ? <EyeOff size={14} /> : <Eye size={14} />}
             </button>
@@ -203,13 +209,15 @@ export default function SceneHierarchyPanel() {
                   onClick={(e) => { e.stopPropagation(); ungroup(obj.id); }}
                   className="action-btn"
                   title="Ungroup"
+                  aria-label="Ungroup"
                 >
                   <FolderOpen size={14} />
                 </button>
                 <button
-                  onClick={(e) => { e.stopPropagation(); deleteGroup(obj.id); }}
+                  onClick={(e) => { e.stopPropagation(); deleteWithUndo(obj.id, true); }}
                   className="action-btn delete"
                   title="Delete Group & Children"
+                  aria-label="Delete group and its children"
                 >
                   <FolderX size={14} />
                 </button>
@@ -220,13 +228,15 @@ export default function SceneHierarchyPanel() {
                   onClick={(e) => { e.stopPropagation(); duplicateObject(obj.id); }}
                   className="action-btn"
                   title="Duplicate"
+                  aria-label="Duplicate"
                 >
                   <Copy size={14} />
                 </button>
                 <button
-                  onClick={(e) => { e.stopPropagation(); deleteObject(obj.id); }}
+                  onClick={(e) => { e.stopPropagation(); deleteWithUndo(obj.id, false); }}
                   className="action-btn delete"
                   title="Delete"
+                  aria-label="Delete"
                 >
                   <Trash2 size={14} />
                 </button>

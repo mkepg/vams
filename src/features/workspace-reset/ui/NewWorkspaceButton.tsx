@@ -1,6 +1,7 @@
 import { FilePlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useVamsStore } from '@/core/store';
+import { confirm } from '@/shared/ui/confirm-dialog/confirm-store';
 
 export default function NewWorkspaceButton() {
   const setCanvasBackgroundColor = useVamsStore(
@@ -8,7 +9,7 @@ export default function NewWorkspaceButton() {
   );
   const clearHistory = useVamsStore((state) => state.clearHistory);
 
-  const handleNewWorkspace = () => {
+  const handleNewWorkspace = async () => {
     const state = useVamsStore.getState();
     const hasObjects = state.objects.length > 0;
     const hasCustomBackground = state.canvasBackgroundColor !== '#000000';
@@ -27,7 +28,14 @@ export default function NewWorkspaceButton() {
       return;
     }
 
-    if (window.confirm('Start a new workspace? Unsaved changes will be lost.')) {
+    const proceed = await confirm({
+      title: 'Start a new workspace?',
+      message: 'Unsaved changes will be lost.',
+      confirmLabel: 'New workspace',
+      cancelLabel: 'Cancel',
+      tone: 'danger',
+    });
+    if (proceed) {
       useVamsStore.setState({
         objects: [],
         selectedObjectId: null,
@@ -46,7 +54,7 @@ export default function NewWorkspaceButton() {
   };
 
   return (
-    <button className="icon-btn" onClick={handleNewWorkspace} title="New Workspace">
+    <button className="icon-btn" onClick={handleNewWorkspace} title="New Workspace" aria-label="New workspace">
       <FilePlus size={16} />
     </button>
   );

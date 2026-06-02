@@ -1,6 +1,6 @@
 {
-  "meanLatencyMs": 0.3225505617977668,
-  "sdLatencyMs": 0.45412621720328805,
+  "meanLatencyMs": 0.32300112359552147,
+  "sdLatencyMs": 0.4450330295769843,
   "successDetectionAccuracy": 1,
   "stateRestorationFidelity": 1,
   "stepsMeasured": 89

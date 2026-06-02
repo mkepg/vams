@@ -1,4 +1,16 @@
 @use '../../../shared/styles/tokens' as *;
+.rename-input {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 4px;
+  background-color: $bg-input;
+  border: 1px solid $accent-blue;
+  border-radius: 3px;
+  color: $text-main;
+  font-size: inherit;
+  font-family: inherit;
+  outline: none;
+}
 .hierarchy-hint {
   font-size: 0.75rem;
   color: $text-dim;

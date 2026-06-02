@@ -111,33 +111,22 @@ export function useCanvasInteraction({
     if (!pixiReady) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       const state = useVamsStore.getState();
-      if (interactionModeRef.current === "VERTEX_PLACE") {
-        if (e.key === "Escape") {
-          state.cancelCustomShape();
-        } else if (e.key === "Enter") {
-          if (
-            state.pendingShapeType &&
-            state.pendingVertices.length >= state.pendingMinVertices
-          ) {
-            state.addCustomObject(state.pendingShapeType, state.pendingVertices);
-          }
-        } else if (e.key === "Backspace" || e.key === "Delete") {
-          if (state.pendingVertices.length > 0) {
-            state.removeLastPendingVertex();
-          }
+      // Only vertex-placement keys live here. App-level shortcuts (delete,
+      // duplicate, undo/redo) are handled centrally in useKeyboardShortcuts.
+      if (interactionModeRef.current !== "VERTEX_PLACE") return;
+
+      if (e.key === "Escape") {
+        state.cancelCustomShape();
+      } else if (e.key === "Enter") {
+        if (
+          state.pendingShapeType &&
+          state.pendingVertices.length >= state.pendingMinVertices
+        ) {
+          state.addCustomObject(state.pendingShapeType, state.pendingVertices);
         }
-        return;
-      }
-      if (e.key === "Backspace" || e.key === "Delete") {
-        const activeTag = document.activeElement?.tagName;
-        if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
-        if (state.selectedObjectId) {
-          const obj = state.objects.find(o => o.id === state.selectedObjectId);
-          if (obj?.type === 'GROUP') {
-             state.deleteGroup(state.selectedObjectId);
-          } else {
-             state.deleteObject(state.selectedObjectId);
-          }
+      } else if (e.key === "Backspace" || e.key === "Delete") {
+        if (state.pendingVertices.length > 0) {
+          state.removeLastPendingVertex();
         }
       }
     };

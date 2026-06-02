@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Settings, Eye, EyeOff } from 'lucide-react';
+import { Settings, Eye, EyeOff, Keyboard } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 
 export default function EditorPreferencesMenu() {
@@ -9,6 +9,7 @@ export default function EditorPreferencesMenu() {
   const setShowCoordinateTracker = useVamsStore(
     (state) => state.setShowCoordinateTracker
   );
+  const openHelp = useVamsStore((state) => state.openHelp);
 
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -30,6 +31,9 @@ export default function EditorPreferencesMenu() {
         className="icon-btn"
         onClick={() => setShowMenu((value) => !value)}
         title="View Settings"
+        aria-label="View settings"
+        aria-haspopup="menu"
+        aria-expanded={showMenu}
       >
         <Settings size={16} />
       </button>
@@ -70,6 +74,19 @@ export default function EditorPreferencesMenu() {
           >
             {showCoordinateTracker ? <Eye size={14} /> : <EyeOff size={14} />}
             Coordinate Tracker
+          </button>
+
+          <div className="menu-separator" />
+
+          <button
+            className="menu-item"
+            onClick={() => {
+              setShowMenu(false);
+              openHelp('shortcuts');
+            }}
+          >
+            <Keyboard size={14} />
+            Keyboard Shortcuts
           </button>
         </div>
       )}

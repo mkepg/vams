@@ -52,20 +52,70 @@
     bottom: 8px;
     left: 50%;
     transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
     background-color: rgba(37, 99, 235, 0.18);
     border: 1px solid rgba(37, 99, 235, 0.45);
     color: var(--accent-blue-light);
     font-size: 0.75rem;
     font-family: $font-mono;
-    padding: 5px 14px;
-    border-radius: 20px;
+    padding: 6px 14px;
+    border-radius: 14px;
     pointer-events: none;
     backdrop-filter: blur(4px);
     white-space: nowrap;
-    span {
+    text-align: center;
+
+    .banner-title {
       display: flex;
       align-items: center;
       gap: 6px;
+      font-weight: 600;
+    }
+    .banner-hint {
+      font-size: 0.68rem;
+      opacity: 0.85;
+      kbd {
+        padding: 1px 5px;
+        background-color: rgba(0, 0, 0, 0.35);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+        font-family: $font-mono;
+      }
+    }
+  }
+
+  .empty-canvas-hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    text-align: center;
+    color: $text-dim;
+    pointer-events: none;
+
+    svg { opacity: 0.5; }
+    p { margin: 0; font-size: 0.9rem; color: $text-muted; }
+    button {
+      pointer-events: auto;
+      margin-top: 0.25rem;
+      padding: 0.5rem 1.1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #fff;
+      background-color: $accent-blue;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.15s;
+      &:hover { background-color: var(--accent-blue-light); }
+      &:focus-visible { outline: 2px solid var(--accent-blue-light); outline-offset: 2px; }
     }
   }
 

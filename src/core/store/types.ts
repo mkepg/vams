@@ -163,6 +163,19 @@ export interface CallbacksSlice {
   clearCallback: (kind: GlutCallbackKind) => void;
   getRegisteredCallbacks: () => CallbackRegistration[];
 }
+export interface HelpSlice {
+  isHelpOpen: boolean;
+  /** Opaque topic id (a HelpTopicId from the help feature); null until resolved. */
+  activeHelpTopicId: string | null;
+  /** Back-stack of previously viewed topic ids within the Help Center. */
+  helpHistory: string[];
+  hasSeenWelcome: boolean;
+  openHelp: (topicId?: string) => void;
+  closeHelp: () => void;
+  navigateHelp: (topicId: string) => void;
+  helpBack: () => void;
+  markWelcomeSeen: () => void;
+}
 
 export type { TextureSlice } from './texture-slice';
 
@@ -175,4 +188,5 @@ export type VamsState = SceneSlice &
   RuntimeSlice &
   LessonSlice &
   CallbacksSlice &
+  HelpSlice &
   import('./texture-slice').TextureSlice;

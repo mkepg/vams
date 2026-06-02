@@ -32,6 +32,10 @@
       background-color: rgba(255, 255, 255, 0.03);
       color: $text-main;
     }
+    &:focus-visible {
+      outline: 2px solid $accent-blue;
+      outline-offset: -2px;
+    }
     &.active {
       color: $accent-blue;
       border-bottom-color: $accent-blue;
@@ -39,16 +43,19 @@
       .tab-icon {
         color: $accent-blue;
       }
+      .tab-label {
+        font-weight: 700;
+      }
     }
     .tab-icon {
       color: $text-muted;
       transition: color 0.2s ease;
     }
     .tab-label {
-      font-size: 0.65rem;
+      font-size: 0.62rem;
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
     }
   }
 }

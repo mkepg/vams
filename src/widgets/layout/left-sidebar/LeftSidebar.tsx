@@ -1,6 +1,8 @@
 import { GitCommit, Shapes, Database, Move3d, Image as ImageIcon } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import type { CurriculumSection } from '@/core/store/types';
+import { confirm } from '@/shared/ui/confirm-dialog/confirm-store';
+import EmptySelectionState from '@/shared/ui/empty-state/EmptySelectionState';
 import PipelineModeControls from '@/features/pipeline-controls/ui/PipelineModeControls';
 import CustomShapeBuilderPanel from '@/features/custom-shapes/ui/CustomShapeBuilderPanel';
 import TextNodePanel from '@/features/text-nodes/ui/TextNodePanel';
@@ -27,10 +29,16 @@ export default function LeftSidebar() {
     clearLessonState
   } = useVamsStore();
   const selectedObject = objects.find((object) => object.id === selectedObjectId);
-  const handleTabClick = (section: CurriculumSection) => {
+  const handleTabClick = async (section: CurriculumSection) => {
     if (activeSection === section) return;
     if (appMode === 'Lesson') {
-      const confirmLeave = window.confirm('Leave current lesson? Progress will be lost.');
+      const confirmLeave = await confirm({
+        title: 'Leave current lesson?',
+        message: 'Your progress in this lesson will be lost and you will return to Author mode.',
+        confirmLabel: 'Leave lesson',
+        cancelLabel: 'Stay',
+        tone: 'danger',
+      });
       if (confirmLeave) {
         clearLessonState();
         setAppMode('Author');
@@ -79,7 +87,11 @@ export default function LeftSidebar() {
         return (
           <div className="tab-pane">
             <SceneHierarchyPanel />
-            {selectedObject && <ObjectTransformPanel />}
+            {selectedObject ? (
+              <ObjectTransformPanel />
+            ) : (
+              <EmptySelectionState message="Select an object in the scene to translate, rotate, or scale it." />
+            )}
             <OrthoEditorPanel />
           </div>
         );
@@ -101,12 +113,17 @@ export default function LeftSidebar() {
   };
   return (
     <aside className="left-sidebar">
-      <div className="sidebar-tabs">
-        <SidebarTab label="Pipe" icon={<GitCommit size={16} />} isActive={activeSection === 'Pipeline'} onClick={() => handleTabClick('Pipeline')} />
-        <SidebarTab label="Prims" icon={<Shapes size={16} />} isActive={activeSection === 'Primitives'} onClick={() => handleTabClick('Primitives')} />
-        <SidebarTab label="Bufs" icon={<Database size={16} />} isActive={activeSection === 'Buffers'} onClick={() => handleTabClick('Buffers')} />
-        <SidebarTab label="Trans" icon={<Move3d size={16} />} isActive={activeSection === 'Transforms'} onClick={() => handleTabClick('Transforms')} />
-        <SidebarTab label="Texs" icon={<ImageIcon size={16} />} isActive={activeSection === 'Textures'} onClick={() => handleTabClick('Textures')} />
+      <div className="sidebar-tabs" role="tablist" aria-label="Curriculum sections">
+        {SECTION_TABS.map((tab) => (
+          <SidebarTab
+            key={tab.section}
+            label={tab.label}
+            description={tab.description}
+            icon={tab.icon}
+            isActive={activeSection === tab.section}
+            onClick={() => handleTabClick(tab.section)}
+          />
+        ))}
       </div>
       <div className="sidebar-content">
         {renderSectionContent()}
@@ -114,19 +131,35 @@ export default function LeftSidebar() {
     </aside>
   );
 }
+type SectionTab = {
+  section: CurriculumSection;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+};
+const SECTION_TABS: SectionTab[] = [
+  { section: 'Pipeline', label: 'Pipeline', description: 'Pipeline — the rendering pipeline, NDC, and rasterization', icon: <GitCommit size={16} /> },
+  { section: 'Primitives', label: 'Primitives', description: 'Primitives — points, lines, triangles, color, and line style', icon: <Shapes size={16} /> },
+  { section: 'Buffers', label: 'Buffers', description: 'Buffers — vertex arrays, VBOs, and memory layout', icon: <Database size={16} /> },
+  { section: 'Transforms', label: 'Transforms', description: 'Transforms — translate, rotate, scale, and the matrix stack', icon: <Move3d size={16} /> },
+  { section: 'Textures', label: 'Textures', description: 'Textures — images, UV mapping, filtering, and wrapping', icon: <ImageIcon size={16} /> },
+];
 type SidebarTabProps = {
   label: string;
+  description: string;
   icon: React.ReactNode;
   isActive: boolean;
   onClick: () => void;
 };
-function SidebarTab({ label, icon, isActive, onClick }: SidebarTabProps) {
+function SidebarTab({ label, description, icon, isActive, onClick }: SidebarTabProps) {
   return (
     <button
       className={`tab-button ${isActive ? 'active' : ''}`}
       onClick={onClick}
       type="button"
-      title={label}
+      role="tab"
+      aria-selected={isActive}
+      title={description}
     >
       <span className="tab-icon">{icon}</span>
       <span className="tab-label">{label}</span>

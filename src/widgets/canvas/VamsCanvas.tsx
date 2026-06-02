@@ -21,6 +21,8 @@ export default function VamsCanvas({ isHidden = false }: VamsCanvasProps) {
   const showCoordinateTracker = useVamsStore((state) => state.showCoordinateTracker);
   const activeSection = useVamsStore((state) => state.activeSection);
   const setCursorWorld = useVamsStore((state) => state.setCursorWorld);
+  const objectCount = useVamsStore((state) => state.objects.length);
+  const appMode = useVamsStore((state) => state.appMode);
 
   const { pixiReady, appRef, worldRef, gridRef, overlayRef } = usePixiApp(canvasRef);
   
@@ -70,6 +72,10 @@ export default function VamsCanvas({ isHidden = false }: VamsCanvasProps) {
   // but preserve the underlying user setting for when they switch tabs.
   const effectiveShowCoordinateTracker = showCoordinateTracker && activeSection !== 'Pipeline';
 
+  // Onboarding nudge: only on the real editing canvas, in Author mode, with an empty scene.
+  const showEmptyHint =
+    !isHidden && appMode === 'Author' && activeSection !== 'Pipeline' && objectCount === 0;
+
   return (
     <div
       className={`canvas-wrapper ${isHidden ? 'hidden' : ''}`}
@@ -84,6 +90,7 @@ export default function VamsCanvas({ isHidden = false }: VamsCanvasProps) {
         interactionMode={interactionMode}
         coordinates={coordinates}
         showCoordinateTracker={effectiveShowCoordinateTracker}
+        showEmptyHint={showEmptyHint}
       />
     </div>
   );

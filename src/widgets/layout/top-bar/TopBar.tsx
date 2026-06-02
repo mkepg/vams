@@ -6,6 +6,7 @@ import NewWorkspaceButton from '@/features/workspace-reset/ui/NewWorkspaceButton
 import ThemeToggleButton from '@/features/theme-toggle/ui/ThemeToggleButton';
 import EditorPreferencesMenu from '@/features/editor-preferences/ui/EditorPreferencesMenu';
 import LessonLauncher from '@/features/lesson-engine/ui/LessonLauncher';
+import HelpButton from '@/features/help/ui/HelpButton';
 import './top-bar.scss';
 
 export default function TopBar() {
@@ -29,6 +30,8 @@ export default function TopBar() {
         <ProjectActions />
         <ThemeToggleButton />
         <EditorPreferencesMenu />
+        <div className="separator" />
+        <HelpButton />
       </div>
     </header>
   );
