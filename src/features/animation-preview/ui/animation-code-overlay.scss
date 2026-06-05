@@ -1,0 +1,54 @@
+@use '../../../shared/styles/tokens' as *;
+
+.anim-code-overlay {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 20;
+  width: min(34rem, 46vw);
+  display: flex;
+  flex-direction: column;
+  background: rgba(var(--bg-panel-rgb), 0.96);
+  border: 1px solid $border-color;
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  backdrop-filter: blur(2px);
+  animation: anim-code-overlay-in 0.18s ease;
+}
+
+@keyframes anim-code-overlay-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.anim-code-overlay-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: $text-main;
+  border-bottom: 1px solid $border-color;
+  background: rgba(var(--accent-blue-rgb), 0.14);
+}
+
+.anim-code-overlay-body {
+  /* The shared CodeViewer is `position: absolute; inset: 0`, so it fills its
+     nearest positioned ancestor. Make THIS box that ancestor and give it a
+     definite height — otherwise the viewer would fill the whole overlay and
+     the body would collapse to zero. The snippets are short and fixed, so a
+     fixed height comfortably shows every line. */
+  position: relative;
+  height: 15rem;
+  overflow: hidden;
+}
+
+.anim-code-overlay-foot {
+  margin: 0;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.64rem;
+  color: $text-dim;
+  border-top: 1px solid $border-color;
+}

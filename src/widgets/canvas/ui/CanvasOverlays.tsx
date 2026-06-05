@@ -1,6 +1,7 @@
 import { Shapes } from "lucide-react";
 import type { InteractionMode, ViewportLimits } from "@/core/types/scene";
 import { useVamsStore } from "@/core/store";
+import AnimationCodeOverlay from "@/features/animation-preview/ui/AnimationCodeOverlay";
 interface CanvasOverlaysProps {
   viewportLimits: ViewportLimits;
   interactionMode: InteractionMode;
@@ -18,6 +19,7 @@ export function CanvasOverlays({
   const setActiveSection = useVamsStore((s) => s.setActiveSection);
   return (
     <>
+      <AnimationCodeOverlay />
       <div className="viewport-info">
         Viewport: ({viewportLimits.minX}, {viewportLimits.maxX})
       </div>

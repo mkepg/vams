@@ -1,6 +1,7 @@
 import type { Lesson } from '@/core/types/lesson';
 import { useVamsStore } from '@/core/store';
 import type { VamsState } from '@/core/store/types';
+import { animationController } from '@/features/animation-preview/model/animation-controller';
 
 const DEFAULT_VIEWPORT = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
 
@@ -218,6 +219,55 @@ export const TRANSFORMS_LESSONS: Record<string, Lesson> = {
         codeChangeFocus: ['glOrtho'],
         action: (state) => {
           state.setViewportLimits({ ...DEFAULT_VIEWPORT });
+        },
+      },
+    ],
+  },
+
+  'transforms-anim-1': {
+    id: 'transforms-anim-1',
+    type: 'demo',
+    title: 'Animation: Transformation Over Time',
+    section: 'Transforms',
+    steps: [
+      {
+        narration:
+          'Animation in graphics is nothing exotic — it is just transformation that changes a little each frame. We have dropped a triangle into the scene to animate.',
+        focusPanel: 'scene-hierarchy',
+        action: (state) => {
+          state.addCustomObject('TRIANGLES', [{ x: 0, y: 0.5 }, { x: -0.5, y: -0.5 }, { x: 0.5, y: -0.5 }]);
+        },
+      },
+      {
+        narration:
+          'Watch the canvas: the triangle now spins. This is a transient preview — a visual-only overlay. The saved scene never changes, so stopping snaps it straight back to its saved pose. A panel beside the canvas shows the GLUT idle callback that would produce the very same motion in a compiled program.',
+        focusPanel: 'animation-preview',
+        action: (state) => {
+          if (state.selectedObjectId) {
+            animationController.play(state.selectedObjectId, 'rotate', 1);
+          }
+        },
+      },
+      {
+        narration:
+          'Each frame, the idle callback adds a small angle to the rotation and asks GLUT to redraw — glutPostRedisplay. The highlighted line in the snippet is the one transform call that drives the spin. Same idea as glRotatef, repeated over time.',
+        focusPanel: 'animation-preview',
+      },
+      {
+        narration:
+          'One quick check: in the idle callback below, which line is the one that actually makes the triangle move?',
+        focusPanel: 'animation-preview',
+        waitForUser: true,
+        exercise: {
+          kind: 'multiple-choice',
+          prompt: 'Which line makes the object move each frame?',
+          options: [
+            { id: 'a', label: 'state.rotation += 1.50f;' },
+            { id: 'b', label: 'void idle() {' },
+            { id: 'c', label: 'glutPostRedisplay();' },
+            { id: 'd', label: 'if (state.rotation >= 360.0f) state.rotation -= 360.0f;' },
+          ],
+          correctId: 'a',
         },
       },
     ],

@@ -3,6 +3,7 @@ import * as PIXI from "pixi.js";
 import { Container, FederatedPointerEvent, Mesh } from "pixi.js";
 import { useVamsStore } from "@/core/store";
 import { createDrawable } from "@/shared/engine/pixi/primitives";
+import { renderBridge } from "@/shared/engine/render-bridge";
 import type { SelectionOverlay } from "@/shared/engine/selection-overlay";
 import type { SceneNode } from "@/core/types/scene";
 
@@ -60,6 +61,28 @@ export function useSceneRenderer({
   useEffect(() => {
     objectsRef.current = objects;
   }, [objects]);
+  // Expose a read-only window into the live renderer for the Animation Preview.
+  // Containers are keyed by scene-object id; `resync` re-applies the stored
+  // transforms so the scene state stays the single source of truth.
+  useEffect(() => {
+    const app = appRef.current;
+    if (!app || !pixiReady) return;
+    const unregister = renderBridge.register({
+      app,
+      getDisplayObject: (id) => containersRef.current.get(id),
+      resync: () => {
+        useVamsStore.getState().objects.forEach((obj) => {
+          const container = containersRef.current.get(obj.id);
+          if (!container || container.destroyed) return;
+          const t = obj.transform;
+          container.position.set(t.translateX, t.translateY);
+          container.rotation = (t.rotate * Math.PI) / 180;
+          container.scale.set(t.scaleX, t.scaleY);
+        });
+      },
+    });
+    return unregister;
+  }, [pixiReady, appRef]);
   useEffect(() => {
     const app = appRef.current;
     const overlay = overlayRef.current;

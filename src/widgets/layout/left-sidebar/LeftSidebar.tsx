@@ -8,6 +8,7 @@ import CustomShapeBuilderPanel from '@/features/custom-shapes/ui/CustomShapeBuil
 import TextNodePanel from '@/features/text-nodes/ui/TextNodePanel';
 import SceneHierarchyPanel from '@/features/scene-hierarchy/ui/SceneHierarchyPanel';
 import ObjectTransformPanel from '@/features/object-transform/ui/ObjectTransformPanel';
+import AnimationPreviewPanel from '@/features/animation-preview/ui/AnimationPreviewPanel';
 import ObjectAppearancePanel from '@/features/object-appearance/ui/ObjectAppearancePanel';
 import LineStylePanel from '@/features/line-style/ui/LineStylePanel';
 import CallbacksPanel from '@/features/callbacks/ui/CallbacksPanel';
@@ -88,7 +89,10 @@ export default function LeftSidebar() {
           <div className="tab-pane">
             <SceneHierarchyPanel />
             {selectedObject ? (
-              <ObjectTransformPanel />
+              <>
+                <ObjectTransformPanel />
+                <AnimationPreviewPanel />
+              </>
             ) : (
               <EmptySelectionState message="Select an object in the scene to translate, rotate, or scale it." />
             )}

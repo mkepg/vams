@@ -1,0 +1,124 @@
+@use '../../../shared/styles/tokens' as *;
+
+.anim-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+/* ---- Motion selector ------------------------------------------------ */
+.anim-motion-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.anim-motion-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  padding: 0.45rem 0.55rem;
+  background: $bg-input;
+  border: 1px solid $border-color;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    border-color: var(--border-highlight);
+  }
+
+  &.active {
+    border-color: $accent-blue;
+    background: rgba(var(--accent-blue-rgb), 0.14);
+  }
+
+  .motion-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: $text-main;
+  }
+  .motion-blurb {
+    font-size: 0.66rem;
+    color: $text-muted;
+  }
+}
+
+/* ---- Play + speed --------------------------------------------------- */
+.anim-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.anim-play-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1;
+  justify-content: center;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: $text-main;
+  background: rgba(var(--accent-green-rgb), 0.18);
+  border: 1px solid rgba(var(--accent-green-rgb), 0.5);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: rgba(var(--accent-green-rgb), 0.28);
+  }
+
+  &.playing {
+    background: rgba(var(--accent-red-rgb), 0.18);
+    border-color: rgba(var(--accent-red-rgb), 0.5);
+
+    &:hover {
+      background: rgba(var(--accent-red-rgb), 0.28);
+    }
+  }
+}
+
+.anim-speed {
+  display: inline-flex;
+  border: 1px solid $border-color;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.anim-speed-btn {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: $text-muted;
+  background: $bg-input;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  & + & {
+    border-left: 1px solid $border-color;
+  }
+
+  &:hover {
+    color: $text-main;
+  }
+
+  &.active {
+    color: $text-main;
+    background: rgba(var(--accent-blue-rgb), 0.22);
+  }
+}
+
+/* ---- Reassurance copy ----------------------------------------------- */
+.anim-note {
+  margin: 0;
+  font-size: 0.66rem;
+  line-height: 1.35;
+  color: $text-dim;
+}

@@ -5,6 +5,7 @@ import { useCanvasInteraction } from '@/features/scene-interaction/model/useCanv
 import { useSceneRenderer } from '@/shared/engine/pixi/hooks/useSceneRenderer';
 import { useCustomShapePreview } from '@/features/custom-shapes/model/useCustomShapePreview';
 import { useGridSystem } from '@/shared/engine/pixi/hooks/useGridSystem';
+import { animationController } from '@/features/animation-preview/model/animation-controller';
 import { CanvasOverlays } from './ui/CanvasOverlays';
 import './vams-canvas.scss';
 
@@ -44,6 +45,8 @@ export default function VamsCanvas({ isHidden = false }: VamsCanvasProps) {
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       setCursorWorld(null);
+      // Tear down any in-flight animation preview so its frame loop never leaks.
+      animationController.cleanup();
     };
   }, [setCursorWorld]);
 
