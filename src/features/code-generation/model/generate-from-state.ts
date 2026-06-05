@@ -1,4 +1,4 @@
-import type { GlutCallbackKind, SceneNode, ViewportLimits } from '@/core/types/scene';
+import type { AnimationMotion, GlutCallbackKind, SceneNode, ViewportLimits } from '@/core/types/scene';
 import type { TextureAsset } from '@/core/types/textures';
 import {
   generateAppOutput,
@@ -11,6 +11,12 @@ interface GenerateInput {
   callbacks: Record<GlutCallbackKind, string>;
   viewportLimits?: ViewportLimits;
   textures?: TextureAsset[];
+  /**
+   * Transient Animation-Preview override. While the UI previews a motion, this
+   * makes the generated code reflect it for that one object. Saved animations
+   * come from each object's own `animation` field; this is never persisted.
+   */
+  previewAnimation?: { objectId: string; motion: AnimationMotion; speed: number };
 }
 
 function isEffectivelyHidden(
@@ -46,7 +52,7 @@ export function generateCodeFromState(
   input: GenerateInput,
   canvasSize: { width: number; height: number }
 ): string {
-  const { objects, canvasBackgroundColor, callbacks, viewportLimits } = input;
+  const { objects, canvasBackgroundColor, callbacks, viewportLimits, previewAnimation } = input;
 
   const cbs = getRegisteredCallbacks(callbacks);
   const texMap = new Map<string, TextureAsset>(
@@ -62,7 +68,8 @@ export function generateCodeFromState(
       '    // Empty scene\n',
       cbs,
       viewportLimits,
-      texMap
+      texMap,
+      previewAnimation
     );
   }
 
@@ -77,6 +84,7 @@ export function generateCodeFromState(
     '    // Empty scene\n',
     cbs,
     viewportLimits,
-    texMap
+    texMap,
+    previewAnimation
   );
 }

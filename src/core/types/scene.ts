@@ -37,6 +37,17 @@ export interface TransformState {
   scaleX: number;
   scaleY: number;
 }
+/**
+ * A simple, single-object transform animation. A declarative property of a
+ * scene object (like its transform), saved with the project and compiled into
+ * a real GLUT idle callback. It is intentionally NOT a keyframe timeline — the
+ * full timeline/easing/export system remains future work (Recommendation 6).
+ */
+export type AnimationMotion = 'rotate' | 'pulse' | 'slide' | 'orbit';
+export interface ObjectAnimation {
+  motion: AnimationMotion;
+  speed: number;
+}
 export interface SceneNode {
   id: string;
   name: string;
@@ -63,6 +74,9 @@ export interface SceneNode {
   /** Per-vertex UV coordinates. One entry per vertex.
    *  Defaults to a unit-square mapping derived from the bounding box. */
   uvs?: UV[] | null;
+
+  /** Saved single-object transform animation. `null`/undefined means none. */
+  animation?: ObjectAnimation | null;
 }
 export interface LearningSettings {
   gridSnapping: boolean;

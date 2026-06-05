@@ -8,6 +8,8 @@ import type {
   InteractionMode,
   LearningSettings,
   LineStipple,
+  AnimationMotion,
+  ObjectAnimation,
   PendingVertex,
   PrimitiveType,
   RenderingMode,
@@ -26,7 +28,9 @@ import type {
   UV,
 } from '@/core/types/textures';
 
-export const VAMS_PROJECT_SCHEMA_VERSION = 7;
+// v8 adds the optional per-object `animation` descriptor. Additive and
+// backward-compatible: v7 files simply have no animation (sanitized to null).
+export const VAMS_PROJECT_SCHEMA_VERSION = 8;
 export type VamsProjectData = {
   objects: SceneNode[];
   viewportLimits: ViewportLimits;
@@ -151,6 +155,14 @@ function sanitizeStipple(v: unknown): LineStipple | null {
   const pattern = Math.floor(toNumber(v.pattern, 0xFFFF)) & 0xFFFF;
   return { factor, pattern };
 }
+const ALLOWED_MOTIONS = new Set<AnimationMotion>(['rotate', 'pulse', 'slide', 'orbit']);
+function sanitizeAnimation(v: unknown): ObjectAnimation | null {
+  if (!isRecord(v)) return null;
+  const motion = v.motion as AnimationMotion;
+  if (!ALLOWED_MOTIONS.has(motion)) return null;
+  const speed = Math.max(0.1, Math.min(10, toNumber(v.speed, 1)));
+  return { motion, speed };
+}
 function toFilter(v: unknown): TextureFilter {
   return v === 'NEAREST' ? 'NEAREST' : 'LINEAR';
 }
@@ -219,6 +231,7 @@ function sanitizeObject(v: unknown, idx: number): SceneNode | null {
     updateMethod: toUpdateMethod(v.updateMethod),
     texture: sanitizeTextureAttachment(v.texture),
     uvs:     sanitizeUVs(v.uvs),
+    animation: sanitizeAnimation(v.animation),
   };
 }
 function fixHierarchy(objects: SceneNode[]): SceneNode[] {

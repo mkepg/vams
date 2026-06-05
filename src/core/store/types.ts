@@ -10,6 +10,7 @@ import type {
   PendingVertex,
   ColorMode,
   LineStipple,
+  ObjectAnimation,
   CallbackRegistration,
   GlutCallbackKind,
   RenderingMode,
@@ -38,6 +39,7 @@ export interface SceneSlice {
   updateVertexColor: (objectId: string, vertexId: string, color: string) => void;
   setAllVertexColors: (objectId: string, color: string) => void;
   updateObjectShading: (id: string, mode: ShadingModel) => void;
+  setObjectAnimation: (id: string, animation: ObjectAnimation | null) => void;
   addTextObject: (text: string, x: number, y: number) => void;
   updateTextContent: (id: string, text: string) => void;
   createGroup: (objectIds: string[]) => void;

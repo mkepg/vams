@@ -1,41 +1,28 @@
-import type { TransformState } from '@/core/types/scene';
+import type { AnimationMotion, TransformState } from '@/core/types/scene';
+import {
+  BASE_FREQUENCY,
+  ORBIT_RADIUS,
+  PULSE_AMPLITUDE,
+  SLIDE_AMPLITUDE,
+  MOTIONS,
+} from '@/core/animation/motion-config';
 
 /**
- * The four transient preview motions. Each is pure transform-over-time and
- * maps onto an operation the Transforms section already teaches:
+ * Runtime pose math for the four preview motions. The canonical tuning and the
+ * motion list live in core ({@link '@/core/animation/motion-config'}) so this
+ * runtime and the C++ idle-callback generator stay in lockstep.
+ *
+ * Each motion maps onto an operation the Transforms section already teaches:
  *   - rotate → glRotatef
  *   - pulse  → glScalef
  *   - slide  → glTranslatef (one axis)
  *   - orbit  → glTranslatef (a small circle)
  */
-export type MotionType = 'rotate' | 'pulse' | 'slide' | 'orbit';
+export type MotionType = AnimationMotion;
 
-export interface MotionDescriptor {
-  type: MotionType;
-  label: string;
-  /** One-line description of what the motion demonstrates. */
-  blurb: string;
-}
-
-export const MOTIONS: MotionDescriptor[] = [
-  { type: 'rotate', label: 'Rotate', blurb: 'Spin around the pivot' },
-  { type: 'pulse', label: 'Pulse', blurb: 'Scale up and down' },
-  { type: 'slide', label: 'Slide', blurb: 'Move back and forth on X' },
-  { type: 'orbit', label: 'Orbit', blurb: 'Travel a small circle' },
-];
-
-/**
- * Motion tuning constants. Kept module-level so the playback math and the
- * generated idle-callback snippets describe the exact same motion.
- */
-/** Cycles per second at speed = 1 (one full loop every two seconds). */
-export const BASE_FREQUENCY = 0.5;
-/** Peak scale deviation for Pulse (±30%). */
-export const PULSE_AMPLITUDE = 0.3;
-/** Peak translation for Slide, in world units. */
-export const SLIDE_AMPLITUDE = 0.5;
-/** Orbit circle radius, in world units. */
-export const ORBIT_RADIUS = 0.4;
+// Re-export the shared tuning/list so existing importers keep one entry point.
+export { BASE_FREQUENCY, PULSE_AMPLITUDE, SLIDE_AMPLITUDE, ORBIT_RADIUS, MOTIONS };
+export type { MotionDescriptor } from '@/core/animation/motion-config';
 
 const TAU = Math.PI * 2;
 

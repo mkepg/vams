@@ -299,6 +299,13 @@ export const createSceneSlice: StateCreator<VamsState, [], [], SceneSlice> = (se
     }));
   },
 
+  setObjectAnimation: (id, animation) => {
+    get().pushToHistory();
+    set((state) => ({
+      objects: state.objects.map((obj) => (obj.id === id ? { ...obj, animation } : obj)),
+    }));
+  },
+
   addTextObject: (text, x, y) => {
     get().pushToHistory();
     set((state) => {
