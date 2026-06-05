@@ -161,4 +161,21 @@ describe('ANIM-WB-06: idle-callback generation is deterministic', () => {
     // Sanitized identifier — no spaces leak into C code.
     expect(code).not.toContain('state_Tri 1');
   });
+
+  it('the per-frame step scales linearly with playback speed', () => {
+    // Rotate carries the speed in its highlighted transform line.
+    expect(generateIdleCallback('rotate', 'Tri', 0.5).code).toContain('+= 0.75f;');
+    expect(generateIdleCallback('rotate', 'Tri', 1).code).toContain('+= 1.50f;');
+    expect(generateIdleCallback('rotate', 'Tri', 2).code).toContain('+= 3.00f;');
+
+    // Sin-driven motions carry the speed in the time accumulator.
+    expect(generateIdleCallback('pulse', 'Tri', 0.5).code).toContain('t += 0.015f;');
+    expect(generateIdleCallback('pulse', 'Tri', 1).code).toContain('t += 0.030f;');
+    expect(generateIdleCallback('orbit', 'Tri', 2).code).toContain('t += 0.060f;');
+
+    // Different speeds must produce different code.
+    expect(generateIdleCallback('rotate', 'Tri', 1).code).not.toBe(
+      generateIdleCallback('rotate', 'Tri', 2).code,
+    );
+  });
 });

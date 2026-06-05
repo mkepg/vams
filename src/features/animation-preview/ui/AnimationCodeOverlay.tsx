@@ -14,13 +14,13 @@ import { MOTIONS } from '../model/motion';
  * motion, the transform call, and the callback that produces it at once.
  */
 export default function AnimationCodeOverlay() {
-  const { playing, objectId, motion } = useAnimationPreview();
+  const { playing, objectId, motion, speed } = useAnimationPreview();
   const objects = useVamsStore((s) => s.objects);
 
   const target = objectId ? objects.find((o) => o.id === objectId) : undefined;
   const snippet = useMemo(
-    () => (target ? generateIdleCallback(motion, target.name) : null),
-    [motion, target],
+    () => (target ? generateIdleCallback(motion, target.name, speed) : null),
+    [motion, target, speed],
   );
 
   if (!playing || !target || !snippet) return null;
@@ -31,7 +31,7 @@ export default function AnimationCodeOverlay() {
     <div className="anim-code-overlay" role="complementary" aria-label="Idle callback for preview">
       <div className="anim-code-overlay-header">
         <Film size={12} />
-        <span>glutIdleFunc — {motionLabel}</span>
+        <span>glutIdleFunc — {motionLabel} · {speed}×</span>
       </div>
       <div className="anim-code-overlay-body">
         <CodeViewer code={snippet.code} changedLines={snippet.highlightLines} />

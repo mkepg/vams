@@ -18,6 +18,11 @@ import {
  *
  * Because the motion set is small and fixed, generation stays honest and the
  * output is fully deterministic (same inputs → byte-identical string).
+ *
+ * Speed matters: in a real idle callback the playback rate is set by how much
+ * the transform advances each frame, so the per-frame step scales linearly
+ * with the chosen preview speed. That keeps the snippet truthful — the code
+ * shown always matches the speed the user is watching on the canvas.
  */
 
 export interface IdleCallbackSnippet {
@@ -26,14 +31,26 @@ export interface IdleCallbackSnippet {
   highlightLines: number[];
 }
 
+/** Per-frame rotation step (degrees) at speed = 1. */
+const ROTATE_STEP_PER_FRAME = 1.5;
+/** Per-frame phase advance (radians-ish accumulator) at speed = 1. */
+const TIME_STEP_PER_FRAME = 0.03;
+
 const fmt = (n: number): string => `${n.toFixed(2)}f`;
+const fmt3 = (n: number): string => `${n.toFixed(3)}f`;
 
 export function generateIdleCallback(
   motion: MotionType,
   objectName: string,
+  speed = 1,
 ): IdleCallbackSnippet {
   const name = sanitizeName(objectName);
   const state = `state_${name}`;
+
+  // The per-frame increments scale with playback speed; the motion's shape
+  // (amplitude, radius) does not.
+  const rotateStep = fmt(ROTATE_STEP_PER_FRAME * speed);
+  const timeStep = fmt3(TIME_STEP_PER_FRAME * speed);
 
   // Each entry is [lineText, isDriving?]. The driving lines are the transform
   // calls highlighted in sync with the on-canvas motion.
@@ -44,7 +61,7 @@ export function generateIdleCallback(
       rows = [
         ['void idle() {'],
         ['    // Animation is transformation that changes a little each frame'],
-        [`    ${state}.rotation += 1.50f;`, true],
+        [`    ${state}.rotation += ${rotateStep};`, true],
         [`    if (${state}.rotation >= 360.0f) ${state}.rotation -= 360.0f;`],
         ['    glutPostRedisplay();'],
         ['}'],
@@ -55,7 +72,7 @@ export function generateIdleCallback(
       rows = [
         ['void idle() {'],
         ['    static float t = 0.0f;'],
-        ['    t += 0.03f;'],
+        [`    t += ${timeStep};`],
         [`    float s = 1.0f + ${fmt(PULSE_AMPLITUDE)} * sinf(t);`],
         [`    ${state}.scaleX = ${state}.baseScaleX * s;`, true],
         [`    ${state}.scaleY = ${state}.baseScaleY * s;`, true],
@@ -68,7 +85,7 @@ export function generateIdleCallback(
       rows = [
         ['void idle() {'],
         ['    static float t = 0.0f;'],
-        ['    t += 0.03f;'],
+        [`    t += ${timeStep};`],
         [`    ${state}.x = ${state}.baseX + ${fmt(SLIDE_AMPLITUDE)} * sinf(t);`, true],
         ['    glutPostRedisplay();'],
         ['}'],
@@ -79,7 +96,7 @@ export function generateIdleCallback(
       rows = [
         ['void idle() {'],
         ['    static float t = 0.0f;'],
-        ['    t += 0.03f;'],
+        [`    t += ${timeStep};`],
         [`    ${state}.x = ${state}.baseX + ${fmt(ORBIT_RADIUS)} * sinf(t);`, true],
         [`    ${state}.y = ${state}.baseY + ${fmt(ORBIT_RADIUS)} * (1.0f - cosf(t));`, true],
         ['    glutPostRedisplay();'],
