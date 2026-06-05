@@ -1,22 +1,22 @@
 [
   {
     "scenario": "single-node",
-    "meanMs": 0.0040889999999899375,
-    "sdMs": 0.0172153646200301,
+    "meanMs": 0.003560999999986052,
+    "sdMs": 0.015399148645289278,
     "meanPositionalError": 0,
     "correctnessRate": 1
   },
   {
     "scenario": "two-level",
-    "meanMs": 0.003573999999982789,
-    "sdMs": 0.007050200280851738,
+    "meanMs": 0.003414000000004762,
+    "sdMs": 0.006716621472126984,
     "meanPositionalError": 0,
     "correctnessRate": 1
   },
   {
     "scenario": "three-level",
-    "meanMs": 0.00517300000001569,
-    "sdMs": 0.0034095998298923763,
+    "meanMs": 0.006946000000002641,
+    "sdMs": 0.020777297321821438,
     "meanPositionalError": 3.469446951953614e-18,
     "correctnessRate": 1
   }
