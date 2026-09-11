@@ -106,7 +106,6 @@ describe('BB-CPP-05: Bitmap text uses raster position', () => {
 
 describe('BB-CPP-06: Line width emission matches user setting', () => {
   it('emits glLineWidth with the configured value', () => {
-    const obj = getState().objects[0] ?? null;
     // Add new LINES object directly to make assertion deterministic
     getState().addCustomObject('LINES', [
       { x: 0, y: 0 }, { x: 0.5, y: 0.0 },
@@ -115,6 +114,5 @@ describe('BB-CPP-06: Line width emission matches user setting', () => {
     getState().updateLineWidth(id, 4.5);
     const code = gen();
     expect(code).toContain('glLineWidth(4.50f);');
-    expect(obj).toBeDefined; // suppress unused
   });
 });

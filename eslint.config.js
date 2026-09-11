@@ -5,7 +5,8 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // tests/reports holds generated coverage output kept as thesis evidence.
+  globalIgnores(['dist', 'tests/reports']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
