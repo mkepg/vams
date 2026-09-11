@@ -5,7 +5,7 @@
 **A GUI-only teaching simulator for OpenGL 1.5.**
 Students build 2D scenes by hand and watch the corresponding C++ OpenGL code write itself, line by line.
 
-[![CI](https://github.com/KaeL-0/Panic-TheCisco-VAMS/actions/workflows/ci.yml/badge.svg)](https://github.com/KaeL-0/Panic-TheCisco-VAMS/actions/workflows/ci.yml)
+[![CI](https://github.com/mkepg/Panic-TheCisco-VAMS/actions/workflows/ci.yml/badge.svg)](https://github.com/mkepg/Panic-TheCisco-VAMS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Tests](https://img.shields.io/badge/tests-250%20passing-brightgreen)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
@@ -61,7 +61,7 @@ Lessons are authored as structured data rather than code strings, and drive the 
 Requires **Node.js 20+** and a browser with WebGL support.
 
 ```bash
-git clone https://github.com/KaeL-0/Panic-TheCisco-VAMS.git
+git clone https://github.com/mkepg/Panic-TheCisco-VAMS.git
 cd Panic-TheCisco-VAMS
 npm install
 npm run dev
