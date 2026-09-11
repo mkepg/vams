@@ -131,11 +131,16 @@ See [tests/README.md](tests/README.md) for the full suite breakdown.
 
 This project is the software artifact of an undergraduate thesis.
 
-- **Degree programme:** <!-- TODO: fill in -->
-- **Institution:** <!-- TODO: fill in -->
-- **Authors:** <!-- TODO: fill in team member names -->
-- **Adviser:** <!-- TODO: fill in -->
-- **Year:** 2026
+- **Degree programme:** Bachelor of Science in Computer Science, with Specialization in Software Engineering
+- **Institution:** FEU Institute of Technology
+- **Adviser:** Elisa V. Malasaga
+- **Academic year:** 2025–2026
+
+**Authors**
+
+- Gomez, Mikhael Edman P.
+- Taguiam, Johann Patrick S.
+- Vizco, Justine Jhigz D.
 
 The thesis manuscript is not distributed in this repository.
 
