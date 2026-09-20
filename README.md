@@ -1,9 +1,9 @@
-<div align="center">
-
 # VAMS — Visual Animation Modeling Simulator
 
 **A GUI-only teaching simulator for OpenGL 1.5.**
-Students build 2D scenes by hand and watch the corresponding C++ OpenGL code write itself, line by line.
+
+Students build 2D scenes by hand and watch the corresponding C++ OpenGL code
+write itself, line by line.
 
 [![CI](https://github.com/mkepg/vams/actions/workflows/ci.yml/badge.svg)](https://github.com/mkepg/vams/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -13,8 +13,6 @@ Students build 2D scenes by hand and watch the corresponding C++ OpenGL code wri
 **[Try it live →](https://panic-vams.netlify.app/)**
 
 ![VAMS authoring primitives, with generated OpenGL code and the math panel](docs/images/01-primitives.png)
-
-</div>
 
 ---
 
@@ -146,6 +144,12 @@ This project is the software artifact of an undergraduate thesis.
 
 The thesis manuscript is not distributed in this repository.
 
+## Status
+
+Active capstone project (CS0033 / CS0039, FEU Institute of Technology). All five
+curriculum sections are implemented and the lesson and exercise systems work end
+to end, with 250 tests passing in CI.
+
 ## License
 
-Released under the [MIT Licence](LICENSE).
+Released under the [MIT License](LICENSE).
