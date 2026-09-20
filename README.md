@@ -5,10 +5,12 @@
 **A GUI-only teaching simulator for OpenGL 1.5.**
 Students build 2D scenes by hand and watch the corresponding C++ OpenGL code write itself, line by line.
 
-[![CI](https://github.com/mkepg/Panic-TheCisco-VAMS/actions/workflows/ci.yml/badge.svg)](https://github.com/mkepg/Panic-TheCisco-VAMS/actions/workflows/ci.yml)
+[![CI](https://github.com/mkepg/vams/actions/workflows/ci.yml/badge.svg)](https://github.com/mkepg/vams/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Tests](https://img.shields.io/badge/tests-250%20passing-brightgreen)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
+
+**[Try it live →](https://panic-vams.netlify.app/)**
 
 ![VAMS authoring primitives, with generated OpenGL code and the math panel](docs/images/01-primitives.png)
 
@@ -56,13 +58,13 @@ Lessons are authored as structured data rather than code strings, and drive the 
 
 ![Lesson mode stepping through the rendering pipeline](docs/images/05-lesson.png)
 
-## Getting started
+## Quick start
 
 Requires **Node.js 20+** and a browser with WebGL support.
 
 ```bash
-git clone https://github.com/mkepg/Panic-TheCisco-VAMS.git
-cd Panic-TheCisco-VAMS
+git clone https://github.com/mkepg/vams.git
+cd vams
 npm install
 npm run dev
 ```
@@ -103,7 +105,7 @@ The pieces worth knowing about:
 
 Written in TypeScript under `strict`, with `noUnusedLocals`, `noUnusedParameters`, and `noFallthroughCasesInSwitch` all enabled.
 
-## Testing
+## Tests
 
 250 tests across 24 files, all passing. The suite implements the verification programme in **Chapter 3, §3.10** of the manuscript, and each test carries a stable identifier of the form `{SUITE}-{MODULE}-{NN}` so results map back to the thesis tables.
 
@@ -144,6 +146,6 @@ This project is the software artifact of an undergraduate thesis.
 
 The thesis manuscript is not distributed in this repository.
 
-## Licence
+## License
 
 Released under the [MIT Licence](LICENSE).
