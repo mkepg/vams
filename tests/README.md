@@ -53,7 +53,7 @@ tests/
 ## Running
 
 ```bash
-npm test                # run all 190 tests
+npm test                # run all 250 tests
 npm run test:watch      # watch mode for development
 npm run test:coverage   # also produce tests/reports/coverage/
 ```
