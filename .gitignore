@@ -26,11 +26,15 @@ dist-ssr
 
 # Local tooling output
 .repomix/
-.claude/
 .VSCodeCounter/
+
+# Local assistant scaffolding. Kept on disk, never committed.
 .superpowers/
+.sdd/
 docs/superpowers/
+.claude/
 CLAUDE.md
+CLAUDE.local.md
 AGENTS.md
 
 # Generated test output. Regenerate with `npm run test:coverage`.
