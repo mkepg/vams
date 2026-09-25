@@ -28,6 +28,13 @@ dist-ssr
 .repomix/
 .claude/
 .VSCodeCounter/
+.superpowers/
+docs/superpowers/
+CLAUDE.md
+AGENTS.md
+
+# Generated test output. Regenerate with `npm run test:coverage`.
+tests/reports/coverage/
 
 # Thesis documents are kept outside the repository, not committed to it.
 *.pdf
