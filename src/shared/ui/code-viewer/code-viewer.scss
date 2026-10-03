@@ -5,23 +5,6 @@
   100% { background-color: rgba(var(--accent-blue-rgb), 0.15); }
 }
 
-/* ------------------------------------------------------------------ */
-/*  Amber change-highlight tokens                                      */
-/*                                                                    */
-/*  Kept as CSS custom properties so a future theme variant can retune */
-/*  them without touching this file. The amber sits intentionally     */
-/*  between yellow and orange — bright enough to read against the     */
-/*  blue selection, calm enough not to scream.                         */
-/* ------------------------------------------------------------------ */
-:root {
-  --code-changed-rgb: 180, 83, 9;         /* amber-700, legible on vellum */
-  --code-changed-light: #b45309;
-}
-[data-theme='blueprint'] {
-  --code-changed-rgb: 245, 158, 11;       /* amber-500 */
-  --code-changed-light: #fbbf24;          /* amber-400 */
-}
-
 @keyframes change-flash {
   0%   { background-color: rgba(var(--code-changed-rgb), 0.32); }
   60%  { background-color: rgba(var(--code-changed-rgb), 0.18); }
@@ -49,8 +32,8 @@
     padding: 0.35rem 0.6rem 0.35rem 0.85rem;
     background: linear-gradient(
       180deg,
-      rgba(0, 0, 0, 0.25),
-      rgba(0, 0, 0, 0.1)
+      rgba(var(--well-rgb), 0.25),
+      rgba(var(--well-rgb), 0.1)
     );
     border-bottom: 1px solid $border-color;
     flex-shrink: 0;
@@ -160,9 +143,9 @@
       transition: all 0.15s ease;
 
       &:hover {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(var(--accent-blue-rgb), 0.05);
         color: $text-main;
-        border-color: rgba(255, 255, 255, 0.08);
+        border-color: var(--rule);
       }
     }
 
@@ -171,7 +154,7 @@
       align-items: center;
       gap: 0.35rem;
       padding: 0.25rem 0.5rem;
-      background: rgba(0, 0, 0, 0.4);
+      background: rgba(var(--well-rgb), 0.4);
       border: 1px solid $border-color;
       border-radius: 4px;
       min-width: 180px;
@@ -209,7 +192,7 @@
         align-items: center;
         justify-content: center;
         border-radius: 2px;
-        &:hover { color: $text-main; background: rgba(255,255,255,0.06); }
+        &:hover { color: $text-main; background: rgba(var(--accent-blue-rgb), 0.06); }
       }
     }
 
@@ -228,9 +211,9 @@
       transition: all 0.15s ease;
 
       &:hover {
-        background-color: rgba(255, 255, 255, 0.05);
+        background-color: rgba(var(--accent-blue-rgb), 0.05);
         color: $text-main;
-        border-color: rgba(255, 255, 255, 0.1);
+        border-color: var(--rule);
       }
 
       &.copied {
@@ -252,14 +235,14 @@
     @include scrollbar;
     scroll-behavior: smooth;
 
-    &::-webkit-scrollbar-corner { background: rgba(0, 0, 0, 0); }
+    &::-webkit-scrollbar-corner { background: transparent; }
 
     .line-numbers {
       padding: 0.85rem 0;
       text-align: right;
       color: $text-dim;
       user-select: none;
-      box-shadow: 1px 0 0 $border-color, 2px 0 8px rgba(0, 0, 0, 0.15);
+      box-shadow: 1px 0 0 $border-color, 2px 0 8px rgba(var(--shadow-rgb), 0.15);
       background-color: rgb(var(--bg-panel-rgb));
       min-height: 100%;
       height: fit-content;
@@ -281,8 +264,8 @@
           animation: highlight-pulse 0.4s ease-out;
         }
         &.match {
-          color: #fbbf24;
-          background-color: rgba(251, 191, 36, 0.1);
+          color: var(--code-match-light);
+          background-color: rgba(var(--code-match-rgb), 0.1);
         }
 
         /* Amber wins over blue in the gutter for the same reason it does
@@ -319,8 +302,8 @@
         }
 
         &.match {
-          background-color: rgba(251, 191, 36, 0.07);
-          border-left-color: #fbbf24;
+          background-color: rgba(var(--code-match-rgb), 0.07);
+          border-left-color: var(--code-match-light);
         }
 
         /* ----- Amber change layer -----------------------------------
@@ -379,10 +362,10 @@
             min-width: 220px;
             max-width: 360px;
             padding: 0.55rem 0.7rem;
-            background: rgba(15, 23, 42, 0.98);
+            background: var(--paper-raised);
             border: 1px solid rgba(var(--accent-blue-rgb), 0.4);
             border-radius: 6px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+            box-shadow: 0 8px 24px rgba(var(--shadow-rgb), 0.45);
             pointer-events: none;
             opacity: 0;
             transform: translateY(-4px);
@@ -430,6 +413,8 @@
     }
   }
 
+  /* Syntax-token palette: a deliberate per-theme palette tuned for each code
+     background, so these literals are intentional (blueprint values below). */
   .tk { white-space: pre; }
   .tk-kw       { color: #6236d9; font-weight: 600; }
   .tk-pp       { color: #b33a0e; font-style: italic; }

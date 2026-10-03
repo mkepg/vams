@@ -77,6 +77,10 @@ $right-sidebar-width: 35rem;
   --warning: #b45309;
   --warning-rgb: 180, 83, 9;
   --warning-strong: #92400e;
+  /* Code panel amber change highlight: the text shade is amber-800 so the
+     changed line number stays readable on its own amber tint. */
+  --code-changed-rgb: 180, 83, 9;
+  --code-changed-light: #92400e;
   /* Code search matches (kept apart from the amber change highlight). */
   --code-match-rgb: 133, 77, 14;
   --code-match-light: #854d0e;
@@ -144,6 +148,8 @@ $right-sidebar-width: 35rem;
   --warning: #b45309;
   --warning-rgb: 180, 83, 9;
   --warning-strong: #92400e;
+  --code-changed-rgb: 245, 158, 11;
+  --code-changed-light: #fbbf24;
   --code-match-rgb: 251, 191, 36;
   --code-match-light: #fbbf24;
   --channel-r: #f87171;
