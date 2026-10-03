@@ -67,6 +67,31 @@ $right-sidebar-width: 35rem;
   --panel-tab: #e1e4dd;
   --keyword-fallback: #1d2b4f;
   --code-content: #24438f;
+
+  /* Editor depth: wells are a white wash on vellum (like its inputs) and a
+     black wash on blueprint; shadows and modal scrims take the ink hue. */
+  --well-rgb: 255, 255, 255;
+  --shadow-rgb: 29, 43, 79;
+  /* Text on filled ink and warning buttons. */
+  --on-accent-blue: #ffffff;
+  --warning: #b45309;
+  --warning-rgb: 180, 83, 9;
+  --warning-strong: #92400e;
+  /* Code search matches (kept apart from the amber change highlight). */
+  --code-match-rgb: 133, 77, 14;
+  --code-match-light: #854d0e;
+  /* Pedagogical hues, shaded per theme so labels in them stay readable:
+     R/G/B channels and x/y axes, vertex input (sky), output (violet),
+     and GL function names (matching the code panel). */
+  --channel-r: #b91c1c;
+  --channel-g: #166534;
+  --channel-b: #1d4ed8;
+  --hue-sky: #075985;
+  --hue-sky-rgb: 7, 89, 133;
+  --hue-violet: #6d28d9;
+  --hue-violet-rgb: 109, 40, 217;
+  --gl-fn: #0f4c75;
+  --gl-fn-rgb: 15, 76, 117;
 }
 
 /* Blueprint: the dark theme. */
@@ -112,6 +137,24 @@ $right-sidebar-width: 35rem;
   --panel-tab: rgba(0, 0, 0, 0.2);
   --keyword-fallback: #cdd9ee;
   --code-content: #9cc2f5;
+
+  --well-rgb: 0, 0, 0;
+  --shadow-rgb: 0, 0, 0;
+  --on-accent-blue: #ffffff;
+  --warning: #b45309;
+  --warning-rgb: 180, 83, 9;
+  --warning-strong: #92400e;
+  --code-match-rgb: 251, 191, 36;
+  --code-match-light: #fbbf24;
+  --channel-r: #f87171;
+  --channel-g: #4ade80;
+  --channel-b: #60a5fa;
+  --hue-sky: #7dd3fc;
+  --hue-sky-rgb: 125, 211, 252;
+  --hue-violet: #a78bfa;
+  --hue-violet-rgb: 167, 139, 250;
+  --gl-fn: #82aaff;
+  --gl-fn-rgb: 130, 170, 255;
 }
 $bg-dark: rgb(var(--bg-dark-rgb));
 $bg-panel: rgb(var(--bg-panel-rgb));

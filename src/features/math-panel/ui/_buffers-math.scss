@@ -8,7 +8,7 @@
     padding: 0.55rem 0.7rem;
     background:
       linear-gradient(180deg, rgba(var(--accent-blue-rgb), 0.08), transparent 90%),
-      rgba(0, 0, 0, 0.28);
+      rgba(var(--well-rgb), 0.28);
     border: 1px solid rgba(var(--accent-blue-rgb), 0.32);
     border-radius: 6px;
 
@@ -68,7 +68,7 @@
     align-items: center;
     gap: 0.15rem;
     padding: 0.4rem 0.55rem;
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(var(--well-rgb), 0.3);
     border: 1px solid $border-color;
     border-radius: 5px;
     min-width: 56px;
@@ -112,7 +112,7 @@
       align-items: center;
       gap: 0.55rem;
       padding: 0.4rem 0.55rem;
-      background: rgba(0, 0, 0, 0.25);
+      background: rgba(var(--well-rgb), 0.25);
       border: 1px solid $border-color;
       border-radius: 4px;
     }
@@ -162,7 +162,7 @@
 
       &.tie {
         color: $text-dim;
-        background: rgba(0, 0, 0, 0.2);
+        background: rgba(var(--well-rgb), 0.2);
         border: 1px solid $border-color;
       }
     }
@@ -189,14 +189,14 @@
       align-items: center;
       flex-shrink: 0;
       padding: 0.35rem 0.4rem 0.4rem;
-      background: rgba(255, 255, 255, 0.025);
+      background: rgba(var(--accent-blue-rgb), 0.025);
       border: 1px solid $border-color;
       border-radius: 5px;
 
       &.ellipsis {
         background: transparent;
         border-style: dashed;
-        border-color: rgba(255, 255, 255, 0.1);
+        border-color: var(--rule);
         padding: 0.35rem 0.5rem;
         align-self: stretch;
         justify-content: center;
@@ -231,9 +231,9 @@
       letter-spacing: 0.04em;
 
       &.pos {
-        background: rgba(125, 211, 252, 0.18);
-        color: #7dd3fc;
-        border: 1px solid rgba(125, 211, 252, 0.4);
+        background: rgba(var(--hue-sky-rgb), 0.18);
+        color: var(--hue-sky);
+        border: 1px solid rgba(var(--hue-sky-rgb), 0.4);
       }
 
       &.col {
@@ -261,7 +261,7 @@
         width: 9px;
         height: 9px;
         border-radius: 2px;
-        &.pos { background: #7dd3fc; }
+        &.pos { background: var(--hue-sky); }
         &.col { background: var(--accent-blue-light); }
       }
     }
@@ -301,13 +301,13 @@
       .bm-flow-cell {
         height: 16px;
         border-radius: 2px;
-        background: rgba(255, 255, 255, 0.04);
+        background: rgba(var(--accent-blue-rgb), 0.04);
         border: 1px solid $border-color;
         transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
 
         &.gpu {
-          background: rgba(74, 222, 128, 0.1);
-          border-color: rgba(74, 222, 128, 0.25);
+          background: rgba(var(--accent-green-rgb), 0.1);
+          border-color: rgba(var(--accent-green-rgb), 0.25);
         }
       }
     }
@@ -331,7 +331,7 @@
       text-align: center;
       font-family: $font-mono;
       font-size: 0.7rem;
-      color: rgba(255, 255, 255, 0.06);
+      color: var(--grid-major);
       transition: color 0.2s;
     }
 
@@ -376,11 +376,11 @@
 
     &.severity-high {
       .bm-flow-cell.send {
-        background: #fb923c;
-        border-color: #fb923c;
-        box-shadow: 0 0 6px rgba(251, 146, 60, 0.55);
+        background: var(--accent);
+        border-color: var(--accent);
+        box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.55);
       }
-      .bm-flow-arrow.on { color: #fb923c; }
+      .bm-flow-arrow.on { color: var(--accent-text); }
     }
   }
 
@@ -389,8 +389,8 @@
     flex-direction: column;
     gap: 0.45rem;
     padding: 0.6rem 0.7rem;
-    background: rgba(0, 0, 0, 0.22);
-    border: 1px dashed rgba(255, 255, 255, 0.1);
+    background: rgba(var(--well-rgb), 0.22);
+    border: 1px dashed var(--rule);
     border-radius: 5px;
 
     .bm-dma-inactive-hint {
@@ -413,7 +413,7 @@
     flex-direction: column;
     gap: 0.25rem;
     padding: 0.7rem 0.7rem 0.55rem;
-    background: rgba(0, 0, 0, 0.28);
+    background: rgba(var(--well-rgb), 0.28);
     border: 1px solid $border-color;
     border-radius: 6px;
     transition: border-color 0.25s ease, background 0.25s ease;
@@ -422,7 +422,7 @@
       border-color: rgba(var(--accent-blue-rgb), 0.4);
       background:
         linear-gradient(180deg, rgba(var(--accent-blue-rgb), 0.06), transparent 80%),
-        rgba(0, 0, 0, 0.28);
+        rgba(var(--well-rgb), 0.28);
     }
   }
 
@@ -445,7 +445,7 @@
     &.dead {
       color: $text-dim;
       text-decoration: line-through;
-      text-decoration-color: rgba(248, 113, 113, 0.55);
+      text-decoration-color: rgba(var(--accent-red-rgb), 0.55);
     }
   }
 
@@ -490,7 +490,7 @@
     aspect-ratio: 1 / 1;
     min-height: 28px;
     border-radius: 4px;
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(var(--accent-blue-rgb), 0.03);
     border: 1px solid $border-color;
     display: flex;
     align-items: flex-start;
@@ -507,8 +507,8 @@
     }
 
     &.written {
-      background: rgba(74, 222, 128, 0.12);
-      border-color: rgba(74, 222, 128, 0.45);
+      background: rgba(var(--accent-green-rgb), 0.12);
+      border-color: rgba(var(--accent-green-rgb), 0.45);
       .bm-dma-cell-idx { color: var(--accent-green-light); }
     }
 
@@ -523,7 +523,7 @@
       background: linear-gradient(
         135deg,
         rgba(var(--accent-blue-rgb), 0.22),
-        rgba(74, 222, 128, 0.18)
+        rgba(var(--accent-green-rgb), 0.18)
       );
     }
   }
@@ -534,7 +534,7 @@
     justify-content: space-between;
     margin-top: 0.4rem;
     padding-top: 0.4rem;
-    border-top: 1px dashed rgba(255, 255, 255, 0.06);
+    border-top: 1px dashed var(--rule);
   }
 
   .bm-dma-state {
@@ -567,7 +567,7 @@
 
     &.unmapped {
       color: $text-dim;
-      background: rgba(255, 255, 255, 0.03);
+      background: rgba(var(--accent-blue-rgb), 0.03);
       border: 1px solid $border-color;
     }
   }
@@ -588,7 +588,7 @@
     flex-direction: column;
     gap: 0.4rem;
     padding: 0.6rem 0.7rem;
-    background: rgba(15, 23, 42, 0.5);
+    background: rgba(var(--well-rgb), 0.5);
     border: 1px solid $border-color;
     border-radius: 5px;
   }
@@ -628,7 +628,7 @@
     align-items: center;
     gap: 0.3rem;
     padding: 0.3rem 0.55rem;
-    background: rgba(255, 255, 255, 0.025);
+    background: rgba(var(--accent-blue-rgb), 0.025);
     border: 1px solid $border-color;
     border-radius: 4px;
     color: $text-muted;

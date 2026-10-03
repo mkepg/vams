@@ -14,21 +14,21 @@
     gap: 0.7rem;
     padding: 0.65rem;
     background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.04), transparent 75%),
-      rgba(0, 0, 0, 0.32);
+      linear-gradient(135deg, rgba(var(--accent-blue-rgb), 0.04), transparent 75%),
+      rgba(var(--well-rgb), 0.32);
     border: 1px solid $border-color;
     border-radius: 6px;
-    box-shadow: inset 0 1px 8px rgba(0, 0, 0, 0.25);
+    box-shadow: inset 0 1px 8px rgba(var(--shadow-rgb), 0.25);
   }
 
   .cc-swatch {
     width: 78px;
     height: 78px;
     border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: 1px solid var(--rule);
     box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.06),
-      0 4px 12px rgba(0, 0, 0, 0.4);
+      inset 0 0 0 1px rgba(var(--accent-blue-rgb), 0.06),
+      0 4px 12px rgba(var(--shadow-rgb), 0.4);
     display: flex;
     align-items: flex-end;
     justify-content: center;
@@ -38,6 +38,7 @@
     .cc-swatch-hex {
       font-family: $font-mono;
       font-size: 0.6rem;
+      /* chip over the user's colour swatch: intentionally fixed */
       color: white;
       letter-spacing: 0.04em;
       background: rgba(0, 0, 0, 0.6);
@@ -61,7 +62,7 @@
     font-family: $font-mono;
     font-size: 0.74rem;
     padding: 0.3rem 0.5rem;
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(var(--accent-blue-rgb), 0.03);
     border: 1px solid $border-color;
     border-left-width: 3px;
     border-radius: 4px;
@@ -87,16 +88,16 @@
     }
 
     &.r {
-      border-left-color: #f87171;
-      .cc-chan-label { color: #f87171; }
+      border-left-color: var(--channel-r);
+      .cc-chan-label { color: var(--channel-r); }
     }
     &.g {
-      border-left-color: #4ade80;
-      .cc-chan-label { color: #4ade80; }
+      border-left-color: var(--channel-g);
+      .cc-chan-label { color: var(--channel-g); }
     }
     &.b {
-      border-left-color: #60a5fa;
-      .cc-chan-label { color: #60a5fa; }
+      border-left-color: var(--channel-b);
+      .cc-chan-label { color: var(--channel-b); }
     }
   }
 
@@ -112,7 +113,7 @@
     align-items: baseline;
     gap: 0.5rem;
     padding: 0.4rem 0.55rem;
-    background: rgba(0, 0, 0, 0.22);
+    background: rgba(var(--well-rgb), 0.22);
     border: 1px solid $border-color;
     border-radius: 4px;
 
@@ -175,7 +176,7 @@
     padding: 0.4rem 0.55rem;
     background:
       linear-gradient(180deg, rgba(var(--accent-blue-rgb), 0.06), transparent),
-      rgba(0, 0, 0, 0.25);
+      rgba(var(--well-rgb), 0.25);
     border: 1px solid $border-color;
     border-radius: 5px;
   }
@@ -224,10 +225,10 @@
 
   .ps-bits-stage {
     padding: 0.45rem 0.55rem;
-    background: rgba(0, 0, 0, 0.32);
+    background: rgba(var(--well-rgb), 0.32);
     border: 1px solid $border-color;
     border-radius: 5px;
-    box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.3);
+    box-shadow: inset 0 1px 6px rgba(var(--shadow-rgb), 0.3);
   }
 
   .ps-bits {
@@ -240,7 +241,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: rgba(255, 255, 255, 0.04);
+      background: rgba(var(--accent-blue-rgb), 0.04);
       border: 1px solid $border-color;
       border-radius: 2px;
       font-family: $font-mono;
@@ -252,7 +253,7 @@
         background: var(--accent-blue-light);
         border-color: var(--accent-blue-light);
         box-shadow: 0 0 4px rgba(var(--accent-blue-rgb), 0.6);
-        color: rgba(0, 0, 0, 0.75);
+        color: var(--paper-raised);
         font-weight: 700;
       }
     }
@@ -264,7 +265,7 @@
     align-items: center;
     gap: 0.6rem;
     padding: 0.45rem 0.55rem;
-    background: rgba(0, 0, 0, 0.22);
+    background: rgba(var(--well-rgb), 0.22);
     border: 1px solid $border-color;
     border-radius: 5px;
 
@@ -283,8 +284,8 @@
       height: 8px;
       overflow: hidden;
       border-radius: 2px;
-      background: rgba(255, 255, 255, 0.025);
-      border: 1px solid rgba(255, 255, 255, 0.04);
+      background: rgba(var(--accent-blue-rgb), 0.025);
+      border: 1px solid var(--rule);
 
       .ps-pixel {
         flex: 1;
@@ -313,11 +314,11 @@
     justify-content: center;
     padding: 0.6rem;
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
-      rgba(0, 0, 0, 0.32);
+      linear-gradient(180deg, rgba(var(--accent-blue-rgb), 0.03), transparent),
+      rgba(var(--well-rgb), 0.32);
     border: 1px solid $border-color;
     border-radius: 8px;
-    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.32);
+    box-shadow: inset 0 2px 10px rgba(var(--shadow-rgb), 0.32);
   }
 
   .pb-mesh-svg {
@@ -341,7 +342,7 @@
     gap: 0.5rem;
     flex-wrap: wrap;
     padding: 0.45rem 0.55rem;
-    background: rgba(0, 0, 0, 0.25);
+    background: rgba(var(--well-rgb), 0.25);
     border: 1px solid $border-color;
     border-radius: 5px;
 
@@ -371,7 +372,7 @@
     gap: 0.45rem;
     flex-wrap: wrap;
     padding: 0.5rem 0.55rem;
-    background: rgba(0, 0, 0, 0.22);
+    background: rgba(var(--well-rgb), 0.22);
     border: 1px solid $border-color;
     border-radius: 5px;
 
@@ -385,10 +386,10 @@
         width: 28px;
         height: 28px;
         border-radius: 50%;
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        border: 1px solid var(--rule);
         box-shadow:
-          inset 0 0 0 1px rgba(0, 0, 0, 0.3),
-          0 2px 6px rgba(0, 0, 0, 0.3);
+          inset 0 0 0 1px rgba(var(--shadow-rgb), 0.3),
+          0 2px 6px rgba(var(--shadow-rgb), 0.3);
       }
 
       .pb-corner-label {
@@ -401,7 +402,7 @@
       &.pb-result .pb-corner-swatch {
         border-color: rgba(var(--accent-blue-rgb), 0.6);
         box-shadow:
-          inset 0 0 0 1px rgba(0, 0, 0, 0.3),
+          inset 0 0 0 1px rgba(var(--shadow-rgb), 0.3),
           0 0 12px rgba(var(--accent-blue-rgb), 0.45);
       }
 
@@ -446,8 +447,8 @@
 
     .pvt-axis {
       font-weight: 700;
-      &.x { color: #f87171; }
-      &.y { color: #4ade80; }
+      &.x { color: var(--channel-r); }
+      &.y { color: var(--channel-g); }
     }
   }
 
@@ -463,7 +464,7 @@
 
   .pvt-row {
     padding: 0.35rem 0.5rem;
-    background: rgba(0, 0, 0, 0.25);
+    background: rgba(var(--well-rgb), 0.25);
     border: 1px solid $border-color;
     border-radius: 4px;
     font-family: $font-mono;
@@ -492,8 +493,8 @@
       letter-spacing: 0.04em;
     }
 
-    .pvt-x { color: #fca5a5; }
-    .pvt-y { color: #86efac; }
+    .pvt-x { color: var(--channel-r); }
+    .pvt-y { color: var(--channel-g); }
 
     .pvt-c {
       display: inline-flex;
@@ -505,8 +506,8 @@
         width: 16px;
         height: 16px;
         border-radius: 3px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--rule);
+        box-shadow: inset 0 0 0 1px rgba(var(--shadow-rgb), 0.3);
         flex-shrink: 0;
       }
 

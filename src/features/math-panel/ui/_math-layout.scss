@@ -13,7 +13,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.4rem 1rem;
-    background-color: rgba(0, 0, 0, 0.15);
+    background-color: rgba(var(--well-rgb), 0.15);
     border-bottom: 1px solid $border-color;
     flex-shrink: 0;
 
@@ -52,9 +52,9 @@
       font-style: italic;
       text-align: center;
       padding: 1.5rem;
-      border: 1px dashed rgba(255, 255, 255, 0.1);
+      border: 1px dashed var(--rule);
       border-radius: 6px;
-      background-color: rgba(255, 255, 255, 0.03);
+      background-color: rgba(var(--accent-blue-rgb), 0.03);
       max-width: 80%;
       line-height: 1.5;
       margin: auto;
@@ -71,7 +71,7 @@
     gap: 0.85rem;
 
     .math-section {
-      background: rgba(255, 255, 255, 0.025);
+      background: rgba(var(--accent-blue-rgb), 0.025);
       border: 1px solid $border-color;
       border-radius: 6px;
       padding: 0.7rem 0.85rem;
