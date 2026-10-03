@@ -38,13 +38,13 @@ Later work builds on it and is out of scope here: the landing page content and p
 | --- | --- | --- | --- |
 | `/` | `pages/home` | Yes | Yes |
 | `/app` | `pages/editor`: a lazily loaded wrapper around the existing editor shell | Yes, as an empty loading shell | No (`noindex`) |
-| any other path | `pages/not-found` | Yes, as `/404` | No |
+| any other path | `pages/not-found` | Yes, as `/404` (written to `dist/404/index.html`) | No |
 
 `/learn`, `/guide` and `/about` are added to the route table, sitemap and header together with their content in later work. A route exists only when its page is finished.
 
-**Editor isolation.** `src/app/App.tsx` becomes `EditorApp`, and `pages/editor` imports it through `lazy()`. PixiJS, the Zustand store and all editor features therefore land in a separate chunk that the home page never requests. Prerendering never imports the editor chunk, so editor modules may touch `window`, `document` and `localStorage` at import time as they do today.
+**Editor isolation.** `src/app/App.tsx` moves to `src/pages/editor/ui/EditorApp.tsx` (the editor is a page-level composition of widgets and features), and `pages/editor` imports it through `lazy()`. PixiJS, the Zustand store and all editor features therefore land in a separate chunk that the home page never requests. Prerendering never imports the editor chunk, so editor modules may touch `window`, `document` and `localStorage` at import time as they do today.
 
-**Static output and hosting.** The build emits `dist/index.html`, `dist/app/index.html` and `dist/404.html`. Netlify serves directories directly, so a refresh or deep link at `/app?…` receives the `/app` shell, whose client code boots the editor. `public/_redirects` maps unknown paths to `/404.html` with status 404. `public/_headers` gives `/fonts/*` and hashed `/assets/*` a one-year immutable cache.
+**Static output and hosting.** The build emits `dist/index.html`, `dist/app/index.html` and `dist/404/index.html`. Netlify serves directories directly, so a refresh or deep link at `/app?…` receives the `/app` shell, whose client code boots the editor. `public/_redirects` maps unknown paths to `/404/index.html` with status 404. `public/_headers` gives `/fonts/*` and hashed `/assets/*` a one-year immutable cache.
 
 **SEO output.** Each route declares its metadata (title, description, canonical path, indexability) in one route table. The prerender step writes the per-page `<title>`, `<meta name="description">`, `<link rel="canonical">` and Open Graph / Twitter tags. `/` also carries JSON-LD of type `SoftwareApplication` (`applicationCategory: EducationalApplication`, `operatingSystem: Web`). A build step writes `sitemap.xml` (indexed routes only) and `robots.txt` (allow all, sitemap link). Absolute URLs use `VITE_SITE_URL`, which defaults to `https://panic-vams.netlify.app` until a custom domain is configured. Switching domains is then a one-variable change.
 
@@ -53,8 +53,8 @@ Later work builds on it and is out of scope here: the landing page content and p
 **Folder layout (Feature-Sliced Design)**
 
 ```
-src/app/            SiteApp, route table, main.tsx (hydrate + prerender), EditorApp, global styles
-src/pages/          home/, editor/, not-found/          ← new layer, between app and widgets
+src/app/            SiteApp, route metadata, SEO builders, main.tsx (hydrate + prerender), global styles
+src/pages/          home/, editor/ (EditorPage + EditorApp), not-found/   ← new layer, between app and widgets
 src/widgets/        site-header/, site-footer/          ← new; existing editor widgets unchanged
 src/shared/ui/      logo/                               ← vertex mark + wordmark
 src/shared/lib/     theme/                              ← theme source of truth (section 2)
@@ -66,7 +66,7 @@ src/shared/lib/     theme/                              ← theme source of trut
 
 ## 2. Design tokens and the editor reskin
 
-**Typography.** Three self-hosted families, all SIL Open Font License, shipped as WOFF2 in `public/fonts/` with their licence files and loaded with `font-display: swap`:
+**Typography.** Three self-hosted families, all SIL Open Font License, bundled as WOFF2 from the `@fontsource` packages (Latin subset, hashed under `/assets/`) and loaded with `font-display: swap`:
 
 | Token | Family | Use |
 | --- | --- | --- |
@@ -112,7 +112,7 @@ The editor store's `theme` field and the `theme` field in `.vams` project files 
 
 ## 3. Testing and verification
 
-**Automated (Vitest, `tests/`)** in a new file `tests/black-box/site-shell.test.ts` with IDs `BB-SITE-NN`, covering:
+**Automated (Vitest, `tests/`)** in a new file `tests/black-box/site-shell.test.ts` with IDs `BB-SITE-NN` (19 tests), covering:
 - the route table: each route's metadata is complete, `/app` and `/404` are `noindex`, and only finished routes are listed;
 - the sitemap and robots generators: indexed routes only, absolute URLs from `VITE_SITE_URL`;
 - the theme module: default `vellum`, toggle persists to `vams-theme`, sets `data-theme` on `<html>`, ignores invalid stored values, and keeps the store's mirror in sync;
@@ -120,7 +120,7 @@ The editor store's `theme` field and the `theme` field in `.vams` project files 
 
 Existing persistence tests keep passing unchanged, since project files still carry `theme`. The code-generation and algorithm suites must produce identical output.
 
-**Build checks.** `npm run build` produces `dist/index.html`, `dist/app/index.html`, `dist/404.html`, `dist/sitemap.xml` and `dist/robots.txt`. The home page's HTML contains its rendered content (not an empty root), and no PixiJS code is in the home page's initial chunk graph.
+**Build checks.** `npm run build` produces `dist/index.html`, `dist/app/index.html`, `dist/404/index.html`, `dist/sitemap.xml` and `dist/robots.txt`. The home page's HTML contains its rendered content (not an empty root), and no PixiJS code is in the home page's initial chunk graph.
 
 **Browser verification** with Chrome DevTools against `npm run preview`:
 - `/` loads without requesting the editor chunk; navigating to `/app` loads it, and the editor works as before. Spot-check a primitive, a transform, a texture, a lesson and save/load.
