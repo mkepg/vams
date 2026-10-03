@@ -14,12 +14,12 @@
 /*  blue selection, calm enough not to scream.                         */
 /* ------------------------------------------------------------------ */
 :root {
+  --code-changed-rgb: 180, 83, 9;         /* amber-700, legible on vellum */
+  --code-changed-light: #b45309;
+}
+[data-theme='blueprint'] {
   --code-changed-rgb: 245, 158, 11;       /* amber-500 */
   --code-changed-light: #fbbf24;          /* amber-400 */
-}
-[data-theme='light'] {
-  --code-changed-rgb: 180, 83, 9;         /* amber-700, more legible on light bg */
-  --code-changed-light: #b45309;
 }
 
 @keyframes change-flash {
@@ -431,28 +431,28 @@
   }
 
   .tk { white-space: pre; }
-  .tk-kw       { color: #c792ea; font-weight: 600; }
-  .tk-pp       { color: #f78c6c; font-style: italic; }
-  .tk-comment  { color: #5f7a8a; font-style: italic; }
-  .tk-string   { color: #c3e88d; }
-  .tk-num      { color: #f78c6c; }
-  .tk-const    { color: #ffcb6b; }
-  .tk-glfn     { color: #82aaff; font-weight: 500; }
-  .tk-fn       { color: #82aaff; }
+  .tk-kw       { color: #7c4dff; font-weight: 600; }
+  .tk-pp       { color: #d84315; font-style: italic; }
+  .tk-comment  { color: #5f6b7a; font-style: italic; }
+  .tk-string   { color: #2e7d32; }
+  .tk-num      { color: #d84315; }
+  .tk-const    { color: #9a5b00; }
+  .tk-glfn     { color: #0f4c75; font-weight: 600; }
+  .tk-fn       { color: #0f4c75; }
   .tk-ident    { color: var(--code-content); }
   .tk-punct    { color: $text-muted; }
-  .tk-op       { color: #89ddff; }
+  .tk-op       { color: #006064; }
   .tk-ws       { color: inherit; }
 
-  [data-theme='light'] & {
-    .tk-kw      { color: #7c4dff; }
-    .tk-pp      { color: #d84315; }
-    .tk-comment { color: #8796a5; }
-    .tk-string  { color: #388e3c; }
-    .tk-num     { color: #d84315; }
-    .tk-const   { color: #b26a00; }
-    .tk-glfn    { color: #0f4c75; font-weight: 600; }
-    .tk-fn      { color: #0f4c75; }
-    .tk-op      { color: #006064; }
+  [data-theme='blueprint'] & {
+    .tk-kw      { color: #c792ea; }
+    .tk-pp      { color: #f78c6c; }
+    .tk-comment { color: #8fa6bd; }
+    .tk-string  { color: #c3e88d; }
+    .tk-num     { color: #f78c6c; }
+    .tk-const   { color: #ffcb6b; }
+    .tk-glfn    { color: #82aaff; font-weight: 500; }
+    .tk-fn      { color: #82aaff; }
+    .tk-op      { color: #89ddff; }
   }
 }

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import './styles/app-shell.scss';
 import TopBar from '@/widgets/layout/top-bar';
 import LeftSidebar from '@/widgets/layout/left-sidebar';
@@ -12,6 +13,11 @@ import { useKeyboardShortcuts } from '@/shared/hooks/useKeyboardShortcuts';
 
 export default function App() {
   useKeyboardShortcuts();
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add('route-editor');
+    return () => root.classList.remove('route-editor');
+  }, []);
   const theme = useVamsStore((state) => state.theme);
   const appMode = useVamsStore((state) => state.appMode);
 

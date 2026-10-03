@@ -7,65 +7,122 @@
 }
 @font-face {
   font-family: 'Comfortaa';
-  src: url('/fonts/Comfortaa-Light.ttf') format('truetype'); /* Update filename if needed */
+  src: url('/fonts/Comfortaa-Light.ttf') format('truetype');
   font-weight: 300;
   font-style: normal;
   font-display: swap;
 }
-$logo-font: 'Minecrafter', sans-serif;
-$font-mono: 'Menlo', 'Monaco', 'Courier New', monospace;
+
+$logo-font: 'Minecrafter', sans-serif; // removed in the logo task
+$font-display: 'Newsreader', Georgia, 'Times New Roman', serif;
+$font-ui: 'Chivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+$font-mono: 'Chivo Mono', ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
 $header-height: 3.7rem;
 $left-sidebar-width: 22.5rem;
 $right-sidebar-width: 35rem;
+
+/* Drafting Vellum: vellum (light) is the default theme. */
 :root {
-  --bg-dark-rgb: 17, 24, 39;
-  --bg-panel-rgb: 31, 41, 55;
-  --bg-bar-rgb: 31, 41, 55;
-  --bg-input-rgb: 17, 24, 39;
-  --border-rgb: 55, 65, 81;
-  --text-main: #f3f4f6;
-  --text-muted: #9ca3af;
-  --text-dim: #6b7280;
-  --accent-blue-rgb: 37, 99, 235;
+  color-scheme: light;
+
+  --font-display: #{$font-display};
+  --font-ui: #{$font-ui};
+  --font-mono: #{$font-mono};
+
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --radius-s: 2px;
+  --radius-m: 4px;
+
+  --paper: #f4f5f2;
+  --paper-raised: #ffffff;
+  --paper-sunken: #e9ebe6;
+  --ink: #1d2b4f;
+  --ink-muted: #45557a;
+  --ink-faint: #6b7898;
+  --rule: rgba(29, 43, 79, 0.22);
+  --grid-major: rgba(29, 43, 79, 0.10);
+  --grid-minor: rgba(29, 43, 79, 0.04);
+  --accent: #ff5a1f;
+  --accent-rgb: 255, 90, 31;
+  --on-accent: #1a0d06;
+  --focus-ring: #ff5a1f;
+  --code-bg: #1d2b4f;
+  --code-ink: #e6eefb;
+  --success: #15803d;
+  --danger: #b91c1c;
+
+  /* Editor variables, reassigned onto the palette (names and RGB-triplet format unchanged). */
+  --bg-dark-rgb: 233, 235, 230;
+  --bg-panel-rgb: 244, 245, 242;
+  --bg-bar-rgb: 244, 245, 242;
+  --bg-input-rgb: 255, 255, 255;
+  --border-rgb: 198, 203, 211;
+  --text-main: #1d2b4f;
+  --text-muted: #45557a;
+  --text-dim: #6b7898;
+  --accent-blue-rgb: 29, 43, 79;
   --accent-green-rgb: 21, 128, 61;
   --accent-red-rgb: 185, 28, 28;
-  --logo-color: #fcee0a;
-  --logo-stroke: #000000;
-  --logo-depth: #00f0ff;
-  --logo-glow: 0 0 15px rgba(0, 240, 255, 0.4);
-  --bg-panel-hover: #2d3748;
-  --accent-blue-light: #60a5fa;
+  --bg-panel-hover: #e9ebe6;
+  --accent-blue-light: #24438f;
+  --accent-red-light: #b91c1c;
+  --accent-green-light: #15803d;
+  --border-highlight: #9aa4b8;
+  --panel-tab: #e1e4dd;
+  --keyword-fallback: #1d2b4f;
+  --code-content: #24438f;
+
+  --logo-color: #1d2b4f; /* removed in the logo task */
+  --logo-stroke: transparent;
+  --logo-depth: #ff5a1f;
+  --logo-glow: none;
+}
+
+/* Blueprint: the dark theme. */
+[data-theme='blueprint'] {
+  color-scheme: dark;
+
+  --paper: #0e2a4a;
+  --paper-raised: #13355b;
+  --paper-sunken: #0a2140;
+  --ink: #e6eefb;
+  --ink-muted: #b3c4e0;
+  --ink-faint: #7f95ba;
+  --rule: rgba(186, 214, 255, 0.24);
+  --grid-major: rgba(186, 214, 255, 0.10);
+  --grid-minor: rgba(186, 214, 255, 0.04);
+  --accent: #ff6a2b;
+  --accent-rgb: 255, 106, 43;
+  --on-accent: #1a0d06;
+  --focus-ring: #ff8a55;
+  --code-bg: #0a2140;
+  --code-ink: #e6eefb;
+  --success: #4ade80;
+  --danger: #f87171;
+
+  --bg-dark-rgb: 10, 33, 64;
+  --bg-panel-rgb: 14, 42, 74;
+  --bg-bar-rgb: 14, 42, 74;
+  --bg-input-rgb: 10, 33, 64;
+  --border-rgb: 39, 74, 115;
+  --text-main: #e6eefb;
+  --text-muted: #b3c4e0;
+  --text-dim: #7f95ba;
+  --accent-blue-rgb: 47, 95, 170;
+  --accent-green-rgb: 21, 128, 61;
+  --accent-red-rgb: 185, 28, 28;
+  --bg-panel-hover: #17406b;
+  --accent-blue-light: #9cc2f5;
   --accent-red-light: #f87171;
   --accent-green-light: #4ade80;
-  --border-highlight: #4b5563;
-  --panel-tab: #00000033;
-  --keyword-fallback: #d1d5db;
-  --code-content: #82A6F4;
-}
-[data-theme='light'] {
-  --bg-dark-rgb: 226, 232, 240;
-  --bg-panel-rgb: 248, 250, 252;
-  --bg-bar-rgb: 229, 231, 235;
-  --bg-input-rgb: 241, 245, 249;
-  --border-rgb: 203, 213, 225;
-  --text-main: #050505;
-  --text-muted: #4b5563;
-  --text-dim: #6b7280;
-  --accent-blue-rgb: 15, 76, 117;
-  --accent-green-rgb: 21, 128, 61;
-  --accent-red-rgb: 220, 38, 38;
-  --logo-color: #ffffff;
-  --logo-stroke: #000000;
-  --logo-depth: #000000;
-  --logo-glow: none;
-  --bg-panel-hover: #e2e8f0;
-  --accent-blue-light: #0ea5e9;
-  --accent-red-light: #ef4444;
-  --accent-green-light: #22c55e;
-  --border-highlight: #94a3b8;
-  --panel-tab: #CBD5E1;
-  --keyword-fallback: #374151;
-  --code-content: #0f4c75;
+  --border-highlight: #3d6493;
+  --panel-tab: rgba(0, 0, 0, 0.2);
+  --keyword-fallback: #cdd9ee;
+  --code-content: #9cc2f5;
+
+  --logo-color: #e6eefb;
+  --logo-depth: #ff6a2b;
 }
 $bg-dark: rgb(var(--bg-dark-rgb));
 $bg-panel: rgb(var(--bg-panel-rgb));
