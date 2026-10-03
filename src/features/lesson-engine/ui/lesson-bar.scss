@@ -148,7 +148,7 @@
       &:hover:not(:disabled) {
         background-color: rgba(var(--accent-blue-rgb), 0.08);
         color: $text-main;
-        border-color: var(--rule);
+        border-color: var(--border-highlight);
         transform: translateY(-1px);
       }
 

@@ -35,69 +35,6 @@
       &:hover .vams-logo__vertex--selected { fill: var(--focus-ring); }
     }
   }
-  .controls {
-    display: flex;
-    flex: 0 0 auto;
-    align-items: center;
-    gap: 0.75rem;
-    background-color: $border-color;
-    padding: 4px;
-    border-radius: 4px;
-    border: 1px solid transparent;
-    .btn-play, .btn-stop {
-      @include flex-center;
-      gap: 0.5rem;
-      padding: 4px 12px;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      font-weight: bold;
-      transition: all 0.2s;
-      border: 1px solid transparent;
-      &:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-        background-color: rgba(var(--text-muted), 0.1);
-        color: $text-muted;
-        border-color: transparent;
-      }
-    }
-    .btn-play {
-      &.running {
-        background-color: var(--warning);
-        color: var(--on-accent-blue);
-        box-shadow: 0 0 8px rgba(var(--warning-rgb), 0.4);
-        &:hover {
-          background-color: var(--warning-strong);
-        }
-      }
-      &.paused {
-        background-color: $accent-green;
-        color: white;
-        box-shadow: 0 0 8px rgba(var(--accent-green-rgb), 0.4);
-        &:hover {
-          background-color: var(--accent-green-light);
-        }
-      }
-      &.stopped {
-        background-color: $accent-green;
-        color: white;
-        &:hover { background-color: var(--accent-green-light); }
-      }
-    }
-    .btn-stop {
-      &:not(:disabled) {
-        background-color: rgba(var(--accent-red-rgb), 0.7);
-        color: white;
-        border-color: rgba(var(--accent-red-rgb), 0.3);
-        &:hover {
-          background-color: $accent-red;
-          color: white;
-          box-shadow: 0 0 8px rgba(var(--accent-red-rgb), 0.4);
-          border-color: $accent-red;
-        }
-      }
-    }
-  }
   .actions {
     display: flex;
     justify-content: flex-end;
