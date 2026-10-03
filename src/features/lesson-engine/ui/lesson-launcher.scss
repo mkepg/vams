@@ -45,7 +45,7 @@
     background-color: $bg-panel;
     border: 1px solid $border-color;
     border-radius: 8px;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 10px 28px rgba(var(--shadow-rgb), 0.45);
     overflow: hidden;
     z-index: 1000;
     animation: launcher-fade 0.15s ease-out both;
@@ -101,7 +101,7 @@
         color: var(--accent-blue-light);
 
         &.exercise {
-          background: rgba(74, 222, 128, 0.12);
+          background: rgba(var(--accent-green-rgb), 0.12);
           color: var(--accent-green-light);
         }
       }
@@ -124,7 +124,7 @@
       }
 
       &.exercise:hover {
-        background: rgba(74, 222, 128, 0.06);
+        background: rgba(var(--accent-green-rgb), 0.06);
       }
     }
   }

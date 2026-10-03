@@ -14,10 +14,10 @@
     .artifact-svg {
       width: 160px;
       aspect-ratio: 3 / 2;
-      background: rgba(0, 0, 0, 0.3);
+      background: rgba(var(--well-rgb), 0.3);
       border: 1px solid $border-color;
       border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 4px 12px rgba(var(--shadow-rgb), 0.2);
       transition: border-color 0.2s ease;
 
       &:hover {
@@ -49,7 +49,7 @@
       justify-content: space-between;
       gap: 0.4rem;
       padding: 0.55rem 0.8rem;
-      background: rgba(255, 255, 255, 0.03);
+      background: rgba(var(--accent-blue-rgb), 0.03);
       border: 1px solid $border-color;
       border-radius: 6px;
       color: $text-main;
@@ -72,8 +72,8 @@
       }
 
       &.correct {
-        background: rgba(74, 222, 128, 0.15);
-        border-color: rgba(74, 222, 128, 0.55);
+        background: rgba(var(--accent-green-rgb), 0.15);
+        border-color: rgba(var(--accent-green-rgb), 0.55);
         color: var(--accent-green-light);
         .opt-icon.correct { color: var(--accent-green-light); }
       }
@@ -106,7 +106,7 @@
       align-items: center;
       gap: 0.55rem;
       padding: 0.45rem 0.7rem;
-      background: rgba(255, 255, 255, 0.03);
+      background: rgba(var(--accent-blue-rgb), 0.03);
       border: 1px solid $border-color;
       border-radius: 6px;
       cursor: grab;
@@ -136,8 +136,8 @@
       }
 
       &.correct-pos {
-        background: rgba(74, 222, 128, 0.08);
-        border-color: rgba(74, 222, 128, 0.3);
+        background: rgba(var(--accent-green-rgb), 0.08);
+        border-color: rgba(var(--accent-green-rgb), 0.3);
         .order-num { color: var(--accent-green-light); }
       }
     }

@@ -118,7 +118,7 @@
       border-radius: 6px;
       cursor: pointer;
       transition: background-color 0.15s;
-      &:hover { background-color: var(--accent-blue-light); }
+      &:hover { background-color: var(--accent-blue-light); color: var(--on-accent-light); }
       &:focus-visible { outline: 2px solid var(--accent-blue-light); outline-offset: 2px; }
     }
   }

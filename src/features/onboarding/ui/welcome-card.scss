@@ -8,7 +8,7 @@
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  background-color: rgba(0, 0, 0, 0.55);
+  background-color: rgba(var(--shadow-rgb), 0.55);
   backdrop-filter: blur(3px);
   animation: welcome-overlay-in 0.18s ease-out;
 }
@@ -21,7 +21,7 @@
   color: $text-main;
   border: 1px solid $border-color;
   border-radius: 12px;
-  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 56px rgba(var(--shadow-rgb), 0.5);
   animation: welcome-card-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 
   .welcome-close {
@@ -84,9 +84,9 @@
       &:hover { background-color: rgba(var(--border-rgb), 0.4); }
     }
     &.primary {
-      color: #fff;
+      color: var(--on-accent-blue);
       background-color: $accent-blue;
-      &:hover { background-color: var(--accent-blue-light); }
+      &:hover { background-color: var(--accent-blue-light); color: var(--on-accent-light); }
     }
   }
 }

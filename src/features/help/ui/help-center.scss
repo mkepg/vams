@@ -8,7 +8,7 @@
   align-items: center;
   justify-content: center;
   padding: 2rem;
-  background-color: rgba(0, 0, 0, 0.55);
+  background-color: rgba(var(--shadow-rgb), 0.55);
   backdrop-filter: blur(2px);
   animation: help-overlay-in 0.15s ease-out;
 }
@@ -22,7 +22,7 @@
   color: $text-main;
   border: 1px solid $border-color;
   border-radius: 10px;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 16px 48px rgba(var(--shadow-rgb), 0.45);
   overflow: hidden;
   outline: none;
   animation: help-dialog-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
@@ -123,12 +123,12 @@
       padding: 0.4rem;
       font-size: 0.8rem;
       font-weight: 600;
-      color: #fff;
+      color: var(--on-accent-blue);
       background-color: $accent-blue;
       border: none;
       border-radius: 5px;
       cursor: pointer;
-      &:hover { background-color: var(--accent-blue-light); }
+      &:hover { background-color: var(--accent-blue-light); color: var(--on-accent-light); }
     }
   }
 

@@ -72,8 +72,10 @@ $right-sidebar-width: 35rem;
      black wash on blueprint; shadows and modal scrims take the ink hue. */
   --well-rgb: 255, 255, 255;
   --shadow-rgb: 29, 43, 79;
-  /* Text on filled ink and warning buttons. */
+  /* Text on filled ink and warning buttons, and on the lighter *-light fills
+     those buttons take on hover. */
   --on-accent-blue: #ffffff;
+  --on-accent-light: #ffffff;
   --warning: #b45309;
   --warning-rgb: 180, 83, 9;
   --warning-strong: #92400e;
@@ -145,6 +147,7 @@ $right-sidebar-width: 35rem;
   --well-rgb: 0, 0, 0;
   --shadow-rgb: 0, 0, 0;
   --on-accent-blue: #ffffff;
+  --on-accent-light: #0a2140;
   --warning: #b45309;
   --warning-rgb: 180, 83, 9;
   --warning-strong: #92400e;
