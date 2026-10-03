@@ -159,7 +159,8 @@ export function useGridSystem({
     };
     app.ticker.add(update);
     return () => {
-      app.ticker.remove(update);
+      // usePixiApp's cleanup runs first on unmount and destroys the app (ticker becomes null).
+      app.ticker?.remove(update);
     };
   }, [pixiReady, appRef, worldRef, axisVisibility]);
 }

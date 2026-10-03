@@ -152,7 +152,8 @@ export function useSceneRenderer({
     };
     app.ticker.add(tickerFn);
     return () => {
-      app.ticker.remove(tickerFn);
+      // usePixiApp's cleanup runs first on unmount and destroys the app (ticker becomes null).
+      app.ticker?.remove(tickerFn);
       if (vertexOverlayRef.current) {
         vertexOverlayRef.current.destroy({ children: true });
         vertexOverlayRef.current = null;
@@ -219,10 +220,13 @@ export function useSceneRenderer({
     app.stage.on("pointerupoutside", endDrag);
     app.stage.on("pointercancel", endDrag);
     return () => {
-      app.stage.off("globalpointermove", onStageMove);
-      app.stage.off("pointerup", endDrag);
-      app.stage.off("pointerupoutside", endDrag);
-      app.stage.off("pointercancel", endDrag);
+      // A destroyed app has a null stage; destroying the stage already removed these listeners.
+      const stage = app.stage;
+      if (!stage) return;
+      stage.off("globalpointermove", onStageMove);
+      stage.off("pointerup", endDrag);
+      stage.off("pointerupoutside", endDrag);
+      stage.off("pointercancel", endDrag);
     };
   }, [pixiReady, appRef, worldRef, overlayRef, updateObjectTransform]);
   useEffect(() => {

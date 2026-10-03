@@ -98,7 +98,8 @@ export function useCanvasInteraction({
     window.addEventListener("resize", onResize);
     cleanupListenersRef.current = () => {
       window.removeEventListener("resize", onResize);
-      app.stage.off("pointerdown", onStagePointerDown);
+      // A destroyed app has a null stage; destroying the stage already removed this listener.
+      app.stage?.off("pointerdown", onStagePointerDown);
     };
     return () => {
       if (cleanupListenersRef.current) {
