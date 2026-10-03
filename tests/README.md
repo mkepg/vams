@@ -25,7 +25,9 @@ tests/
 │   ├── code-generation.test.ts           (BB-GEN-*)
 │   ├── cpp-code-validation.test.ts       (BB-CPP-*)
 │   ├── lesson-engine.test.ts             (BB-LESSON-*)
-│   └── project-persistence.test.ts       (BB-PERSIST-*)
+│   ├── project-persistence.test.ts       (BB-PERSIST-*)
+│   └── site-shell.test.ts                (BB-SITE-*: theme, route
+│                                            metadata, SEO, prerendering)
 ├── white-box/                    ← Maps to Table 13.
 │   ├── state-management.test.ts          (WB-STATE-*)
 │   ├── matrix-engine.test.ts             (WB-MATRIX-*)
@@ -53,7 +55,7 @@ tests/
 ## Running
 
 ```bash
-npm test                # run all 250 tests
+npm test                # run all 271 tests
 npm run test:watch      # watch mode for development
 npm run test:coverage   # also produce tests/reports/coverage/
 ```
