@@ -10,6 +10,7 @@ import {
   toStorePatchFromProject,
 } from '@/entities/project/model/project-io';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
+import { getActiveTheme, toEditorTheme } from '@/shared/lib/theme';
 
 export default function ProjectActions() {
   const clearHistory = useVamsStore((state) => state.clearHistory);
@@ -110,9 +111,12 @@ export default function ProjectActions() {
     try {
       const projectData = await parseProjectFromFile(file);
       const patch = toStorePatchFromProject(projectData);
+      // The site theme stays authoritative: the store keeps mirroring it rather
+      // than taking the theme saved in the project file.
       useVamsStore.setState(
         {
           ...patch,
+          theme: toEditorTheme(getActiveTheme()),
         },
         false
       );

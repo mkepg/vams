@@ -9,14 +9,7 @@ import HelpCenter from '@/features/help/ui/HelpCenter';
 import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
 import WelcomeCard from '@/features/onboarding/ui/WelcomeCard';
 import { useVamsStore } from '@/core/store';
-import {
-  applyTheme,
-  getActiveTheme,
-  readStoredTheme,
-  subscribeTheme,
-  toEditorTheme,
-  type SiteTheme,
-} from '@/shared/lib/theme';
+import { getActiveTheme, subscribeTheme, toEditorTheme, type SiteTheme } from '@/shared/lib/theme';
 import { useKeyboardShortcuts } from '@/shared/hooks/useKeyboardShortcuts';
 
 export default function EditorApp() {
@@ -27,7 +20,6 @@ export default function EditorApp() {
     return () => root.classList.remove('route-editor');
   }, []);
   useEffect(() => {
-    applyTheme(readStoredTheme());
     const mirror = (theme: SiteTheme) => useVamsStore.setState({ theme: toEditorTheme(theme) });
     mirror(getActiveTheme());
     return subscribeTheme(mirror);
