@@ -30,6 +30,12 @@ input, select {
   outline-offset: 2px;
 }
 
+/* Site pages: keep in-page anchor targets clear of the sticky header
+   (about 4.3rem tall) so focused and linked content is not hidden under it. */
+html:not(.route-editor) {
+  scroll-padding-top: 5rem;
+}
+
 /* The editor is a full-viewport tool sized in rem against a 13px root. */
 html.route-editor {
   font-size: 13px;
