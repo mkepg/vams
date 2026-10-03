@@ -39,6 +39,7 @@ export function useSceneRenderer({
   const prevObjectsRef = useRef<Map<string, SceneNode>>(new Map());
   const prevSelectedObjectIdRef = useRef<string | null>(null);
   const prevWorldScaleRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const builtForAppRef = useRef<PIXI.Application | null>(null);
   const vertexOverlayRef = useRef<Container | null>(null);
   const handleGraphicsRef = useRef<HandleGraphics[]>([]);
   const objects = useVamsStore((s) => s.objects);
@@ -234,6 +235,14 @@ export function useSceneRenderer({
     const app = appRef.current;
     const overlay = overlayRef.current;
     if (!world || !app || !overlay || !pixiReady) return;
+    if (builtForAppRef.current !== app) {
+      // usePixiApp rebuilds the app (for example on a background colour change).
+      // Containers from the old app carry pointer listeners bound to it, so
+      // drop them and build every object afresh for the current app.
+      containersRef.current = new Map();
+      prevObjectsRef.current = new Map();
+      builtForAppRef.current = app;
+    }
     applyViewportTransform();
     const unusedIds = new Set(containersRef.current.keys());
     const nextContainers = new Map<string, Container>();
