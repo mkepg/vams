@@ -194,13 +194,19 @@ describe('BB-SITE-16: Prerendering /app produces only the loading shell', () => 
     const result = await prerenderAt('/app');
     expect(result.html).toContain('class="editor-loading"');
     expect(result.html).toContain('role="status"');
-    expect([...result.head.elements].some((e) => e.props.name === 'robots')).toBe(true);
+    const robots = [...result.head.elements].find((e) => e.props.name === 'robots');
+    expect(robots?.props.content).toContain('noindex');
   });
 });
 
 describe('BB-SITE-17: Unknown paths prerender the not-found page', () => {
   it('renders the not-found page with 404 metadata', async () => {
     const result = await prerenderAt('/404');
+    expect(result.html).toContain('class="not-found"');
+    expect(result.head.title).toBe(findRouteMeta('/404').title);
+  });
+  it('renders the not-found page for a path no route declares', async () => {
+    const result = await prerenderAt('/nope');
     expect(result.html).toContain('class="not-found"');
     expect(result.head.title).toBe(findRouteMeta('/404').title);
   });
@@ -221,5 +227,39 @@ describe('BB-SITE-19: The early theme script matches the theme module', () => {
     const html = readFileSync('index.html', 'utf8');
     expect(html).toContain(`'${THEME_STORAGE_KEY}'`);
     expect(html).toContain("classList.add('route-editor')");
+  });
+});
+
+import SiteApp from '@/app/SiteApp';
+
+async function settle() {
+  for (let i = 0; i < 3; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+async function navigate(url: string) {
+  window.history.pushState(null, '', url);
+  window.dispatchEvent(new PopStateEvent('popstate'));
+  await settle();
+}
+
+describe('BB-SITE-20: Client-side navigation updates the document title', () => {
+  it('sets the route title, ignoring query and hash, and uses the 404 title for unknown paths', async () => {
+    window.history.replaceState(null, '', '/');
+    document.title = findRouteMeta('/').title;
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    render(h(SiteApp, {}), host);
+    await settle();
+
+    await navigate('/nope?from=test#top');
+    expect(host.querySelector('.not-found')).not.toBeNull();
+    expect(document.title).toBe(findRouteMeta('/404').title);
+
+    await navigate('/?ref=nav');
+    expect(host.querySelector('.home')).not.toBeNull();
+    expect(document.title).toBe(findRouteMeta('/').title);
+
+    render(null, host);
+    host.remove();
   });
 });
