@@ -1,12 +1,4 @@
 @use '../../../shared/styles/tokens' as *;
-@keyframes glitch-skew {
-  0% { transform: skew(0deg); }
-  20% { transform: skew(-2deg); }
-  40% { transform: skew(2deg); }
-  60% { transform: skew(-1deg); }
-  80% { transform: skew(1deg); }
-  100% { transform: skew(0deg); }
-}
 .top-bar {
   height: $header-height;
   background-color: $bg-bar;
@@ -31,40 +23,16 @@
       margin-left: 1.25rem;
     }
 
-    .logo-container {
-      position: relative;
-      padding: 0 4px;
-      cursor: pointer;
-      h1 {
-        font-family: $logo-font;
-        font-size: 2rem;
-        font-weight: normal;
-        font-style: italic;
-        letter-spacing: 0.08em;
-        margin: 0;
-        color: var(--logo-color);
-        -webkit-text-stroke: 1.5px var(--logo-stroke);
-        text-shadow:
-          3px 3px 0px var(--logo-depth),
-          -1px -1px 0px rgba(var(--bg-dark-rgb), 0.1),
-          var(--logo-glow);
-        transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        position: relative;
-        z-index: 2;
-        &::selection {
-          background: $accent-red;
-          color: white;
-          -webkit-text-stroke: 0;
-          text-shadow: none;
-        }
-      }
-      &:hover h1 {
-        animation: glitch-skew 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite;
-        text-shadow:
-          4px 4px 0px var(--logo-depth),
-          -2px -2px 0px #ff00ff,
-          0 0 20px var(--logo-depth);
-      }
+    .brand-home {
+      display: inline-flex;
+      align-items: center;
+      font-size: 1rem;
+      color: var(--ink);
+      text-decoration: none;
+      border-radius: var(--radius-m);
+      padding: 2px 4px;
+
+      &:hover .vams-logo__vertex--selected { fill: var(--focus-ring); }
     }
   }
   .controls {

@@ -142,3 +142,30 @@ describe('BB-SITE-12: Route copy follows the student-facing language rules', () 
     }
   });
 });
+
+import { h, render } from 'preact';
+import Logo from '@/shared/ui/logo';
+
+describe('BB-SITE-13: The full logo exposes an accessible name and wordmark', () => {
+  it('renders the vertex mark with the selected apex and the VAMS wordmark', () => {
+    const host = document.createElement('div');
+    render(h(Logo, { variant: 'full' }), host);
+    const logo = host.querySelector('.vams-logo')!;
+    expect(logo.getAttribute('role')).toBe('img');
+    expect(logo.getAttribute('aria-label')).toBe('VAMS');
+    expect(host.querySelectorAll('.vams-logo__vertex').length).toBe(3);
+    expect(host.querySelector('.vams-logo__vertex--selected')).not.toBeNull();
+    expect(host.querySelector('.vams-logo__word')?.textContent).toBe('VAMS');
+    render(null, host);
+  });
+});
+
+describe('BB-SITE-14: The mark-only logo omits the wordmark', () => {
+  it('renders only the symbol', () => {
+    const host = document.createElement('div');
+    render(h(Logo, { variant: 'mark' }), host);
+    expect(host.querySelector('.vams-logo__mark')).not.toBeNull();
+    expect(host.querySelector('.vams-logo__word')).toBeNull();
+    render(null, host);
+  });
+});

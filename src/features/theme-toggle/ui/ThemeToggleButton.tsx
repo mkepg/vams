@@ -1,18 +1,18 @@
 import { Sun, Moon } from 'lucide-react';
-import { useVamsStore } from '@/core/store';
+import { toggleTheme, useSiteTheme } from '@/shared/lib/theme';
 
-export default function ThemeToggleButton() {
-  const theme = useVamsStore((state) => state.theme);
-  const toggleTheme = useVamsStore((state) => state.toggleTheme);
-
+export default function ThemeToggleButton({ className = 'icon-btn' }: { className?: string }) {
+  const theme = useSiteTheme();
+  const isBlueprint = theme === 'blueprint';
   return (
     <button
-      className="icon-btn"
-      onClick={toggleTheme}
-      title="Toggle Theme"
-      aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+      type="button"
+      className={className}
+      onClick={() => toggleTheme()}
+      title={isBlueprint ? 'Switch to the light theme' : 'Switch to the dark theme'}
+      aria-label={isBlueprint ? 'Switch to the light theme' : 'Switch to the dark theme'}
     >
-      {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+      {isBlueprint ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />}
     </button>
   );
 }

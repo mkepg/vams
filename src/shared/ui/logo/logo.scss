@@ -1,0 +1,42 @@
+.vams-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  color: var(--ink);
+  line-height: 1;
+
+  &__mark {
+    flex: none;
+    width: 2.2em;
+    height: auto;
+    overflow: visible;
+  }
+  &__fill { fill: rgba(var(--accent-rgb), 0.14); }
+  &__stroke {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linejoin: round;
+  }
+  &__vertex { fill: currentColor; }
+  &__vertex--selected { fill: var(--accent); }
+
+  &__text {
+    display: flex;
+    flex-direction: column;
+  }
+  &__word {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.55em;
+    letter-spacing: 0.02em;
+  }
+  &__tagline {
+    margin-top: 0.35em;
+    font-family: var(--font-mono);
+    font-size: 0.62em;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+}

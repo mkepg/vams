@@ -1,11 +1,4 @@
 @font-face {
-  font-family: 'Minecrafter';
-  src: url('/fonts/Minecrafter.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
   font-family: 'Comfortaa';
   src: url('/fonts/Comfortaa-Light.ttf') format('truetype');
   font-weight: 300;
@@ -13,7 +6,6 @@
   font-display: swap;
 }
 
-$logo-font: 'Minecrafter', sans-serif; // removed in the logo task
 $font-display: 'Newsreader', Georgia, 'Times New Roman', serif;
 $font-ui: 'Chivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
 $font-mono: 'Chivo Mono', ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
@@ -72,11 +64,6 @@ $right-sidebar-width: 35rem;
   --panel-tab: #e1e4dd;
   --keyword-fallback: #1d2b4f;
   --code-content: #24438f;
-
-  --logo-color: #1d2b4f; /* removed in the logo task */
-  --logo-stroke: transparent;
-  --logo-depth: #ff5a1f;
-  --logo-glow: none;
 }
 
 /* Blueprint: the dark theme. */
@@ -120,9 +107,6 @@ $right-sidebar-width: 35rem;
   --panel-tab: rgba(0, 0, 0, 0.2);
   --keyword-fallback: #cdd9ee;
   --code-content: #9cc2f5;
-
-  --logo-color: #e6eefb;
-  --logo-depth: #ff6a2b;
 }
 $bg-dark: rgb(var(--bg-dark-rgb));
 $bg-panel: rgb(var(--bg-panel-rgb));

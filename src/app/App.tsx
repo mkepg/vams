@@ -9,6 +9,14 @@ import HelpCenter from '@/features/help/ui/HelpCenter';
 import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
 import WelcomeCard from '@/features/onboarding/ui/WelcomeCard';
 import { useVamsStore } from '@/core/store';
+import {
+  applyTheme,
+  getActiveTheme,
+  readStoredTheme,
+  subscribeTheme,
+  toEditorTheme,
+  type SiteTheme,
+} from '@/shared/lib/theme';
 import { useKeyboardShortcuts } from '@/shared/hooks/useKeyboardShortcuts';
 
 export default function App() {
@@ -18,11 +26,16 @@ export default function App() {
     root.classList.add('route-editor');
     return () => root.classList.remove('route-editor');
   }, []);
-  const theme = useVamsStore((state) => state.theme);
+  useEffect(() => {
+    applyTheme(readStoredTheme());
+    const mirror = (theme: SiteTheme) => useVamsStore.setState({ theme: toEditorTheme(theme) });
+    mirror(getActiveTheme());
+    return subscribeTheme(mirror);
+  }, []);
   const appMode = useVamsStore((state) => state.appMode);
 
   return (
-    <div className="app-container" data-theme={theme}>
+    <div className="app-container">
       <TopBar />
       <div className="main-workspace">
         <LeftSidebar />
