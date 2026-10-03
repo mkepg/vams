@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect } from 'react';
 import './editor-app.scss';
 import TopBar from '@/widgets/layout/top-bar';
 import LeftSidebar from '@/widgets/layout/left-sidebar';
@@ -21,7 +21,7 @@ import { useKeyboardShortcuts } from '@/shared/hooks/useKeyboardShortcuts';
 
 export default function EditorApp() {
   useKeyboardShortcuts();
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = document.documentElement;
     root.classList.add('route-editor');
     return () => root.classList.remove('route-editor');

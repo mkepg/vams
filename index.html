@@ -13,7 +13,7 @@
        } catch (e) {
          root.dataset.theme = 'vellum';
        }
-       if (/^\/app(\/|$)/.test(location.pathname)) root.classList.add('route-editor');
+       if (/^\/app\/?$/.test(location.pathname)) root.classList.add('route-editor');
      })();
    </script>
  </head>
