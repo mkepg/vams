@@ -38,9 +38,12 @@ $right-sidebar-width: 35rem;
   --accent: #ff5a1f;
   --accent-rgb: 255, 90, 31;
   --on-accent: #1a0d06;
+  /* Orange used as text: #ff5a1f is under 3:1 on vellum paper, so text takes the darker shade. */
+  --accent-text: #d9480f;
   --focus-ring: #d9480f;
   --code-bg: #1d2b4f;
   --code-ink: #e6eefb;
+  --code-fn: #9fb8ff;
   --success: #15803d;
   --danger: #b91c1c;
 
@@ -82,9 +85,11 @@ $right-sidebar-width: 35rem;
   --accent: #ff6a2b;
   --accent-rgb: 255, 106, 43;
   --on-accent: #1a0d06;
+  --accent-text: var(--accent);
   --focus-ring: #ff8a55;
   --code-bg: #0a2140;
   --code-ink: #e6eefb;
+  --code-fn: #9fb8ff;
   --success: #4ade80;
   --danger: #f87171;
 
