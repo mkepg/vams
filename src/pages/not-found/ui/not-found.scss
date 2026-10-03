@@ -1,0 +1,45 @@
+.not-found {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6);
+
+  /* The status code reads as a drawing callout: ink text after a short dimension tick. */
+  &__code {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    letter-spacing: 0.2em;
+    color: var(--ink-muted);
+    &::before {
+      content: '';
+      flex: none;
+      width: 28px;
+      height: 9px;
+      border-left: 1.5px solid var(--ink);
+      background: linear-gradient(var(--ink), var(--ink)) left center / 100% 1.5px no-repeat;
+    }
+  }
+  &__title {
+    margin: var(--space-3) 0 var(--space-4);
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(2.25rem, 5vw, 3.5rem);
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+  }
+  &__text { margin: 0; color: var(--ink-muted); font-size: 1.125rem; }
+  &__actions {
+    margin: var(--space-5) 0 0;
+    font-family: var(--font-mono);
+    color: var(--ink-muted);
+    a { color: var(--ink); text-underline-offset: 3px; }
+  }
+}
+
+@media (max-width: 640px) {
+  .not-found { padding: var(--space-7) var(--space-4); }
+}

@@ -1,5 +1,6 @@
 import SiteHeader from '@/widgets/site-header';
 import SiteFooter from '@/widgets/site-footer';
+import './not-found.scss';
 
 export default function NotFoundPage() {
   return (

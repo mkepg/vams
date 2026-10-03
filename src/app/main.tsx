@@ -1,5 +1,6 @@
 import './styles/fonts';
 import './styles/global.scss';
+import './styles/site-page.scss';
 import { hydrate } from 'preact-iso';
 import SiteApp from './SiteApp';
 

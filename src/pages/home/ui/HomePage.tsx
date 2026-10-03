@@ -1,5 +1,7 @@
 import SiteHeader from '@/widgets/site-header';
 import SiteFooter from '@/widgets/site-footer';
+import HeroFigure from './HeroFigure';
+import './home.scss';
 
 export default function HomePage() {
   return (
@@ -7,17 +9,20 @@ export default function HomePage() {
       <SiteHeader />
       <main id="main" className="home">
         <section className="home__hero" aria-labelledby="home-title">
-          <p className="home__eyebrow">OpenGL 1.5 · 2D · in your browser</p>
-          <h1 id="home-title" className="home__title">
-            Every shape is a <em>program.</em>
-          </h1>
-          <p className="home__lede">
-            Draw a triangle and VAMS writes the OpenGL that draws it, then shows the math underneath.
-            No compiler, no setup: just the concept.
-          </p>
-          <p className="home__actions">
-            <a className="home__cta" href="/app">Open the app</a>
-          </p>
+          <div className="home__copy">
+            <p className="home__eyebrow">OpenGL 1.5 · 2D · in your browser</p>
+            <h1 id="home-title" className="home__title">
+              Every shape is a <em>program.</em>
+            </h1>
+            <p className="home__lede">
+              Draw a triangle and VAMS writes the OpenGL that draws it, then shows the math underneath.
+              No compiler, no setup: just the concept.
+            </p>
+            <p className="home__actions">
+              <a className="home__cta" href="/app">Open the app</a>
+            </p>
+          </div>
+          <HeroFigure />
         </section>
         <section className="home__views" aria-labelledby="views-title">
           <h2 id="views-title" className="home__section-title">One scene, three views</h2>

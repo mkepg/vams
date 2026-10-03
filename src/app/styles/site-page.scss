@@ -1,0 +1,26 @@
+/* Shared frame for the content pages: cool grid paper, navy ink. */
+.site-page {
+  /* Content pages share one column so the header, hero and footer line up. */
+  --site-max: 1200px;
+  --site-gutter: max(var(--space-6), calc((100% - var(--site-max)) / 2 + var(--space-6)));
+
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(var(--grid-minor) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
+  background-size: 64px 64px, 64px 64px, 16px 16px, 16px 16px;
+  color: var(--ink);
+}
+
+/* Zero-specificity defaults, so any component class (such as a filled button) can override them. */
+:where(.site-page) main { flex: 1; }
+:where(.site-page) a { color: inherit; }
+
+@media (max-width: 640px) {
+  .site-page { --site-gutter: var(--space-4); }
+}
