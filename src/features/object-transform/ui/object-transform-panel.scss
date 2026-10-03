@@ -47,12 +47,12 @@
     border-color: var(--border-highlight);
   }
   &:focus-visible {
-    outline: 2px solid $accent-blue;
+    outline: 2px solid var(--focus-ring);
     outline-offset: 1px;
   }
   &.dragging {
     cursor: grabbing;
-    border-color: $accent-blue;
+    border-color: $accent-blue-text;
     box-shadow: 0 0 0 2px rgba(var(--accent-blue-rgb), 0.22) inset;
     .pad-puck {
       background: var(--accent-blue-light);
@@ -162,12 +162,12 @@
 
   &:hover { border-color: var(--border-highlight); }
   &:focus-visible {
-    outline: 2px solid $accent-blue;
+    outline: 2px solid var(--focus-ring);
     outline-offset: 1px;
   }
   &.dragging {
     cursor: grabbing;
-    border-color: $accent-blue;
+    border-color: $accent-blue-text;
     box-shadow: 0 0 0 2px rgba(var(--accent-blue-rgb), 0.22) inset;
   }
 
@@ -307,7 +307,7 @@
 
     &:focus {
       outline: none;
-      border-color: $accent-blue;
+      border-color: $accent-blue-text;
       box-shadow: 0 0 0 2px rgba(var(--accent-blue-rgb), 0.18);
     }
   }

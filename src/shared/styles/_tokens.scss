@@ -38,7 +38,8 @@ $right-sidebar-width: 35rem;
   --accent: #ff5a1f;
   --accent-rgb: 255, 90, 31;
   --on-accent: #1a0d06;
-  /* Orange used as text: #ff5a1f is under 3:1 on vellum paper, so text takes the darker shade. */
+  /* Orange used as large text only: #d9480f is about 3.9:1 on vellum paper,
+     which meets 3:1 for large text but not 4.5:1 for body text. */
   --accent-text: #d9480f;
   --focus-ring: #d9480f;
   --code-bg: #1d2b4f;
@@ -55,7 +56,7 @@ $right-sidebar-width: 35rem;
   --border-rgb: 198, 203, 211;
   --text-main: #1d2b4f;
   --text-muted: #45557a;
-  --text-dim: #5b6888;
+  --text-dim: #566382;
   --accent-blue-rgb: 29, 43, 79;
   --accent-green-rgb: 21, 128, 61;
   --accent-red-rgb: 185, 28, 28;
@@ -63,6 +64,12 @@ $right-sidebar-width: 35rem;
   --accent-blue-light: #24438f;
   --accent-red-light: #b91c1c;
   --accent-green-light: #15803d;
+  /* Accent hues used as text, icons and state borders: each clears 4.5:1 on
+     the editor panels. Green takes green-800, since green-700 drops under
+     4.5:1 on the sunken panel and on its own tint. */
+  --accent-blue-text: #1d2b4f;
+  --accent-red-text: #b91c1c;
+  --accent-green-text: #166534;
   --border-highlight: #9aa4b8;
   --panel-tab: #e1e4dd;
   --keyword-fallback: #1d2b4f;
@@ -139,6 +146,9 @@ $right-sidebar-width: 35rem;
   --accent-blue-light: #9cc2f5;
   --accent-red-light: #f87171;
   --accent-green-light: #4ade80;
+  --accent-blue-text: #9cc2f5;
+  --accent-red-text: #f87171;
+  --accent-green-text: #4ade80;
   --border-highlight: #3d6493;
   --panel-tab: rgba(0, 0, 0, 0.2);
   --keyword-fallback: #cdd9ee;
@@ -176,6 +186,9 @@ $text-dim: var(--text-dim);
 $accent-blue: rgb(var(--accent-blue-rgb));
 $accent-green: rgb(var(--accent-green-rgb));
 $accent-red: rgb(var(--accent-red-rgb));
+$accent-blue-text: var(--accent-blue-text);
+$accent-green-text: var(--accent-green-text);
+$accent-red-text: var(--accent-red-text);
 @mixin flex-center {
   display: flex;
   align-items: center;

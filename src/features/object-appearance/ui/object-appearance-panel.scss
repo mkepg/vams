@@ -108,7 +108,7 @@
   &:last-child { margin-bottom: 0; }
 
   &:hover {
-    border-color: $accent-blue;
+    border-color: $accent-blue-text;
     box-shadow: 0 2px 8px rgba(var(--shadow-rgb), 0.1);
   }
 
@@ -117,9 +117,9 @@
     flex-direction: column;
     gap: 0.2rem;
     
-    .label { font-family: $font-mono; font-size: 0.8rem; color: $accent-blue; font-weight: 600; }
+    .label { font-family: $font-mono; font-size: 0.8rem; color: $accent-blue-text; font-weight: 600; }
     .sub-label { font-family: $font-mono; font-size: 0.75rem; color: $text-dim;; }
-    .vertex-label { font-family: $font-mono; font-size: 0.8rem; color: $accent-blue; font-weight: 600; }
+    .vertex-label { font-family: $font-mono; font-size: 0.8rem; color: $accent-blue-text; font-weight: 600; }
     .vertex-coords { font-family: $font-mono; font-size: 0.75rem; color: $text-dim; }
   }
 
@@ -198,7 +198,7 @@
       transition: all 0.2s ease;
 
       &:hover {
-        border-color: $accent-blue;
+        border-color: $accent-blue-text;
         color: $text-main;
         background-color: var(--bg-panel-hover);
         transform: translateY(-1px);

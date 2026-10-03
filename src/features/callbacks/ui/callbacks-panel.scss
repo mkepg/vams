@@ -178,7 +178,7 @@
       &::placeholder { color: $text-dim; }
       &:focus {
         outline: none;
-        border-color: $accent-blue;
+        border-color: $accent-blue-text;
         box-shadow: 0 0 0 2px rgba(var(--accent-blue-rgb), 0.15);
       }
     }

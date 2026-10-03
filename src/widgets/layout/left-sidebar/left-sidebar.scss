@@ -33,15 +33,15 @@
       color: $text-main;
     }
     &:focus-visible {
-      outline: 2px solid $accent-blue;
+      outline: 2px solid var(--focus-ring);
       outline-offset: -2px;
     }
     &.active {
-      color: $accent-blue;
-      border-bottom-color: $accent-blue;
+      color: $accent-blue-text;
+      border-bottom-color: $accent-blue-text;
       background-color: rgba(var(--accent-blue-rgb), 0.08);
       .tab-icon {
-        color: $accent-blue;
+        color: $accent-blue-text;
       }
       .tab-label {
         font-weight: 700;

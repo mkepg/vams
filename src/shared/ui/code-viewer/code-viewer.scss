@@ -217,7 +217,7 @@
       }
 
       &.copied {
-        color: $accent-green;
+        color: $accent-green-text;
         background-color: rgba(var(--accent-green-rgb), 0.1);
         border-color: rgba(var(--accent-green-rgb), 0.3);
       }
@@ -297,7 +297,7 @@
 
         &.highlight {
           background-color: rgba(var(--accent-blue-rgb), 0.14);
-          border-left-color: $accent-blue;
+          border-left-color: $accent-blue-text;
           animation: highlight-pulse 0.4s ease-out;
         }
 

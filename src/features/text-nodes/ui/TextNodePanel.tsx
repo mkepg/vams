@@ -43,7 +43,7 @@ export default function TextNodePanel() {
                 justifyContent: 'center',
                 padding: '0.4rem',
                 backgroundColor: 'rgba(var(--accent-blue-rgb), 0.1)',
-                color: 'rgb(var(--accent-blue-rgb))',
+                color: 'var(--accent-blue-text)',
                 border: '1px solid rgba(var(--accent-blue-rgb), 0.3)',
                 borderRadius: '4px',
                 cursor: 'pointer',
@@ -68,7 +68,7 @@ export default function TextNodePanel() {
               alignItems: 'center',
               gap: '0.5rem',
               marginBottom: '0.5rem',
-              color: 'rgb(var(--accent-blue-rgb))',
+              color: 'var(--accent-blue-text)',
               fontSize: '0.8rem',
               fontWeight: 600
             }}>

@@ -103,9 +103,9 @@
           }
           &:hover {
             background-color: rgba(var(--accent-blue-rgb), 0.1);
-            color: $accent-blue;
+            color: $accent-blue-text;
             svg {
-              color: $accent-blue;
+              color: $accent-blue-text;
             }
           }
           &:active {

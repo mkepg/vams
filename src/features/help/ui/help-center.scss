@@ -43,7 +43,7 @@
     font-weight: 600;
     font-size: 0.95rem;
     flex-shrink: 0;
-    svg { color: $accent-blue; }
+    svg { color: $accent-blue-text; }
   }
 
   .help-search {
@@ -59,7 +59,7 @@
     border-radius: 6px;
     color: $text-muted;
 
-    &:focus-within { border-color: $accent-blue; }
+    &:focus-within { border-color: $accent-blue-text; }
 
     input {
       flex: 1;
@@ -93,7 +93,7 @@
     cursor: pointer;
     transition: all 0.15s;
     &:hover { background-color: rgba(var(--border-rgb), 0.4); color: $text-main; }
-    &:focus-visible { outline: 2px solid $accent-blue; outline-offset: 1px; }
+    &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
   }
 }
 
@@ -165,10 +165,10 @@
     &:hover { background-color: rgba(var(--border-rgb), 0.35); color: $text-main; }
     &.active {
       background-color: rgba(var(--accent-blue-rgb), 0.15);
-      color: $accent-blue;
+      color: $accent-blue-text;
       .nav-item-title { font-weight: 600; }
     }
-    &:focus-visible { outline: 2px solid $accent-blue; outline-offset: -2px; }
+    &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
   }
 
   .help-nav-empty { padding: 0.5rem; font-size: 0.8rem; color: $text-dim; }
@@ -304,17 +304,17 @@
     &.tone-info {
       background-color: rgba(var(--accent-blue-rgb), 0.1);
       border-color: rgba(var(--accent-blue-rgb), 0.35);
-      .callout-icon { color: $accent-blue; }
+      .callout-icon { color: $accent-blue-text; }
     }
     &.tone-tip {
       background-color: rgba(var(--accent-green-rgb), 0.1);
       border-color: rgba(var(--accent-green-rgb), 0.35);
-      .callout-icon { color: $accent-green; }
+      .callout-icon { color: $accent-green-text; }
     }
     &.tone-warning {
       background-color: rgba(var(--accent-red-rgb), 0.1);
       border-color: rgba(var(--accent-red-rgb), 0.35);
-      .callout-icon { color: $accent-red; }
+      .callout-icon { color: $accent-red-text; }
     }
   }
 
@@ -336,7 +336,7 @@
     .related-chip {
       padding: 0.3rem 0.7rem;
       font-size: 0.8rem;
-      color: $accent-blue;
+      color: $accent-blue-text;
       background-color: rgba(var(--accent-blue-rgb), 0.1);
       border: 1px solid rgba(var(--accent-blue-rgb), 0.3);
       border-radius: 999px;

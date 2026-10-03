@@ -103,6 +103,12 @@
     text-align: center;
     color: $text-dim;
     pointer-events: none;
+    /* The hint sits over the scene's own clear colour, which students set
+       freely, so it carries a panel backdrop to keep its text readable. */
+    padding: 1rem 1.25rem;
+    background-color: rgba(var(--bg-panel-rgb), 0.94);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-m);
 
     svg { opacity: 0.5; }
     p { margin: 0; font-size: 0.9rem; color: $text-muted; }
@@ -119,7 +125,7 @@
       cursor: pointer;
       transition: background-color 0.15s;
       &:hover { background-color: var(--accent-blue-light); color: var(--on-accent-light); }
-      &:focus-visible { outline: 2px solid var(--accent-blue-light); outline-offset: 2px; }
+      &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
     }
   }
 

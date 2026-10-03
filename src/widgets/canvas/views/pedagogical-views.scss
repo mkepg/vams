@@ -302,7 +302,7 @@
     }
 
     &:focus-visible {
-      outline: 2px solid $accent-blue;
+      outline: 2px solid var(--focus-ring);
       outline-offset: 2px;
     }
 
@@ -313,7 +313,7 @@
     }
 
     &.active {
-      border-color: $accent-blue;
+      border-color: $accent-blue-text;
       background-color: rgba(var(--accent-blue-rgb), 0.09);
       box-shadow:
         0 0 0 1px rgba(var(--accent-blue-rgb), 0.4),

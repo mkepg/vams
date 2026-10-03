@@ -26,7 +26,7 @@
   color: $text-main;
   &:focus {
     outline: none;
-    border-color: $accent-blue;
+    border-color: $accent-blue-text;
   }
   &[component="textarea"], &.edit-textarea {
     width: 100%;
