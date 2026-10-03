@@ -11,7 +11,7 @@
   background: rgba(var(--bg-panel-rgb), 0.96);
   border: 1px solid $border-color;
   border-radius: 8px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 28px rgba(var(--shadow-rgb), 0.4);
   overflow: hidden;
   backdrop-filter: blur(2px);
   animation: anim-code-overlay-in 0.18s ease;

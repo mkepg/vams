@@ -72,7 +72,7 @@
     grid-template-columns: repeat(7, 1fr);
     gap: 6px;
     padding: 0.4rem;
-    background: rgba(0, 0, 0, 0.25);
+    background: rgba(var(--well-rgb), 0.25);
     border: 1px solid $border-color;
     border-radius: 8px;
 
@@ -82,7 +82,7 @@
       justify-content: center;
       gap: 0.4rem;
       padding: 0.45rem 0.3rem;
-      background: rgba(255, 255, 255, 0.02);
+      background: rgba(var(--accent-blue-rgb), 0.02);
       border: 1px solid transparent;
       border-radius: 5px;
       color: $text-dim;
@@ -124,7 +124,7 @@
 
         .rail-index {
           background: $accent-blue;
-          color: white;
+          color: var(--on-accent-blue);
           box-shadow: 0 0 10px rgba(var(--accent-blue-rgb), 0.55);
         }
       }
@@ -168,7 +168,7 @@
     }
 
     .inspector-visual {
-      background: rgba(0, 0, 0, 0.28);
+      background: rgba(var(--well-rgb), 0.28);
       border: 1px solid $border-color;
       border-radius: 8px;
       padding: 0.5rem;
@@ -212,7 +212,7 @@
           gap: 0.4rem;
           padding: 0.3rem 0.55rem;
           border-radius: 5px;
-          background: rgba(0, 0, 0, 0.3);
+          background: rgba(var(--well-rgb), 0.3);
           border: 1px solid $border-color;
           font-family: $font-mono;
           font-size: 0.7rem;
@@ -224,12 +224,12 @@
             color: $text-dim;
             padding: 0.05rem 0.25rem;
             border-radius: 2px;
-            background: rgba(255, 255, 255, 0.04);
+            background: rgba(var(--accent-blue-rgb), 0.04);
           }
           .io-value {
             color: $text-main;
           }
-          &.in .io-label { color: #7dd3fc; background: rgba(125, 211, 252, 0.12); }
+          &.in .io-label { color: var(--hue-sky); background: rgba(var(--hue-sky-rgb), 0.12); }
           &.out .io-label { color: var(--accent-blue-light); background: rgba(var(--accent-blue-rgb), 0.16); }
         }
 
@@ -260,9 +260,9 @@
           padding: 0.15rem 0.45rem;
           font-family: $font-mono;
           font-size: 0.68rem;
-          color: #82aaff;
-          background: rgba(130, 170, 255, 0.08);
-          border: 1px solid rgba(130, 170, 255, 0.22);
+          color: var(--gl-fn);
+          background: rgba(var(--gl-fn-rgb), 0.08);
+          border: 1px solid rgba(var(--gl-fn-rgb), 0.22);
           border-radius: 3px;
         }
       }
@@ -292,13 +292,13 @@
     border-radius: 10px;
     cursor: pointer;
     transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 4px 12px rgba(var(--shadow-rgb), 0.18);
     position: relative;
 
     &:hover {
       border-color: var(--border-highlight);
       transform: translateY(-1px);
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+      box-shadow: 0 6px 18px rgba(var(--shadow-rgb), 0.25);
     }
 
     &:focus-visible {
@@ -321,7 +321,7 @@
 
       .node-number {
         background-color: $accent-blue;
-        color: white;
+        color: var(--on-accent-blue);
       }
       .node-icon {
         color: var(--accent-blue-light);
@@ -370,7 +370,7 @@
       align-items: center;
       justify-content: center;
       color: $text-muted;
-      background-color: rgba(255, 255, 255, 0.03);
+      background-color: rgba(var(--accent-blue-rgb), 0.03);
       border: 1px solid $border-color;
       transition: all 0.3s ease;
     }
@@ -418,7 +418,7 @@
       text-transform: uppercase;
       color: $text-dim;
       padding: 0.1rem 0.45rem;
-      background: rgba(0, 0, 0, 0.3);
+      background: rgba(var(--well-rgb), 0.3);
       border: 1px solid $border-color;
       border-radius: 3px;
     }
@@ -448,9 +448,10 @@
       margin-right: 0.4rem;
       vertical-align: middle;
 
-      &.input  { background: #7dd3fc; }
+      /* pipeline-stage colour coding: per-theme hue tokens */
+      &.input  { background: var(--hue-sky); }
       &.process { background: rgb(var(--accent-blue-rgb)); }
-      &.output { background: #a78bfa; }
+      &.output { background: var(--hue-violet); }
     }
   }
 }
@@ -510,20 +511,20 @@
     stroke-dasharray: 4 2;
   }
   .v-grid {
-    stroke: rgba(255, 255, 255, 0.08);
+    stroke: var(--grid-major);
     stroke-width: 1;
   }
   .v-frag {
     fill: rgba(var(--accent-blue-rgb), 0.55);
     stroke: rgba(var(--accent-blue-rgb), 0.9);
     stroke-width: 0.6;
-    &.pale    { fill: rgba(125, 211, 252, 0.25); }
+    &.pale    { fill: rgba(var(--hue-sky-rgb), 0.25); }
     &.mid     { fill: rgba(var(--accent-blue-rgb), 0.55); }
     &.strong  { fill: rgba(var(--accent-blue-rgb), 0.85); }
-    &.intense { fill: #a78bfa; }
+    &.intense { fill: var(--hue-violet); }
   }
   .v-buffer {
-    fill: rgba(0, 0, 0, 0.45);
+    fill: rgba(var(--well-rgb), 0.45);
     stroke: rgba(var(--accent-blue-rgb), 0.6);
     stroke-width: 1;
   }
@@ -591,7 +592,7 @@
       }
 
       .rv-grid-line {
-        stroke: rgba(255, 255, 255, 0.06);
+        stroke: var(--grid-major);
         stroke-width: 1;
         fill: none;
       }

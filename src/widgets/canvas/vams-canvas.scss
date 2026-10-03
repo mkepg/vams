@@ -4,6 +4,7 @@
   width: 100%;
   height: 100%;
   position: relative;
+  /* the scene's clear colour shows through here (scene state, default black): intentionally fixed */
   background-color: #000;
   transition: opacity 0.2s ease-in-out;
   
@@ -25,9 +26,9 @@
     top: 8px;
     left: 8px;
     font-size: 0.75rem;
-    color: $text-dim;
+    color: $text-muted;
     font-family: $font-mono;
-    background-color: rgba(0,0,0,0.5);
+    background-color: rgba(var(--bg-panel-rgb), 0.9);
     padding: 2px 4px;
     border-radius: 4px;
   }
@@ -56,8 +57,11 @@
     flex-direction: column;
     align-items: center;
     gap: 3px;
-    background-color: rgba(37, 99, 235, 0.18);
-    border: 1px solid rgba(37, 99, 235, 0.45);
+    /* ink tint over an opaque panel so the banner reads on any scene clear colour */
+    background:
+      linear-gradient(rgba(var(--accent-blue-rgb), 0.18), rgba(var(--accent-blue-rgb), 0.18)),
+      rgba(var(--bg-panel-rgb), 0.92);
+    border: 1px solid rgba(var(--accent-blue-rgb), 0.45);
     color: var(--accent-blue-light);
     font-size: 0.75rem;
     font-family: $font-mono;
@@ -79,8 +83,8 @@
       opacity: 0.85;
       kbd {
         padding: 1px 5px;
-        background-color: rgba(0, 0, 0, 0.35);
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        background-color: rgba(var(--well-rgb), 0.35);
+        border: 1px solid var(--rule);
         border-radius: 3px;
         font-family: $font-mono;
       }
@@ -108,7 +112,7 @@
       padding: 0.5rem 1.1rem;
       font-size: 0.85rem;
       font-weight: 600;
-      color: #fff;
+      color: var(--on-accent-blue);
       background-color: $accent-blue;
       border: none;
       border-radius: 6px;
