@@ -1,0 +1,5 @@
+.skip-link { position: absolute; left: -9999px; }
+.skip-link:focus { left: 16px; top: 16px; }
+.site-header { display: flex; align-items: center; gap: 16px; padding: 16px 32px; }
+.site-header__nav { flex: 1; display: flex; gap: 16px; }
+.site-header__actions { display: flex; align-items: center; gap: 12px; }

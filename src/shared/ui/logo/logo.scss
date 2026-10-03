@@ -5,7 +5,7 @@
   color: var(--ink);
   line-height: 1;
 
-  &__mark {
+  > .vams-logo__mark {
     flex: none;
     width: 2.2em;
     height: auto;
@@ -40,3 +40,5 @@
     color: var(--ink-muted);
   }
 }
+
+.vams-logo__mark { overflow: visible; }

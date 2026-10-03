@@ -3,6 +3,9 @@ import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
   resolve: {
+    // Prefer ESM entry points, as the browser build does. A CommonJS entry (lucide-react's
+    // `main`) would `require('react')` and load real React, bypassing the alias below.
+    mainFields: ['module', 'jsnext:main', 'jsnext'],
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
       react: 'preact/compat',
@@ -15,6 +18,13 @@ export default defineConfig({
     environment: 'happy-dom',
     include: ['tests/**/*.test.ts'],
     setupFiles: ['./tests/setup.ts'],
+    // Transform React-ecosystem component libraries through Vite so their `react`
+    // imports resolve to preact/compat (needed when prerendering components in tests).
+    server: {
+      deps: {
+        inline: ['lucide-react'],
+      },
+    },
     reporters: ['default', 'json'],
     outputFile: {
       json: './tests/reports/vitest-results.json',

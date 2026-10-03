@@ -169,3 +169,57 @@ describe('BB-SITE-14: The mark-only logo omits the wordmark', () => {
     render(null, host);
   });
 });
+
+import { readFileSync } from 'node:fs';
+import { prerender } from '@/app/prerender';
+import { NAV_LINKS } from '@/widgets/site-header/model/nav';
+
+async function prerenderAt(url: string) {
+  window.history.replaceState(null, '', url);
+  return prerender({ url });
+}
+
+describe('BB-SITE-15: Prerendering / produces the home page with its head', () => {
+  it('renders home content, hydration data, the route title and discovers /app', async () => {
+    const result = await prerenderAt('/');
+    expect(result.html).toContain('class="home"');
+    expect(result.html).toContain('<script type="isodata"></script>');
+    expect(result.head.title).toBe(findRouteMeta('/').title);
+    expect([...result.links]).toContain('/app');
+  });
+});
+
+describe('BB-SITE-16: Prerendering /app produces only the loading shell', () => {
+  it('renders the loading status and marks the page noindex', async () => {
+    const result = await prerenderAt('/app');
+    expect(result.html).toContain('class="editor-loading"');
+    expect(result.html).toContain('role="status"');
+    expect([...result.head.elements].some((e) => e.props.name === 'robots')).toBe(true);
+  });
+});
+
+describe('BB-SITE-17: Unknown paths prerender the not-found page', () => {
+  it('renders the not-found page with 404 metadata', async () => {
+    const result = await prerenderAt('/404');
+    expect(result.html).toContain('class="not-found"');
+    expect(result.head.title).toBe(findRouteMeta('/404').title);
+  });
+});
+
+describe('BB-SITE-18: The header links only finished, indexable pages', () => {
+  it('references routes that exist and are indexable', () => {
+    for (const link of NAV_LINKS) {
+      const meta = findRouteMeta(link.href);
+      expect(meta.path).toBe(link.href);
+      expect(meta.indexable).toBe(true);
+    }
+  });
+});
+
+describe('BB-SITE-19: The early theme script matches the theme module', () => {
+  it('reads the same storage key and sets the editor class on /app', () => {
+    const html = readFileSync('index.html', 'utf8');
+    expect(html).toContain(`'${THEME_STORAGE_KEY}'`);
+    expect(html).toContain("classList.add('route-editor')");
+  });
+});

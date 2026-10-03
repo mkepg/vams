@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import './styles/app-shell.scss';
+import './editor-app.scss';
 import TopBar from '@/widgets/layout/top-bar';
 import LeftSidebar from '@/widgets/layout/left-sidebar';
 import RightSidebar from '@/widgets/layout/right-sidebar';
@@ -19,7 +19,7 @@ import {
 } from '@/shared/lib/theme';
 import { useKeyboardShortcuts } from '@/shared/hooks/useKeyboardShortcuts';
 
-export default function App() {
+export default function EditorApp() {
   useKeyboardShortcuts();
   useEffect(() => {
     const root = document.documentElement;

@@ -20,6 +20,8 @@
     "lucide-react": "^0.562.0",
     "pixi.js": "^8.15.0",
     "preact": "^10.28.4",
+    "preact-iso": "^2.12.2",
+    "preact-render-to-string": "^6.8.0",
     "react-icons": "^5.5.0",
     "sonner": "^2.0.7",
     "zustand": "^5.0.9"

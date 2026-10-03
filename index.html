@@ -5,9 +5,20 @@
    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
    <title>VAMS</title>
+   <script>
+     (function () {
+       var root = document.documentElement;
+       try {
+         root.dataset.theme = localStorage.getItem('vams-theme') === 'blueprint' ? 'blueprint' : 'vellum';
+       } catch (e) {
+         root.dataset.theme = 'vellum';
+       }
+       if (/^\/app(\/|$)/.test(location.pathname)) root.classList.add('route-editor');
+     })();
+   </script>
  </head>
  <body>
    <div id="root"></div>
-   <script type="module" src="/src/app/main.tsx"></script>
+   <script prerender type="module" src="/src/app/main.tsx"></script>
  </body>
 </html>
