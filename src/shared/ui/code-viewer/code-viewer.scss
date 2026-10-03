@@ -431,12 +431,12 @@
   }
 
   .tk { white-space: pre; }
-  .tk-kw       { color: #7c4dff; font-weight: 600; }
-  .tk-pp       { color: #d84315; font-style: italic; }
+  .tk-kw       { color: #6236d9; font-weight: 600; }
+  .tk-pp       { color: #b33a0e; font-style: italic; }
   .tk-comment  { color: #5f6b7a; font-style: italic; }
-  .tk-string   { color: #2e7d32; }
-  .tk-num      { color: #d84315; }
-  .tk-const    { color: #9a5b00; }
+  .tk-string   { color: #256b29; }
+  .tk-num      { color: #b33a0e; }
+  .tk-const    { color: #8a5100; }
   .tk-glfn     { color: #0f4c75; font-weight: 600; }
   .tk-fn       { color: #0f4c75; }
   .tk-ident    { color: var(--code-content); }
