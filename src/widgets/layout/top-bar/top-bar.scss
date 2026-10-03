@@ -63,11 +63,11 @@
     }
     .btn-play {
       &.running {
-        background-color: darken(#f59e0b, 15%);
-        color: white;
-        box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+        background-color: var(--warning);
+        color: var(--on-accent-blue);
+        box-shadow: 0 0 8px rgba(var(--warning-rgb), 0.4);
         &:hover {
-          background-color: lighten(#f59e0b, 5%);
+          background-color: var(--warning-strong);
         }
       }
       &.paused {
@@ -134,7 +134,7 @@
         background-color: $bg-panel;
         border: 1px solid $border-color;
         border-radius: 6px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 4px 12px rgba(var(--shadow-rgb), 0.3);
         overflow: hidden;
         z-index: 1000;
         animation: dropdown-fade-in 0.15s ease-out;

@@ -263,7 +263,7 @@
       justify-content: center;
       gap: 6px;
       padding: 0.4rem;
-      background: rgba(255, 255, 255, 0.03);
+      background: rgba(var(--accent-blue-rgb), 0.03);
       border: 1px solid $border-color;
       border-radius: 4px;
       color: $text-muted;
@@ -276,7 +276,7 @@
       }
 
       &:hover:not(:disabled) {
-        background: rgba(255, 255, 255, 0.08);
+        background: rgba(var(--accent-blue-rgb), 0.08);
         color: $text-main;
         border-color: var(--border-highlight);
 
@@ -330,7 +330,7 @@
 
         &:active:not(:disabled) {
           background-color: $accent-blue;
-          color: white;
+          color: var(--on-accent-blue);
         }
 
         &:disabled {

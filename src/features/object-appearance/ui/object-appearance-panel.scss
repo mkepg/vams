@@ -18,7 +18,7 @@
   gap: 0.4rem;
   margin-bottom: 0.85rem;
   padding: 0.55rem 0.65rem;
-  background: rgba(0, 0, 0, 0.22);
+  background: rgba(var(--well-rgb), 0.22);
   border: 1px solid $border-color;
   border-radius: 6px;
 
@@ -50,7 +50,7 @@
   .mode-toggle {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    background: rgba(0, 0, 0, 0.28);
+    background: rgba(var(--well-rgb), 0.28);
     border: 1px solid $border-color;
     border-radius: 5px;
     padding: 2px;
@@ -74,7 +74,7 @@
 
       svg { opacity: 0.7; }
 
-      &:hover { color: $text-main; background: rgba(255, 255, 255, 0.04); }
+      &:hover { color: $text-main; background: rgba(var(--accent-blue-rgb), 0.04); }
       
       &.active {
         background: rgba(var(--accent-blue-rgb), 0.18);
@@ -109,7 +109,7 @@
 
   &:hover {
     border-color: $accent-blue;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(var(--shadow-rgb), 0.1);
   }
 
   .label-group {
@@ -202,7 +202,7 @@
         color: $text-main;
         background-color: var(--bg-panel-hover);
         transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 8px rgba(var(--shadow-rgb), 0.1);
       }
 
       &:active { transform: translateY(0); }

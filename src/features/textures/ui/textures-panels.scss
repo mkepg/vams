@@ -40,7 +40,7 @@
 
   .tx-count {
     margin-left: auto;
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(var(--accent-blue-rgb), 0.04);
     border: 1px solid $border-color;
     padding: 0 0.4rem;
     border-radius: 999px;
@@ -56,7 +56,7 @@
   font-style: italic;
   text-align: center;
   padding: 0.55rem 0.4rem;
-  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border: 1px dashed var(--rule);
   border-radius: 5px;
   em { color: var(--accent-blue-light); font-style: normal; }
 }
@@ -70,7 +70,7 @@
 .tx-card {
   display: flex;
   flex-direction: column;
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(var(--well-rgb), 0.25);
   border: 1px solid $border-color;
   border-radius: 5px;
   overflow: hidden;
@@ -89,9 +89,9 @@
     padding: 0;
     border: none;
     background:
-      linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%) 0 0/14px 14px,
-      linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.04) 75%) 0 0/14px 14px,
-      rgba(0,0,0,0.4);
+      linear-gradient(45deg, rgba(var(--accent-blue-rgb), 0.04) 25%, transparent 25%) 0 0/14px 14px,
+      linear-gradient(45deg, transparent 75%, rgba(var(--accent-blue-rgb), 0.04) 75%) 0 0/14px 14px,
+      rgba(var(--well-rgb), 0.4);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -111,7 +111,7 @@
     align-items: center;
     gap: 0.3rem;
     padding: 0.3rem 0.4rem;
-    background: rgba(0, 0, 0, 0.35);
+    background: rgba(var(--well-rgb), 0.35);
 
     .tx-card-name {
       flex: 1;
@@ -174,7 +174,7 @@
   gap: 0.55rem;
   align-items: center;
   padding: 0.45rem;
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(var(--well-rgb), 0.25);
   border: 1px solid $border-color;
   border-radius: 5px;
 
@@ -182,6 +182,7 @@
     aspect-ratio: 1 / 1;
     width: 48px;
     border-radius: 3px;
+    /* letterbox behind the texture preview: intentionally fixed */
     background-color: #000;
     background-size: cover;
     background-position: center;
@@ -265,7 +266,7 @@
   flex-direction: column;
   gap: 0.45rem;
   padding: 0.55rem 0.65rem;
-  background: rgba(0, 0, 0, 0.22);
+  background: rgba(var(--well-rgb), 0.22);
   border: 1px solid $border-color;
   border-radius: 5px;
 
@@ -292,7 +293,7 @@
   .tx-attach-toggle {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    background: rgba(0, 0, 0, 0.28);
+    background: rgba(var(--well-rgb), 0.28);
     border: 1px solid $border-color;
     border-radius: 5px;
     padding: 2px;
@@ -314,7 +315,7 @@
       cursor: pointer;
       transition: all 0.15s ease;
 
-      &:hover { color: $text-main; background: rgba(255,255,255,0.04); }
+      &:hover { color: $text-main; background: rgba(var(--accent-blue-rgb), 0.04); }
       
       &.active {
         background: rgba(var(--accent-blue-rgb), 0.18);
@@ -337,7 +338,7 @@
   font-style: italic;
   text-align: center;
   padding: 1rem;
-  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border: 1px dashed var(--rule);
   border-radius: 5px;
 }
 
@@ -347,9 +348,9 @@
   aspect-ratio: 1 / 1;
   // This CSS grid pattern stays static while the inner SVG content pans & zooms
   background:
-    linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%) 0 0/14px 14px,
-    linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.04) 75%) 0 0/14px 14px,
-    rgba(0,0,0,0.4);
+    linear-gradient(45deg, rgba(var(--accent-blue-rgb), 0.04) 25%, transparent 25%) 0 0/14px 14px,
+    linear-gradient(45deg, transparent 75%, rgba(var(--accent-blue-rgb), 0.04) 75%) 0 0/14px 14px,
+    rgba(var(--well-rgb), 0.4);
   border: 1px solid $border-color;
   border-radius: 6px;
   overflow: hidden;
@@ -361,10 +362,10 @@
   position: absolute;
   top: 0.4rem;
   right: 0.4rem;
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(var(--well-rgb), 0.5);
+  border: 1px solid var(--rule);
   border-radius: 4px;
-  color: rgba(255,255,255,0.6);
+  color: $text-muted;
   padding: 0.3rem;
   cursor: pointer;
   transition: all 0.15s;
@@ -374,9 +375,9 @@
   justify-content: center;
 
   &:hover {
-    color: white;
-    border-color: rgba(255,255,255,0.4);
-    background: rgba(0, 0, 0, 0.7);
+    color: $text-main;
+    border-color: var(--border-highlight);
+    background: rgba(var(--well-rgb), 0.7);
   }
 }
 
@@ -398,6 +399,7 @@
 
 .uve-handle {
   fill: var(--accent-blue-light);
+  /* handles and labels sit on the texture preview: white with a black halo, intentionally fixed */
   stroke: white;
   stroke-width: 0.014;
   vector-effect: non-scaling-stroke;
@@ -405,7 +407,7 @@
   transition: r 0.12s ease;
   
   &:hover { r: 0.045; }
-  &.dragging { fill: #fbbf24; cursor: grabbing; }
+  &.dragging { fill: var(--accent); cursor: grabbing; }
 }
 
 .uve-handle-label {
@@ -415,6 +417,7 @@
   text-anchor: middle;
   pointer-events: none;
   paint-order: stroke;
+  /* halo against the texture preview: intentionally fixed */
   stroke: rgba(0, 0, 0, 0.85);
   stroke-width: 0.008;
 }
@@ -458,7 +461,7 @@
     &:hover {
       color: $text-main;
       border-color: var(--border-highlight);
-      background: rgba(255,255,255,0.03);
+      background: rgba(var(--accent-blue-rgb), 0.03);
     }
   }
 }

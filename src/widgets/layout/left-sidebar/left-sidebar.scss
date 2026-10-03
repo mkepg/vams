@@ -11,7 +11,7 @@
 .sidebar-tabs {
   display: flex;
   flex-direction: row;
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: rgba(var(--well-rgb), 0.2);
   border-bottom: 1px solid $border-color;
   flex-shrink: 0;
   .tab-button {
@@ -29,7 +29,7 @@
     transition: all 0.2s ease;
     gap: 0.35rem;
     &:hover {
-      background-color: rgba(255, 255, 255, 0.03);
+      background-color: rgba(var(--accent-blue-rgb), 0.03);
       color: $text-main;
     }
     &:focus-visible {

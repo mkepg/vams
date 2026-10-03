@@ -34,7 +34,7 @@
   margin: 0 auto;
   background:
     radial-gradient(circle at 50% 50%, rgba(var(--accent-blue-rgb), 0.08), transparent 70%),
-    rgba(0, 0, 0, 0.28);
+    rgba(var(--well-rgb), 0.28);
   border: 1px solid $border-color;
   border-radius: 6px;
   cursor: grab;
@@ -67,7 +67,7 @@
 
     .pad-axis {
       position: absolute;
-      background: rgba(255, 255, 255, 0.08);
+      background: rgba(var(--accent-blue-rgb), 0.08);
     }
     .pad-axis-x {
       left: 8%;
@@ -117,7 +117,7 @@
     height: 11px;
     border-radius: 50%;
     background: rgba(var(--accent-blue-rgb), 0.85);
-    border: 2px solid rgba(0, 0, 0, 0.6);
+    border: 2px solid rgba(var(--well-rgb), 0.6);
     transform: translate(-50%, -50%);
     box-shadow: 0 0 8px rgba(var(--accent-blue-rgb), 0.5);
     transition: background-color 0.15s ease, box-shadow 0.15s ease;
@@ -131,7 +131,7 @@
     font-family: $font-mono;
     font-size: 0.58rem;
     color: $text-dim;
-    background: rgba(0, 0, 0, 0.55);
+    background: rgba(var(--well-rgb), 0.55);
     padding: 0.05rem 0.28rem;
     border-radius: 2px;
     letter-spacing: 0.03em;
@@ -150,7 +150,7 @@
   justify-self: center;
   background:
     radial-gradient(circle at 50% 50%, rgba(var(--accent-blue-rgb), 0.06), transparent 70%),
-    rgba(0, 0, 0, 0.28);
+    rgba(var(--well-rgb), 0.28);
   border: 1px solid $border-color;
   border-radius: 50%;
   cursor: grab;
@@ -174,7 +174,7 @@
   .dial-ring {
     position: absolute;
     inset: 5px;
-    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border: 1px dashed var(--rule);
     border-radius: 50%;
     pointer-events: none;
   }
@@ -185,7 +185,7 @@
     left: 50%;
     width: 1px;
     height: 5px;
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(var(--accent-blue-rgb), 0.25);
     /* Rotate about the dial center, not the tick's own top */
     transform-origin: 50% 36px;
     pointer-events: none;
@@ -250,8 +250,8 @@
 .row-group {
   min-width: 0;
   /* Axis tint on the label icon to reinforce X/Y/R association. */
-  &[data-axis='x'] .input-row label .icon { color: #f87171; }
-  &[data-axis='y'] .input-row label .icon { color: #4ade80; }
+  &[data-axis='x'] .input-row label .icon { color: var(--channel-r); }
+  &[data-axis='y'] .input-row label .icon { color: var(--channel-g); }
   &[data-axis='r'] .input-row label .icon { color: var(--accent-blue-light); }
 }
 
@@ -394,7 +394,7 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.35rem 0.5rem;
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(var(--well-rgb), 0.25);
   border: 1px solid $border-color;
   border-radius: 4px;
   min-width: 0;
@@ -452,7 +452,7 @@
     &:hover:not(:disabled) {
       color: $text-main;
       border-color: var(--border-highlight);
-      background: rgba(255, 255, 255, 0.03);
+      background: rgba(var(--accent-blue-rgb), 0.03);
     }
     &:disabled {
       opacity: 0.35;

@@ -14,7 +14,7 @@
     align-items: baseline;
     gap: 0.6rem;
     padding: 0.6rem 1rem;
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: rgba(var(--well-rgb), 0.2);
     border-bottom: 1px solid $border-color;
     flex-shrink: 0;
 
