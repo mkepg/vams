@@ -145,6 +145,11 @@ export default function VertexDemo() {
 
   const current = vertices[selected];
   const currentPx = glToPixel(current.x, current.y, VIEW, VIEW);
+  // Number labels sit on the side of each vertex that faces away from the triangle's centre.
+  const centroid = {
+    x: vertices.reduce((sum, v) => sum + glToPixel(v.x, v.y, VIEW, VIEW).px, 0) / 3,
+    y: vertices.reduce((sum, v) => sum + glToPixel(v.x, v.y, VIEW, VIEW).py, 0) / 3,
+  };
   const points = vertices
     .map((v) => {
       const p = glToPixel(v.x, v.y, VIEW, VIEW);
@@ -152,7 +157,9 @@ export default function VertexDemo() {
     })
     .join(' ');
   // Keep the coordinate tag inside the drawing: flip it right near the left edge, below near the top.
-  const tagX = currentPx.px < 110 ? 12 : -104;
+  // The tag body is 100 units wide and stage mode scales it by 1.45 (see home-stage.scss), so the
+  // flip point leaves room for the scaled width inside the frame.
+  const tagX = currentPx.px < 160 ? 12 : -112;
   const tagY = currentPx.py < 40 ? 14 : -34;
 
   return (
@@ -202,6 +209,8 @@ export default function VertexDemo() {
             </g>
             {vertices.map((v, i) => {
               const p = glToPixel(v.x, v.y, VIEW, VIEW);
+              const labelLeft = p.px < centroid.x;
+              const labelBelow = p.py > centroid.y + 4;
               return (
                 <g
                   key={i}
@@ -224,17 +233,25 @@ export default function VertexDemo() {
                   <circle className="vertex-demo__focus" r={13} />
                   {i === selected && <circle className="vertex-demo__ring" r={10} />}
                   <circle className={`vertex-demo__dot vertex-demo__dot--${i}`} r={6} />
-                  <text className="vertex-demo__number" x={19} y={4} aria-hidden="true">
+                  <text
+                    className="vertex-demo__number"
+                    x={labelLeft ? -19 : 19}
+                    y={labelBelow ? 12 : 4}
+                    text-anchor={labelLeft ? 'end' : 'start'}
+                    aria-hidden="true"
+                  >
                     {i + 1}
                   </text>
                 </g>
               );
             })}
             <g className="vertex-demo__tag" transform={`translate(${currentPx.px} ${currentPx.py})`} aria-hidden="true">
-              <rect x={tagX} y={tagY} width={92} height={20} />
-              <text x={tagX + 46} y={tagY + 14} text-anchor="middle">
-                ({current.x.toFixed(2)}, {current.y.toFixed(2)})
-              </text>
+              <g className="vertex-demo__tag-body">
+                <rect x={tagX} y={tagY} width={100} height={20} />
+                <text x={tagX + 50} y={tagY + 14} text-anchor="middle">
+                  ({current.x.toFixed(2)}, {current.y.toFixed(2)})
+                </text>
+              </g>
             </g>
           </svg>
           <p id="vertex-demo-hint" className="vertex-demo__hint">

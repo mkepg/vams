@@ -10,7 +10,7 @@ html.stage:not(.route-editor) {
 }
 
 html.stage {
-  font-size: max(2.2vh, 100%);
+  font-size: max(2.2vh, 14px);
   scroll-snap-type: y mandatory;
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -31,7 +31,7 @@ html.stage {
     min-height: 100vh;
     height: 100vh;
     padding: var(--space-6) var(--space-7);
-    overflow: hidden;
+    overflow: auto;
     border-top: 0;
     scroll-snap-align: start;
   }
@@ -70,6 +70,19 @@ html.stage {
   .vertex-demo__label { font-size: 0.875rem; }
   .vertex-demo__svg { max-width: 48vh; max-height: 48vh; }
   .vertex-demo__hint { max-width: 48vh; font-size: 0.875rem; }
+  /* SVG text is in drawing units, so it shrinks with the canvas. The tag body is scaled about the
+     vertex (the group's origin) rather than resized in TSX, which keeps one set of layout numbers. */
+  /* Short windows: the 14px root floor stops shrinking text, so the canvas gives up height instead. */
+  @media (max-height: 640px) {
+    .vertex-demo__svg { max-width: 42vh; max-height: 42vh; }
+    .vertex-demo__hint { max-width: 42vh; }
+    #views { padding-block: var(--space-4); }
+    #views .home-section__head { margin-bottom: var(--space-3); }
+    .vertex-demo__caption { margin-top: var(--space-2); }
+  }
+  .vertex-demo__tag-body { transform: scale(1.45); }
+  .vertex-demo__ticks text { font-size: 13px; }
+  .vertex-demo__number { font-size: 14px; }
   .vertex-demo__code { font-size: 1rem; line-height: 1.5; }
   .vertex-demo__math { font-size: 1rem; }
   .vertex-demo__math dt { font-size: 0.875rem; line-height: 1.75; }
