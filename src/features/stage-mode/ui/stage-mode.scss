@@ -1,0 +1,60 @@
+/* The slide counter, drawn as a dimension label: a short ink rule between two end stops. */
+.stage-indicator {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.25rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  letter-spacing: 0.1em;
+  color: var(--ink);
+  &::before {
+    content: '';
+    width: 2rem;
+    height: 0.6rem;
+    border-left: 1.5px solid var(--ink);
+    border-right: 1.5px solid var(--ink);
+    background: linear-gradient(var(--ink), var(--ink)) center / 100% 1.5px no-repeat;
+  }
+}
+
+.stage-indicator__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.present-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  kbd {
+    padding: 0 0.35em;
+    border: 1px solid var(--ink-muted);
+    border-radius: var(--radius-s);
+    font-family: inherit;
+    font-size: 0.75rem;
+  }
+  &:hover { background: var(--paper-raised); }
+}

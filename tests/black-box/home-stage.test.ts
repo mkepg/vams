@@ -275,3 +275,106 @@ describe('BB-HOME-15: The prerendered home page carries every section of the tal
     for (const word of BANNED) expect(text).not.toContain(word);
   });
 });
+
+import { afterEach, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { LocationProvider } from 'preact-iso';
+import HomePage from '@/pages/home';
+
+function mountHome(url: string) {
+  window.history.replaceState(null, '', url);
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  render(h(LocationProvider, null, h(HomePage, null)), host);
+  return host;
+}
+
+function press(key: string, init: KeyboardEventInit = {}) {
+  window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...init }));
+}
+
+function resetStage() {
+  vi.unstubAllGlobals();
+  document.documentElement.classList.remove('stage');
+  window.history.replaceState(null, '', '/');
+}
+
+describe('BB-HOME-16: A stage URL opens on its slide and keys step and exit', () => {
+  afterEach(resetStage);
+  it('starts at the hashed slide, steps forward with PageDown and leaves on Escape', async () => {
+    vi.stubGlobal('IntersectionObserver', undefined);
+    const host = mountHome('/?stage#curriculum');
+    await settle();
+    const root = document.documentElement;
+    const indicator = () => host.querySelector('.stage-indicator')?.textContent ?? null;
+    expect(root.classList.contains('stage')).toBe(true);
+    expect(indicator()).toContain('04 / 07');
+
+    press('PageDown');
+    await settle();
+    expect(indicator()).toContain('05 / 07');
+    expect(window.location.search).toBe('?stage');
+    expect(window.location.hash).toBe('#under-the-hood');
+
+    press('Escape');
+    await settle();
+    expect(root.classList.contains('stage')).toBe(false);
+    expect(indicator()).toBeNull();
+    expect(window.location.search).toBe('');
+
+    render(null, host);
+    host.remove();
+  });
+});
+
+describe('BB-HOME-17: P enters stage mode and stepping past the end opens the editor', () => {
+  afterEach(resetStage);
+  it('enters from the scroll page, jumps to the last slide, routes to /app and cleans up on unmount', async () => {
+    vi.stubGlobal('IntersectionObserver', undefined);
+    const host = mountHome('/');
+    await settle();
+    const root = document.documentElement;
+    expect(root.classList.contains('stage')).toBe(false);
+    expect(host.querySelector('.present-button')).not.toBeNull();
+
+    press('p');
+    await settle();
+    expect(root.classList.contains('stage')).toBe(true);
+    expect(host.querySelector('.stage-indicator')?.textContent).toContain('01 / 07');
+
+    press('End');
+    await settle();
+    expect(host.querySelector('.stage-indicator')?.textContent).toContain('07 / 07');
+
+    press('PageDown');
+    await settle();
+    expect(window.location.pathname).toBe('/app');
+
+    render(null, host);
+    host.remove();
+    expect(root.classList.contains('stage')).toBe(false);
+  });
+});
+
+describe('BB-HOME-18: The early inline script applies the stage layout before first paint', () => {
+  afterEach(resetStage);
+  it('adds the stage class only for / with a stage parameter', () => {
+    const html = readFileSync('index.html', 'utf8');
+    const body = html.match(/<script>([\s\S]*?)<\/script>/)![1];
+    const root = document.documentElement;
+    const run = (url: string) => {
+      window.history.replaceState(null, '', url);
+      root.className = '';
+      new Function(body)();
+      return root.classList;
+    };
+    expect(run('/?stage').contains('stage')).toBe(true);
+    expect(run('/?stage#team').contains('stage')).toBe(true);
+    expect(run('/').contains('stage')).toBe(false);
+    expect(run('/?stages').contains('stage')).toBe(false);
+    const app = run('/app?stage');
+    expect(app.contains('stage')).toBe(false);
+    expect(app.contains('route-editor')).toBe(true);
+    root.className = '';
+  });
+});

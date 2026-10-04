@@ -138,7 +138,7 @@
   margin: var(--space-6) 0 0;
   > div {
     padding-left: var(--space-4);
-    border-left: 3px solid var(--accent);
+    border-left: 3px solid var(--accent-text);
   }
   dt {
     font-family: var(--font-mono);
@@ -209,7 +209,7 @@
 }
 
 .home__cta--large {
-  min-height: 64px;
+  min-height: 4rem;
   font-size: 1.25rem;
 }
 

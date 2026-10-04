@@ -1,5 +1,8 @@
+import { useLocation } from 'preact-iso';
 import SiteHeader from '@/widgets/site-header';
 import SiteFooter from '@/widgets/site-footer';
+import { PresentButton, StageIndicator, useStageMode } from '@/features/stage-mode';
+import { SECTIONS } from '@/pages/home/model/content';
 import HeroSection from './sections/HeroSection';
 import ProblemSection from './sections/ProblemSection';
 import ViewsSection from './sections/ViewsSection';
@@ -9,8 +12,13 @@ import TeamSection from './sections/TeamSection';
 import TryItSection from './sections/TryItSection';
 import './home.scss';
 import './sections/sections.scss';
+import './home-stage.scss';
+
+const SECTION_IDS = SECTIONS.map((section) => section.id);
 
 export default function HomePage() {
+  const { route } = useLocation();
+  const stage = useStageMode(SECTION_IDS, () => route('/app'));
   return (
     <div className="site-page">
       <SiteHeader />
@@ -23,7 +31,10 @@ export default function HomePage() {
         <TeamSection />
         <TryItSection />
       </main>
-      <SiteFooter />
+      <SiteFooter actions={<PresentButton onPresent={stage.enter} />} />
+      {stage.active && stage.ready && (
+        <StageIndicator index={stage.index} count={stage.count} label={SECTIONS[stage.index].label} />
+      )}
     </div>
   );
 }
