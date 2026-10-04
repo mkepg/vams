@@ -253,3 +253,25 @@ describe('BB-HOME-14: Moving a vertex with the keyboard updates its label and co
     host.remove();
   });
 });
+
+import { prerender } from '@/app/prerender';
+
+describe('BB-HOME-15: The prerendered home page carries every section of the talk', () => {
+  it('renders the seven slides in order with the team, the stack line and the demo code', async () => {
+    window.history.replaceState(null, '', '/');
+    const { html } = await prerender({ url: '/' });
+    const positions = SECTIONS.map((s) => html.indexOf(`id="${s.id}"`));
+    for (const position of positions) expect(position).toBeGreaterThan(-1);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    expect(html.match(/data-slide(?:="")?[\s>]/g)?.length).toBe(7);
+    for (const member of TEAM.members) expect(html).toContain(member.name);
+    expect(html).toContain(UNDER_THE_HOOD.stack.join(' · '));
+    // The demo colours each function name in its own span, so match the code line with tags removed.
+    expect(html.replace(/<[^>]+>/g, '')).toContain('glVertex2f(0.0000f, 0.5000f);');
+    const text = html
+      .replace(/<script[\s\S]*?<\/script>/g, '')
+      .replace(/<[^>]+>/g, ' ')
+      .toLowerCase();
+    for (const word of BANNED) expect(text).not.toContain(word);
+  });
+});

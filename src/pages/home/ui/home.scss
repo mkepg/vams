@@ -4,7 +4,7 @@
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
     gap: var(--space-7);
     align-items: center;
-    max-width: 1200px;
+    max-width: 75rem;
     margin: 0 auto;
     padding: var(--space-8) var(--space-6) var(--space-7);
   }
@@ -74,67 +74,6 @@
       &::after { transform: translateX(3px); }
     }
     &:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
-  }
-  &__views {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: var(--space-6) var(--space-6) var(--space-8);
-  }
-  &__section-title {
-    display: flex;
-    align-items: center;
-    gap: var(--space-4);
-    margin: 0 0 var(--space-5);
-    font-family: var(--font-mono);
-    font-size: 0.8125rem;
-    font-weight: 400;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    /* The label sits on a rule that runs to the edge of the column, like a title strip. */
-    &::after {
-      content: '';
-      flex: 1;
-      height: 1.5px;
-      background: var(--ink);
-    }
-  }
-  &__view-list {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-4);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    counter-reset: view;
-    li {
-      position: relative;
-      padding: var(--space-5);
-      border: 1.5px solid var(--ink);
-      background: var(--paper-raised);
-      color: var(--ink-muted);
-      counter-increment: view;
-      /* Sheet number, as in a drawing set. */
-      &::before {
-        content: counter(view, decimal-leading-zero);
-        position: absolute;
-        top: var(--space-5);
-        right: var(--space-5);
-        font-family: var(--font-mono);
-        font-size: 0.75rem;
-        line-height: 2;
-        letter-spacing: 0.08em;
-        color: var(--ink-muted);
-      }
-    }
-    strong {
-      display: block;
-      margin-bottom: var(--space-2);
-      font-family: var(--font-display);
-      font-size: 1.5rem;
-      font-weight: 600;
-      line-height: 1.2;
-      color: var(--ink);
-    }
   }
 }
 
@@ -232,13 +171,11 @@
 
 @media (max-width: 900px) {
   .home__hero { grid-template-columns: minmax(0, 1fr); padding-top: var(--space-7); }
-  .home__view-list { grid-template-columns: minmax(0, 1fr); }
   .hero-figure { max-width: 560px; }
 }
 
 @media (max-width: 640px) {
   .home__hero { padding: var(--space-6) var(--space-4); gap: var(--space-6); }
-  .home__views { padding: var(--space-5) var(--space-4) var(--space-7); }
 }
 
 /* Too narrow for drawing and code side by side: stack them and let the orange highlight carry the link. */

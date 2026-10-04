@@ -1,9 +1,10 @@
+import type { ComponentChildren } from 'preact';
 import { VertexMark } from '@/shared/ui/logo';
 import './site-footer.scss';
 
 const REPO_URL = 'https://github.com/mkepg/vams';
 
-export default function SiteFooter() {
+export default function SiteFooter({ actions }: { actions?: ComponentChildren }) {
   return (
     <footer className="site-footer">
       <div className="site-footer__brand">
@@ -18,6 +19,7 @@ export default function SiteFooter() {
       <p className="site-footer__links">
         <a href={REPO_URL} rel="noopener">Source on GitHub</a> · MIT License
       </p>
+      {actions && <div className="site-footer__actions">{actions}</div>}
     </footer>
   );
 }

@@ -184,7 +184,7 @@ export default function VertexDemo() {
                 <line x1={VIEW / 2} y1={0} x2={VIEW / 2} y2={VIEW} />
                 <line x1={0} y1={VIEW / 2} x2={VIEW} y2={VIEW / 2} />
               </g>
-              <g className="vertex-demo__ticks">
+              <g className="vertex-demo__ticks" aria-hidden="true">
                 {[-1, 0, 1].map((t) => {
                   const p = glToPixel(t, t, VIEW, VIEW);
                   return (
@@ -224,7 +224,7 @@ export default function VertexDemo() {
                   <circle className="vertex-demo__focus" r={13} />
                   {i === selected && <circle className="vertex-demo__ring" r={10} />}
                   <circle className={`vertex-demo__dot vertex-demo__dot--${i}`} r={6} />
-                  <text className="vertex-demo__number" x={15} y={4} aria-hidden="true">
+                  <text className="vertex-demo__number" x={19} y={4} aria-hidden="true">
                     {i + 1}
                   </text>
                 </g>
