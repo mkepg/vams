@@ -77,3 +77,118 @@ describe('BB-HOME-05: The demo falls back to a static block when extraction fail
     expect(FALLBACK_CODE.vertexLineIndexes).toEqual([2, 4, 6]);
   });
 });
+
+import {
+  keyToAction,
+  nextIndex,
+  prevIndex,
+  clampIndex,
+  readStageFromUrl,
+  focusKind,
+  type KeyContext,
+} from '@/features/stage-mode/model/stage-controller';
+
+type Mods = Partial<{ shiftKey: boolean; ctrlKey: boolean; altKey: boolean; metaKey: boolean }>;
+const key = (k: string, mods: Mods = {}) => ({
+  key: k,
+  shiftKey: false,
+  ctrlKey: false,
+  altKey: false,
+  metaKey: false,
+  ...mods,
+});
+const MID: KeyContext = { active: true, atLast: false, focus: 'none' };
+
+describe('BB-HOME-06: Stage keys step, jump, exit and toggle', () => {
+  it('maps presenter and keyboard keys to stage actions mid-talk', () => {
+    for (const k of ['ArrowRight', 'ArrowDown', 'PageDown', ' ']) expect(keyToAction(key(k), MID)).toBe('next');
+    for (const k of ['ArrowLeft', 'ArrowUp', 'PageUp']) expect(keyToAction(key(k), MID)).toBe('prev');
+    expect(keyToAction(key(' ', { shiftKey: true }), MID)).toBe('prev');
+    expect(keyToAction(key('Home'), MID)).toBe('first');
+    expect(keyToAction(key('End'), MID)).toBe('last');
+    expect(keyToAction(key('Escape'), MID)).toBe('exit');
+    expect(keyToAction(key('t'), MID)).toBe('theme');
+    expect(keyToAction(key('T'), MID)).toBe('theme');
+    expect(keyToAction(key('f'), MID)).toBe('fullscreen');
+    expect(keyToAction(key('F'), MID)).toBe('fullscreen');
+    expect(keyToAction(key('Enter'), MID)).toBeNull();
+    expect(keyToAction(key('p'), MID)).toBeNull();
+    expect(keyToAction(key('x'), MID)).toBeNull();
+  });
+});
+
+describe('BB-HOME-07: Outside stage mode only P does anything', () => {
+  it('enters on p or P and ignores every other key', () => {
+    const off: KeyContext = { active: false, atLast: false, focus: 'none' };
+    expect(keyToAction(key('p'), off)).toBe('enter-stage');
+    expect(keyToAction(key('P'), off)).toBe('enter-stage');
+    for (const k of ['ArrowRight', 'PageDown', ' ', 'Escape', 't', 'f', 'End']) expect(keyToAction(key(k), off)).toBeNull();
+    expect(keyToAction(key('p'), { ...off, focus: 'text' })).toBeNull();
+    expect(keyToAction(key('p', { ctrlKey: true }), off)).toBeNull();
+  });
+});
+
+describe('BB-HOME-08: Keys yield to text fields, modifiers, vertex handles and controls', () => {
+  it('ignores typing and shortcuts, and lets focused vertices and controls keep their keys', () => {
+    for (const mods of [{ ctrlKey: true }, { altKey: true }, { metaKey: true }]) {
+      expect(keyToAction(key('ArrowRight', mods), MID)).toBeNull();
+    }
+    expect(keyToAction(key('ArrowRight'), { ...MID, focus: 'text' })).toBeNull();
+    expect(keyToAction(key('PageDown'), { ...MID, focus: 'text' })).toBeNull();
+    const vertex: KeyContext = { ...MID, focus: 'vertex' };
+    for (const k of ['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown']) expect(keyToAction(key(k), vertex)).toBeNull();
+    expect(keyToAction(key('PageDown'), vertex)).toBe('next');
+    expect(keyToAction(key(' '), vertex)).toBe('next');
+    expect(keyToAction(key('PageUp'), vertex)).toBe('prev');
+    const control: KeyContext = { ...MID, focus: 'interactive' };
+    expect(keyToAction(key(' '), control)).toBeNull();
+    expect(keyToAction(key('Enter'), { ...control, atLast: true })).toBeNull();
+    expect(keyToAction(key('PageDown'), control)).toBe('next');
+  });
+});
+
+describe('BB-HOME-09: Stepping past the last slide opens the editor', () => {
+  it('turns forward keys and Enter into enter-app on the last slide', () => {
+    const last: KeyContext = { active: true, atLast: true, focus: 'none' };
+    for (const k of ['ArrowRight', 'ArrowDown', 'PageDown', ' ']) expect(keyToAction(key(k), last)).toBe('enter-app');
+    expect(keyToAction(key('Enter'), last)).toBe('enter-app');
+    expect(keyToAction(key('ArrowLeft'), last)).toBe('prev');
+  });
+});
+
+describe('BB-HOME-10: Slide indexes clamp and the URL selects the starting slide', () => {
+  it('clamps index math and reads ?stage plus the section hash', () => {
+    expect(nextIndex(0, 7)).toBe(1);
+    expect(nextIndex(6, 7)).toBe(6);
+    expect(prevIndex(0)).toBe(0);
+    expect(prevIndex(3)).toBe(2);
+    expect(clampIndex(-3, 7)).toBe(0);
+    expect(clampIndex(99, 7)).toBe(6);
+    const ids = ['top', 'problem', 'views', 'curriculum'];
+    expect(readStageFromUrl('?stage', '', ids)).toEqual({ active: true, index: 0 });
+    expect(readStageFromUrl('?stage', '#curriculum', ids)).toEqual({ active: true, index: 3 });
+    expect(readStageFromUrl('?stage=1&x=2', '#nope', ids)).toEqual({ active: true, index: 0 });
+    expect(readStageFromUrl('', '#views', ids)).toEqual({ active: false, index: 2 });
+    expect(readStageFromUrl('?stages', '', ids).active).toBe(false);
+  });
+});
+
+describe('BB-HOME-11: Focused elements are classified for key handling', () => {
+  it('recognises text fields, vertex handles, controls and everything else', () => {
+    document.body.innerHTML =
+      '<input id="i"><textarea id="t"></textarea><div id="ce" contenteditable="true"></div>' +
+      '<a id="a" href="/x">x</a><button id="b">b</button>' +
+      '<svg><g id="v" data-vertex-handle="" tabindex="0" role="button"></g></svg><p id="p">p</p>';
+    const el = (id: string) => document.getElementById(id);
+    expect(focusKind(null)).toBe('none');
+    expect(focusKind(el('i'))).toBe('text');
+    expect(focusKind(el('t'))).toBe('text');
+    expect(focusKind(el('ce'))).toBe('text');
+    expect(focusKind(el('a'))).toBe('interactive');
+    expect(focusKind(el('b'))).toBe('interactive');
+    expect(focusKind(el('v'))).toBe('vertex');
+    expect(focusKind(el('p'))).toBe('none');
+    expect(focusKind(document.body)).toBe('none');
+    document.body.innerHTML = '';
+  });
+});
