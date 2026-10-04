@@ -1,0 +1,158 @@
+.vertex-demo {
+  position: relative;
+  margin: 0;
+
+  &__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    grid-template-areas:
+      'canvas code'
+      'canvas math';
+    gap: var(--space-5) var(--space-7);
+    align-items: start;
+  }
+  &__part--canvas { grid-area: canvas; }
+  &__part--code { grid-area: code; }
+  &__part--math { grid-area: math; }
+
+  &__label {
+    margin: 0 0 var(--space-2);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+
+  &__svg {
+    display: block;
+    width: 100%;
+    max-width: 34rem;
+    height: auto;
+    aspect-ratio: 1;
+    overflow: visible;
+    touch-action: none;
+    border: 1.5px solid var(--ink);
+    background: var(--paper-raised);
+  }
+  &__gridline line { stroke: var(--grid-minor); stroke-width: 1; }
+  &__gridline--major line { stroke: var(--grid-major); }
+  &__axis line {
+    stroke: var(--ink-faint);
+    stroke-width: 1;
+    stroke-dasharray: 10 3 2 3;
+  }
+  &__fill { fill: rgba(var(--accent-rgb), 0.12); }
+  &__edge { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
+
+  &__handle {
+    cursor: grab;
+    outline: none;
+    &:active { cursor: grabbing; }
+  }
+  &__hit { fill: transparent; }
+  &__focus { fill: none; stroke: transparent; stroke-width: 2.5; }
+  &__handle:focus-visible &__focus { stroke: var(--focus-ring); }
+  &__ring { fill: none; stroke: var(--accent); stroke-width: 2; }
+  &__dot { stroke: var(--paper-raised); stroke-width: 2; }
+  &__dot--0 { fill: var(--channel-r); }
+  &__dot--1 { fill: var(--channel-g); }
+  &__dot--2 { fill: var(--channel-b); }
+
+  &__tag {
+    pointer-events: none;
+    rect { fill: var(--accent); }
+    text {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      fill: var(--on-accent);
+    }
+  }
+
+  &__hint {
+    max-width: 34rem;
+    margin: var(--space-3) 0 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--ink-muted);
+  }
+
+  &__code {
+    margin: 0;
+    padding: var(--space-4) 0;
+    border: 1.5px solid var(--ink);
+    background: var(--code-bg);
+    color: var(--code-ink);
+    font-family: var(--font-mono);
+    font-size: 0.9375rem;
+    line-height: 1.75;
+    overflow-x: auto;
+    .tok-fn { color: var(--code-fn); }
+  }
+  &__line {
+    display: block;
+    padding: 0 var(--space-4);
+    white-space: pre;
+  }
+  &__line--selected {
+    background: var(--accent);
+    color: var(--on-accent);
+    .tok-fn { color: inherit; }
+  }
+
+  &__math {
+    display: grid;
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    > div {
+      display: grid;
+      grid-template-columns: 4.5rem minmax(0, 1fr);
+      gap: var(--space-3);
+      padding: var(--space-2) 0;
+      border-bottom: 1px solid var(--rule);
+    }
+    dt {
+      font-size: 0.75rem;
+      line-height: 1.9;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+    }
+    dd { margin: 0; }
+    strong { color: var(--ink); }
+  }
+
+  &__leader {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+    path { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 4 3; }
+  }
+
+  &__caption {
+    max-width: 36rem;
+    margin-top: var(--space-5);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    line-height: 1.6;
+    letter-spacing: 0.04em;
+    color: var(--ink-muted);
+  }
+}
+
+/* A thin orange wash turns muddy on navy, so blueprint shades the shape with the grid ink instead. */
+[data-theme='blueprint'] .vertex-demo__fill { fill: var(--grid-major); }
+
+@media (max-width: 900px) {
+  .vertex-demo__grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'canvas' 'code' 'math';
+  }
+  .vertex-demo__svg { max-width: 26rem; }
+  .vertex-demo__leader { display: none; }
+}

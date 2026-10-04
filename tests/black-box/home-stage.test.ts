@@ -222,3 +222,34 @@ describe('BB-HOME-13: The home page structured data credits the team', () => {
     expect(jsonLd.contributor).toEqual({ '@type': 'Person', name: 'Elisa V. Malasaga' });
   });
 });
+
+import { h, render } from 'preact';
+import VertexDemo from '@/pages/home/ui/VertexDemo';
+
+async function settle() {
+  for (let i = 0; i < 3; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+describe('BB-HOME-14: Moving a vertex with the keyboard updates its label and code line', () => {
+  it('steps by one grid unit, by four with Shift, and highlights the moved vertex line', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    render(h(VertexDemo, {}), host);
+    await settle();
+    const selectedLine = () => host.querySelector('.vertex-demo__line--selected')?.textContent;
+    expect(selectedLine()).toBe('    glVertex2f(0.0000f, 0.5000f);');
+
+    const handle = host.querySelectorAll('[data-vertex-handle]')[0];
+    handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await settle();
+    expect(handle.getAttribute('aria-label')).toBe('Vertex 1 at x -0.45, y -0.50');
+    expect(selectedLine()).toBe('    glVertex2f(-0.4500f, -0.5000f);');
+
+    handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', shiftKey: true, bubbles: true }));
+    await settle();
+    expect(selectedLine()).toBe('    glVertex2f(-0.4500f, -0.3000f);');
+
+    render(null, host);
+    host.remove();
+  });
+});
