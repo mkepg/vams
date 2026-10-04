@@ -32,6 +32,9 @@ describe('BB-HOME-01: The demo shows the generator draw block for the initial tr
     const code = generateDemoCode(INITIAL_TRIANGLE);
     expect(code.lines).toEqual(INITIAL_BLOCK);
     expect(code.vertexLineIndexes).toEqual([2, 4, 6]);
+    // Extraction must succeed, otherwise the lines above could be the fallback block.
+    expect(extractDrawBlock(generateDemoProgram(INITIAL_TRIANGLE))).not.toBeNull();
+    expect(code).not.toBe(FALLBACK_CODE);
   });
 });
 
@@ -136,7 +139,10 @@ describe('BB-HOME-08: Keys yield to text fields, modifiers, vertex handles and c
     expect(keyToAction(key('ArrowRight'), { ...MID, focus: 'text' })).toBeNull();
     expect(keyToAction(key('PageDown'), { ...MID, focus: 'text' })).toBeNull();
     const vertex: KeyContext = { ...MID, focus: 'vertex' };
-    for (const k of ['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown']) expect(keyToAction(key(k), vertex)).toBeNull();
+    for (const k of ['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown']) {
+      expect(keyToAction(key(k), vertex)).toBeNull();
+      expect(keyToAction(key(k, { shiftKey: true }), vertex)).toBeNull();
+    }
     expect(keyToAction(key('PageDown'), vertex)).toBe('next');
     expect(keyToAction(key(' '), vertex)).toBe('next');
     expect(keyToAction(key('PageUp'), vertex)).toBe('prev');

@@ -101,7 +101,9 @@ export function useStageMode(sectionIds: readonly string[], onEnterApp: () => vo
   });
 
   // A second pass after hydration, so the indicator never mismatches the prerendered HTML.
-  useEffect(() => setReady(true), []);
+  useEffect(() => {
+    setReady(true);
+  }, []);
 
   const enter = useCallback(
     (start?: number) => {
