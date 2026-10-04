@@ -1,11 +1,17 @@
-/* Stage mode is the presenter's projector layout. The root font size follows the viewport height, and
+/* Stage mode is a presenter-only projector layout. The root font size follows the viewport height, and
    the spacing tokens switch to rem, so each slide keeps the same framing at 1080p, 720p and 4:3.
-   max() keeps text at least the browser's default size, so zooming still enlarges it.
+   max() only sets a floor of the browser's default size, so at large viewports browser zoom has
+   little effect here; Esc returns to the normal page, which zooms as usual.
    At 1080p 1rem is 2.2vh: display titles run 7-9vh, body copy about 2.75vh and code 2.2vh. */
+
+/* Outranks the site's html:not(.route-editor) scroll padding whatever the stylesheet order. */
+html.stage:not(.route-editor) {
+  scroll-padding-top: 0;
+}
+
 html.stage {
   font-size: max(2.2vh, 100%);
   scroll-snap-type: y mandatory;
-  scroll-padding-top: 0;
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;

@@ -8,9 +8,15 @@ export interface StageMode {
   ready: boolean;
   index: number;
   count: number;
-  enter: () => void;
+  /** Enters stage mode at `start`, or at the section nearest the top of the viewport. */
+  enter: (start?: number) => void;
   exit: () => void;
 }
+
+/** How long observer updates are ignored after a programmatic scroll, if the target never reports in. */
+const SCROLL_SETTLE_MS = 1000;
+/** A section counts as the current slide once this much of it is visible. */
+const VISIBLE_RATIO = 0.6;
 
 function prefersReducedMotion() {
   return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -71,6 +77,20 @@ export function useStageMode(sectionIds: readonly string[], onEnterApp: () => vo
   const enterAppRef = useRef(onEnterApp);
   const pendingScrollRef = useRef(initial.active);
   const urlTouchedRef = useRef(initial.active);
+  // While a programmatic scroll is in flight, the observer reports the slides it passes on the way
+  // (including the one being left). Hold the target until it reports in, or until the timer ends.
+  const scrollTargetRef = useRef<number | null>(null);
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const holdForScroll = useCallback((target: number) => {
+    scrollTargetRef.current = target;
+    clearTimeout(scrollTimerRef.current);
+    scrollTimerRef.current = setTimeout(() => {
+      scrollTargetRef.current = null;
+    }, SCROLL_SETTLE_MS);
+  }, []);
+
+  useEffect(() => () => clearTimeout(scrollTimerRef.current), []);
 
   // Mirror the latest state and callback for the window key handler. This runs first in every
   // commit, before the layout effect below reads indexRef to re-anchor the slide.
@@ -83,26 +103,33 @@ export function useStageMode(sectionIds: readonly string[], onEnterApp: () => vo
   // A second pass after hydration, so the indicator never mismatches the prerendered HTML.
   useEffect(() => setReady(true), []);
 
-  const enter = useCallback(() => {
-    if (activeRef.current) return;
-    setIndex(nearestSectionIndex(sectionIds));
-    pendingScrollRef.current = true;
-    setActive(true);
-  }, [sectionIds]);
+  const enter = useCallback(
+    (start?: number) => {
+      if (activeRef.current) return;
+      const target = start === undefined ? nearestSectionIndex(sectionIds) : clampIndex(start, count);
+      holdForScroll(target);
+      setIndex(target);
+      pendingScrollRef.current = true;
+      setActive(true);
+    },
+    [count, sectionIds, holdForScroll],
+  );
 
   const exit = useCallback(() => {
     if (!activeRef.current) return;
+    holdForScroll(indexRef.current);
     pendingScrollRef.current = true;
     setActive(false);
-  }, []);
+  }, [holdForScroll]);
 
   const goTo = useCallback(
     (target: number) => {
       const next = clampIndex(target, count);
+      holdForScroll(next);
       setIndex(next);
       scrollToSection(sectionIds[next], true);
     },
-    [count, sectionIds],
+    [count, sectionIds, holdForScroll],
   );
 
   // Apply the layout class, then re-anchor on the current slide, because entering or leaving
@@ -176,12 +203,20 @@ export function useStageMode(sectionIds: readonly string[], onEnterApp: () => vo
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
+          // isIntersecting stays true for any overlap, so a slide being left would still report in.
+          if (!entry.isIntersecting || entry.intersectionRatio < VISIBLE_RATIO) continue;
           const i = sectionIds.indexOf((entry.target as HTMLElement).id);
-          if (i >= 0) setIndex(i);
+          if (i < 0) continue;
+          const target = scrollTargetRef.current;
+          if (target !== null) {
+            if (i !== target) continue;
+            scrollTargetRef.current = null;
+            clearTimeout(scrollTimerRef.current);
+          }
+          setIndex(i);
         }
       },
-      { threshold: 0.6 },
+      { threshold: VISIBLE_RATIO },
     );
     for (const id of sectionIds) {
       const el = document.getElementById(id);

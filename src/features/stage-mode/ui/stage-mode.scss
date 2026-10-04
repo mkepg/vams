@@ -1,13 +1,29 @@
-/* The slide counter, drawn as a dimension label: a short ink rule between two end stops. */
+/* The live region stays mounted while stage mode is off; keep it out of sight and out of the layout. */
+.stage-live:not(.stage-indicator) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The slide counter, drawn as a dimension label: a short ink rule between two end stops.
+   A paper ground keeps it legible if it ever sits over slide text. */
 .stage-indicator {
   position: fixed;
-  right: 1.5rem;
-  bottom: 1.25rem;
+  right: 1rem;
+  bottom: 0.9rem;
   z-index: 10;
   display: flex;
   align-items: center;
   gap: 0.6rem;
   margin: 0;
+  padding: 0.35rem 0.5rem;
+  background: var(--paper);
   font-family: var(--font-mono);
   font-size: 0.875rem;
   letter-spacing: 0.1em;

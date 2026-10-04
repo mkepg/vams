@@ -31,10 +31,14 @@ export default function HomePage() {
         <TeamSection />
         <TryItSection />
       </main>
-      <SiteFooter actions={<PresentButton onPresent={stage.enter} />} />
-      {stage.active && stage.ready && (
-        <StageIndicator index={stage.index} count={stage.count} label={SECTIONS[stage.index].label} />
-      )}
+      {/* The button sits under the last slide, so it starts the talk from the first one. */}
+      <SiteFooter actions={<PresentButton onPresent={() => stage.enter(0)} />} />
+      <StageIndicator
+        active={stage.active && stage.ready}
+        index={stage.index}
+        count={stage.count}
+        label={SECTIONS[stage.index].label}
+      />
     </div>
   );
 }

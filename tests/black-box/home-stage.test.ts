@@ -378,3 +378,66 @@ describe('BB-HOME-18: The early inline script applies the stage layout before fi
     root.className = '';
   });
 });
+
+describe('BB-HOME-19: Present starts at the first slide and tracking follows the visible slide', () => {
+  afterEach(resetStage);
+  it('starts at 01 from the footer, ignores slides passed or partly visible while stepping, then follows wheel scrolling', async () => {
+    const observers: { callback: IntersectionObserverCallback; elements: Element[] }[] = [];
+    class FakeIntersectionObserver {
+      readonly elements: Element[] = [];
+      constructor(callback: IntersectionObserverCallback) {
+        observers.push({ callback, elements: this.elements });
+      }
+      observe(el: Element) {
+        this.elements.push(el);
+      }
+      unobserve() {}
+      disconnect() {}
+      takeRecords() {
+        return [];
+      }
+    }
+    vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver);
+    const host = mountHome('/');
+    await settle();
+    // The footer sits under the last slide, so that slide is the one nearest the viewport top.
+    for (const section of host.querySelectorAll<HTMLElement>('[data-slide]')) {
+      section.getBoundingClientRect = () => ({ top: section.id === 'try' ? 0 : 5000 }) as DOMRect;
+    }
+    const indicator = () => host.querySelector('.stage-indicator')?.textContent ?? null;
+    const emit = (id: string, ratio: number) => {
+      const observer = observers[observers.length - 1];
+      const target = observer.elements.find((el) => el.id === id)!;
+      const entry = { target, isIntersecting: ratio > 0, intersectionRatio: ratio } as unknown as IntersectionObserverEntry;
+      observer.callback([entry], observer as unknown as IntersectionObserver);
+    };
+
+    expect(host.querySelector('.stage-live')?.textContent).toBe('');
+    (host.querySelector('.present-button') as HTMLButtonElement).click();
+    await settle();
+    expect(indicator()).toContain('01 / 07');
+
+    press('PageDown');
+    await settle();
+    expect(indicator()).toContain('02 / 07');
+
+    // The slide being left is still partly visible.
+    emit('top', 0.3);
+    await settle();
+    expect(indicator()).toContain('02 / 07');
+    // A slide other than the target, reported while the stepped scroll is in flight.
+    emit('curriculum', 0.9);
+    await settle();
+    expect(indicator()).toContain('02 / 07');
+
+    // The target reports in, which ends the scroll window; then the presenter scrolls with the wheel.
+    emit('problem', 1);
+    emit('curriculum', 0.8);
+    await settle();
+    expect(indicator()).toContain('04 / 07');
+    expect(window.location.hash).toBe('#curriculum');
+
+    render(null, host);
+    host.remove();
+  });
+});
