@@ -44,7 +44,7 @@ The product rules in `AGENTS.md` and [docs/product-plan.md](../product-plan.md) 
 | # | Item | Status |
 | --- | --- | --- |
 | 1 | **SP1 Site shell:** routing and prerendering, design tokens, editor reskin, logo, SEO extras, accessibility baseline, custom domain | Code complete, merged to `main` locally on 2026-10-04 ([spec](2026-10-04-site-shell-design.md), [plan](../plans/2026-10-04-site-shell.md)). Not yet deployed. Custom domain pending (owner to buy) |
-| 2 | **SP2 Landing page and stage mode** | In progress ([spec](2026-10-04-landing-stage-design.md), [plan](../plans/2026-10-04-landing-stage.md)) |
+| 2 | **SP2 Landing page and stage mode** | Complete (2026-10-04): [spec](2026-10-04-landing-stage-design.md), [plan](../plans/2026-10-04-landing-stage.md) |
 | 3 | **SP3 Demo readiness:** deep links into prepared scenes or lessons, offline app (service worker), safer crash recovery | Not started |
 | 4 | **SP5 Editor layout redesign:** a shared control set, then the top bar, left rail, canvas overlays, right sidebar, lesson bar and dialogs. Includes the lesson-narration and `focusPanel` updates the new layout forces. Due by Oct 28 | Not started |
 | 5 | **About page** | Not started |
@@ -85,6 +85,12 @@ These issues already exist on the `main` from before the overhaul. They are wort
 - Lighthouse findings on `/app`: the scene-tree list structure, the icon-only add-text button, and the unlabelled transform number inputs.
 
 One deployment check is outstanding: the real 404 status on Netlify.
+
+Rehearsal checklist (Nov 3):
+
+- Present fullscreen and test the F key.
+- Dismiss the editor welcome dialog on the demo machine.
+- Step through every slide at the projector's real resolution.
 
 ## Divergences from the thesis manuscript
 

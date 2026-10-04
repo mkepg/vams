@@ -1,7 +1,7 @@
 # Landing page and stage mode — design
 
 Date: 2026-10-04
-Status: approved in design review, pending spec review
+Status: Approved and implemented
 Builds on: [2026-10-04-site-shell-design.md](2026-10-04-site-shell-design.md) (routing, prerender, Drafting Vellum tokens, theme module, logo, site header and footer)
 
 ## Purpose
@@ -81,7 +81,7 @@ Behaviour:
 A pure module with no store, DOM or PixiJS imports.
 
 - `buildDemoScene(vertices)` returns a one-object scene: a `TRIANGLES` `SceneNode` with the three vertices and per-vertex colours, and the default canvas settings.
-- `generateDemoCode(vertices)` calls `generateAppOutput` from `features/code-generation` on that scene. It returns `{ lines: string[]; vertexLineIndexes: [number, number, number] }`, where `lines` is the `glBegin` … `glEnd` block and the indexes point at the three `glVertex2f` lines.
+- `generateDemoCode(vertices)` calls `generateCodeFromState` from `features/code-generation` on that scene. This is the editor's own entry point, and its output contains the `generateAppOutput` block. It returns `{ lines: string[]; vertexLineIndexes: [number, number, number] }`, where `lines` is the `glBegin` … `glEnd` block and the indexes point at the three `glVertex2f` lines.
 - `pixelToGl(px, py, width, height)` and `glToPixel(x, y, width, height)` implement the mapping shown in the math part.
 
 The block must be extracted from the real generator output, never re-implemented. That is the claim the caption makes.
@@ -94,7 +94,7 @@ The block must be extracted from the real generator output, never re-implemented
 
 | Action | Effect |
 | --- | --- |
-| "Present" button (site footer, home page only) | Enter stage mode at the current section |
+| "Present" button (site footer, home page only) | Enter stage mode at slide 01. Only the `P` key enters at the current section |
 | `P` key | Enter stage mode at the current section |
 | Opening `/?stage` (optionally with a section hash, e.g. `/?stage#curriculum`) | Start in stage mode at that section, or at the hero |
 | `Esc` | Leave stage mode, staying scrolled to the current section |
@@ -128,8 +128,9 @@ When a vertex handle has focus, the arrow keys move the vertex and do not change
   - type sizes switch to viewport-height-based stage sizes (display headings about 7–9vh, body about 2.6–3vh, code about 2.2vh);
   - the grid background stays.
 - Stepping scrolls the target section into view: smooth under `prefers-reduced-motion: no-preference`, instant otherwise. Mouse-wheel and touch scrolling still work. The current slide is the one whose top is nearest the viewport top after scrolling settles.
-- A slide indicator ("03 / 07"), styled as a dimension label, sits in the bottom-right corner while stage mode is on. It is `aria-live="polite"` and announces the slide heading.
+- A slide indicator ("03 / 07"), styled as a dimension label, sits in the bottom-right corner while stage mode is on. It is an `aria-live="polite"` region that announces the section label (for example "The problem"). It is always mounted and stays empty until stage mode is active.
 - Target projector resolutions: 1920×1080 and 1280×720. 1024×768 (4:3) must still fit every slide without overflow.
+- Short viewports: the root font size has a 14px floor, and a slide that cannot fit its content scrolls (`overflow: auto`) instead of clipping.
 - Stage mode follows the active theme (vellum or blueprint). The presenter picks a theme on the day; there is no stage-only palette.
 - Leaving `/` removes `html.stage` (effect cleanup), so the editor never inherits it.
 
@@ -138,10 +139,10 @@ When a vertex handle has focus, the arrow keys move the vertex and do not change
 - **`model/stage-controller.ts`:** pure logic, testable without a DOM.
   - `nextIndex(current, count)`, `prevIndex(current)` and `keyToAction(event, context)`.
   - `keyToAction` maps a key event and focus context to `'next' | 'prev' | 'first' | 'last' | 'exit' | 'enter-app' | 'theme' | 'fullscreen' | null`.
-  - `readStageFromUrl(search, hash)`.
+  - `readStageFromUrl(search, hash, sectionIds)`.
 - **`model/useStageMode.ts`:** a hook that owns the `active` and `index` state.
   - It listens for keydown on `window` only while relevant, and enters on `P` even when inactive.
-  - It drives scrolling, syncs `html.stage` and the URL, and tracks the current section with an `IntersectionObserver`.
+  - It drives scrolling, syncs `html.stage` and the URL, and tracks the current section with an `IntersectionObserver`, gated on a visible ratio of at least 0.6 and paused during programmatic scrolls.
   - It takes the list of section ids from the page.
 - **`ui/StageIndicator.tsx`** and **`ui/PresentButton.tsx`**.
 - **Public API (`index.ts`):** `useStageMode`, `StageIndicator`, `PresentButton`.
@@ -166,7 +167,7 @@ New suite `tests/black-box/home-stage.test.ts`, IDs `BB-HOME-01` onward. Existin
 - **Demo code:**
   - `generateDemoCode` on the initial triangle returns a block that starts with `glBegin(GL_TRIANGLES)` and ends with `glEnd()`.
   - The three indexed lines are the `glVertex2f` lines with the expected values.
-  - The block appears verbatim in `generateAppOutput` output for the same scene. This is the "real generator" claim.
+  - The block appears verbatim in `generateCodeFromState` output for the same scene. This is the "real generator" claim.
 - **Demo math:**
   - `pixelToGl` / `glToPixel` round-trip.
   - Corners map to ±1.
