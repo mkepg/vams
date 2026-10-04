@@ -192,3 +192,33 @@ describe('BB-HOME-11: Focused elements are classified for key handling', () => {
     document.body.innerHTML = '';
   });
 });
+
+import { SECTIONS, PROBLEM, VIEWS, CURRICULUM, UNDER_THE_HOOD, TEAM, TRY_IT } from '@/pages/home/model/content';
+import { DEFAULT_SITE_URL, findRouteMeta } from '@/app/routes/route-meta';
+import { buildHead } from '@/app/seo/head';
+
+const BANNED = ['coming soon', 'not yet', 'future', 'deferred', 'unsupported', 'not supported', '3d', 'lighting'];
+
+describe('BB-HOME-12: Home content is complete and follows the copy rules', () => {
+  it('orders the seven sections, names the five curriculum sections and avoids banned words', () => {
+    expect(SECTIONS.map((s) => s.id)).toEqual(['top', 'problem', 'views', 'curriculum', 'under-the-hood', 'team', 'try']);
+    expect(CURRICULUM.sections.map((s) => s.name)).toEqual(['Pipeline', 'Primitives', 'Buffers', 'Transforms', 'Textures']);
+    expect(DEFAULT_SITE_URL).toBe(`https://${TRY_IT.displayUrl}`);
+    const text = JSON.stringify({ SECTIONS, PROBLEM, VIEWS, CURRICULUM, UNDER_THE_HOOD, TEAM, TRY_IT }).toLowerCase();
+    for (const word of BANNED) expect(text).not.toContain(word);
+  });
+});
+
+describe('BB-HOME-13: The home page structured data credits the team', () => {
+  it('lists the three members as authors and the adviser as contributor', () => {
+    const elements = [...buildHead(findRouteMeta('/'), 'https://example.test').elements];
+    const script = elements.find((e) => e.type === 'script' && e.props.type === 'application/ld+json');
+    const jsonLd = JSON.parse(script!.props.children);
+    expect(jsonLd.author).toEqual([
+      { '@type': 'Person', name: 'Mikhael Edman P. Gomez' },
+      { '@type': 'Person', name: 'Justine Jhigz D. Vizco' },
+      { '@type': 'Person', name: 'Johann Patrick S. Taguiam' },
+    ]);
+    expect(jsonLd.contributor).toEqual({ '@type': 'Person', name: 'Elisa V. Malasaga' });
+  });
+});

@@ -1,4 +1,5 @@
 import { SITE_NAME, type RouteMeta } from '../routes/route-meta';
+import { TEAM } from '../../pages/home/model/content';
 
 export interface HeadElement {
   type: 'meta' | 'link' | 'script';
@@ -19,6 +20,8 @@ export function absoluteUrl(siteUrl: string, path: string): string {
 }
 
 export function softwareApplicationJsonLd(siteUrl: string) {
+  const person = (name: string) => ({ '@type': 'Person', name });
+  const adviser = TEAM.members.find((member) => member.role === 'adviser');
   return {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
@@ -31,6 +34,8 @@ export function softwareApplicationJsonLd(siteUrl: string) {
       'A GUI-only teaching simulator for OpenGL 1.5: build 2D scenes by hand and read the generated C++ code and the math behind it.',
     isAccessibleForFree: true,
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    author: TEAM.members.filter((member) => member.role === 'member').map((member) => person(member.name)),
+    ...(adviser ? { contributor: person(adviser.name) } : {}),
   };
 }
 
