@@ -15,7 +15,7 @@ import './vertex-demo.scss';
 
 /** The drawing is VIEW × VIEW SVG units, framed by PAD units so handles at the edge stay whole. */
 const VIEW = 300;
-const PAD = 22;
+const PAD = 30;
 const BOX = VIEW + PAD * 2;
 const GRID_LINES = Array.from({ length: 21 }, (_, i) => -1 + i * 0.1);
 const KEY_STEPS: Record<string, [number, number]> = {
@@ -70,6 +70,7 @@ export default function VertexDemo() {
   }
 
   function onHandlePointerDown(index: number, e: PointerEvent) {
+    if (e.button !== 0 || !e.isPrimary) return;
     e.preventDefault();
     dragRef.current = index;
     setSelected(index);
@@ -81,7 +82,9 @@ export default function VertexDemo() {
     const index = dragRef.current;
     if (index === null) return;
     const next = eventToVertex(e);
-    if (next) setVertices((prev) => replaceVertex(prev, index, next));
+    if (!next) return;
+    // Skip no-op updates so the generator does not re-run on every pointer event inside one grid cell.
+    setVertices((prev) => (prev[index].x === next.x && prev[index].y === next.y ? prev : replaceVertex(prev, index, next)));
   }
 
   function endDrag(e: PointerEvent) {
@@ -91,6 +94,7 @@ export default function VertexDemo() {
   }
 
   function onHandleKeyDown(index: number, e: KeyboardEvent) {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
     const step = KEY_STEPS[e.key];
     if (!step) return;
     e.preventDefault();
@@ -180,6 +184,19 @@ export default function VertexDemo() {
                 <line x1={VIEW / 2} y1={0} x2={VIEW / 2} y2={VIEW} />
                 <line x1={0} y1={VIEW / 2} x2={VIEW} y2={VIEW / 2} />
               </g>
+              <g className="vertex-demo__ticks">
+                {[-1, 0, 1].map((t) => {
+                  const p = glToPixel(t, t, VIEW, VIEW);
+                  return (
+                    <g key={t}>
+                      <text x={p.px} y={VIEW + 22} text-anchor="middle">{t}</text>
+                      <text x={-9} y={p.py + 4} text-anchor="end">{t}</text>
+                    </g>
+                  );
+                })}
+                <text x={VIEW + 10} y={VIEW / 2 + 4}>x</text>
+                <text x={VIEW / 2 + 9} y={-9}>y</text>
+              </g>
               <polygon className="vertex-demo__fill" points={points} />
               <polygon className="vertex-demo__edge" points={points} />
             </g>
@@ -198,7 +215,7 @@ export default function VertexDemo() {
                   role="button"
                   aria-label={vertexLabel(i, v)}
                   aria-describedby="vertex-demo-hint"
-                  aria-pressed={i === selected}
+                  aria-current={i === selected ? 'true' : undefined}
                   onPointerDown={(e) => onHandlePointerDown(i, e)}
                   onKeyDown={(e) => onHandleKeyDown(i, e)}
                   onFocus={() => setSelected(i)}
@@ -207,6 +224,9 @@ export default function VertexDemo() {
                   <circle className="vertex-demo__focus" r={13} />
                   {i === selected && <circle className="vertex-demo__ring" r={10} />}
                   <circle className={`vertex-demo__dot vertex-demo__dot--${i}`} r={6} />
+                  <text className="vertex-demo__number" x={15} y={4} aria-hidden="true">
+                    {i + 1}
+                  </text>
                 </g>
               );
             })}
@@ -224,7 +244,7 @@ export default function VertexDemo() {
 
         <div className="vertex-demo__part vertex-demo__part--code">
           <p className="vertex-demo__label" id="vertex-demo-code-label">Code</p>
-          <pre className="vertex-demo__code" aria-labelledby="vertex-demo-code-label">
+          <pre className="vertex-demo__code" role="region" tabIndex={0} aria-labelledby="vertex-demo-code-label">
             <code>
               {code.lines.map((line, i) => (
                 <span
