@@ -26,8 +26,16 @@ tests/
 │   ├── cpp-code-validation.test.ts       (BB-CPP-*)
 │   ├── lesson-engine.test.ts             (BB-LESSON-*)
 │   ├── project-persistence.test.ts       (BB-PERSIST-*)
-│   └── site-shell.test.ts                (BB-SITE-*: theme, route
+│   ├── site-shell.test.ts                (BB-SITE-*: theme, route
 │                                            metadata, SEO, prerendering)
+│   ├── scene-library.test.ts             (BB-LIB-*: My scenes library,
+│   │                                        backups, dialog)
+│   ├── editor-links.test.ts              (BB-LINK-*: prepared scenes,
+│   │                                        /app links, slide 07)
+│   ├── crash-recovery.test.ts            (BB-RECOVER-*: lesson reload,
+│   │                                        corrupt saves, recovery screen)
+│   └── offline-app.test.ts               (BB-PWA-*: service worker,
+│                                            manifest, update notice)
 ├── white-box/                    ← Maps to Table 13.
 │   ├── state-management.test.ts          (WB-STATE-*)
 │   ├── matrix-engine.test.ts             (WB-MATRIX-*)

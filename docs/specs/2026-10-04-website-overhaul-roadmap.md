@@ -45,7 +45,7 @@ The product rules in `AGENTS.md` and [docs/product-plan.md](../product-plan.md) 
 | --- | --- | --- |
 | 1 | **SP1 Site shell:** routing and prerendering, design tokens, editor reskin, logo, SEO extras, accessibility baseline, custom domain | Code complete, merged to `main` locally on 2026-10-04 ([spec](2026-10-04-site-shell-design.md), [plan](../plans/2026-10-04-site-shell.md)). Not yet deployed. Custom domain pending (owner to buy) |
 | 2 | **SP2 Landing page and stage mode** | Complete (2026-10-04): [spec](2026-10-04-landing-stage-design.md), [plan](../plans/2026-10-04-landing-stage.md) |
-| 3 | **SP3 Demo readiness:** deep links into prepared scenes or lessons, offline app (service worker), safer crash recovery | Not started |
+| 3 | **SP3 Demo readiness:** lesson and scene links, My scenes library with backups, crash recovery screen, offline installable app | Complete (2026-10-06): [spec](2026-10-06-demo-readiness-design.md), [plan](../plans/2026-10-06-demo-readiness.md) |
 | 4 | **SP5 Editor layout redesign:** a shared control set, then the top bar, left rail, canvas overlays, right sidebar, lesson bar and dialogs. Includes the lesson-narration and `focusPanel` updates the new layout forces. Due by Oct 28 | Not started |
 | 5 | **About page** | Not started |
 
@@ -88,6 +88,8 @@ One deployment check is outstanding: the real 404 status on Netlify.
 
 Rehearsal checklist (Nov 3):
 
+- On the demo machine, open `/` and `/app` once online and wait for "VAMS now works offline". Then turn networking off and run the whole talk.
+- Open each "Start from" link on slide 07 once.
 - Present fullscreen and test the F key.
 - Dismiss the editor welcome dialog on the demo machine.
 - Step through every slide at the projector's real resolution.
@@ -99,11 +101,12 @@ The thesis manuscript is final and describes the evaluated build. The overhauled
 1. §3.4.2 describes "a single-page Preact application". The site now has prerendered routes, though the editor itself stays a single page.
 2. §3.3.3 and Fig. 5 say the user selects a curriculum area on launch. Launch now opens the landing page.
 3. Figures 10–15 show the old interface (dark navy, pixel logo, sidebar tabs).
-4. Ch. 6 Rec. 3 frames offline use as future work, and §3.6.2 says students need internet access. SP3's offline app partly implements this early.
+4. Ch. 6 Rec. 3 frames offline use as future work, and §3.6.2 says students need internet access. The site now works offline after one visit and can be installed as an app (SP3).
 5. Ch. 4 reports Algorithm 3 latency "across the eighty-nine measurable steps in the lesson library". Any change to the lesson library changes that count in regenerated reports.
 6. The Ch. 4 learning-effectiveness results were measured against the evaluated lessons, and do not cover polished or new lessons.
 7. Ch. 6 Rec. 12 recommends expanding the lesson library. Curriculum work delivers part of it early.
 8. SP5 changes lesson narration that names screen positions, and any `focusPanel` targets the redesign moves.
+9. §3.4.2 describes saving only as project-file download and upload. The editor now also keeps a My scenes library and automatic backups in the browser, opens lessons and prepared scenes from links, and shows a recovery screen after a crash (SP3).
 
 The following manuscript descriptions may also be crossed by later sub-projects. When one is, it is added to the list above:
 - §3.4.2's five layout regions and the top bar's actions.
