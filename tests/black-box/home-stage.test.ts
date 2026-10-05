@@ -355,6 +355,7 @@ describe('BB-HOME-17: P enters stage mode and stepping past the end opens the ed
     press('PageDown');
     await settle();
     expect(window.location.pathname).toBe('/app');
+    expect(window.location.search).toBe('?scene=triangle');
 
     render(null, host);
     host.remove();

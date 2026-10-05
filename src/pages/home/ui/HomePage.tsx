@@ -1,4 +1,5 @@
 import { useLocation } from 'preact-iso';
+import { presetHref } from '@/entities/project/model/preset-links';
 import SiteHeader from '@/widgets/site-header';
 import SiteFooter from '@/widgets/site-footer';
 import { PresentButton, StageIndicator, useStageMode } from '@/features/stage-mode';
@@ -18,7 +19,7 @@ const SECTION_IDS = SECTIONS.map((section) => section.id);
 
 export default function HomePage() {
   const { route } = useLocation();
-  const stage = useStageMode(SECTION_IDS, () => route('/app'));
+  const stage = useStageMode(SECTION_IDS, () => route(presetHref('triangle')));
   return (
     <div className="site-page">
       <SiteHeader />

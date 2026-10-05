@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { toggleTheme } from '@/shared/lib/theme';
-import { clampIndex, focusKind, keyToAction, nextIndex, prevIndex, readStageFromUrl } from './stage-controller';
+import { clampIndex, focusKind, keyToAction, nextIndex, prevIndex, readStageFromUrl, withStageParam } from './stage-controller';
 
 export interface StageMode {
   active: boolean;
@@ -150,9 +150,9 @@ export function useStageMode(sectionIds: readonly string[], onEnterApp: () => vo
   useEffect(() => {
     if (!active && !urlTouchedRef.current) return;
     urlTouchedRef.current = active;
-    const { pathname } = window.location;
+    const { pathname, search } = window.location;
     const hash = `#${sectionIds[index]}`;
-    window.history.replaceState(window.history.state, '', active ? `${pathname}?stage${hash}` : `${pathname}${hash}`);
+    window.history.replaceState(window.history.state, '', `${pathname}${withStageParam(search, active)}${hash}`);
   }, [active, index, sectionIds]);
 
   useEffect(() => {

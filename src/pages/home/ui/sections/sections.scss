@@ -246,3 +246,50 @@
 @media (max-width: 640px) {
   .home-section { padding: var(--space-7) var(--space-4); }
 }
+
+.try-presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.4rem 0.75rem;
+  margin-top: 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+
+  &__label {
+    color: var(--ink-muted);
+  }
+
+  &__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    li + li::before {
+      content: '·';
+      margin-right: 0.75rem;
+      color: var(--ink-faint);
+    }
+  }
+
+  a {
+    color: var(--ink);
+    text-decoration: underline;
+    text-decoration-color: var(--rule);
+    text-underline-offset: 0.2em;
+
+    &:hover {
+      text-decoration-color: var(--accent);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 3px;
+      border-radius: 2px;
+    }
+  }
+}

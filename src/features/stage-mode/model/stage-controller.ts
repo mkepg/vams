@@ -106,3 +106,12 @@ export function focusKind(el: Element | null): FocusKind {
   if (el.matches('a[href], button, [role="button"], summary')) return 'interactive';
   return 'none';
 }
+
+/** Add or remove the bare `stage` flag and keep every other query parameter. */
+export function withStageParam(search: string, active: boolean): string {
+  const params = new URLSearchParams(search);
+  params.delete('stage');
+  const rest = params.toString();
+  if (!active) return rest ? `?${rest}` : '';
+  return rest ? `?stage&${rest}` : '?stage';
+}
