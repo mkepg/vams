@@ -142,7 +142,7 @@ describe('BB-LIB-07: Backing up the current scene', () => {
 
     const tri = addTriangle();
     const entry = await backupCurrentScene('scene-link', backupLabel('Triangle'));
-    expect(entry?.name).toBe(`Before opening 'Triangle'`);
+    expect(entry?.name).toBe(`Before opening ‘Triangle’`);
     const [stored] = await library.list();
     expect(stored.kind).toBe('backup');
     expect(stored.reason).toBe('scene-link');

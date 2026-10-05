@@ -55,7 +55,7 @@ export function loadProjectData(data: VamsProjectData): number {
 }
 
 export function backupLabel(title: string): string {
-  return `Before opening '${title}'`;
+  return `Before opening ‘${title}’`;
 }
 
 function newEntry(fields: Pick<SceneEntry, 'name' | 'kind' | 'reason' | 'file' | 'raw'>): SceneEntry {
