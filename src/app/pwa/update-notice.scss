@@ -1,0 +1,51 @@
+.update-notice {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1200; // above editor dialogs; sonner toasts sit bottom-right
+
+  &__card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem 1rem;
+    max-width: min(420px, calc(100vw - 2rem));
+    padding: 0.75rem 1rem;
+    color: var(--ink);
+    background-color: var(--paper-raised);
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--accent);
+    border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(var(--shadow-rgb), 0.25);
+  }
+
+  &__text {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: 0.9rem;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  &__btn {
+    padding: 0.35rem 0.8rem;
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    cursor: pointer;
+    &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+    &--primary {
+      color: var(--on-accent);
+      background-color: var(--accent);
+      border-color: var(--accent);
+    }
+  }
+}

@@ -3,6 +3,7 @@ import HomePage from '@/pages/home';
 import EditorPage from '@/pages/editor';
 import NotFoundPage from '@/pages/not-found';
 import { findRouteMeta } from '@/app/routes/route-meta';
+import UpdateNotice from '@/app/pwa/UpdateNotice';
 
 /** Prerendering sets each page's title; client-side navigation keeps it in step. */
 function syncDocumentTitle(url: string) {
@@ -24,6 +25,7 @@ export default function SiteApp() {
           <Route default component={NotFoundPage} />
         </Router>
       </ErrorBoundary>
+      <UpdateNotice />
     </LocationProvider>
   );
 }

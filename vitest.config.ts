@@ -8,6 +8,7 @@ export default defineConfig({
     mainFields: ['module', 'jsnext:main', 'jsnext'],
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      'virtual:pwa-register': fileURLToPath(new URL('./tests/helpers/pwa-register-stub.ts', import.meta.url)),
       react: 'preact/compat',
       'react-dom': 'preact/compat',
       'react/jsx-runtime': 'preact/jsx-runtime',

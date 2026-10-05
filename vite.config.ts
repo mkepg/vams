@@ -2,6 +2,8 @@ import { defineConfig, loadEnv, type Plugin } from 'vite'
 import preact from '@preact/preset-vite'
 import { fileURLToPath, URL } from 'node:url'
 import { DEFAULT_SITE_URL } from './src/app/routes/route-meta'
+import { VitePWA } from 'vite-plugin-pwa'
+import { buildPwaOptions } from './src/app/pwa/pwa-options'
 import { buildRobots, buildSitemap } from './src/app/seo/sitemap'
 
 function seoFiles(siteUrl: string): Plugin {
@@ -31,6 +33,7 @@ export default defineConfig(({ mode }) => {
         },
       }),
       seoFiles(siteUrl),
+      VitePWA(buildPwaOptions()),
     ],
     resolve: {
       alias: {
