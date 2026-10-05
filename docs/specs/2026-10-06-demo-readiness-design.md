@@ -101,7 +101,7 @@ export interface SceneLibrary {
 ## 2. Scene operations (`features/scene-library/model/scene-ops.ts`)
 
 - **`isSceneEmpty(state)`** is true when all of these hold:
-  - there are no objects;
+  - there are no objects and no uploaded textures;
   - the background is `#000000`;
   - no shape is being built;
   - every callback is blank;
@@ -118,7 +118,7 @@ export interface SceneLibrary {
   - Otherwise it saves a `backup` entry named `label`, holding `buildProjectFile(state)`, and returns the entry.
   - Labels read "Before opening ‘Triangle’", "Before New workspace" and so on.
   - If the library write fails, it throws.
-- **`replaceScene(data, { reason, label })`** backs up, then loads. It resolves to `{ backedUp: boolean }`. If the backup fails, the scene is **not** replaced, and the error propagates so the caller can say so. Losing the student's work silently is the one outcome this design forbids.
+- **`replaceScene(data, { reason, label })`** backs up, then loads. It resolves to `{ backedUp, detached }`: whether a backup was kept, and how many texture attachments the editor could not resolve and dropped. If the backup fails, the scene is **not** replaced, and the error propagates so the caller can say so. Losing the student's work silently is the one outcome this design forbids.
 
 ### Existing buttons
 
@@ -192,7 +192,7 @@ export function stripEditorLinkParams(search: string): string; // keeps every ot
 - An empty or unknown lesson id or scene slug parses as `invalid`.
 - Validity is checked against `getLessonById` and `getPreset`.
 
-**`useEditorLink({ replaceScene, openLibrary })`** runs once when `EditorApp` mounts, after store hydration:
+**`useEditorLink()`** takes no arguments. It applies the link through `applyEditorLink` (which calls `replaceScene`) and opens the library through `useMyScenesDialog`. It runs once when `EditorApp` mounts, after store hydration:
 
 - **Lesson:**
   1. If a lesson is already active, `clearLessonState()`.
@@ -232,6 +232,8 @@ export function stripEditorLinkParams(search: string): string; // keeps every ot
 
 On successful rehydration, if `sceneBackup` is not null, the page was reloaded mid-lesson, so `clearLessonState()` runs. That restores the student's scene and clears the backups.
 
+`uploadedTexturesBackup` is persisted as `null` when it is the same array as `uploadedTextures`, so lesson textures are not stored twice.
+
 The fields are optional to old saves, which have none, so **`version` stays 7** and no migration is needed.
 
 ### Corrupt save
@@ -239,7 +241,7 @@ The fields are optional to old saves, which have none, so **`version` stays 7** 
 When `onRehydrateStorage` reports an error, the store no longer deletes and reloads. Instead it:
 
 1. reads the raw `vams-storage` text;
-2. hands it to `core/store/recovery-signal.ts` through `reportCorruptSave(raw)`;
+2. hands it to `core/store/recovery-signal.ts` through `reportCorruptSave(raw)`. The text stays in module memory until the editor collects it with `takeCorruptSave()`; `peekCorruptSave()` reads it without consuming it;
 3. removes the key, so the editor starts blank;
 4. does **not** reload.
 
@@ -257,11 +259,15 @@ When `onRehydrateStorage` reports an error, the store no longer deletes and relo
 `RecoveryScreen` is a full-page panel styled on the site tokens. Heading: "VAMS hit a problem". Lead: "Your work is still on this device. Choose what to do next." Actions:
 
 - **Reload** reloads the page.
-- **Download my work** builds a project file from the in-memory store and downloads it. If that throws, it downloads the raw saved text instead.
+- **Download my work** builds a project file from the in-memory store and downloads it. If that throws, it downloads the raw saved text instead: the text in `localStorage`, or, when hydration already cleared the key, the unreadable save held by `peekCorruptSave()`.
 - **Start fresh**:
   1. backs up the current scene (reason `recovery`); if the library write fails, it downloads the backup instead, so nothing is lost;
   2. clears the persisted store;
   3. reloads.
+
+Mid-lesson, Download my work and Start fresh first call `clearLessonState()`, so they act on the student's own scene rather than the lesson's. When either fails, the screen shows "That didn't work. Reload to try again." in an alert region.
+
+On mount the screen removes the `route-editor` class that `index.html` sets on the page root for `/app`, so a crash on the first render gets the normal root font size and scrolling. The panel itself scrolls (`overflow: auto`, `min-height: 100vh`), and the error text uses `--danger` for contrast.
 
 A `<details>` disclosure, "Technical details", shows the error message.
 
