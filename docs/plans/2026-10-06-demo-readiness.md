@@ -380,7 +380,7 @@ export function setSceneLibraryForTests(library: SceneLibrary | null): void {
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/black-box/scene-library.test.ts`
-Expected: PASS, 9 tests (BB-LIB-01..03 run once per adapter).
+Expected: PASS, 8 tests (BB-LIB-01..03 run once per adapter).
 
 - [ ] **Step 6: Run all checks and commit**
 
@@ -2424,12 +2424,22 @@ async function settle() {
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+/**
+ * Spies this file creates, restored after each test. vi.restoreAllMocks() would also undo the
+ * console silencing that tests/setup.ts installs for the whole run.
+ */
+const spies: { mockRestore(): void }[] = [];
+function track<T extends { mockRestore(): void }>(spy: T): T {
+  spies.push(spy);
+  return spy;
+}
+
 function stubReload() {
-  return vi.spyOn(window.location, 'reload').mockImplementation(() => {});
+  return track(vi.spyOn(window.location, 'reload').mockImplementation(() => {}));
 }
 
 afterEach(() => {
-  vi.restoreAllMocks();
+  spies.splice(0).forEach((spy) => spy.mockRestore());
   setSceneLibraryForTests(null);
   sessionStorage.clear();
 });
@@ -2558,11 +2568,11 @@ describe('BB-RECOVER-08: Start fresh keeps the scene first, as a backup or as a 
     const failing = createMemoryLibrary();
     setSceneLibraryForTests({ ...failing, save: () => Promise.reject(new Error('full')) });
     const reload = stubReload();
-    const created = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:vams');
-    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    // happy-dom follows a clicked download link, which would move the test page to the blob URL.
+    const clicked = track(vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {}));
     addTriangle();
     await startFresh();
-    expect(created).toHaveBeenCalledTimes(1);
+    expect(clicked).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
     expect(reload).toHaveBeenCalledTimes(1);
   });
