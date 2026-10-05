@@ -13,8 +13,10 @@ import { createLessonSlice } from '@/core/store/lesson-slice';
 import { createCallbacksSlice } from '@/core/store/callbacks-slice';
 import { createTextureSlice } from '@/core/store/texture-slice';
 import { createHelpSlice } from '@/core/store/help-slice';
+import { reportCorruptSave } from '@/core/store/recovery-signal';
 
 enableMapSet();
+export const STORAGE_KEY = 'vams-storage';
 export const useVamsStore = create<VamsState>()(
   persist(
     (...a) => ({
@@ -30,20 +32,31 @@ export const useVamsStore = create<VamsState>()(
       ...createTextureSlice(...a),
       ...createHelpSlice(...a),
       resetProject: () => {
-        localStorage.removeItem('vams-storage');
+        localStorage.removeItem(STORAGE_KEY);
         window.location.reload();
       }
     }),
     {
-      name: 'vams-storage',
+      name: STORAGE_KEY,
       version: 7,
       onRehydrateStorage: () => {
-        return (_rehydratedState, error) => {
+        return (rehydratedState, error) => {
           if (error) {
-            console.error('Storage hydration failed. State may be corrupt. Triggering automatic reset.', error);
-            localStorage.removeItem('vams-storage');
-            window.location.reload();
+            // Keep the unreadable text for the editor to back up, then start from a blank scene.
+            console.error('Saved editor data could not be read; starting fresh and keeping a copy.', error);
+            let raw: string | null = null;
+            try {
+              raw = localStorage.getItem(STORAGE_KEY);
+              localStorage.removeItem(STORAGE_KEY);
+            } catch {
+              // Storage is unavailable; there is nothing to keep.
+            }
+            reportCorruptSave(raw);
+            return;
           }
+          // A lesson backup that survived a reload means the page reloaded mid-lesson:
+          // put the student's own scene back and leave the lesson.
+          if (rehydratedState?.sceneBackup) rehydratedState.clearLessonState();
         };
       },
       partialize: (state) => ({
@@ -58,6 +71,11 @@ export const useVamsStore = create<VamsState>()(
         callbacks: state.callbacks,
         uploadedTextures: state.uploadedTextures,
         hasSeenWelcome: state.hasSeenWelcome,
+        sceneBackup: state.sceneBackup,
+        callbacksBackup: state.callbacksBackup,
+        canvasBackgroundColorBackup: state.canvasBackgroundColorBackup,
+        viewportLimitsBackup: state.viewportLimitsBackup,
+        uploadedTexturesBackup: state.uploadedTexturesBackup,
       }),
     }
   )

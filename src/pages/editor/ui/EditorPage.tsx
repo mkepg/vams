@@ -1,7 +1,20 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
+import { EditorErrorBoundary, RecoveryScreen, type RecoveryActions } from '@/features/crash-recovery';
 import EditorLoading from './EditorLoading';
 
 const EditorApp = lazy(() => import('./EditorApp'));
+const loadRecovery = () => import('../model/recovery');
+
+/** Loaded on demand, so the store stays out of the bundle every page shares. */
+const recoveryActions: RecoveryActions = {
+  reload: () => window.location.reload(),
+  download: () => {
+    loadRecovery()
+      .then((m) => m.downloadWork())
+      .catch((error) => console.error(error));
+  },
+  startFresh: () => loadRecovery().then((m) => m.startFresh()),
+};
 
 export default function EditorPage() {
   const [mounted, setMounted] = useState(false);
@@ -12,8 +25,10 @@ export default function EditorPage() {
   }, []);
   if (!mounted) return <EditorLoading />;
   return (
-    <Suspense fallback={<EditorLoading />}>
-      <EditorApp />
-    </Suspense>
+    <EditorErrorBoundary fallback={(error) => <RecoveryScreen error={error} actions={recoveryActions} />}>
+      <Suspense fallback={<EditorLoading />}>
+        <EditorApp />
+      </Suspense>
+    </EditorErrorBoundary>
   );
 }

@@ -13,10 +13,12 @@ import { useVamsStore } from '@/core/store';
 import { getActiveTheme, subscribeTheme, toEditorTheme, type SiteTheme } from '@/shared/lib/theme';
 import { useKeyboardShortcuts } from '@/shared/hooks/useKeyboardShortcuts';
 import { useEditorLink } from '../model/useEditorLink';
+import { useCorruptSaveNotice } from '../model/recovery';
 
 export default function EditorApp() {
   useKeyboardShortcuts();
   useEditorLink();
+  useCorruptSaveNotice();
   useLayoutEffect(() => {
     const root = document.documentElement;
     root.classList.add('route-editor');
