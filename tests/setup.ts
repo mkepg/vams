@@ -1,5 +1,13 @@
 import { beforeEach, vi } from 'vitest';
 import { useVamsStore } from '@/core/store';
+import * as sampleTextures from '@/features/textures/lib/sample-textures';
+
+// Mock sample textures since happy-dom cannot provide a 2D canvas context
+vi.spyOn(sampleTextures, 'getSampleTextures').mockReturnValue([
+  { id: 'sample-atlas', name: 'Texture Atlas', isSample: true, dataUrl: 'data:image/png;base64,', width: 256, height: 256 },
+  { id: 'sample-pixel', name: 'Pixel Art', isSample: true, dataUrl: 'data:image/png;base64,', width: 64, height: 64 },
+  { id: 'sample-bricks', name: 'Tiling Bricks', isSample: true, dataUrl: 'data:image/png;base64,', width: 256, height: 256 },
+]);
 
 // Provide a deterministic, monotonically increasing ID generator so that
 // snapshot-style and equality assertions are stable across test runs.

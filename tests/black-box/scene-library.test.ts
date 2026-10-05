@@ -6,7 +6,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createStore } from 'idb-keyval';
 import { useVamsStore } from '@/core/store';
-import { buildProjectFile } from '@/entities/project/model/project-io';
+import { buildProjectFile, sanitizeProjectData } from '@/entities/project/model/project-io';
 import {
   BACKUP_LIMIT,
   createIdbLibrary,
@@ -18,6 +18,16 @@ import {
   type SceneEntry,
   type SceneLibrary,
 } from '@/entities/project/model/scene-library';
+import { getActiveTheme, toEditorTheme } from '@/shared/lib/theme';
+import {
+  backupCurrentScene,
+  backupLabel,
+  entryFileName,
+  isSceneEmpty,
+  loadProjectData,
+  replaceScene,
+} from '@/features/scene-library';
+import { addQuad, addTriangle } from '../helpers/store';
 
 let dbCount = 0;
 const adapters: [string, () => SceneLibrary][] = [
@@ -96,5 +106,96 @@ describe('BB-LIB-05: The shared library falls back to memory without IndexedDB',
     setSceneLibraryForTests(null);
     vi.stubGlobal('indexedDB', undefined);
     expect((await getSceneLibrary()).persistent).toBe(false);
+  });
+});
+
+function useMemoryLibrary(): SceneLibrary {
+  const library = createMemoryLibrary();
+  setSceneLibraryForTests(library);
+  return library;
+}
+
+function failingLibrary(): SceneLibrary {
+  const library = createMemoryLibrary();
+  return { ...library, save: () => Promise.reject(new Error('QuotaExceededError')) };
+}
+
+describe('BB-LIB-06: A scene counts as empty only when nothing would be lost', () => {
+  it('checks objects, background, a shape in progress, callbacks and the viewport', () => {
+    const blank = useVamsStore.getState();
+    expect(isSceneEmpty(blank)).toBe(true);
+    expect(isSceneEmpty({ ...blank, canvasBackgroundColor: '#112233' })).toBe(false);
+    expect(isSceneEmpty({ ...blank, pendingShapeType: 'TRIANGLES' })).toBe(false);
+    expect(isSceneEmpty({ ...blank, callbacks: { ...blank.callbacks, idle: 'x += 1;' } })).toBe(false);
+    expect(isSceneEmpty({ ...blank, viewportLimits: { minX: -2, maxX: 2, minY: -1, maxY: 1 } })).toBe(false);
+    addTriangle();
+    expect(isSceneEmpty(useVamsStore.getState())).toBe(false);
+  });
+});
+
+describe('BB-LIB-07: Backing up the current scene', () => {
+  afterEach(() => setSceneLibraryForTests(null));
+  it('skips an empty scene and saves a labelled backup otherwise', async () => {
+    const library = useMemoryLibrary();
+    expect(await backupCurrentScene('scene-link', backupLabel('Triangle'))).toBeNull();
+    expect(await library.list()).toEqual([]);
+
+    const tri = addTriangle();
+    const entry = await backupCurrentScene('scene-link', backupLabel('Triangle'));
+    expect(entry?.name).toBe(`Before opening 'Triangle'`);
+    const [stored] = await library.list();
+    expect(stored.kind).toBe('backup');
+    expect(stored.reason).toBe('scene-link');
+    expect(stored.file?.data.objects.map((o) => o.id)).toEqual([tri.id]);
+    expect(entryFileName(stored)).toBe('before-opening-triangle.vams');
+  });
+});
+
+describe('BB-LIB-08: Replacing the scene backs up first, then loads', () => {
+  afterEach(() => setSceneLibraryForTests(null));
+  it('loads the data with the site theme and a cleared history', async () => {
+    const library = useMemoryLibrary();
+    addTriangle();
+    const incoming = sanitizeProjectData({ objects: [{ id: 'q', name: 'Q', type: 'QUADS', vertices: [] }], theme: 'light' });
+    const result = await replaceScene(incoming, { reason: 'library-open', label: backupLabel('Q') });
+    expect(result).toEqual({ backedUp: true, detached: 0 });
+    const state = useVamsStore.getState();
+    expect(state.objects.map((o) => o.id)).toEqual(['q']);
+    expect(state.theme).toBe(toEditorTheme(getActiveTheme()));
+    expect(state.past).toEqual([]);
+    expect(await library.list()).toHaveLength(1);
+  });
+  it('reports no backup when the scene was empty', async () => {
+    useMemoryLibrary();
+    const result = await replaceScene(sanitizeProjectData({ objects: [] }), { reason: 'scene-link', label: 'x' });
+    expect(result.backedUp).toBe(false);
+  });
+});
+
+describe('BB-LIB-09: A failed backup leaves the scene untouched', () => {
+  afterEach(() => setSceneLibraryForTests(null));
+  it('rejects and keeps the current objects', async () => {
+    setSceneLibraryForTests(failingLibrary());
+    const tri = addTriangle();
+    await expect(
+      replaceScene(sanitizeProjectData({ objects: [] }), { reason: 'scene-link', label: 'x' }),
+    ).rejects.toThrow('QuotaExceededError');
+    expect(useVamsStore.getState().objects.map((o) => o.id)).toEqual([tri.id]);
+  });
+});
+
+describe('BB-LIB-10: Loading detaches textures the editor does not have', () => {
+  it('drops unknown texture attachments and counts them', () => {
+    addQuad();
+    const data = sanitizeProjectData({
+      objects: [
+        { id: 'a', name: 'A', type: 'QUADS', vertices: [], texture: { textureId: 'missing', filter: 'LINEAR', wrap: 'REPEAT' } },
+        { id: 'b', name: 'B', type: 'QUADS', vertices: [], texture: { textureId: 'sample-bricks', filter: 'LINEAR', wrap: 'REPEAT' } },
+      ],
+    });
+    expect(loadProjectData(data)).toBe(1);
+    const [a, b] = useVamsStore.getState().objects;
+    expect(a.texture).toBeNull();
+    expect(b.texture?.textureId).toBe('sample-bricks');
   });
 });
