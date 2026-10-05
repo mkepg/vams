@@ -7,13 +7,16 @@ import {
   createDefaultProjectFilename,
   downloadJSON,
   parseProjectFromFile,
-  toStorePatchFromProject,
+  type VamsProjectData,
 } from '@/entities/project/model/project-io';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
-import { getActiveTheme, toEditorTheme } from '@/shared/lib/theme';
 
-export default function ProjectActions() {
-  const clearHistory = useVamsStore((state) => state.clearHistory);
+interface ProjectActionsProps {
+  /** Loads an opened project file, keeping a backup of the current scene first. Resolves to the number of detached textures. */
+  loadProject: (data: VamsProjectData, fileName: string) => Promise<number>;
+}
+
+export default function ProjectActions({ loadProject }: ProjectActionsProps) {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -108,37 +111,21 @@ export default function ProjectActions() {
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
+    let projectData: VamsProjectData;
     try {
-      const projectData = await parseProjectFromFile(file);
-      const patch = toStorePatchFromProject(projectData);
-      // The site theme stays authoritative: the store keeps mirroring it rather
-      // than taking the theme saved in the project file.
-      useVamsStore.setState(
-        {
-          ...patch,
-          theme: toEditorTheme(getActiveTheme()),
-        },
-        false
-      );
-      const stateAfter = useVamsStore.getState();
-      const knownIds = new Set(stateAfter.getAllTextures().map((t) => t.id));
-      let detached = 0;
-      const cleaned = stateAfter.objects.map((o) => {
-        if (o.texture && !knownIds.has(o.texture.textureId)) {
-          detached++;
-          return { ...o, texture: null };
-        }
-        return o;
-      });
-      if (detached > 0) {
-        useVamsStore.setState({ objects: cleaned });
-        toast.message('Some textures could not be loaded and were detached.');
-      }
-      clearHistory();
-      toast.success(`Project loaded: ${file.name}`);
+      projectData = await parseProjectFromFile(file);
     } catch (error) {
       console.error(error);
       toast.error('Invalid project file');
+      return;
+    }
+    try {
+      const detached = await loadProject(projectData, file.name);
+      if (detached > 0) toast.message('Some textures could not be loaded and were detached.');
+      toast.success(`Project loaded: ${file.name}`);
+    } catch (error) {
+      console.error(error);
+      toast.error("Couldn't keep a backup of the current scene, so the project was not opened.");
     }
   };
 

@@ -3,7 +3,12 @@ import { toast } from 'sonner';
 import { useVamsStore } from '@/core/store';
 import { confirm } from '@/shared/ui/confirm-dialog/confirm-store';
 
-export default function NewWorkspaceButton() {
+interface NewWorkspaceButtonProps {
+  /** Keeps the current scene in My scenes. A rejection cancels the reset. */
+  beforeReset: () => Promise<unknown>;
+}
+
+export default function NewWorkspaceButton({ beforeReset }: NewWorkspaceButtonProps) {
   const setCanvasBackgroundColor = useVamsStore(
     (state) => state.setCanvasBackgroundColor
   );
@@ -30,12 +35,19 @@ export default function NewWorkspaceButton() {
 
     const proceed = await confirm({
       title: 'Start a new workspace?',
-      message: 'Unsaved changes will be lost.',
+      message: 'Your current scene will be kept in My scenes as a backup.',
       confirmLabel: 'New workspace',
       cancelLabel: 'Cancel',
       tone: 'danger',
     });
     if (proceed) {
+      try {
+        await beforeReset();
+      } catch (error) {
+        console.error(error);
+        toast.error("Couldn't keep a backup of the current scene, so the workspace was not cleared.");
+        return;
+      }
       useVamsStore.setState({
         objects: [],
         selectedObjectId: null,

@@ -28,6 +28,11 @@ import {
   replaceScene,
 } from '@/features/scene-library';
 import { addQuad, addTriangle } from '../helpers/store';
+import { h, render } from 'preact';
+import MyScenesDialog from '@/features/scene-library/ui/MyScenesDialog';
+import { useMyScenesDialog } from '@/features/scene-library/model/dialog-store';
+import NewWorkspaceButton from '@/features/workspace-reset/ui/NewWorkspaceButton';
+import { useConfirmStore } from '@/shared/ui/confirm-dialog/confirm-store';
 
 let dbCount = 0;
 const adapters: [string, () => SceneLibrary][] = [
@@ -197,5 +202,186 @@ describe('BB-LIB-10: Loading detaches textures the editor does not have', () => 
     const [a, b] = useVamsStore.getState().objects;
     expect(a.texture).toBeNull();
     expect(b.texture?.textureId).toBe('sample-bricks');
+  });
+});
+
+async function settle() {
+  for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function mount(vnode: ReturnType<typeof h>) {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  render(vnode, host);
+  return host;
+}
+
+function unmount(host: HTMLElement) {
+  render(null, host);
+  host.remove();
+}
+
+async function mountDialog() {
+  useMyScenesDialog.getState().open();
+  const host = mount(h(MyScenesDialog, null));
+  await settle();
+  return host;
+}
+
+function buttonNamed(host: HTMLElement, name: string): HTMLButtonElement | undefined {
+  return [...host.querySelectorAll('button')].find(
+    (b) => (b.getAttribute('aria-label') ?? b.textContent?.trim()) === name,
+  );
+}
+
+function rowNames(host: HTMLElement, list: 'saved' | 'backups'): string[] {
+  return [...host.querySelectorAll(`[data-list="${list}"] .my-scenes__name`)].map((n) => n.textContent ?? '');
+}
+
+describe('BB-LIB-11: My scenes lists saved scenes and backups separately', () => {
+  afterEach(() => {
+    setSceneLibraryForTests(null);
+    useMyScenesDialog.getState().close();
+  });
+  it('shows each list newest first and offers only Download for an unreadable save', async () => {
+    // The memory adapter reports persistent: false; present it as the browser-backed store the note describes.
+    const library = { ...createMemoryLibrary(), persistent: true };
+    setSceneLibraryForTests(library);
+    await library.save(entry('s1', 'saved', 1000, 'Older'));
+    await library.save(entry('s2', 'saved', 2000, 'Newer'));
+    await library.save({ ...entry('c', 'backup', 3000, 'Unreadable saved scene'), reason: 'corrupt-save', file: null, raw: '{' });
+    const host = await mountDialog();
+    expect(host.querySelector('[role="dialog"]')?.getAttribute('aria-labelledby')).toBe('my-scenes-title');
+    expect(rowNames(host, 'saved')).toEqual(['Newer', 'Older']);
+    expect(rowNames(host, 'backups')).toEqual(['Unreadable saved scene']);
+    expect(buttonNamed(host, 'Open Unreadable saved scene')).toBeUndefined();
+    expect(buttonNamed(host, 'Download Unreadable saved scene')).toBeDefined();
+    expect(host.textContent).toContain('Clearing site data removes them');
+    unmount(host);
+  });
+});
+
+describe('BB-LIB-12: Saving the current scene from the dialog', () => {
+  afterEach(() => {
+    setSceneLibraryForTests(null);
+    useMyScenesDialog.getState().close();
+  });
+  it('is disabled for an empty scene and saves a named entry otherwise', async () => {
+    const library = useMemoryLibrary();
+    let host = await mountDialog();
+    expect(buttonNamed(host, 'Save')?.disabled).toBe(true);
+    expect(host.textContent).toContain('Add something to the canvas first.');
+    expect(host.textContent).toContain('Nothing saved yet.');
+    unmount(host);
+
+    addTriangle();
+    host = await mountDialog();
+    const input = host.querySelector<HTMLInputElement>('#my-scenes-name')!;
+    input.value = 'My triangle';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await settle();
+    expect((await library.list()).map((e) => [e.name, e.kind])).toEqual([['My triangle', 'saved']]);
+    expect(rowNames(host, 'saved')).toEqual(['My triangle']);
+    unmount(host);
+  });
+});
+
+describe('BB-LIB-13: Opening an entry replaces the scene and keeps the old one as a backup', () => {
+  afterEach(() => {
+    setSceneLibraryForTests(null);
+    useMyScenesDialog.getState().close();
+  });
+  it('sanitises the stored file, loads it and closes the dialog', async () => {
+    const library = useMemoryLibrary();
+    const stored = entry('s1', 'saved', 1000, 'Stored');
+    // An entry written by another build: one valid quad and one object type this build does not know.
+    stored.file = {
+      ...stored.file!,
+      data: { ...stored.file!.data, objects: [{ id: 'q', name: 'Q', type: 'QUADS', vertices: [] }, { id: 'z', type: 'HEXAGON' }] as never },
+    };
+    await library.save(stored);
+    addTriangle();
+    const host = await mountDialog();
+    buttonNamed(host, 'Open Stored')!.click();
+    await settle();
+    expect(useVamsStore.getState().objects.map((o) => o.id)).toEqual(['q']);
+    expect(useMyScenesDialog.getState().isOpen).toBe(false);
+    const backups = (await library.list()).filter((e) => e.kind === 'backup');
+    expect(backups.map((e) => e.name)).toEqual(['Before opening ‘Stored’']);
+    unmount(host);
+  });
+});
+
+describe('BB-LIB-14: Renaming in place: Enter saves, Escape cancels without closing', () => {
+  afterEach(() => {
+    setSceneLibraryForTests(null);
+    useMyScenesDialog.getState().close();
+  });
+  it('renames with Enter and keeps the dialog open on Escape', async () => {
+    const library = useMemoryLibrary();
+    await library.save(entry('s1', 'saved', 1000, 'Draft'));
+    const host = await mountDialog();
+    buttonNamed(host, 'Rename Draft')!.click();
+    await settle();
+    let field = host.querySelector<HTMLInputElement>('input[aria-label="New name for Draft"]')!;
+    field.value = 'Final';
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await settle();
+    expect((await library.get('s1'))?.name).toBe('Final');
+
+    buttonNamed(host, 'Rename Final')!.click();
+    await settle();
+    field = host.querySelector<HTMLInputElement>('input[aria-label="New name for Final"]')!;
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await settle();
+    expect(useMyScenesDialog.getState().isOpen).toBe(true);
+    expect(host.querySelector('input[aria-label="New name for Final"]')).toBeNull();
+    unmount(host);
+  });
+});
+
+describe('BB-LIB-15: New workspace keeps a backup first and stops if it cannot', () => {
+  it('clears after a successful backup and keeps the scene when the backup fails', async () => {
+    const ok = vi.fn().mockResolvedValue(null);
+    addTriangle();
+    let host = mount(h(NewWorkspaceButton, { beforeReset: ok }));
+    host.querySelector('button')!.click();
+    await settle();
+    expect(useConfirmStore.getState().options?.message).toBe('Your current scene will be kept in My scenes as a backup.');
+    useConfirmStore.getState().handleConfirm();
+    await settle();
+    expect(ok).toHaveBeenCalledTimes(1);
+    expect(useVamsStore.getState().objects).toEqual([]);
+    unmount(host);
+
+    const failing = vi.fn().mockRejectedValue(new Error('full'));
+    addTriangle();
+    host = mount(h(NewWorkspaceButton, { beforeReset: failing }));
+    host.querySelector('button')!.click();
+    await settle();
+    useConfirmStore.getState().handleConfirm();
+    await settle();
+    expect(useVamsStore.getState().objects).toHaveLength(1);
+    unmount(host);
+  });
+});
+
+describe('BB-LIB-16: A full browser storage does not break the dialog', () => {
+  afterEach(() => {
+    setSceneLibraryForTests(null);
+    useMyScenesDialog.getState().close();
+  });
+  it('keeps the scene and the dialog when Save fails', async () => {
+    setSceneLibraryForTests(failingLibrary());
+    const tri = addTriangle();
+    const host = await mountDialog();
+    host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await settle();
+    expect(useMyScenesDialog.getState().isOpen).toBe(true);
+    expect(useVamsStore.getState().objects.map((o) => o.id)).toEqual([tri.id]);
+    expect(buttonNamed(host, 'Save')?.disabled).toBe(false);
+    unmount(host);
   });
 });

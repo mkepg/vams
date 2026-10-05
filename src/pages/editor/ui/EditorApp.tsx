@@ -5,6 +5,7 @@ import LeftSidebar from '@/widgets/layout/left-sidebar';
 import RightSidebar from '@/widgets/layout/right-sidebar';
 import ViewportRouter from '@/widgets/canvas/ViewportRouter';
 import LessonBar from '@/features/lesson-engine/ui/LessonBar';
+import { MyScenesDialog } from '@/features/scene-library';
 import HelpCenter from '@/features/help/ui/HelpCenter';
 import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
 import WelcomeCard from '@/features/onboarding/ui/WelcomeCard';
@@ -39,6 +40,7 @@ export default function EditorApp() {
       
       {appMode === 'Lesson' && <LessonBar />}
       <HelpCenter />
+      <MyScenesDialog />
       <ConfirmDialog />
       <WelcomeCard />
     </div>
