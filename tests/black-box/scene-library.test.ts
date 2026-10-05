@@ -133,6 +133,7 @@ describe('BB-LIB-06: A scene counts as empty only when nothing would be lost', (
     expect(isSceneEmpty({ ...blank, pendingShapeType: 'TRIANGLES' })).toBe(false);
     expect(isSceneEmpty({ ...blank, callbacks: { ...blank.callbacks, idle: 'x += 1;' } })).toBe(false);
     expect(isSceneEmpty({ ...blank, viewportLimits: { minX: -2, maxX: 2, minY: -1, maxY: 1 } })).toBe(false);
+    expect(isSceneEmpty({ ...blank, uploadedTextures: [{ id: 'up-1' } as (typeof blank.uploadedTextures)[number]] })).toBe(false);
     addTriangle();
     expect(isSceneEmpty(useVamsStore.getState())).toBe(false);
   });

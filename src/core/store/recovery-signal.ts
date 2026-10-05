@@ -8,6 +8,11 @@ export function reportCorruptSave(raw: string | null): void {
   if (raw) pending = raw;
 }
 
+/** Read the pending text without consuming it, for a recovery path that runs before the editor collects it. */
+export function peekCorruptSave(): string | null {
+  return pending;
+}
+
 export function takeCorruptSave(): string | null {
   const raw = pending;
   pending = null;

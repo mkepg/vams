@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './recovery-screen.scss';
 
 export interface RecoveryActions {
@@ -16,6 +16,11 @@ export default function RecoveryScreen({ error, actions }: Props) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
+
+  // The /app route sets this class before the editor mounts; a first-render crash leaves it on.
+  useLayoutEffect(() => {
+    document.documentElement.classList.remove('route-editor');
+  }, []);
 
   useEffect(() => {
     headingRef.current?.focus();

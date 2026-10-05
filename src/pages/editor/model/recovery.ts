@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { STORAGE_KEY, useVamsStore } from '@/core/store';
-import { takeCorruptSave } from '@/core/store/recovery-signal';
+import { peekCorruptSave, takeCorruptSave } from '@/core/store/recovery-signal';
 import { buildProjectFile, createDefaultProjectFilename, downloadJSON } from '@/entities/project/model/project-io';
 import { backupCorruptSave, backupCurrentScene, downloadText, useMyScenesDialog } from '@/features/scene-library';
 
@@ -27,7 +27,7 @@ export function downloadWork(): void {
     downloadJSON(filename, buildProjectFile(useVamsStore.getState()));
   } catch (error) {
     console.error(error);
-    const raw = readSavedText();
+    const raw = readSavedText() ?? peekCorruptSave();
     if (raw !== null) downloadText('vams-recovered-save.json', raw);
   }
 }

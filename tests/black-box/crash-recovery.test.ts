@@ -5,10 +5,10 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { h, render } from 'preact';
 import { useVamsStore, STORAGE_KEY } from '@/core/store';
-import { takeCorruptSave } from '@/core/store/recovery-signal';
+import { peekCorruptSave, reportCorruptSave, takeCorruptSave } from '@/core/store/recovery-signal';
 import { createMemoryLibrary, setSceneLibraryForTests } from '@/entities/project/model/scene-library';
 import { EditorErrorBoundary, RecoveryScreen, isChunkLoadError, type RecoveryActions } from '@/features/crash-recovery';
-import { keepCorruptSave, startFresh } from '@/pages/editor/model/recovery';
+import { downloadWork, keepCorruptSave, startFresh } from '@/pages/editor/model/recovery';
 import { addQuad, addTriangle } from '../helpers/store';
 import type { VamsProjectFile } from '@/entities/project/model/project-io';
 
@@ -214,5 +214,37 @@ describe('BB-RECOVER-10: Start fresh keeps the student’s scene during a lesson
     const ids = (entry.file as VamsProjectFile).data.objects.map((o) => o.id);
     expect(ids).toEqual([student.id]);
     expect(ids).not.toContain(lessonObject.id);
+  });
+});
+
+describe('BB-RECOVER-11: The recovery screen drops the editor route styling', () => {
+  it('removes the route-editor class from the page root when it mounts', async () => {
+    document.documentElement.classList.add('route-editor');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    render(h(RecoveryScreen, { error: new Error('kaboom'), actions: fakeActions() }), host);
+    await settle();
+    expect(document.documentElement.classList.contains('route-editor')).toBe(false);
+    render(null, host);
+    host.remove();
+  });
+});
+
+describe('BB-RECOVER-12: Download my work can still offer an unreadable save', () => {
+  it('falls back to the unreadable text held in memory once the save is gone from storage', () => {
+    takeCorruptSave();
+    reportCorruptSave('{"state":');
+    localStorage.removeItem(STORAGE_KEY);
+    const blobs: Blob[] = [];
+    track(vi.spyOn(URL, 'createObjectURL').mockImplementation((blob) => (blobs.push(blob as Blob), 'blob:test')));
+    track(vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {}));
+    track(vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {}));
+    track(vi.spyOn(JSON, 'stringify').mockImplementationOnce(() => {
+      throw new Error('cannot serialise');
+    }));
+    downloadWork();
+    expect(blobs).toHaveLength(1);
+    expect(peekCorruptSave()).toBe('{"state":');
+    takeCorruptSave();
   });
 });

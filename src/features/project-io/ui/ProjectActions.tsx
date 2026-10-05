@@ -99,7 +99,7 @@ export default function ProjectActions({ loadProject }: ProjectActionsProps) {
   const handleLoad = () => {
     if (hasWorkInProgress()) {
       const shouldContinue = window.confirm(
-        'Load a project? Unsaved changes will be lost.'
+        'Load a project? Your current scene will be kept in My scenes as a backup.'
       );
       if (!shouldContinue) return;
     }

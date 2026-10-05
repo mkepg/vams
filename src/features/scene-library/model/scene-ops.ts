@@ -15,13 +15,14 @@ import {
 } from '@/entities/project/model/scene-library';
 import { getActiveTheme, toEditorTheme } from '@/shared/lib/theme';
 
-type SceneFields = Pick<VamsState, 'objects' | 'canvasBackgroundColor' | 'pendingShapeType' | 'callbacks' | 'viewportLimits'>;
+type SceneFields = Pick<VamsState, 'objects' | 'uploadedTextures' | 'canvasBackgroundColor' | 'pendingShapeType' | 'callbacks' | 'viewportLimits'>;
 
 /** True when there is nothing on the canvas worth keeping. */
 export function isSceneEmpty(state: SceneFields): boolean {
   const { minX, maxX, minY, maxY } = state.viewportLimits;
   return (
     state.objects.length === 0 &&
+    state.uploadedTextures.length === 0 &&
     state.canvasBackgroundColor === '#000000' &&
     state.pendingShapeType === null &&
     Object.values(state.callbacks).every((body) => body.trim() === '') &&

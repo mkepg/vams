@@ -2,6 +2,7 @@
   display: grid;
   place-items: center;
   min-height: 100vh;
+  overflow: auto;
   padding: 2rem 1.25rem;
   color: var(--ink);
   background-color: var(--paper);
@@ -53,7 +54,7 @@
     }
   }
 
-  &__error { margin: 0.75rem 0 0; min-height: 0; font-size: 0.9rem; color: var(--accent); &:empty { display: none; } }
+  &__error { margin: 0.75rem 0 0; min-height: 0; font-size: 0.9rem; color: var(--danger); &:empty { display: none; } }
 
   &__hint { margin: 1rem 0 0; font-size: 0.85rem; color: var(--ink-muted); }
 
