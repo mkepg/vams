@@ -8,11 +8,7 @@ const loadRecovery = () => import('../model/recovery');
 /** Loaded on demand, so the store stays out of the bundle every page shares. */
 const recoveryActions: RecoveryActions = {
   reload: () => window.location.reload(),
-  download: () => {
-    loadRecovery()
-      .then((m) => m.downloadWork())
-      .catch((error) => console.error(error));
-  },
+  download: () => loadRecovery().then((m) => m.downloadWork()),
   startFresh: () => loadRecovery().then((m) => m.startFresh()),
 };
 

@@ -75,7 +75,8 @@ export const useVamsStore = create<VamsState>()(
         callbacksBackup: state.callbacksBackup,
         canvasBackgroundColorBackup: state.canvasBackgroundColorBackup,
         viewportLimitsBackup: state.viewportLimitsBackup,
-        uploadedTexturesBackup: state.uploadedTexturesBackup,
+        // During a lesson the backup is the same array as uploadedTextures; saving it twice would double the stored images.
+        uploadedTexturesBackup: state.uploadedTexturesBackup === state.uploadedTextures ? null : state.uploadedTexturesBackup,
       }),
     }
   )

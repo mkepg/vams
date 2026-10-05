@@ -1,7 +1,7 @@
 import { Component, type ReactNode } from 'react';
 
 const CHUNK_RELOAD_FLAG = 'vams-chunk-reload';
-const CHUNK_ERROR = /dynamically imported module|Importing a module script failed|Loading chunk|Failed to fetch/i;
+const CHUNK_ERROR = /dynamically imported module|Importing a module script failed|Loading chunk/i;
 
 /** True for errors thrown when a lazily loaded file cannot be fetched (for example after a deploy). */
 export function isChunkLoadError(error: unknown): boolean {

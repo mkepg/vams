@@ -3,7 +3,7 @@ import './recovery-screen.scss';
 
 export interface RecoveryActions {
   reload(): void;
-  download(): void;
+  download(): Promise<void>;
   startFresh(): Promise<void>;
 }
 
@@ -14,16 +14,21 @@ interface Props {
 
 export default function RecoveryScreen({ error, actions }: Props) {
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     headingRef.current?.focus();
   }, []);
 
-  const startFresh = async () => {
+  const run = async (action: () => Promise<void>) => {
     setBusy(true);
+    setFailed(false);
     try {
-      await actions.startFresh();
+      await action();
+    } catch (caught) {
+      console.error(caught);
+      setFailed(true);
     } finally {
       setBusy(false);
     }
@@ -40,13 +45,16 @@ export default function RecoveryScreen({ error, actions }: Props) {
           <button type="button" className="recovery__btn recovery__btn--primary" onClick={actions.reload}>
             Reload
           </button>
-          <button type="button" className="recovery__btn" onClick={actions.download}>
+          <button type="button" className="recovery__btn" disabled={busy} onClick={() => void run(actions.download)}>
             Download my work
           </button>
-          <button type="button" className="recovery__btn" disabled={busy} onClick={() => void startFresh()}>
+          <button type="button" className="recovery__btn" disabled={busy} onClick={() => void run(actions.startFresh)}>
             Start fresh
           </button>
         </div>
+        <p className="recovery__error" role="alert">
+          {failed ? "That didn't work. Reload to try again." : null}
+        </p>
         <p className="recovery__hint">Start fresh keeps a copy of your scene in My scenes, then opens an empty editor.</p>
         <details className="recovery__details">
           <summary>Technical details</summary>

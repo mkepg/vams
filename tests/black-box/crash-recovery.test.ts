@@ -10,6 +10,7 @@ import { createMemoryLibrary, setSceneLibraryForTests } from '@/entities/project
 import { EditorErrorBoundary, RecoveryScreen, isChunkLoadError, type RecoveryActions } from '@/features/crash-recovery';
 import { keepCorruptSave, startFresh } from '@/pages/editor/model/recovery';
 import { addQuad, addTriangle } from '../helpers/store';
+import type { VamsProjectFile } from '@/entities/project/model/project-io';
 
 async function settle() {
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
@@ -93,7 +94,7 @@ function mountBoundary(error: Error, actions: RecoveryActions) {
   return host;
 }
 
-const fakeActions = (): RecoveryActions => ({ reload: vi.fn(), download: vi.fn(), startFresh: vi.fn().mockResolvedValue(undefined) });
+const fakeActions = (): RecoveryActions => ({ reload: vi.fn(), download: vi.fn().mockResolvedValue(undefined), startFresh: vi.fn().mockResolvedValue(undefined) });
 
 describe('BB-RECOVER-05: A render crash shows the recovery screen instead of a blank page', () => {
   it('offers Reload, Download my work and Start fresh, with the error in details', async () => {
@@ -106,6 +107,22 @@ describe('BB-RECOVER-05: A render crash shows the recovery screen instead of a b
     expect(host.querySelector('details pre')?.textContent).toContain('kaboom');
     host.querySelector<HTMLButtonElement>('button')!.click();
     expect(actions.reload).toHaveBeenCalledTimes(1);
+    render(null, host);
+    host.remove();
+  });
+  it('shows a message when Download my work or Start fresh cannot run', async () => {
+    const actions: RecoveryActions = { reload: vi.fn(), download: vi.fn().mockRejectedValue(new Error('offline')), startFresh: vi.fn().mockRejectedValue(new Error('offline')) };
+    const host = mountBoundary(new Error('kaboom'), actions);
+    await settle();
+    const buttons = [...host.querySelectorAll('button')];
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe('');
+    buttons[1].click();
+    await settle();
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe("That didn't work. Reload to try again.");
+    buttons[2].click();
+    await settle();
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe("That didn't work. Reload to try again.");
+    expect(actions.startFresh).toHaveBeenCalledTimes(1);
     render(null, host);
     host.remove();
   });
@@ -166,5 +183,36 @@ describe('BB-RECOVER-08: Start fresh keeps the scene first, as a backup or as a 
     expect(clicked).toHaveBeenCalledTimes(1);
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
     expect(reload).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('BB-RECOVER-09: Lesson textures are saved once', () => {
+  it('stores no second copy of uploaded textures during a lesson and keeps them after a reload', async () => {
+    const asset = { id: 'up-1', name: 'Tiny', dataUrl: 'data:image/png;base64,iVBORw0KGgo=', width: 1, height: 1 };
+    useVamsStore.getState().addUploadedTexture(asset);
+    addTriangle();
+    useVamsStore.getState().setActiveLesson('primitives-demo-1');
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
+    expect(saved.state.uploadedTexturesBackup).toBeNull();
+    expect(saved.state.uploadedTextures.map((t: { id: string }) => t.id)).toEqual(['up-1']);
+    await useVamsStore.persist.rehydrate();
+    expect(useVamsStore.getState().uploadedTextures.map((t) => t.id)).toEqual(['up-1']);
+    useVamsStore.getState().removeUploadedTexture('up-1');
+  });
+});
+
+describe('BB-RECOVER-10: Start fresh keeps the student’s scene during a lesson', () => {
+  it('backs up the scene from before the lesson, not the lesson’s scene', async () => {
+    const library = createMemoryLibrary();
+    setSceneLibraryForTests(library);
+    stubReload();
+    const student = addTriangle();
+    useVamsStore.getState().setActiveLesson('primitives-demo-1');
+    const lessonObject = addQuad();
+    await startFresh();
+    const [entry] = await library.list();
+    const ids = (entry.file as VamsProjectFile).data.objects.map((o) => o.id);
+    expect(ids).toEqual([student.id]);
+    expect(ids).not.toContain(lessonObject.id);
   });
 });

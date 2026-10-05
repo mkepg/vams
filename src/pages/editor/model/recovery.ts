@@ -13,20 +13,28 @@ function readSavedText(): string | null {
   }
 }
 
+/** Mid-lesson the visible scene is the lesson's; put the student's own scene back before keeping anything. */
+function leaveLesson(): void {
+  const state = useVamsStore.getState();
+  if (state.sceneBackup) state.clearLessonState();
+}
+
 /** Download the editor's scene; if the scene itself cannot be read, download the saved text instead. */
 export function downloadWork(): void {
+  leaveLesson();
   const filename = createDefaultProjectFilename('vams-recovered');
   try {
     downloadJSON(filename, buildProjectFile(useVamsStore.getState()));
   } catch (error) {
     console.error(error);
     const raw = readSavedText();
-    if (raw !== null) downloadText(filename, raw);
+    if (raw !== null) downloadText('vams-recovered-save.json', raw);
   }
 }
 
 /** Keep the scene (in My scenes, or as a download when that fails), clear the save, and reload. */
 export async function startFresh(): Promise<void> {
+  leaveLesson();
   try {
     await backupCurrentScene('recovery', 'Before Start fresh');
   } catch (error) {
