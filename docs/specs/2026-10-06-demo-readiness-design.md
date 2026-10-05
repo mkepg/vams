@@ -38,12 +38,14 @@ Each new unit has one job and sits in the layer its imports allow. Nothing new i
 
 | Unit | Location | Job | Depends on |
 | --- | --- | --- | --- |
-| Scene library | `src/entities/scene-library/` | Store, list, rename and delete `SceneEntry` records. Prunes backups to the newest 5 | `idb-keyval`; the `VamsProjectFile` type |
-| Scene presets | `src/entities/scene-presets/` | The four prepared scenes as `VamsProjectData`, plus `PRESET_LINKS` (slug and title only) | Scene and project types |
-| Scene operations and My scenes UI | `src/features/scene-library/` | `isSceneEmpty`, `loadProjectData`, `backupCurrentScene`, `replaceScene`, the My scenes button and dialog | Store, project I/O, scene library |
-| Editor links | `src/features/editor-links/` | `parseEditorLink` (pure) and `useEditorLink` (applies the link once on mount) | Store, lesson registry, presets. `replaceScene` and `openLibrary` are passed in |
-| Crash recovery | `src/features/crash-recovery/` | `EditorErrorBoundary`, `RecoveryScreen`, and the corrupt-save signal reader | Store, project I/O. Library actions are passed in |
+| Scene library | `src/entities/project/model/scene-library.ts` | Store, list, rename and delete `SceneEntry` records. Prunes backups to the newest 5 | `idb-keyval`; the project file type in the same slice |
+| Scene presets | `src/entities/project/model/scene-presets.ts` and `preset-links.ts` | The four prepared scenes as `VamsProjectData`, plus `PRESET_LINKS` (slug and title only) | Scene and project types |
+| Scene operations and My scenes UI | `src/features/scene-library/` | `isSceneEmpty`, `loadProjectData`, `backupCurrentScene`, `replaceScene`, downloads, the My scenes button and dialog | Store, project entity |
+| Editor links | `src/pages/editor/model/editor-link.ts` and `useEditorLink.ts` | `parseEditorLink` (pure) and `useEditorLink` (applies the link once on mount) | Store, lesson registry, presets, scene operations. The editor page is where these features meet |
+| Crash recovery | `src/features/crash-recovery/` plus `src/pages/editor/model/recovery.ts` | The feature holds `EditorErrorBoundary` and a presentational `RecoveryScreen`. The page module implements the recovery actions and the corrupt-save notice | Store, project entity, scene operations. The page loads the actions lazily, so the store stays out of the main chunk |
 | Offline layer | `src/app/pwa/` plus `vite.config.ts` | PWA options, service-worker registration, and the update/offline notice | `vite-plugin-pwa` |
+
+The library and presets live in the existing `entities/project` slice, because they store and produce project files. The editor-link and recovery-action code lives in `pages/editor`, because it combines several features. Under this layout, no new code imports sideways between slices of the same layer.
 
 Data flow is unchanged in principle. Every way a scene changes runs `sanitizeProjectData` → `toStorePatchFromProject` → store → views:
 
@@ -55,7 +57,7 @@ Data flow is unchanged in principle. Every way a scene changes runs `sanitizePro
 
 Presets and library entries pass through the same validator as a file a student opens.
 
-## 1. Scene library (`entities/scene-library`)
+## 1. Scene library (`entities/project/model/scene-library.ts`)
 
 ```ts
 export type BackupReason =
@@ -121,11 +123,12 @@ export interface SceneLibrary {
 ### Existing buttons
 
 - **Top bar Open** (`ProjectActions`):
-  - It gains an optional prop `loadProject(data, fileName)`. The top bar passes a function that calls `replaceScene(data, { reason: 'open-file', label: 'Before opening ‘<file name>’' })`.
+  - It gains a required prop `loadProject(data, fileName): Promise<number>`, which resolves to the number of detached textures. The top bar passes a function that calls `replaceScene(data, { reason: 'open-file', label: 'Before opening ‘<file name>’' })`.
+  - The loading code moves from the component into `loadProjectData`.
   - The existing `window.confirm` stays.
-  - Without the prop, it behaves as it does today.
+  - A failed backup gets its own toast: "Couldn't keep a backup of the current scene, so the project was not opened."
 - **New workspace** (`NewWorkspaceButton`):
-  - It gains an optional prop `beforeReset()`, which the top bar wires to `backupCurrentScene('new-workspace', 'Before New workspace')`.
+  - It gains a required prop `beforeReset()`, which the top bar wires to `backupCurrentScene('new-workspace', 'Before New workspace')`.
   - The confirm message changes to "Your current scene will be kept in My scenes as a backup."
   - If the backup fails, the reset is cancelled and a toast explains why.
 
@@ -157,7 +160,7 @@ Contents, top to bottom:
 
 **Styling.** Build on `_tokens.scss` in both themes and follow the confirm dialog's structure. Every control is a real `<button>` or `<input>` with a visible label or `aria-label`. Each row's actions are labelled with the entry name, for example "Open Triangle". Target WCAG 2.2 AA.
 
-## 4. Scene presets (`entities/scene-presets`)
+## 4. Scene presets (`entities/project/model/scene-presets.ts`)
 
 | Slug | Title | Section | Content |
 | --- | --- | --- | --- |
@@ -171,7 +174,7 @@ Contents, top to bottom:
 - `PRESET_LINKS` (`{ slug, title }[]`, in table order) is in its own module with no other imports, so the home page can list the presets without loading scene data.
 - `getPreset(slug)` returns `{ slug, title, section, data }` or `undefined`.
 
-## 5. Editor links (`features/editor-links`)
+## 5. Editor links (`pages/editor/model`)
 
 ```ts
 export type EditorLink =
@@ -180,7 +183,7 @@ export type EditorLink =
   | { kind: 'scene'; slug: string }
   | { kind: 'invalid'; param: 'lesson' | 'scene'; value: string };
 
-export function parseEditorLink(search: string): EditorLink;
+export function parseEditorLink(search: string, targets?: LinkTargets): EditorLink; // targets default to the lesson registry and presets
 export function stripEditorLinkParams(search: string): string; // keeps every other parameter
 ```
 
@@ -216,7 +219,7 @@ export function stripEditorLinkParams(search: string): string; // keeps every ot
 - In `HomePage`, the stage `enter-app` action routes to `/app?scene=triangle`.
 - The home page imports only `PRESET_LINKS`.
 
-## 7. Crash recovery (`features/crash-recovery`)
+## 7. Crash recovery (`features/crash-recovery`, `pages/editor/model/recovery.ts`)
 
 ### Lesson reload
 
@@ -277,9 +280,9 @@ If the library write fails, the toast offers **Download** of the raw text instea
 
 **Options:**
 - `registerType: 'prompt'`, `injectRegister: false`. The app registers the worker itself; nothing calls `skipWaiting` until the user reloads.
-- `workbox.globPatterns: ['**/*.{html,js,css,woff,woff2,ttf,svg,png,ico,webmanifest}']`, `globIgnores: ['og/**']`. Social preview images aren't needed offline.
+- `workbox.globPatterns: ['**/*.{html,js,css,woff,woff2,ttf,svg,png,ico}']`. The plugin adds `manifest.webmanifest` itself, `globIgnores: ['og/**']`. Social preview images aren't needed offline.
 - `workbox.ignoreURLParametersMatching: [/.*/]`, so `/app?scene=triangle` and `/?stage` resolve to their cached pages.
-- `workbox.manifestTransforms: [routeDocumentsTransform]`, which maps prerendered route documents to their clean URLs: `app/index.html` → `app`. The root `index.html` stays as it is, because Workbox's directory index serves `/`.
+- `workbox.manifestTransforms: [routeDocumentsTransform]`, which adds a clean-URL entry for each prerendered route document: `app/index.html` is also cached as `app`. Both are needed: `/app/` resolves through the directory index, and `/app` through the clean URL. The root `index.html` stays as it is, because Workbox's directory index serves `/`.
 - `workbox.navigateFallback: '404/index.html'`, so an unknown path offline shows the site's 404 page. `navigateFallbackDenylist` covers `/sitemap.xml` and `/robots.txt`.
 - `workbox.cleanupOutdatedCaches: true`. `maximumFileSizeToCacheInBytes` is 4 MiB; the largest chunk today is 0.67 MB.
 - `devOptions.enabled: false`.
