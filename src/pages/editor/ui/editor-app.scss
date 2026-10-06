@@ -44,6 +44,9 @@
   &--narrow {
     grid-template-columns: minmax(0, 1fr) clamp(320px, 34vw, 400px);
 
+    // The Panels button sits at the canvas's top-left, so the viewport chip moves after it.
+    .canvas-wrapper .viewport-info { left: 104px; }
+
     .editor__canvas { grid-column: 1; }
     .editor__code { grid-column: 2; }
 

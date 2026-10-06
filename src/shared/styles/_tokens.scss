@@ -114,6 +114,12 @@ $header-height: 3.7rem;
   --live-tint: rgba(255, 90, 31, 0.10);
   --gl-hint: var(--gl-fn);
   --switch-thumb-on: #ffffff;
+  /* Canvas overlay plate: the GL canvas is dark in both themes, so the plate
+     and its axis colours are fixed and identical for vellum and blueprint. */
+  --canvas-plate: rgba(14, 26, 52, 0.85);
+  --canvas-plate-line: rgba(186, 214, 255, 0.24);
+  --canvas-x: #f87171;
+  --canvas-y: #4ade80;
 }
 
 /* Blueprint: the dark theme. */
@@ -191,6 +197,12 @@ $header-height: 3.7rem;
   --live-tint: rgba(255, 106, 43, 0.14);
   --gl-hint: var(--gl-fn);
   --switch-thumb-on: #ffffff;
+  /* Canvas overlay plate: the GL canvas is dark in both themes, so the plate
+     and its axis colours are fixed and identical for vellum and blueprint. */
+  --canvas-plate: rgba(14, 26, 52, 0.85);
+  --canvas-plate-line: rgba(186, 214, 255, 0.24);
+  --canvas-x: #f87171;
+  --canvas-y: #4ade80;
 }
 $bg-dark: rgb(var(--bg-dark-rgb));
 $bg-panel: rgb(var(--bg-panel-rgb));

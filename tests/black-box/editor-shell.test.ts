@@ -17,6 +17,7 @@ import LessonLauncher from '@/features/lesson-engine/ui/LessonLauncher';
 import FileMenu from '@/widgets/layout/top-bar/FileMenu';
 import { SectionColumn, SectionMenu, type SectionPanels } from '@/widgets/layout/section-column';
 import { useMyScenesDialog } from '@/features/scene-library';
+import { CanvasOverlays } from '@/widgets/canvas/ui/CanvasOverlays';
 import { addTriangle } from '../helpers/store';
 
 async function settle() {
@@ -372,5 +373,42 @@ describe('BB-SHELL-15: Scene Hierarchy is pinned first except in Pipeline', () =
     await settle();
     expect(titlesOf(host)).toEqual(['Viewport Mode', 'Scene Hierarchy']);
     unmount(host);
+  });
+});
+
+describe('BB-SHELL-16: Canvas overlays keep their text and actions', () => {
+  it('shows the viewport, the placement banner and the empty hint', async () => {
+    useVamsStore.setState({ activeSection: 'Transforms' });
+    const host = mount(h(CanvasOverlays, {
+      viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
+      interactionMode: 'SELECT',
+      coordinates: { x: 0.42, y: -0.13 },
+      showCoordinateTracker: true,
+      showEmptyHint: true,
+    }));
+    expect(host.querySelector('.viewport-info')!.textContent).toBe('Viewport: (-1, 1)');
+    expect(host.querySelector('.coordinate-tracker')!.textContent).toContain('0.42');
+    const add = [...host.querySelectorAll('button')].find((b) => b.textContent?.includes('Add your first shape')) as HTMLButtonElement;
+    expect(add.className).toContain('vbtn--primary');
+    add.click();
+    expect(useVamsStore.getState().activeSection).toBe('Primitives');
+    render(h(CanvasOverlays, {
+      viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
+      interactionMode: 'VERTEX_PLACE',
+      coordinates: { x: 0, y: 0 },
+      showCoordinateTracker: false,
+    }), host);
+    expect(host.querySelector('.placement-mode-banner')!.textContent).toContain('click to place');
+    unmount(host);
+  });
+});
+
+describe('BB-SHELL-17: The canvas plate tokens exist in both themes', () => {
+  it('declares the plate tokens identically for vellum and blueprint', async () => {
+    const { readFileSync } = await import('node:fs');
+    const scss = readFileSync('src/shared/styles/_tokens.scss', 'utf8');
+    for (const token of ['--canvas-plate', '--canvas-plate-line', '--canvas-x', '--canvas-y']) {
+      expect(scss.split(`${token}:`).length - 1).toBe(2);
+    }
   });
 });

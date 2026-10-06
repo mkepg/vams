@@ -2,6 +2,7 @@ import './code-viewer.scss';
 import { memo, useMemo, useState, useEffect, useRef } from 'react';
 import { TbCopy, TbCheck } from 'react-icons/tb';
 import { Search, X, Info } from 'lucide-react';
+import { Button } from '@/shared/ui/controls';
 import type { CodeAnnotation } from '@/features/code-generation/model/glut-annotations';
 
 interface CodeViewerProps {
@@ -243,9 +244,8 @@ const CodeViewer = memo(function CodeViewer({
     <div className={`code-viewer-container ${isLessonMode ? 'lesson-mode' : ''}`}>
       <div className="code-header">
         <div className="code-header-left">
-          <span className="code-lang">C++ · OpenGL 1.5</span>
-          <span className="code-sep">•</span>
-          <span className="code-stat">{stats.lines} lines</span>
+          <span className="code-lang">C++</span>
+          <span className="code-stat">· OpenGL 1.5 · {stats.lines} lines</span>
 
           {annotationByLine.size > 0 && !highlightTarget && (
             <span className="code-annot-hint" title="Hover an underlined line for an explanation">
@@ -298,22 +298,20 @@ const CodeViewer = memo(function CodeViewer({
                   </button>
                 </div>
               ) : (
-                <button className="header-btn" onClick={() => setSearchOpen(true)} title="Find" type="button">
-                  <Search size={13} />
-                </button>
+                <Button variant="quiet" iconOnly label="Find" icon={<Search size={13} />} onClick={() => setSearchOpen(true)} />
               )}
             </>
           )}
 
-          <button
+          <Button
+            variant="quiet"
             className={`copy-button ${copied ? 'copied' : ''}`}
             onClick={handleCopy}
             title="Copy code"
-            type="button"
+            icon={copied ? <TbCheck size={14} /> : <TbCopy size={14} />}
           >
-            {copied ? <TbCheck size={14} /> : <TbCopy size={14} />}
-            <span>{copied ? 'Copied' : 'Copy'}</span>
-          </button>
+            {copied ? 'Copied' : 'Copy'}
+          </Button>
         </div>
       </div>
 

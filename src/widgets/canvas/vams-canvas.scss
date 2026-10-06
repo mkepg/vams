@@ -21,31 +21,33 @@
     height: 100%;
   }
 
+  .viewport-info,
+  .coordinate-tracker,
+  .placement-mode-banner,
+  .empty-canvas-hint {
+    font-family: $font-mono;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--on-accent-blue);
+    background: var(--canvas-plate);
+    border: 1px solid var(--canvas-plate-line);
+    border-radius: var(--radius-s);
+  }
+
   .viewport-info {
     position: absolute;
     top: 8px;
     left: 8px;
-    font-size: 0.75rem;
-    color: $text-muted;
-    font-family: $font-mono;
-    background-color: rgba(var(--bg-panel-rgb), 0.9);
-    padding: 2px 4px;
-    border-radius: 4px;
+    padding: 3px 6px;
   }
 
   .coordinate-tracker {
     position: absolute;
     bottom: 8px;
     right: 8px;
-    background-color: rgba(var(--bg-panel-rgb), 0.8);
-    padding: 4px 8px;
-    border-radius: 4px;
-    border: 1px solid $border-color;
-    font-size: 0.75rem;
-    font-family: $font-mono;
-    color: $text-main;
-    .label-x { color: var(--accent-blue-light); }
-    .label-y { color: var(--accent-red-light); margin-left: 0.5rem; }
+    padding: 3px 8px;
+    .label-x { color: var(--canvas-x); }
+    .label-y { color: var(--canvas-y); margin-left: 0.5rem; }
   }
 
   .placement-mode-banner {
@@ -57,18 +59,8 @@
     flex-direction: column;
     align-items: center;
     gap: 3px;
-    /* ink tint over an opaque panel so the banner reads on any scene clear colour */
-    background:
-      linear-gradient(rgba(var(--accent-blue-rgb), 0.18), rgba(var(--accent-blue-rgb), 0.18)),
-      rgba(var(--bg-panel-rgb), 0.92);
-    border: 1px solid rgba(var(--accent-blue-rgb), 0.45);
-    color: var(--accent-blue-light);
-    font-size: 0.75rem;
-    font-family: $font-mono;
     padding: 6px 14px;
-    border-radius: 14px;
     pointer-events: none;
-    backdrop-filter: blur(4px);
     white-space: nowrap;
     text-align: center;
 
@@ -79,13 +71,11 @@
       font-weight: 600;
     }
     .banner-hint {
-      font-size: 0.68rem;
-      opacity: 0.85;
       kbd {
         padding: 1px 5px;
-        background-color: rgba(var(--well-rgb), 0.35);
-        border: 1px solid var(--rule);
-        border-radius: 3px;
+        background: transparent;
+        border: 1px solid var(--canvas-plate-line);
+        border-radius: var(--radius-s);
         font-family: $font-mono;
       }
     }
@@ -101,31 +91,14 @@
     align-items: center;
     gap: 0.6rem;
     text-align: center;
-    color: $text-dim;
     pointer-events: none;
-    /* The hint sits over the scene's own clear colour, which students set
-       freely, so it carries a panel backdrop to keep its text readable. */
     padding: 1rem 1.25rem;
-    background-color: rgba(var(--bg-panel-rgb), 0.94);
-    border: 1px solid var(--rule);
-    border-radius: var(--radius-m);
 
-    svg { opacity: 0.5; }
-    p { margin: 0; font-size: 0.9rem; color: $text-muted; }
-    button {
+    svg { opacity: 0.7; }
+    p { margin: 0; font-size: 11px; }
+    .vbtn {
       pointer-events: auto;
       margin-top: 0.25rem;
-      padding: 0.5rem 1.1rem;
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--on-accent-blue);
-      background-color: $accent-blue;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background-color 0.15s;
-      &:hover { background-color: var(--accent-blue-light); color: var(--on-accent-light); }
-      &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
     }
   }
 

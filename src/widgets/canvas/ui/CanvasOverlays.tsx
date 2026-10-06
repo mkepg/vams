@@ -1,6 +1,7 @@
 import { Shapes } from "lucide-react";
 import type { InteractionMode, ViewportLimits } from "@/core/types/scene";
 import { useVamsStore } from "@/core/store";
+import { Button } from "@/shared/ui/controls";
 import AnimationCodeOverlay from "@/features/animation-preview/ui/AnimationCodeOverlay";
 interface CanvasOverlaysProps {
   viewportLimits: ViewportLimits;
@@ -41,9 +42,9 @@ export function CanvasOverlays({
         <div className="empty-canvas-hint">
           <Shapes size={32} aria-hidden />
           <p>Your scene is empty.</p>
-          <button type="button" onClick={() => setActiveSection("Primitives")}>
+          <Button variant="primary" onClick={() => setActiveSection("Primitives")}>
             Add your first shape
-          </button>
+          </Button>
         </div>
       )}
     </>

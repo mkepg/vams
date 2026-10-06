@@ -12,17 +12,18 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.4rem 1rem;
-    background-color: rgba(var(--well-rgb), 0.15);
+    height: 32px;
+    padding: 0 12px;
+    background-color: var(--paper-sunken);
     border-bottom: 1px solid $border-color;
     flex-shrink: 0;
 
     .math-title {
       font-family: $font-mono;
-      font-size: 0.8rem;
-      color: $text-dim;
+      font-size: 11px;
+      color: var(--ink);
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
       font-weight: 700;
     }
 
@@ -71,15 +72,15 @@
     gap: 0.85rem;
 
     .math-section {
-      background: rgba(var(--accent-blue-rgb), 0.025);
-      border: 1px solid $border-color;
-      border-radius: 6px;
+      background: var(--paper-raised);
+      border: 1px solid var(--hairline);
+      border-radius: var(--radius-m);
       padding: 0.7rem 0.85rem;
       transition: box-shadow 0.3s ease, border-color 0.3s ease;
 
       &.lesson-focused {
-        border-color: rgba(var(--accent-blue-rgb), 0.6);
-        box-shadow: 0 0 12px rgba(var(--accent-blue-rgb), 0.3);
+        border-color: var(--live);
+        background: var(--live-tint);
       }
 
       .math-section-title {
