@@ -99,18 +99,3 @@
     }
   }
 }
-
-/* The column is too narrow for swatch, hex and the full GL readout on one line:
-   let the readout wrap below instead of being cut off. */
-.color-section,
-.canvas-color-control {
-  .vcolor__row {
-    flex-wrap: wrap;
-    row-gap: 4px;
-  }
-
-  .vcolor__gl {
-    flex: 1 0 auto;
-    overflow: visible;
-  }
-}

@@ -233,3 +233,86 @@ describe('BB-PANEL-11: Every Primitives-section control has a name', () => {
     }
   });
 });
+
+describe('BB-PANEL-12: Scene Hierarchy keeps keyboard focus after rename and delete', () => {
+  it('returns focus to the renamed row and moves it to a neighbour when the focused row is deleted', async () => {
+    const a = addTriangle(-0.5, 0);
+    const b = addTriangle(0.5, 0);
+    addTriangle(0, 0.5);
+    select(a.id);
+    const host = mount(h(SceneHierarchyPanel, {}));
+    await settle();
+    const rowOf = (id: string) => host.querySelector(`[role="treeitem"][data-object-id="${id}"]`) as HTMLElement;
+    rowOf(b.id).focus();
+    key(rowOf(b.id), 'F2');
+    await settle();
+    const input = host.querySelector('.rename-input') as HTMLInputElement;
+    input.focus();
+    input.value = 'Renamed';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    key(input, 'Enter');
+    await settle();
+    expect(host.querySelector('.rename-input')).toBeNull();
+    expect(useVamsStore.getState().objects.find((o) => o.id === b.id)!.name).toBe('Renamed');
+    expect(document.activeElement).toBe(rowOf(b.id));
+
+    const order = [...host.querySelectorAll('[role="treeitem"]')].map((el) => (el as HTMLElement).dataset.objectId!);
+    const focused = rowOf(b.id);
+    const index = order.indexOf(b.id);
+    useVamsStore.getState().deleteObject(b.id);
+    await settle();
+    expect(focused.isConnected).toBe(false);
+    const rest = order.filter((id) => id !== b.id);
+    expect((document.activeElement as HTMLElement).dataset.objectId).toBe(rest[Math.min(index, rest.length - 1)]);
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-13: Scene Hierarchy groups expand, collapse and rename from the keyboard', () => {
+  it('collapses and expands with arrows, walks to the parent and renames only the focused row', async () => {
+    const a = addTriangle(-0.5, 0);
+    const b = addTriangle(0.5, 0);
+    const c = addTriangle(0, 0.5);
+    useVamsStore.getState().createGroup([a.id, b.id]);
+    select(c.id);
+    const host = mount(h(SceneHierarchyPanel, {}));
+    await settle();
+    const items = () => [...host.querySelectorAll('[role="treeitem"]')] as HTMLElement[];
+    const group = items().find((el) => el.hasAttribute('aria-expanded'))!;
+    expect(items()).toHaveLength(4);
+
+    group.focus();
+    key(group, 'ArrowLeft');
+    await settle();
+    expect(group.getAttribute('aria-expanded')).toBe('false');
+    expect(items()).toHaveLength(2);
+
+    key(group, 'ArrowRight');
+    await settle();
+    expect(group.getAttribute('aria-expanded')).toBe('true');
+    const children = items().filter((el) => el.getAttribute('aria-level') === '2');
+    expect(children.map((el) => el.dataset.objectId).sort()).toEqual([a.id, b.id].sort());
+
+    key(group, 'ArrowRight');
+    await settle();
+    expect(document.activeElement).toBe(children[0]);
+    key(children[0], 'ArrowLeft');
+    await settle();
+    expect(document.activeElement).toBe(group);
+
+    let windowF2 = 0;
+    const spy = (event: KeyboardEvent) => {
+      if (event.key === 'F2') windowF2++;
+    };
+    window.addEventListener('keydown', spy);
+    key(group, 'F2');
+    await settle();
+    window.removeEventListener('keydown', spy);
+    expect(windowF2).toBe(0);
+    const inputs = host.querySelectorAll('.rename-input');
+    expect(inputs).toHaveLength(1);
+    expect(inputs[0].closest('[role="treeitem"]')).toBe(group);
+    unmount(host);
+  });
+});

@@ -4,8 +4,9 @@
 
   &__row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
+    gap: 4px 8px;
     min-width: 0;
   }
 
@@ -53,7 +54,10 @@
     &:focus { outline: none; }
   }
 
+  /* Wraps below the swatch and hex when the column is too narrow for all three. */
   &__gl {
+    flex: 1 0 auto;
+    max-width: 100%;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;

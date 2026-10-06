@@ -1,6 +1,6 @@
 import './scene-hierarchy-panel.scss';
 import './scene-hierarchy-groups.scss';
-import { useState, useEffect, useId, useRef } from 'react';
+import { useState, useEffect, useId, useLayoutEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import {
   Layers, Shapes, Type, Eye, EyeOff, Copy, Trash2,
@@ -40,6 +40,15 @@ export default function SceneHierarchyPanel() {
   const [dragPosition, setDragPosition] = useState<'before' | 'after' | 'inside' | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const itemRefs = useRef(new Map<string, HTMLLIElement>());
+  // The row that last held focus inside the tree, and its visible index, so focus can
+  // move to a neighbour when that row unmounts.
+  const lastFocusRef = useRef<{ id: string; index: number } | null>(null);
+  // The row whose rename just ended; focus goes back to it once the input unmounts.
+  const renameReturnRef = useRef<string | null>(null);
+  // The row being renamed, read by handlers: the rename field's blur can fire after
+  // Enter or Esc already ended the rename, and must not commit a second time.
+  const editingRef = useRef<string | null>(null);
+  const focusRenameRef = useRef<string | null>(null);
   const idPrefix = useId();
   const getRootObjects = () =>
     objects.filter(obj => !obj.parentId || !objects.find(o => o.id === obj.parentId));
@@ -73,6 +82,8 @@ export default function SceneHierarchyPanel() {
   const startRename = (id: string) => {
     const obj = objects.find(o => o.id === id);
     if (obj) {
+      editingRef.current = id;
+      focusRenameRef.current = id;
       setEditingId(id);
       setEditName(obj.textContent || obj.name);
     }
@@ -131,6 +142,51 @@ export default function SceneHierarchyPanel() {
   const tabStopId = visibleRows.some((row) => row.id === selectedObjectId)
     ? selectedObjectId
     : visibleRows[0]?.id ?? null;
+
+  // When a focused rename field or row unmounts, the browser drops focus to <body>.
+  // Put it back on the renamed row, or on a neighbour of a row that disappeared,
+  // but never take focus from somewhere the user moved it.
+  useLayoutEffect(() => {
+    const active = document.activeElement;
+    const focusLost = !active || active === document.body || !active.isConnected;
+    const renamedId = renameReturnRef.current;
+    if (renamedId !== null) {
+      renameReturnRef.current = null;
+      if (focusLost) {
+        itemRefs.current.get(renamedId)?.focus();
+        return;
+      }
+    }
+    const last = lastFocusRef.current;
+    if (!last || !focusLost || visibleRows.some((row) => row.id === last.id)) return;
+    const neighbour = visibleRows[Math.min(last.index, visibleRows.length - 1)]?.id ?? tabStopId;
+    lastFocusRef.current = null;
+    if (neighbour) itemRefs.current.get(neighbour)?.focus();
+  });
+
+  const rememberFocus = (e: FocusEvent) => {
+    const row = (e.target as HTMLElement).closest<HTMLElement>('[role="treeitem"]');
+    const id = row?.dataset.objectId;
+    if (!id) return;
+    lastFocusRef.current = { id, index: visibleRows.findIndex((r) => r.id === id) };
+  };
+  const forgetFocus = (e: FocusEvent) => {
+    const target = e.target as HTMLElement;
+    const tree = e.currentTarget as HTMLElement;
+    // Chrome fires focusout while a focused row is being removed, so decide after the
+    // render: forget the row only if it is still there and focus left the tree on purpose.
+    setTimeout(() => {
+      if (target.isConnected && !tree.contains(document.activeElement)) lastFocusRef.current = null;
+    }, 0);
+  };
+
+  const endRename = (id: string, commit: boolean) => {
+    if (editingRef.current !== id) return;
+    editingRef.current = null;
+    if (commit && editName.trim()) updateObjectName(id, editName.trim());
+    renameReturnRef.current = id;
+    setEditingId(null);
+  };
 
   const focusRow = (id: string | null | undefined) => {
     if (id) itemRefs.current.get(id)?.focus();
@@ -211,7 +267,8 @@ export default function SceneHierarchyPanel() {
         aria-level={depth}
         aria-selected={isSelected}
         aria-expanded={hasChildren ? isExpanded : undefined}
-        aria-labelledby={nameId}
+        aria-labelledby={isEditing ? undefined : nameId}
+        aria-label={isEditing ? name : undefined}
         tabIndex={obj.id === tabStopId ? 0 : -1}
       >
         <div
@@ -280,20 +337,20 @@ export default function SceneHierarchyPanel() {
             </span>
             {isEditing ? (
               <input
-                autoFocus
+                ref={(el) => {
+                  if (el && focusRenameRef.current === obj.id) {
+                    focusRenameRef.current = null;
+                    el.focus();
+                    el.select();
+                  }
+                }}
                 value={editName}
                 aria-label={`Rename ${name}`}
                 onChange={(e) => setEditName(e.currentTarget.value)}
-                onBlur={() => {
-                  if (editName.trim()) updateObjectName(obj.id, editName.trim());
-                  setEditingId(null);
-                }}
+                onBlur={() => endRename(obj.id, true)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    if (editName.trim()) updateObjectName(obj.id, editName.trim());
-                    setEditingId(null);
-                  }
-                  if (e.key === 'Escape') setEditingId(null);
+                  if (e.key === 'Enter') endRename(obj.id, true);
+                  if (e.key === 'Escape') endRename(obj.id, false);
                 }}
                 onClick={(e) => e.stopPropagation()}
                 className="rename-input vfield-input"
@@ -411,6 +468,8 @@ export default function SceneHierarchyPanel() {
           aria-multiselectable={isMultiSelectMode || undefined}
           className="tree-list tree-root"
           onKeyDown={onTreeKeyDown}
+          onFocus={rememberFocus}
+          onBlur={forgetFocus}
         >
           {rootObjects.map(obj => renderObjectItem(obj))}
         </ul>
