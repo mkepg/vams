@@ -115,6 +115,7 @@ $right-sidebar-width: 35rem;
   --live: var(--accent);
   --live-tint: rgba(255, 90, 31, 0.10);
   --gl-hint: var(--gl-fn);
+  --switch-thumb-on: #ffffff;
 }
 
 /* Blueprint: the dark theme. */
@@ -191,6 +192,7 @@ $right-sidebar-width: 35rem;
   --live: var(--accent);
   --live-tint: rgba(255, 106, 43, 0.14);
   --gl-hint: var(--gl-fn);
+  --switch-thumb-on: #ffffff;
 }
 $bg-dark: rgb(var(--bg-dark-rgb));
 $bg-panel: rgb(var(--bg-panel-rgb));

@@ -36,7 +36,7 @@
   }
 
   &[aria-checked='true'] &__track { background: var(--accent); border-color: var(--accent); }
-  &[aria-checked='true'] &__thumb { transform: translateX(14px); background: #fff; }
+  &[aria-checked='true'] &__thumb { transform: translateX(14px); background: var(--switch-thumb-on); }
 }
 
 .vseg {
