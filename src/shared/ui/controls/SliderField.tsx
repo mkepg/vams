@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { NumberField } from './NumberField';
 import './fields.scss';
 
@@ -24,11 +24,24 @@ export function SliderField({
 }: SliderFieldProps) {
   const autoId = useId();
   const rangeId = id ?? autoId;
+  const rangeRef = useRef<HTMLInputElement>(null);
+
+  // Native change listener: preact/compat rewrites onChange on a range input to oninput,
+  // which would fire onCommit on every tick instead of once when the drag ends.
+  useEffect(() => {
+    const range = rangeRef.current;
+    if (!range) return;
+    const onNativeChange = () => onCommit?.();
+    range.addEventListener('change', onNativeChange);
+    return () => range.removeEventListener('change', onNativeChange);
+  });
+
   return (
     <div className={className ? `vslider ${className}` : 'vslider'}>
       <label className="vfield-label" htmlFor={rangeId}>{label}</label>
       <div className="vslider__track">
         <input
+          ref={rangeRef}
           id={rangeId}
           type="range"
           className="vslider__range"
@@ -42,7 +55,6 @@ export function SliderField({
             if (RANGE_KEYS.has(event.key)) onBeginChange?.();
           }}
           onInput={(event) => onChange(Number((event.currentTarget as HTMLInputElement).value))}
-          onChange={() => onCommit?.()}
         />
         <span className="vslider__ends" aria-hidden="true">
           <span>{min}</span>

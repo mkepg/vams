@@ -281,7 +281,8 @@ describe('BB-CTRL-14: SliderField pairs a range with an exact number', () => {
   it('both inputs share the value and report changes', async () => {
     const onChange = vi.fn();
     const onBeginChange = vi.fn();
-    const host = mount(h(SliderField, { label: 'Line width', value: 3, min: 0.5, max: 12, step: 0.5, precision: 1, unit: 'px', onChange, onBeginChange }));
+    const onCommit = vi.fn();
+    const host = mount(h(SliderField, { label: 'Line width', value: 3, min: 0.5, max: 12, step: 0.5, precision: 1, unit: 'px', onChange, onBeginChange, onCommit }));
     const range = host.querySelector('input[type="range"]') as HTMLInputElement;
     const number = host.querySelector('input[role="spinbutton"]') as HTMLInputElement;
     expect(host.querySelector('label')!.textContent).toBe('Line width');
@@ -292,6 +293,10 @@ describe('BB-CTRL-14: SliderField pairs a range with an exact number', () => {
     range.dispatchEvent(new Event('input', { bubbles: true }));
     expect(onBeginChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenLastCalledWith(4.5);
+    expect(onCommit).not.toHaveBeenCalled();
+    await settle();
+    range.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(onCommit).toHaveBeenCalledTimes(1);
     expect(host.textContent).toContain('0.5');
     expect(host.textContent).toContain('12');
     unmount(host);
