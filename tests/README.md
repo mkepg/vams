@@ -34,8 +34,18 @@ tests/
 │   │                                        /app links, slide 07)
 │   ├── crash-recovery.test.ts            (BB-RECOVER-*: lesson reload,
 │   │                                        corrupt saves, recovery screen)
-│   └── offline-app.test.ts               (BB-PWA-*: service worker,
-│                                            manifest, update notice)
+│   ├── offline-app.test.ts               (BB-PWA-*: service worker,
+│   │                                        manifest, update notice)
+│   ├── controls.test.ts                  (BB-CTRL-*: the shared control
+│   │                                        set)
+│   ├── editor-shell.test.ts              (BB-SHELL-*: the editor shell:
+│   │                                        dialogs, menus, the top bar,
+│   │                                        the section column and
+│   │                                        overlays)
+│   ├── lesson-column.test.ts             (BB-LCOL-*: the lesson card,
+│   │                                        the runner and panel focus)
+│   └── editor-panels.test.ts             (BB-PANEL-*: the panels on the
+│                                            shared controls)
 ├── white-box/                    ← Maps to Table 13.
 │   ├── state-management.test.ts          (WB-STATE-*)
 │   ├── matrix-engine.test.ts             (WB-MATRIX-*)
@@ -45,6 +55,11 @@ tests/
 │   ├── code-generation-buffers.test.ts   (WB-GEN-BUF-*)
 │   ├── persistence-manager.test.ts       (WB-PERSIST-*)
 │   └── error-handling.test.ts            (WB-ERR-*)
+├── visual/                       ← Not part of `npm test`.
+│   └── editor.spec.ts                    (VIS-EDITOR-*: screenshot checks,
+│                                            run with `npm run test:visual`;
+│                                            per-machine baselines that are
+│                                            not committed)
 ├── algorithm/                    ← Maps to §3.10.3 Algorithm Validation.
 │   ├── algorithm-1-global-matrix.test.ts        (ALG-1-*)
 │   ├── algorithm-2-code-generation.test.ts      (ALG-2-*)
@@ -63,10 +78,17 @@ tests/
 ## Running
 
 ```bash
-npm test                # run all 271 tests
+npm test                # run all 415 tests
 npm run test:watch      # watch mode for development
 npm run test:coverage   # also produce tests/reports/coverage/
+npm run test:visual     # editor screenshot checks (Playwright, installed Chrome)
 ```
+
+The screenshot checks compare against baselines kept in
+`tests/visual/baseline.local/`, which is ignored by git because rendering
+differs from machine to machine. Create the baselines once on a machine with
+`npx playwright test --update-snapshots`, then run `npm run test:visual`
+after each change. Results are written to `tests/visual/results.local/`.
 
 ## Acceptance bar (per §3.10)
 
@@ -86,7 +108,9 @@ browsers) that the developer's CI machine cannot be assumed to have:
 
 * **Compilation of generated C++** — see `reports/manual-compile-procedure.md`.
 * **Cross-browser execution** — see `reports/manual-cross-browser-procedure.md`.
-* **Playwright UI scenarios** — out of scope for this iteration.
+* **Playwright UI scenarios** — out of scope for this iteration. The only
+  Playwright suite is the screenshot check set (VIS-EDITOR), which needs a
+  locally created baseline and is not part of `npm test` or CI.
 
 Their results, once collected, are inserted into the corresponding
 sections of `reports/chapter-4-testing-results.md`.

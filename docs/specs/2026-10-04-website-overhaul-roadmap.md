@@ -46,7 +46,7 @@ The product rules in `AGENTS.md` and [docs/product-plan.md](../product-plan.md) 
 | 1 | **SP1 Site shell:** routing and prerendering, design tokens, editor reskin, logo, SEO extras, accessibility baseline, custom domain | Code complete, merged to `main` locally on 2026-10-04 ([spec](2026-10-04-site-shell-design.md), [plan](../plans/2026-10-04-site-shell.md)). Not yet deployed. Custom domain pending (owner to buy) |
 | 2 | **SP2 Landing page and stage mode** | Complete (2026-10-04): [spec](2026-10-04-landing-stage-design.md), [plan](../plans/2026-10-04-landing-stage.md) |
 | 3 | **SP3 Demo readiness:** lesson and scene links, My scenes library with backups, crash recovery screen, offline installable app | Complete (2026-10-06): [spec](2026-10-06-demo-readiness-design.md), [plan](../plans/2026-10-06-demo-readiness.md) |
-| 4 | **SP5 Editor layout redesign:** a shared control set, then the top bar, left rail, canvas overlays, right sidebar, lesson bar and dialogs. Includes the lesson-narration and `focusPanel` updates the new layout forces. Due by Oct 28 | Not started |
+| 4 | **SP5 Editor layout redesign:** a shared control set, then the top bar, left rail, canvas overlays, right sidebar, lesson bar and dialogs. Includes the lesson-narration and `focusPanel` updates the new layout forces. Due by Oct 28 | Complete (2026-10-06): [spec](2026-10-06-editor-redesign-design.md), [plan](../plans/2026-10-06-editor-redesign.md) |
 | 5 | **About page** | Not started |
 
 ### Should
@@ -55,7 +55,7 @@ The product rules in `AGENTS.md` and [docs/product-plan.md](../product-plan.md) 
 7. Example gallery of curated scenes
 8. SP4 Learn hub and Guide pages
 9. Polish the demo lesson(s)
-10. Screenshot regression checks, a safety net for SP5
+10. Screenshot regression checks, a safety net for SP5. Done with SP5 (`npm run test:visual`)
 
 ### Could
 
@@ -79,10 +79,7 @@ New ideas join this list in priority order.
 
 These issues already exist on the `main` from before the overhaul. They are worth fixing before the demo:
 
-- The Undo and Redo buttons never re-enable after an edit. Keyboard undo still works.
-- A number-input focus handler throws when it can't find its input.
 - PixiJS logs a shader warning when a texture is attached.
-- Lighthouse findings on `/app`: the scene-tree list structure, the icon-only add-text button, and the unlabelled transform number inputs.
 
 One deployment check is outstanding: the real 404 status on Netlify.
 
@@ -93,6 +90,8 @@ Rehearsal checklist (Nov 3):
 - Present fullscreen and test the F key.
 - Dismiss the editor welcome dialog on the demo machine.
 - Step through every slide at the projector's real resolution.
+- Pick the browser zoom on the projector; the editor holds together from 1280 down to 960 CSS px wide.
+- Run `npm run test:visual` on the demo machine after the last change, against a baseline taken right after SP5.
 
 ## Divergences from the thesis manuscript
 
@@ -105,13 +104,12 @@ The thesis manuscript is final and describes the evaluated build. The overhauled
 5. Ch. 4 reports Algorithm 3 latency "across the eighty-nine measurable steps in the lesson library". Any change to the lesson library changes that count in regenerated reports.
 6. The Ch. 4 learning-effectiveness results were measured against the evaluated lessons, and do not cover polished or new lessons.
 7. Ch. 6 Rec. 12 recommends expanding the lesson library. Curriculum work delivers part of it early.
-8. SP5 changes lesson narration that names screen positions, and any `focusPanel` targets the redesign moves.
+8. SP5 renames one panel title, "Position, Rotation, & Scale" to "Object Transform", to match the lesson narration, and wires two `focusPanel` targets (`object-transform`, `text-node-panel`) that never matched a panel. The narration that names screen positions stays true in the new layout.
 9. §3.4.2 describes saving only as project-file download and upload. The editor now also keeps a My scenes library and automatic backups in the browser, opens lessons and prepared scenes from links, and shows a recovery screen after a crash (SP3).
+10. §3.4.2's five layout regions and its top-bar actions. The lesson bar becomes a lesson card at the top of the section column, the section tabs become a menu at the top of that column, and the file actions move into a File menu in the top bar (SP5).
 
 The following manuscript descriptions may also be crossed by later sub-projects. When one is, it is added to the list above:
-- §3.4.2's five layout regions and the top bar's actions.
 - The default canvas background `#000000`. Changing it changes generated code and the replay baseline.
-- `focusPanel` targeting in Algorithm 3.
 - The canvas text font.
 - §1.5's desktop-only input.
 - Table 4's browser floor: Chrome 99+, Firefox 101+, Edge 121+.
