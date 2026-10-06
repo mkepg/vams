@@ -1,133 +1,39 @@
 @use '../../../shared/styles/tokens' as *;
+
 .top-bar {
-  height: $header-height;
-  background-color: $bg-bar;
-  border-bottom: 1px solid $border-color;
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 1rem;
-  transition: background-color 0.3s, border-color 0.3s;
-  position: relative;
-  // Increase this from 100 to 200 so it sits above the pedagogical overlays
-  z-index: 200; 
-  .brand, .actions {
-    flex: 1;
+  gap: 12px;
+  height: 44px;
+  padding: 0 10px 0 14px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+
+  &__home {
+    display: inline-flex;
+    align-items: center;
+    color: var(--ink);
+    text-decoration: none;
+    border-radius: var(--radius-m);
+
+    svg { height: 26px; width: auto; }
+    &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
   }
-  .brand {
+
+  &__actions {
     display: flex;
     align-items: center;
-    position: relative;
+    gap: 4px;
+    margin-left: auto;
+  }
 
-    .brand-launcher {
-      margin-left: 1.25rem;
-    }
+  &__sep {
+    width: 1px;
+    height: 20px;
+    margin: 0 6px;
+    background: var(--rule);
+  }
 
-    .brand-home {
-      display: inline-flex;
-      align-items: center;
-      font-size: 1rem;
-      color: var(--ink);
-      text-decoration: none;
-      border-radius: var(--radius-m);
-      padding: 2px 4px;
-
-      &:hover .vams-logo__vertex--selected { fill: var(--focus-ring); }
-    }
-  }
-  .actions {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 0.5rem;
-    .separator {
-      width: 1px;
-      height: 20px;
-      background-color: $border-color;
-      margin: 0 0.25rem;
-      opacity: 0.6;
-    }
-    .icon-btn {
-      padding: 8px;
-      border-radius: 4px;
-      color: $text-muted;
-      @include flex-center;
-      transition: all 0.2s;
-      position: relative;
-      border: 1px solid transparent;
-      background: transparent;
-      &:hover {
-        background-color: rgba(var(--border-rgb), 0.3);
-        color: $text-main;
-      }
-    }
-    .dropdown-container {
-      position: relative;
-      .dropdown-menu {
-        position: absolute;
-        top: calc(100% + 8px);
-        right: 0;
-        min-width: 220px;
-        background-color: $bg-panel;
-        border: 1px solid $border-color;
-        border-radius: 6px;
-        box-shadow: 0 4px 12px rgba(var(--shadow-rgb), 0.3);
-        overflow: hidden;
-        z-index: 1000;
-        animation: dropdown-fade-in 0.15s ease-out;
-        .menu-header {
-          padding: 0.75rem 1rem;
-          font-size: 0.7rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          color: $text-dim;
-          background-color: rgba(var(--border-rgb), 0.3);
-          border-bottom: 1px solid $border-color;
-        }
-        .menu-item {
-          width: 100%;
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          padding: 0.65rem 1rem;
-          font-size: 0.85rem;
-          color: $text-main;
-          text-align: left;
-          transition: background-color 0.15s;
-          border: none;
-          background: none;
-          cursor: pointer;
-          svg {
-            flex-shrink: 0;
-            color: $text-muted;
-          }
-          &:hover {
-            background-color: rgba(var(--accent-blue-rgb), 0.1);
-            color: $accent-blue-text;
-            svg {
-              color: $accent-blue-text;
-            }
-          }
-          &:active {
-            background-color: rgba(var(--accent-blue-rgb), 0.2);
-          }
-        }
-        .menu-separator {
-          height: 1px;
-          background-color: $border-color;
-          margin: 0.25rem 0;
-        }
-      }
-    }
-  }
-}
-@keyframes dropdown-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  .vbtn__icon svg { width: 17px; height: 17px; }
 }

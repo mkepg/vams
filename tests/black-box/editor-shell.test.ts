@@ -8,6 +8,15 @@ import { useState } from 'react';
 import { Dialog, MenuButton, type MenuEntry } from '@/shared/ui/controls';
 import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
 import { confirm, useConfirmStore } from '@/shared/ui/confirm-dialog/confirm-store';
+import { useVamsStore } from '@/core/store';
+import { isSceneEmpty } from '@/entities/project/model/scene-empty';
+import HistoryControls from '@/features/history-controls/ui/HistoryControls';
+import NewWorkspaceButton from '@/features/workspace-reset/ui/NewWorkspaceButton';
+import EditorPreferencesMenu from '@/features/editor-preferences/ui/EditorPreferencesMenu';
+import LessonLauncher from '@/features/lesson-engine/ui/LessonLauncher';
+import FileMenu from '@/widgets/layout/top-bar/FileMenu';
+import { useMyScenesDialog } from '@/features/scene-library';
+import { addTriangle } from '../helpers/store';
 
 async function settle() {
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
@@ -179,6 +188,148 @@ describe('BB-SHELL-06: Choosing an item that unmounts the menu does not throw', 
     await settle();
     expect(host.textContent).toContain('lesson running');
     expect(document.activeElement).not.toBeNull();
+    unmount(host);
+  });
+});
+
+const TEXTURE = { id: 'tex-1', name: 'Bricks', isSample: false, dataUrl: 'data:image/png;base64,', width: 4, height: 4 };
+
+function menuItems(host: HTMLElement) {
+  return [...host.querySelectorAll('[role^="menuitem"]')].map((el) => el.querySelector('.vmenu__label')!.textContent);
+}
+async function openMenu(host: HTMLElement, name: string) {
+  const trigger = [...host.querySelectorAll('button[aria-haspopup="menu"]')].find(
+    (b) => b.textContent?.includes(name) || b.getAttribute('aria-label') === name,
+  ) as HTMLButtonElement;
+  trigger.click();
+  await settle();
+  return trigger;
+}
+function chooseItem(host: HTMLElement, label: string) {
+  const item = [...host.querySelectorAll('[role^="menuitem"]')].find(
+    (el) => el.querySelector('.vmenu__label')!.textContent === label,
+  ) as HTMLElement;
+  item.click();
+}
+
+describe('BB-SHELL-07: Undo and Redo enable as soon as there is history', () => {
+  it('re-renders when past and future change', async () => {
+    const host = mount(h(HistoryControls, {}));
+    const [undo, redo] = host.querySelectorAll('button');
+    expect(undo.getAttribute('aria-label')).toBe('Undo');
+    expect(undo.disabled).toBe(true);
+    useVamsStore.getState().pushToHistory();
+    addTriangle();
+    await settle();
+    expect(undo.disabled).toBe(false);
+    undo.click();
+    await settle();
+    expect(redo.disabled).toBe(false);
+    unmount(host);
+  });
+});
+
+describe('BB-SHELL-08: A scene with only uploaded textures counts as work', () => {
+  it('isSceneEmpty sees textures; New workspace asks first and clears them', async () => {
+    const base = useVamsStore.getState();
+    expect(isSceneEmpty(base)).toBe(true);
+    useVamsStore.setState({ uploadedTextures: [TEXTURE] });
+    expect(isSceneEmpty(useVamsStore.getState())).toBe(false);
+    const beforeReset = vi.fn().mockResolvedValue(null);
+    const host = mount(h(NewWorkspaceButton, { beforeReset }));
+    host.querySelector('button')!.click();
+    await settle();
+    expect(useConfirmStore.getState().open).toBe(true);
+    useConfirmStore.getState().handleConfirm();
+    await settle();
+    expect(beforeReset).toHaveBeenCalledTimes(1);
+    expect(useVamsStore.getState().uploadedTextures).toEqual([]);
+    unmount(host);
+  });
+});
+
+describe('BB-SHELL-09: The File menu lists the project actions in order', () => {
+  it('shows every action in Author mode and opens My scenes', async () => {
+    const host = mount(h(FileMenu, {}));
+    await openMenu(host, 'File');
+    expect(menuItems(host)).toEqual([
+      'New workspace', 'My scenes…', 'Open project file…', 'Save project file', 'Export C++ code', 'Export scene JSON',
+    ]);
+    expect(host.querySelectorAll('[role="separator"]')).toHaveLength(2);
+    chooseItem(host, 'My scenes…');
+    await settle();
+    expect(useMyScenesDialog.getState().isOpen).toBe(true);
+    useMyScenesDialog.getState().close();
+    unmount(host);
+  });
+});
+
+describe('BB-SHELL-10: In Lesson mode the File menu only saves and exports', () => {
+  it('hides the actions that replace the scene', async () => {
+    useVamsStore.setState({ appMode: 'Lesson' });
+    const host = mount(h(FileMenu, {}));
+    await openMenu(host, 'File');
+    expect(menuItems(host)).toEqual(['Save project file', 'Export C++ code', 'Export scene JSON']);
+    unmount(host);
+    useVamsStore.setState({ appMode: 'Author' });
+  });
+});
+
+describe('BB-SHELL-11: Opening a project file asks first when the scene has work', () => {
+  it('uses the shared confirm and does not open the picker on Cancel', async () => {
+    const click = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => {});
+    addTriangle();
+    const host = mount(h(FileMenu, {}));
+    await openMenu(host, 'File');
+    chooseItem(host, 'Open project file…');
+    await settle();
+    expect(useConfirmStore.getState().options?.title).toBe('Open a project file?');
+    useConfirmStore.getState().handleCancel();
+    await settle();
+    expect(click).not.toHaveBeenCalled();
+    await openMenu(host, 'File');
+    chooseItem(host, 'Open project file…');
+    await settle();
+    useConfirmStore.getState().handleConfirm();
+    await settle();
+    expect(click).toHaveBeenCalledTimes(1);
+    click.mockRestore();
+    unmount(host);
+  });
+});
+
+describe('BB-SHELL-12: The settings menu toggles view options and opens shortcuts', () => {
+  it('menuitemcheckbox entries reflect and toggle state', async () => {
+    const host = mount(h(EditorPreferencesMenu, {}));
+    await openMenu(host, 'View settings');
+    const grid = [...host.querySelectorAll('[role="menuitemcheckbox"]')].find((el) => el.textContent?.includes('Gridlines'))!;
+    const before = useVamsStore.getState().axisVisibility.showGridlines;
+    expect(grid.getAttribute('aria-checked')).toBe(String(before));
+    (grid as HTMLElement).click();
+    await settle();
+    expect(useVamsStore.getState().axisVisibility.showGridlines).toBe(!before);
+    await openMenu(host, 'View settings');
+    chooseItem(host, 'Keyboard shortcuts');
+    await settle();
+    expect(useVamsStore.getState().activeHelpTopicId).toBe('shortcuts');
+    useVamsStore.getState().closeHelp();
+    unmount(host);
+  });
+});
+
+describe('BB-SHELL-13: The Lessons menu lists the section’s demos and exercises', () => {
+  it('groups lessons and starts the chosen one', async () => {
+    useVamsStore.setState({ activeSection: 'Transforms', appMode: 'Author' });
+    const host = mount(h(LessonLauncher, {}));
+    await openMenu(host, 'Lessons');
+    const groups = [...host.querySelectorAll('.vmenu__group')].map((g) => g.textContent);
+    expect(groups).toEqual(['Demos', 'Exercises']);
+    chooseItem(host, 'Translate to Position');
+    await settle();
+    expect(useVamsStore.getState().appMode).toBe('Lesson');
+    expect(useVamsStore.getState().activeLessonId).toBe('transforms-exercise-1');
+    useVamsStore.getState().clearLessonState();
+    useVamsStore.setState({ appMode: 'Author' });
     unmount(host);
   });
 });

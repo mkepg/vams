@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { HelpCircle } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
+import { Button } from '@/shared/ui/controls';
 import { topicForSection } from '@/features/help/model/help-content';
 
 /**
@@ -37,15 +38,14 @@ export default function HelpButton() {
   };
 
   return (
-    <button
-      className="icon-btn"
-      onClick={handleClick}
+    <Button
+      variant="quiet"
+      iconOnly
+      label="Open Help Center"
       title="Help (?)"
-      aria-label="Open Help Center"
+      icon={<HelpCircle />}
       aria-haspopup="dialog"
-      type="button"
-    >
-      <HelpCircle size={16} />
-    </button>
+      onClick={handleClick}
+    />
   );
 }

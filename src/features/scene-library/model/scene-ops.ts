@@ -1,5 +1,4 @@
 import { useVamsStore } from '@/core/store';
-import type { VamsState } from '@/core/store/types';
 import {
   buildProjectFile,
   downloadJSON,
@@ -13,25 +12,10 @@ import {
   type BackupReason,
   type SceneEntry,
 } from '@/entities/project/model/scene-library';
+import { isSceneEmpty } from '@/entities/project/model/scene-empty';
 import { getActiveTheme, toEditorTheme } from '@/shared/lib/theme';
 
-type SceneFields = Pick<VamsState, 'objects' | 'uploadedTextures' | 'canvasBackgroundColor' | 'pendingShapeType' | 'callbacks' | 'viewportLimits'>;
-
-/** True when there is nothing on the canvas worth keeping. */
-export function isSceneEmpty(state: SceneFields): boolean {
-  const { minX, maxX, minY, maxY } = state.viewportLimits;
-  return (
-    state.objects.length === 0 &&
-    state.uploadedTextures.length === 0 &&
-    state.canvasBackgroundColor === '#000000' &&
-    state.pendingShapeType === null &&
-    Object.values(state.callbacks).every((body) => body.trim() === '') &&
-    minX === -1 &&
-    maxX === 1 &&
-    minY === -1 &&
-    maxY === 1
-  );
-}
+export { isSceneEmpty } from '@/entities/project/model/scene-empty';
 
 /**
  * Load project data into the editor. The site theme stays authoritative, texture attachments

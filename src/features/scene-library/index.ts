@@ -13,5 +13,4 @@ export {
   type ReplaceResult,
 } from './model/scene-ops';
 export { useMyScenesDialog } from './model/dialog-store';
-export { default as MyScenesButton } from './ui/MyScenesButton';
 export { default as MyScenesDialog } from './ui/MyScenesDialog';

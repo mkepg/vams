@@ -1,50 +1,43 @@
 import { Undo, Redo } from 'lucide-react';
 import { toast } from 'sonner';
 import { useVamsStore } from '@/core/store';
+import { Button } from '@/shared/ui/controls';
 
 export default function HistoryControls() {
   const undo = useVamsStore((state) => state.undo);
   const redo = useVamsStore((state) => state.redo);
-  const canUndo = useVamsStore((state) => state.canUndo);
-  const canRedo = useVamsStore((state) => state.canRedo);
+  // Subscribe to values, not to the canUndo/canRedo functions, so the buttons re-render.
+  const canUndo = useVamsStore((state) => state.past.length > 0);
+  const canRedo = useVamsStore((state) => state.future.length > 0);
 
   // Keyboard shortcuts (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z) are handled centrally in
   // useKeyboardShortcuts; these buttons are the pointer entry points.
-
-  const handleUndo = () => {
-    if (!canUndo()) return;
-    undo();
-    toast.info('Undo');
-  };
-
-  const handleRedo = () => {
-    if (!canRedo()) return;
-    redo();
-    toast.info('Redo');
-  };
-
   return (
     <>
-      <button
-        className="icon-btn"
-        onClick={handleUndo}
-        disabled={!canUndo()}
+      <Button
+        variant="quiet"
+        iconOnly
+        label="Undo"
         title="Undo (Ctrl+Z)"
-        aria-label="Undo"
-        style={{ opacity: canUndo() ? 1 : 0.5 }}
-      >
-        <Undo size={16} />
-      </button>
-      <button
-        className="icon-btn"
-        onClick={handleRedo}
-        disabled={!canRedo()}
+        icon={<Undo />}
+        disabled={!canUndo}
+        onClick={() => {
+          undo();
+          toast.info('Undo');
+        }}
+      />
+      <Button
+        variant="quiet"
+        iconOnly
+        label="Redo"
         title="Redo (Ctrl+Shift+Z)"
-        aria-label="Redo"
-        style={{ opacity: canRedo() ? 1 : 0.5 }}
-      >
-        <Redo size={16} />
-      </button>
+        icon={<Redo />}
+        disabled={!canRedo}
+        onClick={() => {
+          redo();
+          toast.info('Redo');
+        }}
+      />
     </>
   );
 }
