@@ -180,11 +180,12 @@ export default function SceneHierarchyPanel() {
     }, 0);
   };
 
-  const endRename = (id: string, commit: boolean) => {
+  // Enter and Esc hand focus back to the row; a blur means focus already went elsewhere.
+  const endRename = (id: string, commit: boolean, returnFocus: boolean) => {
     if (editingRef.current !== id) return;
     editingRef.current = null;
     if (commit && editName.trim()) updateObjectName(id, editName.trim());
-    renameReturnRef.current = id;
+    if (returnFocus) renameReturnRef.current = id;
     setEditingId(null);
   };
 
@@ -347,10 +348,10 @@ export default function SceneHierarchyPanel() {
                 value={editName}
                 aria-label={`Rename ${name}`}
                 onChange={(e) => setEditName(e.currentTarget.value)}
-                onBlur={() => endRename(obj.id, true)}
+                onBlur={() => endRename(obj.id, true, false)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') endRename(obj.id, true);
-                  if (e.key === 'Escape') endRename(obj.id, false);
+                  if (e.key === 'Enter') endRename(obj.id, true, true);
+                  if (e.key === 'Escape') endRename(obj.id, false, true);
                 }}
                 onClick={(e) => e.stopPropagation()}
                 className="rename-input vfield-input"
