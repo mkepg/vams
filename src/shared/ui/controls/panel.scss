@@ -1,0 +1,67 @@
+.vpanel {
+  border-bottom: 1px solid var(--hairline);
+
+  &__heading {
+    margin: 0;
+    font: inherit;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    min-height: 32px;
+    padding: 0 12px;
+    border: 0;
+    background: transparent;
+    color: var(--ink-muted);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover { background: var(--paper-sunken); color: var(--ink); }
+    &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+    svg { flex: none; color: var(--ink-faint); }
+  }
+
+  &.is-open &__header { color: var(--ink); }
+
+  &__icon {
+    display: inline-flex;
+    svg { width: 13px; height: 13px; }
+  }
+
+  &__title {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  &__hint {
+    flex: none;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--gl-hint);
+  }
+
+  &__body {
+    display: grid;
+    gap: 9px;
+    padding: 2px 12px 12px;
+  }
+
+  &.is-lesson-focus {
+    margin: 4px 8px;
+    border: 1.5px solid var(--live);
+    border-radius: 5px;
+    background: var(--paper-raised);
+    box-shadow: 0 0 0 4px var(--live-tint);
+  }
+}

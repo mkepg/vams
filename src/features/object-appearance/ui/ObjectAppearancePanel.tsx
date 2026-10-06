@@ -76,7 +76,7 @@ export default function ObjectAppearancePanel() {
       setTimeout(() => {
         const el = toggleContainerRef.current;
         if (el) {
-          const scrollParent = el.closest('.sidebar-content') as HTMLElement;
+          const scrollParent = el.closest('[data-scroll-root]') as HTMLElement;
           
           if (scrollParent) {
             const parentRect = scrollParent.getBoundingClientRect();

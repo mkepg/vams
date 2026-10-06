@@ -9,3 +9,6 @@ export { parseNumberInput, decimalsFor, roundToStep } from './number-utils';
 export { ColorField, type ColorFieldProps } from './ColorField';
 export { normalizeHex, hexToBytes, glColorArgs, glColorReadout, type ColorGlCall } from './color-utils';
 export { pushRecentColor, useRecentColors, resetRecentColorsForTests } from './recent-colors';
+export { Panel, type PanelProps } from './Panel';
+export { PanelLayoutContext, type PanelLayout } from './panel-context';
+export { DataTable, type DataTableProps, type DataColumn } from './DataTable';

@@ -1,0 +1,49 @@
+.vtable {
+  border: 1px solid var(--field-line);
+  border-radius: var(--radius-m);
+  overflow: hidden;
+  background: var(--field-bg);
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  th {
+    height: 24px;
+    padding: 0 8px;
+    background: var(--paper-sunken);
+    color: var(--ink-faint);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-align: left;
+    text-transform: uppercase;
+  }
+
+  td {
+    height: 30px;
+    padding: 0 6px;
+    border-top: 1px solid var(--hairline);
+    color: var(--ink);
+  }
+
+  .is-num { text-align: right; }
+
+  tr.is-active td,
+  tbody tr:focus-within td { background: var(--live-tint); }
+
+  td .vnum { width: 100%; }
+  td .vnum__box { min-height: 24px; border-color: transparent; background: transparent; }
+  td .vnum:focus-within .vnum__box { border-color: var(--field-line); background: var(--field-bg); }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-top: 1px solid var(--hairline);
+  }
+}

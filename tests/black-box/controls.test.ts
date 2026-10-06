@@ -5,9 +5,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
 import {
-  Button, ColorField, GlHint, NumberField, SegmentedControl, SliderField, Switch, TextField,
+  Button, ColorField, DataTable, GlHint, NumberField, Panel, PanelLayoutContext, SegmentedControl, SliderField, Switch, TextField,
   glColorReadout, normalizeHex, parseNumberInput, resetRecentColorsForTests,
 } from '@/shared/ui/controls';
+import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
 
 async function settle() {
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
@@ -383,6 +384,74 @@ describe('BB-CTRL-18: Picking begins history once and fills the recent colours',
     expect(chip).not.toBeNull();
     chip.click();
     expect(onChange).toHaveBeenLastCalledWith('#00ff00');
+    unmount(host);
+  });
+});
+
+describe('BB-CTRL-19: Panel header toggles its body and names its GL call', () => {
+  it('starts at defaultOpen, toggles on click, shows the hint', async () => {
+    const host = mount(h(Panel, { title: 'Line Style', hint: 'glLineStipple', panelId: 'line-style-panel', defaultOpen: true }, h('p', {}, 'body')));
+    const header = host.querySelector('.vpanel__header') as HTMLButtonElement;
+    expect(header.getAttribute('aria-expanded')).toBe('true');
+    expect(host.querySelector('.vpanel__hint')!.textContent).toBe('glLineStipple');
+    expect(host.textContent).toContain('body');
+    header.click();
+    await settle();
+    expect(header.getAttribute('aria-expanded')).toBe('false');
+    expect(host.textContent).not.toContain('body');
+    expect(host.querySelector('[data-panel-id="line-style-panel"]')).not.toBeNull();
+    unmount(host);
+  });
+});
+
+describe('BB-CTRL-20: In lesson mode only the focus panel opens', () => {
+  it('collapses other panels even when defaultOpen, and outlines the focus', () => {
+    const tree = h(
+      PanelLayoutContext.Provider,
+      { value: { mode: 'lesson', focusPanelId: 'object-transform' } },
+      h(Panel, { title: 'Scene Hierarchy', panelId: 'scene-hierarchy', defaultOpen: true }, 'tree'),
+      h(Panel, { title: 'Object Transform', panelId: 'object-transform' }, 'fields'),
+    );
+    const host = mount(tree);
+    const sections = host.querySelectorAll('.vpanel');
+    expect(sections[0].querySelector('.vpanel__header')!.getAttribute('aria-expanded')).toBe('false');
+    expect(sections[1].querySelector('.vpanel__header')!.getAttribute('aria-expanded')).toBe('true');
+    expect(sections[1].classList.contains('is-lesson-focus')).toBe(true);
+    unmount(host);
+  });
+});
+
+describe('BB-CTRL-21: CollapsibleSection keeps working as Panel', () => {
+  it('renders the same structure through the old import', () => {
+    const host = mount(h(CollapsibleSection, { title: 'Callbacks', icon: h('svg', {}), panelId: 'callbacks-panel' }, 'x'));
+    expect(host.querySelector('.vpanel[data-panel-id="callbacks-panel"]')).not.toBeNull();
+    expect(host.querySelector('.vpanel__title')!.textContent).toBe('Callbacks');
+    unmount(host);
+  });
+});
+
+describe('BB-CTRL-22: DataTable renders a captioned table with column headers', () => {
+  it('renders rows via column renderers and marks the active row', () => {
+    const rows = [{ x: -0.5, y: -0.4 }, { x: 0.5, y: -0.4 }];
+    const host = mount(h(DataTable<{ x: number; y: number }>, {
+      caption: 'Vertices',
+      columns: [
+        { key: 'i', header: '#', render: (_r, i) => String(i) },
+        { key: 'x', header: 'X', numeric: true, render: (r) => r.x.toFixed(2) },
+        { key: 'y', header: 'Y', numeric: true, render: (r) => r.y.toFixed(2) },
+      ],
+      rows,
+      rowKey: (_r, i) => `v${i}`,
+      activeRowKey: 'v1',
+    }));
+    expect(host.querySelector('caption')!.textContent).toBe('Vertices');
+    const headers = [...host.querySelectorAll('th')].map((th) => th.textContent);
+    expect(headers).toEqual(['#', 'X', 'Y']);
+    expect(host.querySelectorAll('th[scope="col"]')).toHaveLength(3);
+    const bodyRows = host.querySelectorAll('tbody tr');
+    expect(bodyRows).toHaveLength(2);
+    expect(bodyRows[1].classList.contains('is-active')).toBe(true);
+    expect(bodyRows[1].textContent).toBe('10.50-0.40');
     unmount(host);
   });
 });
