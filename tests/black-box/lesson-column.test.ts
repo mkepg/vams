@@ -6,7 +6,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
 import { useVamsStore } from '@/core/store';
 import LessonCard from '@/features/lesson-engine/ui/LessonCard';
-import { Panel } from '@/shared/ui/controls';
+import { Panel, SegmentedControl } from '@/shared/ui/controls';
 import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
 import { SectionColumn, SECTION_PANELS, type SectionPanels } from '@/widgets/layout/section-column';
 import EditorShell from '@/pages/editor/ui/EditorShell';
@@ -310,5 +310,102 @@ describe('BB-LCOL-13: Exit hands focus to the section menu', () => {
     expect(document.activeElement).toBe(outside);
     unmount(host);
     outside.remove();
+  });
+});
+
+describe('BB-LCOL-14: Arrow keys inside a radiogroup do not move the lesson', () => {
+  it('keeps the step index when ArrowLeft and ArrowRight change a segmented control', async () => {
+    startLesson('transforms-demo-1');
+    useVamsStore.getState().setCurrentStep(1);
+    const onChange = vi.fn();
+    const host = mount(h('div', {},
+      h(LessonCard, {}),
+      h(SegmentedControl, {
+        label: 'Mode',
+        options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }, { value: 'c', label: 'C' }],
+        value: 'b',
+        onChange,
+      }),
+    ));
+    await settle();
+    const radio = host.querySelector('[role="radio"][aria-checked="true"]') as HTMLElement;
+    radio.focus();
+    key(radio, 'ArrowRight');
+    await settle();
+    expect(useVamsStore.getState().currentStepIndex).toBe(1);
+    key(radio, 'ArrowLeft');
+    await settle();
+    expect(useVamsStore.getState().currentStepIndex).toBe(1);
+    expect(onChange).toHaveBeenCalledTimes(2);
+    // The same keys on the page still move the lesson.
+    key(document.body, 'ArrowRight');
+    await settle();
+    expect(useVamsStore.getState().currentStepIndex).toBe(2);
+    unmount(host);
+  });
+});
+
+describe('BB-LCOL-15: On narrow screens Esc outside the open drawer closes the drawer first', () => {
+  it('closes the drawer from the Panels button and keeps the lesson running', async () => {
+    const restore = mockNarrow();
+    try {
+      startLesson('transforms-exercise-1');
+      const host = narrowShell(h('div', {}, h(LessonCard, {})));
+      await settle();
+      const toggle = panelsToggle(host);
+      expect(toggle.getAttribute('aria-expanded')).toBe('true');
+      toggle.focus();
+      key(toggle, 'Escape');
+      await settle();
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+      expect(document.activeElement).toBe(toggle);
+      expect(useVamsStore.getState().appMode).toBe('Lesson');
+      // With the drawer closed, Esc exits the lesson again.
+      key(toggle, 'Escape');
+      await settle();
+      expect(useVamsStore.getState().appMode).toBe('Author');
+      unmount(host);
+    } finally {
+      restore();
+    }
+  });
+});
+
+describe('BB-LCOL-16: Starting a lesson moves focus to the lesson title', () => {
+  it('focuses the title when focus fell to the page, and leaves it alone otherwise', async () => {
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    startLesson('transforms-exercise-1');
+    let host = mount(h(LessonCard, {}));
+    await settle();
+    expect(document.activeElement).toBe(host.querySelector('.lesson-card__title'));
+    unmount(host);
+    useVamsStore.getState().clearLessonState();
+    useVamsStore.setState({ appMode: 'Author' });
+
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    outside.focus();
+    startLesson('transforms-exercise-1');
+    host = mount(h(LessonCard, {}));
+    await settle();
+    expect(document.activeElement).toBe(outside);
+    unmount(host);
+    outside.remove();
+  });
+});
+
+describe('BB-LCOL-17: The narration is one live region across steps', () => {
+  it('keeps the same aria-live element and changes its text', async () => {
+    startLesson('transforms-demo-1');
+    const host = mount(h(LessonCard, {}));
+    await settle();
+    const region = host.querySelector('[aria-live="polite"]')!;
+    expect(region.textContent).toContain('Welcome to Transforms');
+    buttonNamed(host, 'Next')!.click();
+    await settle();
+    expect(host.querySelectorAll('[aria-live="polite"]')).toHaveLength(1);
+    expect(host.querySelector('[aria-live="polite"]')).toBe(region);
+    expect(region.textContent).toContain('Translate moves the shape');
+    unmount(host);
   });
 });

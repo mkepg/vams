@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ComponentChildren } from 'preact';
 import { PanelLeft } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
@@ -41,23 +41,31 @@ export default function EditorShell({ topBar, column, canvas, codeMath, overlays
     if (active && columnRef.current?.contains(active)) toggleRef.current?.focus();
   }, [narrow, drawerOpen]);
 
-  // Esc inside the open drawer closes only the drawer; the lesson's window listener never sees it.
-  // Text fields keep their own Esc (cancel the edit), so the drawer leaves those alone.
-  const onColumnKeyDown = (event: KeyboardEvent) => {
-    if (!showDrawer || event.key !== 'Escape' || event.defaultPrevented) return;
-    const target = event.target as HTMLElement | null;
-    if (target && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    setDrawerOpen(false);
-    toggleRef.current?.focus();
-  };
+  // While the drawer shows, Esc closes it wherever focus is, and the lesson's window listener
+  // never sees that key. The listener sits on document, so it runs after every element handler
+  // (a dialog, a menu or a field that used Esc has already called preventDefault) and before window.
+  // Text fields keep their own Esc (cancel the edit).
+  useEffect(() => {
+    if (!showDrawer) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (target && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)) return;
+      if (target?.closest('[role="dialog"], [role="alertdialog"], [role="menu"]')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setDrawerOpen(false);
+      toggleRef.current?.focus();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [showDrawer]);
 
   const classes = ['editor', narrow ? 'editor--narrow' : '', showDrawer ? 'is-drawer-open' : ''].filter(Boolean).join(' ');
   return (
     <div className={classes}>
       {topBar}
-      <aside ref={columnRef} id="editor-section-column" className="editor__column" aria-label="Section panels" onKeyDown={onColumnKeyDown}>
+      <aside ref={columnRef} id="editor-section-column" className="editor__column" aria-label="Section panels">
         {column}
       </aside>
       <main className="editor__canvas canvas-area">

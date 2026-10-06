@@ -35,6 +35,10 @@
     font-size: 19px;
     font-weight: 600;
     line-height: 1.15;
+
+    // Focus lands here by script when a lesson starts, to give screen readers and the keyboard a
+    // starting point. The heading is not a control, so it shows no ring.
+    &:focus { outline: none; }
   }
 
   &__progress {
@@ -69,11 +73,13 @@
     gap: 8px;
   }
 
+  // Its own line above Back and Next, so the status never wraps beside the buttons.
   &__waiting {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 6px;
-    margin-right: auto;
+    margin: 0;
+    white-space: nowrap;
     font-size: 12px;
     color: var(--ink-faint);
 

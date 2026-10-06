@@ -30,7 +30,13 @@ export function Panel({ title, icon, children, defaultOpen = false, panelId, hin
   useEffect(() => {
     if (!isFocus) return;
     const el = sectionRef.current;
-    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
+    if (!el) return;
+    // The section column puts the focus panel first, under the sticky lesson card and its
+    // "Use this panel" label; scrolling the column to the top shows all three. Scrolling the
+    // panel itself into view would tuck its header under the sticky card.
+    const root = el.closest<HTMLElement>('[data-scroll-root]');
+    if (root) root.scrollTop = 0;
+    else if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
   }, [isFocus]);
 
   const bodyId = useId();

@@ -111,7 +111,7 @@ const VisualArtifactRenderer = ({ type }: { type: VisualArtifactType }) => {
           <polygon points="70,15 95,55 45,55" fill="rgba(var(--accent-red-rgb), 0.6)" stroke="var(--accent-red-light)" strokeWidth="1.5" />
           <rect x="25" y="30" width="55" height="40" fill="rgba(var(--accent-blue-rgb), 0.9)" stroke="var(--accent-blue-light)" strokeWidth="1.5" />
           <path d="M 57 40 L 67 50 M 67 40 L 57 50" stroke="white" strokeWidth="2" strokeLinecap="round" />
-          <text x="72" y="48" fill="white" fontSize="7" fontFamily="monospace">Discard</text>
+          <text x="52" y="64" textAnchor="middle" fill="white" fontSize="7" fontFamily="monospace">Discard</text>
         </svg>
       )}
     </div>

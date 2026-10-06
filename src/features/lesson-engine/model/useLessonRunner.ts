@@ -8,6 +8,12 @@ import { resolveChangedLines } from '@/features/code-generation/model/code-diff'
 
 const DEFAULT_LESSON_VIEWPORT = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
 
+const ARROW_KEY_OWNERS = [
+  '[role="menu"]', '[role="menuitem"]', '[role="radiogroup"]', '[role="tree"]',
+  '[role="slider"]', '[role="dialog"]', '[role="alertdialog"]', '[role="spinbutton"]',
+].join(', ');
+const ESCAPE_KEY_OWNERS = '[role="menu"], [role="dialog"], [role="alertdialog"]';
+
 export interface LessonRunner {
   /** True when appMode is Lesson and a lesson and step exist. */
   active: boolean;
@@ -252,8 +258,16 @@ export function useLessonRunner(): LessonRunner {
     if (appMode !== 'Lesson' || !lesson || !step) return;
 
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      // A control that handled the key (a radiogroup, a menu, a dialog, a field) owns it.
+      if (e.defaultPrevented) return;
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      if (target) {
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable) return;
+        // Arrow keys inside a composite widget move within that widget, never the lesson.
+        if (e.key !== 'Escape' && target.closest(ARROW_KEY_OWNERS)) return;
+        // Menus and dialogs close themselves on Esc.
+        if (e.key === 'Escape' && target.closest(ESCAPE_KEY_OWNERS)) return;
+      }
 
       if (e.key === 'ArrowRight') {
         const canAdvance = !step.waitForUser || isStepSuccess;
