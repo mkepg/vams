@@ -1,0 +1,97 @@
+.lesson-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px 14px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-raised);
+
+  &__head { display: flex; align-items: center; gap: 8px; }
+
+  &__chip {
+    padding: 1px 7px;
+    border: 1px solid var(--accent-text);
+    border-radius: 9px;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent-text);
+  }
+
+  &__section {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  &__exit { margin-left: auto; }
+
+  &__title {
+    margin: -2px 0 0;
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 600;
+    line-height: 1.15;
+  }
+
+  &__progress {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    i { flex: 1; height: 3px; border-radius: 2px; background: var(--rule); }
+    i.is-done { background: var(--accent); }
+    i.is-now { background: var(--accent); opacity: 0.45; }
+  }
+
+  &__count {
+    margin-left: 6px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--ink-faint);
+    white-space: nowrap;
+  }
+
+  &__narration {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.45;
+    color: var(--ink);
+  }
+
+  &__nav {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  &__waiting {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: auto;
+    font-size: 12px;
+    color: var(--ink-faint);
+
+    &::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: lesson-card-pulse 1.6s ease-in-out infinite;
+    }
+  }
+}
+
+@keyframes lesson-card-pulse {
+  50% { opacity: 0.25; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lesson-card__waiting::before { animation: none; }
+}
