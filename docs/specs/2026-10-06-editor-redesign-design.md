@@ -207,8 +207,7 @@ Every control renders a visible label, or, for icon-only buttons, both an `aria-
 - A press and release without movement (under 3 px) focuses the input for typing. That is the non-drag alternative WCAG 2.5.7 asks for.
 
 **History.**
-- The field calls `onScrubStart()` once at the start of a drag and `onCommit()` once at the end, so the panel can call `pushToHistory()` at the start and get **one undo step per drag**.
-- Typing and key steps call `onCommit()` after each committed change.
+- History: the field calls `onBeginChange()` before every discrete change (a typed commit, a key step) and once at the start of a drag, and `onCommit()` after each discrete change and once at the end of a drag. Panels pass `onBeginChange={pushToHistory}`, which gives one undo step per drag.
 - Panels that previously called `pushToHistory()` before each change keep doing so through these hooks.
 
 **Precision.** The displayed value is `value.toFixed(precision)`. While the user is typing, the text they typed is kept.
@@ -392,7 +391,7 @@ New Vitest suites follow `{SUITE}-{MODULE}-{NN}`. Existing IDs stay stable.
 - **`tests/black-box/controls.test.ts`** (BB-CTRL-01…):
   - NumberField typing, clamping, invalid entry, Esc, and keys (with Shift and Alt);
   - scrubbing via pointer events (the step per pixel, Esc restoring the value, a click focusing the input);
-  - scrub history (one `onScrubStart` and one `onCommit` per drag);
+  - scrub history (one `onBeginChange` and one `onCommit` per drag);
   - Switch and SegmentedControl keyboard behaviour;
   - ColorField hex parsing, the GL readout (`3f` and `3ub`) and recent colours;
   - GlHint markup.
