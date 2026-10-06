@@ -1,0 +1,70 @@
+.vswitch {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+
+  &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-m); }
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  &__track {
+    position: relative;
+    width: 32px;
+    height: 18px;
+    border: 1px solid var(--field-line);
+    border-radius: 9px;
+    background: var(--paper-sunken);
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
+
+  &__thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--ink-muted);
+    transition: transform 0.15s ease, background-color 0.15s ease;
+  }
+
+  &[aria-checked='true'] &__track { background: var(--accent); border-color: var(--accent); }
+  &[aria-checked='true'] &__thumb { transform: translateX(14px); background: #fff; }
+}
+
+.vseg {
+  display: inline-flex;
+  max-width: 100%;
+  border: 1px solid var(--field-line);
+  border-radius: var(--radius-m);
+  overflow: hidden;
+
+  &__option {
+    flex: 1 1 auto;
+    min-height: var(--control-h);
+    padding: 0 10px;
+    border: 0;
+    border-right: 1px solid var(--rule);
+    background: var(--field-bg);
+    color: var(--ink-muted);
+    font: inherit;
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:last-child { border-right: 0; }
+    &:hover:not(:disabled):not(.is-on) { background: var(--paper-sunken); }
+    &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+    &.is-on { background: var(--ink); color: var(--paper); font-weight: 600; }
+    &:disabled { opacity: 0.45; cursor: not-allowed; }
+  }
+
+  &--mono &__option { font-family: var(--font-mono); font-size: 11.5px; }
+}

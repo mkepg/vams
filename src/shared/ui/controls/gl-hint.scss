@@ -1,0 +1,10 @@
+.gl-hint {
+  margin: 0 0 4px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.3;
+  color: var(--ink-faint);
+
+  code { font: inherit; }
+  &__fn { color: var(--gl-hint); }
+}

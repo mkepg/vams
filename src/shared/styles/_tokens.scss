@@ -105,6 +105,16 @@ $right-sidebar-width: 35rem;
   --hue-violet-rgb: 109, 40, 217;
   --gl-fn: #0f4c75;
   --gl-fn-rgb: 15, 76, 117;
+
+  /* Shared control set (editor). */
+  --control-h: 28px;
+  --control-h-lg: 32px;
+  --field-bg: #ffffff;
+  --field-line: #7a8296;
+  --hairline: rgba(29, 43, 79, 0.10);
+  --live: var(--accent);
+  --live-tint: rgba(255, 90, 31, 0.10);
+  --gl-hint: var(--gl-fn);
 }
 
 /* Blueprint: the dark theme. */
@@ -174,6 +184,13 @@ $right-sidebar-width: 35rem;
   --hue-violet-rgb: 167, 139, 250;
   --gl-fn: #82aaff;
   --gl-fn-rgb: 130, 170, 255;
+
+  --field-bg: #0a2140;
+  --field-line: #6f8bb5;
+  --hairline: rgba(186, 214, 255, 0.10);
+  --live: var(--accent);
+  --live-tint: rgba(255, 106, 43, 0.14);
+  --gl-hint: var(--gl-fn);
 }
 $bg-dark: rgb(var(--bg-dark-rgb));
 $bg-panel: rgb(var(--bg-panel-rgb));
