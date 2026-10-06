@@ -1,5 +1,5 @@
 import './custom-shape-builder-panel.scss';
-import React from 'react';
+import type { ComponentChildren } from 'preact';
 import {
   Edit3, X, Plus, Minus, MousePointer, Trash2,
   CirclePile, Triangle, Square, Spline,
@@ -7,13 +7,14 @@ import {
 import { MdShowChart } from "react-icons/md";
 import { TbTriangles, TbHexagons, TbCarFanFilled  } from "react-icons/tb";
 import { BsBoxes } from "react-icons/bs";
-import type { PrimitiveType } from "@/core/types/scene";
+import type { PendingVertex, PrimitiveType } from "@/core/types/scene";
 import { useVamsStore } from "@/core/store";
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
+import { Button, DataTable, GlHint, NumberField, type DataColumn } from '@/shared/ui/controls';
 
 interface ShapeDefinition {
   type: PrimitiveType;
-  icon: React.ReactNode;
+  icon: ComponentChildren;
   label: string;
   minVertices: number;
   stride: number | null;
@@ -103,6 +104,14 @@ const SHAPE_DEFS: ShapeDefinition[] = [
   },
 ];
 
+/** Lets long GL_* names wrap after an underscore instead of mid-word. */
+function breakableLabel(label: string) {
+  const parts = label.split('_');
+  return parts.map((part, i) => (
+    <span key={i}>{part}{i < parts.length - 1 && <>_<wbr /></>}</span>
+  ));
+}
+
 const STRIDE_LABEL_SINGULAR: Partial<Record<PrimitiveType, string>> = {
   LINES: 'segment',
   TRIANGLES: 'triangle',
@@ -130,6 +139,7 @@ export default function CustomShapeBuilderPanel() {
   const removePendingVertexAt   = useVamsStore((s) => s.removePendingVertexAt);
   const updatePendingVertex     = useVamsStore((s) => s.updatePendingVertex);
   const addCustomObject         = useVamsStore((s) => s.addCustomObject);
+  const pushToHistory           = useVamsStore((s) => s.pushToHistory);
 
   const isPlacing = interactionMode === 'VERTEX_PLACE';
   const activeDef = SHAPE_DEFS.find((d) => d.type === pendingShapeType);
@@ -144,12 +154,60 @@ export default function CustomShapeBuilderPanel() {
     addCustomObject(pendingShapeType, pendingVertices);
   };
 
-  const handleCoordChange = (index: number, axis: 'x' | 'y', raw: string) => {
-    const num = parseFloat(raw);
-    const val = isNaN(num) ? 0 : num;
-    const v = pendingVertices[index];
-    updatePendingVertex(index, axis === 'x' ? val : v.x, axis === 'y' ? val : v.y);
+  const handleCoordChange = (index: number, axis: 'x' | 'y', value: number) => {
+    const v = useVamsStore.getState().pendingVertices[index];
+    if (!v) return;
+    updatePendingVertex(index, axis === 'x' ? value : v.x, axis === 'y' ? value : v.y);
   };
+
+  const vertexColumns: DataColumn<PendingVertex>[] = [
+    { key: 'index', header: '#', width: '28px', render: (_v, i) => <span className="vertex-index">{i}</span> },
+    {
+      key: 'x',
+      header: 'X',
+      numeric: true,
+      render: (v, i) => (
+        <NumberField
+          label={`Vertex ${i} X`}
+          hideTag
+          value={v.x}
+          step={0.1}
+          onBeginChange={pushToHistory}
+          onChange={(value) => handleCoordChange(i, 'x', value)}
+        />
+      ),
+    },
+    {
+      key: 'y',
+      header: 'Y',
+      numeric: true,
+      render: (v, i) => (
+        <NumberField
+          label={`Vertex ${i} Y`}
+          hideTag
+          value={v.y}
+          step={0.1}
+          onBeginChange={pushToHistory}
+          onChange={(value) => handleCoordChange(i, 'y', value)}
+        />
+      ),
+    },
+    {
+      key: 'remove',
+      header: '',
+      width: '32px',
+      render: (_v, i) => (
+        <Button
+          variant="quiet"
+          iconOnly
+          label={`Remove vertex ${i}`}
+          icon={<Trash2 size={13} />}
+          onClick={() => removePendingVertexAt(i)}
+          disabled={pendingVertices.length <= pendingMinVertices}
+        />
+      ),
+    },
+  ];
 
   const statusText = (): string => {
     const n = pendingVertices.length;
@@ -174,16 +232,17 @@ export default function CustomShapeBuilderPanel() {
   if (!pendingShapeType) {
     return (
       <CollapsibleSection panelId="primitive-palette" title="Create Primitive" icon={<Edit3 size={12} />} defaultOpen={true}>
-        <div className="grid-buttons">
+        <div className="primitive-grid">
           {SHAPE_DEFS.map((def) => (
             <button
               key={def.type}
+              type="button"
               onClick={() => startCustomShape(def.type, def.minVertices, def.stride)}
-              className="create-btn"
+              className="primitive-tile"
               title={`Create ${def.label}`}
             >
-              {def.icon}
-              <span>{def.label}</span>
+              <span className="primitive-tile__icon" aria-hidden="true">{def.icon}</span>
+              <span className="primitive-tile__label">{breakableLabel(def.label)}</span>
             </button>
           ))}
         </div>
@@ -196,53 +255,24 @@ export default function CustomShapeBuilderPanel() {
       <div className="vertex-shape-builder">
         <div className="control-row header">
           <span className="shape-label">{activeDef?.label}</span>
-          <button onClick={cancelCustomShape} className="icon-btn-ghost" title="Cancel">
-            <X size={16} />
-          </button>
+          <Button variant="quiet" iconOnly label="Cancel" icon={<X size={16} />} onClick={cancelCustomShape} />
         </div>
         <div className={`placement-hint ${isPlacing ? 'active' : ''}`}>
           <MousePointer size={13} className="hint-icon" />
           <span>{activeDef?.hint ?? 'Click on the canvas to place vertices'}</span>
         </div>
         <div className="vertex-list">
-          {pendingVertices.length === 0 && (
+          <GlHint call="glVertex2f" args="x, y" />
+          {pendingVertices.length === 0 ? (
             <div className="vertex-empty-msg">No vertices yet — click the canvas or add one below</div>
+          ) : (
+            <DataTable
+              caption="Vertices"
+              columns={vertexColumns}
+              rows={pendingVertices}
+              rowKey={(_v, i) => String(i)}
+            />
           )}
-          {pendingVertices.map((v, i) => (
-            <div key={i} className="vertex-row">
-              <span className="vertex-index">V{i}</span>
-              <div className="coord-input-group">
-                <span className="coord-label">X</span>
-                <input
-                  type="number"
-                  value={v.x}
-                  onChange={(e) => handleCoordChange(i, 'x', e.currentTarget.value)}
-                  placeholder="0.0"
-                  step="0.1"
-                  className="vertex-coord-input"
-                />
-              </div>
-              <div className="coord-input-group">
-                <span className="coord-label">Y</span>
-                <input
-                  type="number"
-                  value={v.y}
-                  onChange={(e) => handleCoordChange(i, 'y', e.currentTarget.value)}
-                  placeholder="0.0"
-                  step="0.1"
-                  className="vertex-coord-input"
-                />
-              </div>
-              <button
-                className="icon-btn-ghost vertex-delete"
-                onClick={() => removePendingVertexAt(i)}
-                disabled={pendingVertices.length <= pendingMinVertices}
-                title="Remove vertex"
-              >
-                <Trash2 size={13} />
-              </button>
-            </div>
-          ))}
         </div>
         <div className="vertex-count-status">
           <span className={`count-badge ${canCreate ? 'sufficient' : 'insufficient'}`}>
@@ -250,31 +280,25 @@ export default function CustomShapeBuilderPanel() {
           </span>
         </div>
         <div className="vertex-tools">
-          <button
-            onClick={addManualVertex}
-            className="tool-btn"
-          >
-            <Plus size={14} /> <span>Add Vertex</span>
-          </button>
-          <button
+          <Button variant="secondary" icon={<Plus size={14} />} onClick={addManualVertex}>
+            Add Vertex
+          </Button>
+          <Button
+            variant="secondary"
+            icon={<Minus size={14} />}
             onClick={removeLastPendingVertex}
             disabled={pendingVertices.length === 0}
-            className="tool-btn"
           >
-            <Minus size={14} /> <span>Remove Last</span>
-          </button>
+            Remove Last
+          </Button>
         </div>
         <div className="vertex-input-actions">
-          <button onClick={cancelCustomShape} className="action-btn cancel-btn">
+          <Button variant="quiet" onClick={cancelCustomShape}>
             Cancel
-          </button>
-          <button
-            onClick={handleCreate}
-            disabled={!canCreate}
-            className="action-btn create-btn-primary"
-          >
+          </Button>
+          <Button variant="primary" onClick={handleCreate} disabled={!canCreate}>
             Create Shape
-          </button>
+          </Button>
         </div>
       </div>
     </CollapsibleSection>

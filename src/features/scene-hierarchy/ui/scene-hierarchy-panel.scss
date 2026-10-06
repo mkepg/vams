@@ -1,153 +1,154 @@
-@use '../../../shared/styles/tokens' as *;
-.rename-input {
+.rename-input.vfield-input {
   flex: 1;
   min-width: 0;
-  padding: 2px 4px;
-  background-color: $bg-input;
-  border: 1px solid $accent-blue-text;
-  border-radius: 3px;
-  color: $text-main;
+  min-height: 24px;
+  padding: 0 4px;
   font-size: inherit;
-  font-family: inherit;
-  outline: none;
 }
-.hierarchy-hint {
-  font-size: 0.75rem;
-  color: $text-dim;
-  font-style: italic;
-  padding: 0.5rem;
-  background-color: rgba(var(--accent-blue-rgb), 0.05);
-  border-radius: 4px;
-  margin-bottom: 0.5rem;
-  text-align: center;
-}
+
 .tree-list {
   list-style: none;
   padding: 0;
   margin: 0;
+
+  .tree-node {
+    outline: none;
+
+    &:focus-visible > .tree-item {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 2px;
+    }
+  }
+
   .tree-item {
     position: relative;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.5rem;
+    gap: var(--space-1);
+    min-height: var(--control-h);
+    padding: 2px var(--space-1) 2px var(--space-2);
     margin-bottom: 2px;
-    border-radius: 4px;
-    font-size: 0.85rem;
     border: 1px solid transparent;
-    transition: all 0.2s;
-    color: $text-main;
-    cursor: move;
+    border-radius: var(--radius-m);
+    font-size: 13px;
+    color: var(--ink);
+    cursor: pointer;
+
     &.hidden-item {
-      opacity: 0.45;
+      opacity: 0.55;
+
       .label .name {
         text-decoration: line-through;
-        text-decoration-color: $text-dim;
+        text-decoration-color: var(--ink-faint);
       }
     }
+
     .label {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      color: $text-main;
+      gap: 6px;
       flex: 1;
       min-width: 0;
-      svg {
-        color: $accent-blue-text;
+
+      .tree-icon {
+        display: inline-flex;
         flex-shrink: 0;
+        color: var(--ink-muted);
       }
-      .text-icon {
-        color: $text-main;
-      }
+
       .name {
         flex: 1;
+        min-width: 0;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
       }
-      .parent-indicator {
-        color: $text-dim;
-        margin-left: auto;
-      }
     }
+
+    .tree-twisty {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      width: 14px;
+      color: var(--ink-muted);
+      cursor: pointer;
+    }
+
     .item-actions {
       display: flex;
-      gap: 0.25rem;
-      opacity: 0;
-      transition: opacity 0.2s;
       flex-shrink: 0;
-      .action-btn {
-        padding: 4px;
-        border-radius: 3px;
-        color: $text-dim;
-        transition: all 0.15s;
-        &:hover {
-          color: $text-main;
-          background-color: rgba(var(--border-rgb), 0.5);
-        }
-        &.delete:hover {
-          color: $accent-red-text;
-          background-color: rgba(var(--accent-red-rgb), 0.1);
-        }
-        &.active-dim {
-          color: $text-dim;
-          opacity: 1;
-        }
+      opacity: 0;
+      transition: opacity 0.15s ease;
+
+      .vbtn--icon {
+        width: 24px;
+        min-width: 24px;
+        min-height: 24px;
+      }
+
+      .delete:hover:not(:disabled) {
+        color: var(--danger);
+      }
+
+      .active-dim {
+        color: var(--ink-faint);
       }
     }
-    &:hover {
-      background-color: $border-color;
+
+    &:hover,
+    &:focus-within {
+      background: var(--paper-sunken);
+
       .item-actions {
         opacity: 1;
       }
     }
+
     &.selected {
-      background-color: rgba(var(--accent-blue-rgb), 0.15);
-      border-color: rgba(var(--accent-blue-rgb), 0.5);
+      background: var(--live-tint);
+      border-color: var(--live);
     }
-    &[draggable="true"] {
+
+    &[draggable='true'] {
       cursor: grab;
+
       &:active {
         cursor: grabbing;
         opacity: 0.6;
       }
     }
-    &.drag-before::before {
-      content: '';
-      position: absolute;
-      top: -2px;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background-color: $accent-blue-text;
-      z-index: 10;
-    }
+
+    &.drag-before::before,
     &.drag-after::after {
       content: '';
       position: absolute;
-      bottom: -2px;
       left: 0;
       right: 0;
       height: 2px;
-      background-color: $accent-blue-text;
+      background: var(--live);
       z-index: 10;
     }
+
+    &.drag-before::before { top: -2px; }
+    &.drag-after::after { bottom: -2px; }
+
     &.drag-inside {
-      background-color: rgba(var(--accent-blue-rgb), 0.3);
-      border: 1px dashed $accent-blue-text;
+      background: var(--live-tint);
+      border: 1px dashed var(--live);
     }
   }
-  .tree-children {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    margin-left: 0.5rem;
-    border-left: 2px solid rgba(var(--border-rgb), 0.3);
+
+  .tree-node:focus-visible > .tree-item .item-actions {
+    opacity: 1;
   }
-  .empty-msg {
-    font-size: 0.75rem;
-    color: $text-dim;
-    font-style: italic;
-    padding: 0.5rem;
-  }
+}
+
+.empty-msg {
+  margin: 0;
+  padding: var(--space-2);
+  font-size: 12px;
+  font-style: italic;
+  color: var(--ink-muted);
 }

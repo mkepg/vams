@@ -1,14 +1,23 @@
 import './scene-hierarchy-panel.scss';
 import './scene-hierarchy-groups.scss';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId, useRef } from 'react';
 import { toast } from 'sonner';
 import {
   Layers, Shapes, Type, Eye, EyeOff, Copy, Trash2,
-  FolderOpen, Folder, FolderX, Edit3
+  FolderOpen, Folder, FolderX, Edit3, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { useVamsStore } from "@/core/store";
 import type { SceneNode } from "@/core/types/scene";
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
+import { Button } from '@/shared/ui/controls';
+
+interface VisibleRow {
+  id: string;
+  parentId: string | null;
+  isGroup: boolean;
+  hasChildren: boolean;
+}
+
 export default function SceneHierarchyPanel() {
   const {
     objects,
@@ -29,10 +38,14 @@ export default function SceneHierarchyPanel() {
   const [editName, setEditName] = useState<string>('');
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dragPosition, setDragPosition] = useState<'before' | 'after' | 'inside' | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const itemRefs = useRef(new Map<string, HTMLLIElement>());
+  const idPrefix = useId();
   const getRootObjects = () =>
     objects.filter(obj => !obj.parentId || !objects.find(o => o.id === obj.parentId));
   const getChildren = (parentId: string) =>
     objects.filter(obj => obj.parentId === parentId);
+  const displayName = (obj: SceneNode) => obj.textContent || obj.name;
   const isEffectivelyHidden = (obj: SceneNode): boolean => {
     if (!obj.visible) return true;
     if (obj.parentId) {
@@ -93,18 +106,114 @@ export default function SceneHierarchyPanel() {
     setSelectedObjects(new Set());
     setIsMultiSelectMode(false);
   };
-  const renderObjectItem = (obj: SceneNode, depth: number = 0) => {
+  const setExpanded = (id: string, expanded: boolean) => {
+    setCollapsed((prev) => {
+      if (expanded === !prev.has(id)) return prev;
+      const next = new Set(prev);
+      if (expanded) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  // Rows in display order, skipping the children of collapsed groups.
+  const rootObjects = getRootObjects();
+  const visibleRows: VisibleRow[] = [];
+  const collectRows = (nodes: SceneNode[], parentId: string | null) => {
+    for (const node of nodes) {
+      const isGroup = node.type === 'GROUP';
+      const children = isGroup ? getChildren(node.id) : [];
+      visibleRows.push({ id: node.id, parentId, isGroup, hasChildren: children.length > 0 });
+      if (children.length > 0 && !collapsed.has(node.id)) collectRows(children, node.id);
+    }
+  };
+  collectRows(rootObjects, null);
+  const tabStopId = visibleRows.some((row) => row.id === selectedObjectId)
+    ? selectedObjectId
+    : visibleRows[0]?.id ?? null;
+
+  const focusRow = (id: string | null | undefined) => {
+    if (id) itemRefs.current.get(id)?.focus();
+  };
+
+  // Keys reach this handler only from a focused treeitem; keys typed in the rename
+  // field or pressed on a row button keep their own behaviour.
+  const onTreeKeyDown = (e: KeyboardEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.getAttribute('role') !== 'treeitem') return;
+    const id = target.dataset.objectId;
+    const index = visibleRows.findIndex((row) => row.id === id);
+    if (!id || index < 0) return;
+    const row = visibleRows[index];
+    const isExpanded = row.hasChildren && !collapsed.has(id);
+    let handled = true;
+    switch (e.key) {
+      case 'ArrowDown':
+        focusRow(visibleRows[index + 1]?.id);
+        break;
+      case 'ArrowUp':
+        focusRow(visibleRows[index - 1]?.id);
+        break;
+      case 'Home':
+        focusRow(visibleRows[0]?.id);
+        break;
+      case 'End':
+        focusRow(visibleRows[visibleRows.length - 1]?.id);
+        break;
+      case 'ArrowRight':
+        if (row.hasChildren && !isExpanded) setExpanded(id, true);
+        else if (isExpanded) focusRow(visibleRows[index + 1]?.id);
+        break;
+      case 'ArrowLeft':
+        if (isExpanded) setExpanded(id, false);
+        else focusRow(row.parentId);
+        break;
+      case 'Enter':
+        toggleObjectSelection(id);
+        break;
+      case 'F2':
+        startRename(id);
+        break;
+      default:
+        handled = false;
+    }
+    if (handled) {
+      // Keep window-level shortcuts (F2 rename, Enter to finish a shape) from acting twice.
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
+  const renderObjectItem = (obj: SceneNode, depth: number = 1) => {
     const isGroup = obj.type === 'GROUP';
     const isSelected = isMultiSelectMode
       ? selectedObjects.has(obj.id)
       : selectedObjectId === obj.id;
     const children = isGroup ? getChildren(obj.id) : [];
+    const hasChildren = children.length > 0;
+    const isExpanded = hasChildren && !collapsed.has(obj.id);
     const isEditing = editingId === obj.id;
     const effectivelyHidden = isEffectivelyHidden(obj);
+    const name = displayName(obj);
+    const nameId = `${idPrefix}-name-${obj.id}`;
     let dragClass = '';
     if (dragOverId === obj.id && dragPosition) dragClass = `drag-${dragPosition}`;
     return (
-      <li key={obj.id} style={{ marginLeft: `${depth * 16}px` }}>
+      <li
+        key={obj.id}
+        ref={(el) => {
+          if (el) itemRefs.current.set(obj.id, el);
+          else itemRefs.current.delete(obj.id);
+        }}
+        role="treeitem"
+        className="tree-node"
+        data-object-id={obj.id}
+        aria-level={depth}
+        aria-selected={isSelected}
+        aria-expanded={hasChildren ? isExpanded : undefined}
+        aria-labelledby={nameId}
+        tabIndex={obj.id === tabStopId ? 0 : -1}
+      >
         <div
           className={`tree-item ${isSelected ? 'selected' : ''} ${isGroup ? 'group-item' : ''} ${dragClass} ${effectivelyHidden ? 'hidden-item' : ''}`}
           draggable={!isEditing}
@@ -149,17 +258,31 @@ export default function SceneHierarchyPanel() {
           onDblClick={(e) => { e.stopPropagation(); startRename(obj.id); }}
         >
           <span className="label">
-            {isGroup ? (
-              children.length > 0 ? <FolderOpen size={13} /> : <Folder size={13} />
-            ) : obj.type === 'TEXT' ? (
-              <Type size={13} />
-            ) : (
-              <Shapes size={14} />
-            )}
+            {hasChildren ? (
+              <span
+                className="tree-twisty"
+                aria-hidden="true"
+                onClick={(e) => { e.stopPropagation(); setExpanded(obj.id, !isExpanded); }}
+              >
+                {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+              </span>
+            ) : isGroup ? (
+              <span className="tree-twisty" aria-hidden="true" />
+            ) : null}
+            <span className="tree-icon" aria-hidden="true">
+              {isGroup ? (
+                hasChildren ? <FolderOpen size={13} /> : <Folder size={13} />
+              ) : obj.type === 'TEXT' ? (
+                <Type size={13} />
+              ) : (
+                <Shapes size={14} />
+              )}
+            </span>
             {isEditing ? (
               <input
                 autoFocus
                 value={editName}
+                aria-label={`Rename ${name}`}
                 onChange={(e) => setEditName(e.currentTarget.value)}
                 onBlur={() => {
                   if (editName.trim()) updateObjectName(obj.id, editName.trim());
@@ -173,117 +296,125 @@ export default function SceneHierarchyPanel() {
                   if (e.key === 'Escape') setEditingId(null);
                 }}
                 onClick={(e) => e.stopPropagation()}
-                className="rename-input"
+                className="rename-input vfield-input"
               />
             ) : (
-              <span className="name" title="Double-click to rename">
-                {obj.textContent || obj.name}
+              <span id={nameId} className="name" title="Double-click to rename">
+                {name}
               </span>
             )}
             {isGroup && !isEditing && (
               <span className="child-count">({children.length})</span>
             )}
           </span>
-          <div className="item-actions">
-            {}
-            <button
-              onClick={(e) => { e.stopPropagation(); startRename(obj.id); }}
-              className="action-btn"
+          <div className="item-actions" onClick={(e) => e.stopPropagation()}>
+            <Button
+              variant="quiet"
+              iconOnly
+              label={`Rename ${name}`}
               title="Rename"
-              aria-label="Rename"
-            >
-              <Edit3 size={14} />
-            </button>
-            {}
-            <button
-              onClick={(e) => { e.stopPropagation(); toggleObjectVisibility(obj.id); }}
-              className={`action-btn ${effectivelyHidden ? 'active-dim' : ''}`}
+              icon={<Edit3 size={14} />}
+              onClick={() => startRename(obj.id)}
+            />
+            <Button
+              variant="quiet"
+              iconOnly
+              className={effectivelyHidden ? 'active-dim' : undefined}
+              label={`${effectivelyHidden ? 'Show' : 'Hide'} ${name}`}
               title={effectivelyHidden ? 'Show (excluded from output)' : 'Hide (exclude from output)'}
-              aria-label={effectivelyHidden ? 'Show object' : 'Hide object'}
-            >
-              {effectivelyHidden ? <EyeOff size={14} /> : <Eye size={14} />}
-            </button>
+              icon={effectivelyHidden ? <EyeOff size={14} /> : <Eye size={14} />}
+              onClick={() => toggleObjectVisibility(obj.id)}
+            />
             {isGroup ? (
               <>
-                <button
-                  onClick={(e) => { e.stopPropagation(); ungroup(obj.id); }}
-                  className="action-btn"
+                <Button
+                  variant="quiet"
+                  iconOnly
+                  label={`Ungroup ${name}`}
                   title="Ungroup"
-                  aria-label="Ungroup"
-                >
-                  <FolderOpen size={14} />
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); deleteWithUndo(obj.id, true); }}
-                  className="action-btn delete"
+                  icon={<FolderOpen size={14} />}
+                  onClick={() => ungroup(obj.id)}
+                />
+                <Button
+                  variant="quiet"
+                  iconOnly
+                  className="delete"
+                  label={`Delete ${name} and its children`}
                   title="Delete Group & Children"
-                  aria-label="Delete group and its children"
-                >
-                  <FolderX size={14} />
-                </button>
+                  icon={<FolderX size={14} />}
+                  onClick={() => deleteWithUndo(obj.id, true)}
+                />
               </>
             ) : (
               <>
-                <button
-                  onClick={(e) => { e.stopPropagation(); duplicateObject(obj.id); }}
-                  className="action-btn"
+                <Button
+                  variant="quiet"
+                  iconOnly
+                  label={`Duplicate ${name}`}
                   title="Duplicate"
-                  aria-label="Duplicate"
-                >
-                  <Copy size={14} />
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); deleteWithUndo(obj.id, false); }}
-                  className="action-btn delete"
+                  icon={<Copy size={14} />}
+                  onClick={() => duplicateObject(obj.id)}
+                />
+                <Button
+                  variant="quiet"
+                  iconOnly
+                  className="delete"
+                  label={`Delete ${name}`}
                   title="Delete"
-                  aria-label="Delete"
-                >
-                  <Trash2 size={14} />
-                </button>
+                  icon={<Trash2 size={14} />}
+                  onClick={() => deleteWithUndo(obj.id, false)}
+                />
               </>
             )}
           </div>
         </div>
-        {isGroup && children.length > 0 && (
-          <ul className="tree-list">
+        {isExpanded && (
+          <ul role="group" className="tree-list">
             {children.map(child => renderObjectItem(child, depth + 1))}
           </ul>
         )}
       </li>
     );
   };
-  const rootObjects = getRootObjects();
   return (
     <CollapsibleSection panelId="scene-hierarchy" title="Scene Hierarchy" icon={<Layers size={14} />} defaultOpen={true}>
       <div className="group-controls">
-        <button
+        <Button
+          variant="quiet"
+          className={isMultiSelectMode ? 'active' : undefined}
+          title="Multi-Select Mode"
           onClick={() => {
             setIsMultiSelectMode(!isMultiSelectMode);
             setSelectedObjects(new Set());
           }}
-          className={`control-btn ${isMultiSelectMode ? 'active' : ''}`}
-          title="Multi-Select Mode"
         >
           {isMultiSelectMode ? 'Cancel Selection' : 'Multi-Select'}
-        </button>
+        </Button>
         {isMultiSelectMode && (
-          <button
+          <Button
+            variant="quiet"
+            icon={<Folder size={14} />}
             onClick={handleCreateGroup}
             disabled={selectedObjects.size < 2}
-            className="control-btn group-btn"
             title="Create Group"
           >
-            <Folder size={14} />
-            <span>Group ({selectedObjects.size})</span>
-          </button>
+            Group ({selectedObjects.size})
+          </Button>
         )}
       </div>
-      <ul className="tree-list">
-        {rootObjects.map(obj => renderObjectItem(obj))}
-        {rootObjects.length === 0 && (
-          <div className="empty-msg">Scene is empty</div>
-        )}
-      </ul>
+      {rootObjects.length === 0 ? (
+        <p className="empty-msg">Scene is empty</p>
+      ) : (
+        <ul
+          role="tree"
+          aria-label="Scene objects"
+          aria-multiselectable={isMultiSelectMode || undefined}
+          className="tree-list tree-root"
+          onKeyDown={onTreeKeyDown}
+        >
+          {rootObjects.map(obj => renderObjectItem(obj))}
+        </ul>
+      )}
     </CollapsibleSection>
   );
 }

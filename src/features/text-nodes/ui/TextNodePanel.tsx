@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Type, Plus, Edit3 } from 'lucide-react';
 import { useVamsStore } from "@/core/store";
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
+import { Button } from '@/shared/ui/controls';
 export default function TextNodePanel() {
   const {
     addTextObject,
@@ -21,70 +22,42 @@ export default function TextNodePanel() {
   return (
     <CollapsibleSection panelId="text-node-panel" title="Create Text" icon={<Type size={14} />} defaultOpen={true}>
       <div className="text-objects-section">
-        {/* Creation Input */}
-        <div>
-          {/* --- FIX APPLIED HERE --- */}
-          <div className="section-label">Create New Text</div>
-          <div className="input-group">
+        <div className="text-create">
+          <span className="vfield-label">Create New Text</span>
+          <div className="text-create__row">
             <input
               type="text"
               value={textInput}
+              aria-label="Text"
               onChange={(e) => setTextInput(e.currentTarget.value)}
               placeholder="Enter text..."
               onKeyDown={(e) => e.key === 'Enter' && handleAddText()}
-              className="text-input"
+              className="vfield-input"
             />
-            <button
+            <Button
+              iconOnly
+              label="Add text"
+              icon={<Plus size={16} />}
               onClick={handleAddText}
               disabled={!textInput.trim()}
-              aria-label="Add text"
-              title="Add text"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '0.4rem',
-                backgroundColor: 'rgba(var(--accent-blue-rgb), 0.1)',
-                color: 'var(--accent-blue-text)',
-                border: '1px solid rgba(var(--accent-blue-rgb), 0.3)',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                opacity: !textInput.trim() ? 0.5 : 1
-              }}
-            >
-              <Plus size={16} />
-            </button>
+            />
           </div>
         </div>
-        {}
         {isTextSelected && (
-          <div className="edit-panel" style={{
-            padding: '0.75rem',
-            backgroundColor: 'rgba(var(--accent-blue-rgb), 0.05)',
-            border: '1px solid rgba(var(--accent-blue-rgb), 0.2)',
-            borderRadius: '6px',
-            marginTop: '0.5rem'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              marginBottom: '0.5rem',
-              color: 'var(--accent-blue-text)',
-              fontSize: '0.8rem',
-              fontWeight: 600
-            }}>
-              <Edit3 size={14} />
+          <div className="text-edit">
+            <span className="vfield-label text-edit__label">
+              <Edit3 size={14} aria-hidden="true" />
               <span>Edit Selected Text</span>
-            </div>
+            </span>
             <textarea
               value={selectedObject?.textContent || ''}
+              aria-label="Edit text"
               onChange={(e) => {
                 if (selectedObjectId) {
                   updateTextContent(selectedObjectId, e.currentTarget.value);
                 }
               }}
-              className="text-input edit-textarea"
+              className="vfield-input text-edit__area"
               rows={3}
             />
           </div>

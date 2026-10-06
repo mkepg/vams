@@ -23,7 +23,7 @@ export default defineConfig({
     // imports resolve to preact/compat (needed when prerendering components in tests).
     server: {
       deps: {
-        inline: ['lucide-react', 'zustand'],
+        inline: ['lucide-react', 'react-icons', 'zustand'],
       },
     },
     reporters: ['default', 'json'],

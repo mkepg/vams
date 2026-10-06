@@ -245,7 +245,7 @@ describe('BB-LCOL-11: Esc in a rename field inside the drawer cancels the rename
       const originalName = triangle.name;
       const host = narrowShell(h(SceneHierarchyPanel, {}));
       await settle();
-      (host.querySelector('button[aria-label="Rename"]') as HTMLButtonElement).click();
+      (host.querySelector('button[aria-label^="Rename"]') as HTMLButtonElement).click();
       await settle();
       const input = host.querySelector('.rename-input') as HTMLInputElement;
       input.focus();

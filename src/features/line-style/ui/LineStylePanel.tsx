@@ -2,6 +2,7 @@ import './line-style-panel.scss';
 import { Minus } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
+import { Button, GlHint, SliderField, Switch } from '@/shared/ui/controls';
 import type { LineStipple, SceneNode } from '@/core/types/scene';
 
 interface StipplePreset {
@@ -40,6 +41,9 @@ export default function LineStylePanel() {
   const selectedObjectId = useVamsStore((s) => s.selectedObjectId);
   const updateLineWidth = useVamsStore((s) => s.updateLineWidth);
   const updateLineStipple = useVamsStore((s) => s.updateLineStipple);
+  const pushToHistory = useVamsStore((s) => s.pushToHistory);
+  const startBatch = useVamsStore((s) => s.startBatch);
+  const endBatch = useVamsStore((s) => s.endBatch);
 
   const selected = objects.find((o) => o.id === selectedObjectId);
 
@@ -64,11 +68,22 @@ export default function LineStylePanel() {
     updateLineStipple(selected.id, { factor: preset.factor, pattern: preset.pattern });
   };
 
-  const setFactor = (raw: string) => {
-    if (!stipple) return;
-    const n = parseInt(raw, 10);
-    if (Number.isNaN(n)) return;
-    updateLineStipple(selected.id, { ...stipple, factor: Math.max(1, Math.min(256, n)) });
+  // Slider edits push history once through onBeginChange; the live updates run
+  // batched so a whole drag is one undo step.
+  const batched = (apply: () => void) => {
+    startBatch();
+    apply();
+    endBatch();
+  };
+
+  const setWidth = (width: number) => {
+    batched(() => updateLineWidth(selected.id, width));
+  };
+
+  const setFactor = (n: number) => {
+    const current = useVamsStore.getState().objects.find((o) => o.id === selected.id)?.lineStipple;
+    if (!current || Number.isNaN(n)) return;
+    batched(() => updateLineStipple(selected.id, { ...current, factor: Math.max(1, Math.min(256, Math.round(n))) }));
   };
 
   const setPatternHex = (raw: string) => {
@@ -92,52 +107,44 @@ export default function LineStylePanel() {
     : '0xFFFF';
 
   return (
-    <CollapsibleSection panelId="line-style-panel" title="Line Style" icon={<Minus size={14} />} defaultOpen={true}>
+    <CollapsibleSection panelId="line-style-panel" title="Line Style" icon={<Minus size={14} />} defaultOpen={true} hint="glLineStipple">
       <div className="line-style-panel">
 
         {/* ----------------------------- Width ----------------------------- */}
         <div className="lsp-row">
-          <div className="lsp-row-head">
-            <span className="lsp-label">glLineWidth</span>
-            <span className="lsp-value">{lineWidth.toFixed(1)} px</span>
-          </div>
-          <input
-            type="range"
+          <GlHint call="glLineWidth" args="width" />
+          <SliderField
+            label="Line width"
             min={0.5}
             max={12}
             step={0.5}
+            precision={1}
+            unit="px"
             value={lineWidth}
-            onChange={(e) => updateLineWidth(selected.id, parseFloat(e.currentTarget.value))}
-            className="lsp-range"
-            aria-label="Line width"
+            onBeginChange={pushToHistory}
+            onChange={setWidth}
           />
         </div>
 
         {/* ----------------------- Stipple master toggle ------------------- */}
         <div className="lsp-stipple-toggle">
-          <button
-            type="button"
-            className={`lsp-master ${stipple ? 'on' : ''}`}
-            onClick={() => setStippleEnabled(!stipple)}
-            aria-pressed={!!stipple}
-          >
-            <span className="dot" />
-            <span className="lsp-master-label">glLineStipple</span>
-            <span className="lsp-master-state">{stipple ? 'enabled' : 'disabled'}</span>
-          </button>
+          <Switch label="Line stipple" checked={!!stipple} onChange={setStippleEnabled} />
+          <GlHint call="glEnable" args="GL_LINE_STIPPLE" />
         </div>
 
         {stipple && (
           <>
+            <GlHint call="glLineStipple" args="factor, pattern" />
+
             {/* ----------------------- Pattern bit grid ------------------- */}
             <div className="lsp-pattern-block">
               <div className="lsp-row-head">
-                <span className="lsp-label">Pattern</span>
+                <span className="vfield-label">Pattern</span>
                 <input
                   type="text"
                   value={patternHexLabel}
                   onChange={(e) => setPatternHex(e.currentTarget.value.replace(/^0x/i, ''))}
-                  className="lsp-hex"
+                  className="vfield-input lsp-hex"
                   spellcheck={false}
                   aria-label="Pattern hexadecimal"
                 />
@@ -153,6 +160,8 @@ export default function LineStylePanel() {
                     type="button"
                     className={`lsp-bit ${on ? 'on' : ''}`}
                     onClick={() => toggleBit(i)}
+                    aria-label={`Bit ${15 - i}`}
+                    aria-pressed={on}
                     title={`Bit ${15 - i} = ${on ? '1' : '0'}`}
                   >
                     <span className="lsp-bit-glyph" aria-hidden />
@@ -167,32 +176,26 @@ export default function LineStylePanel() {
             </div>
 
             {/* ---------------------------- Factor ------------------------ */}
-            <div className="lsp-row">
-              <div className="lsp-row-head">
-                <span className="lsp-label">Factor</span>
-                <span className="lsp-value">×{stipple.factor}</span>
-              </div>
-              <input
-                type="range"
-                min={1}
-                max={16}
-                step={1}
-                value={stipple.factor}
-                onChange={(e) => setFactor(e.currentTarget.value)}
-                className="lsp-range"
-                aria-label="Stipple factor"
-              />
-            </div>
+            <SliderField
+              label="Stipple factor"
+              min={1}
+              max={16}
+              step={1}
+              precision={0}
+              value={stipple.factor}
+              onBeginChange={pushToHistory}
+              onChange={setFactor}
+            />
 
             {/* --------------------------- Presets ------------------------ */}
             <div className="lsp-presets">
               {STIPPLE_PRESETS.map((p) => {
                 const active = stipple.factor === p.factor && stipple.pattern === p.pattern;
                 return (
-                  <button
+                  <Button
                     key={p.label}
-                    type="button"
                     className={`lsp-preset ${active ? 'active' : ''}`}
+                    aria-pressed={active}
                     onClick={() => setPreset(p)}
                   >
                     <span className="lsp-preset-name">{p.label}</span>
@@ -204,7 +207,7 @@ export default function LineStylePanel() {
                         />
                       ))}
                     </span>
-                  </button>
+                  </Button>
                 );
               })}
             </div>

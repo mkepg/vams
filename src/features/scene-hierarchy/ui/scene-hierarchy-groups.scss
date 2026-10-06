@@ -1,103 +1,41 @@
-@use '../../../shared/styles/tokens' as *;
-
 .group-controls {
   display: flex;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  gap: var(--space-2);
   align-items: center;
   width: 100%;
-  margin-bottom: 0.75rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid $border-color;
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--hairline);
 
-  .control-btn {
-    flex: 1; /* Restored flex to perfectly balance the space */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    padding: 0.55rem 0.8rem;
-    background-color: rgba(var(--border-rgb), 0.3);
-    color: $text-main;
-    border-radius: 6px; /* Keeps the softer, pill-like appearance */
-    font-size: 0.75rem;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    border: 1px solid transparent;
-
-    &:hover {
-      background-color: rgba(var(--border-rgb), 0.6);
-      border-color: rgba(var(--accent-blue-rgb), 0.3);
-    }
-
-    &.active {
-      background-color: rgba(var(--accent-blue-rgb), 0.15);
-      color: var(--accent-blue-light);
-      border-color: rgba(var(--accent-blue-rgb), 0.5);
-    }
-
-    &.group-btn {
-      background-color: rgba(var(--accent-blue-rgb), 0.1);
-      color: var(--accent-blue-light);
-      border-color: rgba(var(--accent-blue-rgb), 0.3);
-
-      &:hover:not(:disabled) {
-        background-color: rgba(var(--accent-blue-rgb), 0.2);
-        border-color: rgba(var(--accent-blue-rgb), 0.5);
-      }
-
-      &:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-        background-color: transparent;
-        border-color: rgba(var(--accent-blue-rgb), 0.2);
-      }
-    }
-
-    svg {
-      flex-shrink: 0;
-    }
-
-    span {
-      white-space: nowrap;
-    }
+  .vbtn.active {
+    background: var(--live-tint);
+    border-color: var(--live);
+    color: var(--ink);
   }
 }
 
-.tree-item {
-  &.group-item {
-    background-color: rgba(var(--accent-blue-rgb), 0.05);
-    border-left: 3px solid rgba(var(--accent-blue-rgb), 0.3);
-    
-    .label {
-      svg { color: rgba(var(--accent-blue-rgb), 1); }
-      
-      .child-count {
-        margin-left: 0.3rem;
-        font-size: 0.7rem;
-        color: $text-dim;
-        font-weight: 600;
-        background-color: rgba(var(--accent-blue-rgb), 0.1);
-        padding: 0.1rem 0.4rem;
-        border-radius: 10px;
-      }
-    }
+.tree-item.group-item {
+  border-left: 3px solid var(--field-line);
 
-    &:hover {
-      background-color: rgba(var(--accent-blue-rgb), 0.1);
-    }
+  .child-count {
+    flex-shrink: 0;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: var(--paper-sunken);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-muted);
+  }
 
-    &.selected {
-      background-color: rgba(var(--accent-blue-rgb), 0.2);
-      border-color: rgba(var(--accent-blue-rgb), 0.8);
-    }
+  &.selected {
+    border-color: var(--live);
   }
 }
 
-.tree-list {
-  .tree-list {
-    margin-left: 1rem;
-    margin-top: 0.25rem;
-    padding-left: 0.5rem;
-    border-left: 2px solid rgba(var(--border-rgb), 0.3);
-  }
+.tree-list .tree-list {
+  margin-top: 2px;
+  margin-left: var(--space-2);
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--rule);
 }

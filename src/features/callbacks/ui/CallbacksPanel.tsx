@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
+import { Button, GlHint } from '@/shared/ui/controls';
 import type { GlutCallbackKind } from '@/core/types/scene';
 
 interface CallbackDef {
@@ -68,35 +69,35 @@ export default function CallbacksPanel() {
             return (
               <li key={def.kind} className={`cb-item ${isActive ? 'active' : ''} ${isInvalid ? 'invalid' : ''}`}>
                 <div className="cb-head">
-                  <span className="cb-icon"><Icon size={14} /></span>
+                  <span className="cb-icon" aria-hidden="true"><Icon size={14} /></span>
                   <div className="cb-meta">
-                    <span className="cb-fn">{def.glutFn}</span>
+                    <span className="cb-label">{def.label}</span>
                     <span className="cb-desc">{def.description}</span>
                   </div>
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary"
                     className="cb-toggle"
                     onClick={() => handleQuickRegister(def)}
                     aria-pressed={isActive}
                     title={isActive ? 'Clear handler' : `Register with default name "${def.defaultName}"`}
                   >
-                    <span className="cb-dot" />
+                    <span className="cb-dot" aria-hidden="true" />
                     <span>{isActive ? 'On' : 'Off'}</span>
-                  </button>
+                  </Button>
                 </div>
 
-                <div className="cb-input-row">
-                  <span className="cb-input-label">handler</span>
-                  <input
-                    type="text"
-                    value={value}
-                    placeholder={def.defaultName}
-                    spellcheck={false}
-                    autoCapitalize="off"
-                    onChange={(e) => handleNameChange(def.kind, e.currentTarget.value)}
-                    className="cb-input"
-                  />
-                </div>
+                <GlHint call={def.glutFn} args="handler" />
+                <input
+                  type="text"
+                  value={value}
+                  placeholder={def.defaultName}
+                  spellcheck={false}
+                  autoCapitalize="off"
+                  aria-label={`${def.label} handler`}
+                  aria-invalid={isInvalid || undefined}
+                  onChange={(e) => handleNameChange(def.kind, e.currentTarget.value)}
+                  className="vfield-input cb-input"
+                />
 
                 {isInvalid && (
                   <div className="cb-error">Handler name must be a valid C++ identifier.</div>
