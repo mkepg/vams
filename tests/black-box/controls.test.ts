@@ -455,3 +455,39 @@ describe('BB-CTRL-22: DataTable renders a captioned table with column headers', 
     unmount(host);
   });
 });
+
+describe('BB-CTRL-23: A number field that unmounts mid-scrub clears the page scrub state', () => {
+  it('removes is-scrubbing from body on unmount', async () => {
+    const host = mount(h(NumberField, { label: 'Translate X', tag: 'X', value: 0, onChange: vi.fn() }));
+    const tag = host.querySelector('.vnum__tag')!;
+    pointer(tag, 'pointerdown', 0);
+    pointer(tag, 'pointermove', 40);
+    await settle();
+    expect(document.body.classList.contains('is-scrubbing')).toBe(true);
+    unmount(host);
+    await settle();
+    expect(document.body.classList.contains('is-scrubbing')).toBe(false);
+  });
+});
+
+describe('BB-CTRL-24: A scrub discards a typed draft that was not committed', () => {
+  it('keeps the scrubbed value when the field later blurs', async () => {
+    const onChange = vi.fn();
+    const host = mount(h(NumberField, { label: 'Rotate', tag: 'θ', value: 0, step: 1, onChange }));
+    const input = host.querySelector('input')!;
+    input.dispatchEvent(new FocusEvent('focus'));
+    input.value = '99';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const tag = host.querySelector('.vnum__tag')!;
+    pointer(tag, 'pointerdown', 0);
+    pointer(tag, 'pointermove', 40);
+    pointer(tag, 'pointerup', 40);
+    await settle();
+    expect(onChange).toHaveBeenLastCalledWith(10);
+    input.dispatchEvent(new FocusEvent('blur'));
+    await settle();
+    expect(onChange).toHaveBeenLastCalledWith(10);
+    expect(onChange).not.toHaveBeenCalledWith(99);
+    unmount(host);
+  });
+});

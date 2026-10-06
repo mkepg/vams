@@ -173,6 +173,12 @@ export function NumberField({
     return () => window.removeEventListener('keydown', onWindowKey, true);
   }, [scrubbing, onChange, onCommit]);
 
+  // A field removed mid-drag (a lesson step, a deselect) must not leave the page in scrub mode.
+  useEffect(() => {
+    if (!scrubbing) return;
+    return () => document.body.classList.remove('is-scrubbing');
+  }, [scrubbing]);
+
   // Native blur listener: preact/compat maps onBlur to focusout, which a plain blur event never reaches.
   useLayoutEffect(() => {
     const input = inputRef.current;
@@ -187,6 +193,11 @@ export function NumberField({
     event.preventDefault();
     const target = event.currentTarget as Element | null;
     target?.setPointerCapture?.(event.pointerId);
+    // A typed value that was never committed is dropped, so the blur after the scrub cannot undo it.
+    if (draftRef.current !== null) {
+      setDraft(null);
+      setInvalid(false);
+    }
     scrubRef.current = { startX: event.clientX, startValue: value, lastValue: value, moved: false };
   };
 
