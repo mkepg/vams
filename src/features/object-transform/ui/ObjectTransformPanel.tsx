@@ -21,9 +21,13 @@ interface ScalePadProps {
   scaleY: number;
   locked: boolean;
   onChange: (sx: number, sy: number) => void;
-  onCommit: () => void;
+  /** Called once before each gesture (drag, double-click reset, arrow key) changes the scale. */
+  onBeginChange: () => void;
 }
-function ScalePad({ scaleX, scaleY, locked, onChange, onCommit }: ScalePadProps) {
+const SCALE_KEY_STEP = 0.05;
+const ROTATE_KEY_STEP = 1;
+const clampScale = (value: number) => Math.max(SCALE_MIN, Math.min(SCALE_MAX, value));
+function ScalePad({ scaleX, scaleY, locked, onChange, onBeginChange }: ScalePadProps) {
   const padRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const startRef = useRef<{
@@ -76,7 +80,8 @@ function ScalePad({ scaleX, scaleY, locked, onChange, onCommit }: ScalePadProps)
     [locked, normalize, onChange],
   );
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    padRef.current?.setPointerCapture(e.pointerId);
+    padRef.current?.setPointerCapture?.(e.pointerId);
+    onBeginChange();
     const p = normalize(e.clientX, e.clientY);
     startRef.current = { sx: scaleX, sy: scaleY, pX: p.x, pY: p.y };
     setDragging(true);
@@ -87,14 +92,35 @@ function ScalePad({ scaleX, scaleY, locked, onChange, onCommit }: ScalePadProps)
   };
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging) return;
-    padRef.current?.releasePointerCapture(e.pointerId);
+    padRef.current?.releasePointerCapture?.(e.pointerId);
     setDragging(false);
     startRef.current = null;
-    onCommit();
   };
   const handleDoubleClick = () => {
+    onBeginChange();
     onChange(1, 1);
-    onCommit();
+  };
+  // ←/→ scale X and ↑/↓ scale Y by 0.05 (Shift: 0.2); with the lock on, both axes keep their ratio.
+  const handleKeyDown = (e: KeyboardEvent) => {
+    const axis = e.key === 'ArrowLeft' || e.key === 'ArrowRight' ? 'X' : e.key === 'ArrowUp' || e.key === 'ArrowDown' ? 'Y' : null;
+    if (!axis) return;
+    e.preventDefault();
+    const sign = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : -1;
+    const delta = sign * SCALE_KEY_STEP * (e.shiftKey ? 4 : 1);
+    const source = axis === 'X' ? scaleX : scaleY;
+    const next = clampScale(source + delta);
+    let sx = axis === 'X' ? next : scaleX;
+    let sy = axis === 'Y' ? next : scaleY;
+    if (locked) {
+      const ratio = source === 0 ? 1 : next / source;
+      sx = clampScale(scaleX * ratio);
+      sy = clampScale(scaleY * ratio);
+    }
+    sx = parseFloat(sx.toFixed(3));
+    sy = parseFloat(sy.toFixed(3));
+    if (sx === scaleX && sy === scaleY) return;
+    onBeginChange();
+    onChange(sx, sy);
   };
   return (
     <div className="scale-pad-wrap">
@@ -105,12 +131,13 @@ function ScalePad({ scaleX, scaleY, locked, onChange, onCommit }: ScalePadProps)
         aria-label="Scale X and Y"
         aria-valuetext={`scaleX ${scaleX.toFixed(2)}, scaleY ${scaleY.toFixed(2)}`}
         tabIndex={0}
+        onKeyDown={handleKeyDown}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onDblClick={handleDoubleClick}
-        title={locked ? 'Drag to scale (uniform) · Double-click to reset' : 'Drag to scale X/Y · Double-click to reset'}
+        title={locked ? 'Drag or use arrow keys to scale (uniform) · Double-click to reset' : 'Drag or use arrow keys to scale X/Y · Double-click to reset'}
       >
         <div className="pad-grid" aria-hidden>
           <div className="pad-axis pad-axis-x" />
@@ -133,9 +160,10 @@ function ScalePad({ scaleX, scaleY, locked, onChange, onCommit }: ScalePadProps)
 interface RotateDialProps {
   value: number;
   onChange: (deg: number) => void;
-  onCommit: () => void;
+  /** Called once before each gesture (drag, double-click reset, arrow key) changes the angle. */
+  onBeginChange: () => void;
 }
-function RotateDial({ value, onChange, onCommit }: RotateDialProps) {
+function RotateDial({ value, onChange, onBeginChange }: RotateDialProps) {
   const dialRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const lastAngleRef = useRef<number | null>(null);
@@ -149,7 +177,8 @@ function RotateDial({ value, onChange, onCommit }: RotateDialProps) {
     return (rad * 180) / Math.PI;
   };
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    dialRef.current?.setPointerCapture(e.pointerId);
+    dialRef.current?.setPointerCapture?.(e.pointerId);
+    onBeginChange();
     accumRef.current = value;
     lastAngleRef.current = pointerAngle(e.clientX, e.clientY);
     setDragging(true);
@@ -166,10 +195,17 @@ function RotateDial({ value, onChange, onCommit }: RotateDialProps) {
   };
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging) return;
-    dialRef.current?.releasePointerCapture(e.pointerId);
+    dialRef.current?.releasePointerCapture?.(e.pointerId);
     setDragging(false);
     lastAngleRef.current = null;
-    onCommit();
+  };
+  // ←/↓ turn by −1°, →/↑ by +1°; Shift turns by 15°.
+  const handleKeyDown = (e: KeyboardEvent) => {
+    const sign = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 0;
+    if (!sign) return;
+    e.preventDefault();
+    onBeginChange();
+    onChange(parseFloat((value + sign * ROTATE_KEY_STEP * (e.shiftKey ? 15 : 1)).toFixed(2)));
   };
   const needleTransform = `translate(-50%, -100%) rotate(${value}deg)`;
   return (
@@ -181,13 +217,15 @@ function RotateDial({ value, onChange, onCommit }: RotateDialProps) {
       aria-valuenow={value}
       aria-valuemin={-360}
       aria-valuemax={360}
+      aria-valuetext={`${value.toFixed(1)} degrees`}
       tabIndex={0}
+      onKeyDown={handleKeyDown}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
-      onDblClick={() => { onChange(0); onCommit(); }}
-      title="Drag to rotate · Double-click to reset"
+      onDblClick={() => { onBeginChange(); onChange(0); }}
+      title="Drag or use arrow keys to rotate · Double-click to reset"
     >
       <div className="dial-ring" aria-hidden />
       {[0, 90, 180, 270].map((t) => (
@@ -273,12 +311,12 @@ export default function ObjectTransformPanel() {
             scaleY={transform.scaleY}
             locked={lockScale}
             onChange={(sx, sy) => liveUpdate({ scaleX: sx, scaleY: sy })}
-            onCommit={pushToHistory}
+            onBeginChange={pushToHistory}
           />
           <RotateDial
             value={transform.rotate}
             onChange={(deg) => liveUpdate({ rotate: deg })}
-            onCommit={pushToHistory}
+            onBeginChange={pushToHistory}
           />
         </div>
         <div className="input-stack">

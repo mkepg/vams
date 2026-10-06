@@ -17,6 +17,7 @@ import PipelineModeControls from '@/features/pipeline-controls/ui/PipelineModeCo
 import BuffersPanel from '@/features/buffers/ui/BuffersPanel';
 import TextureLibraryPanel from '@/features/textures/ui/TextureLibraryPanel';
 import TextureAttachmentPanel from '@/features/textures/ui/TextureAttachmentPanel';
+import UVEditorPanel from '@/features/textures/ui/UVEditorPanel';
 import { getPreset } from '@/entities/project/model/scene-presets';
 import { loadProjectData } from '@/features/scene-library';
 import { addPrimitive, addTriangle } from '../helpers/store';
@@ -393,6 +394,116 @@ describe('BB-PANEL-17: Texture Library remove buttons name their texture', () =>
     const host = mount(h(TextureLibraryPanel, {}));
     await settle();
     expect(host.querySelector('button[aria-label="Remove Bricks"]')).not.toBeNull();
+    unmount(host);
+  });
+});
+
+function pointerAt(target: EventTarget, type: string, clientX: number, clientY: number) {
+  target.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX, clientY, button: 0, pointerId: 1 }));
+}
+const rotationOf = (id: string) => useVamsStore.getState().objects.find((o) => o.id === id)!.transform;
+
+describe('BB-PANEL-18: Dragging the rotate dial is one undo step back to the start', () => {
+  it('restores the pre-drag rotation with a single undo', async () => {
+    const tri = addTriangle();
+    select(tri.id);
+    useVamsStore.setState({ past: [], future: [] });
+    const host = mount(h(ObjectTransformPanel, {}));
+    const dial = host.querySelector('[role="slider"][aria-label="Rotation"]')!;
+    // happy-dom has no layout, so the dial's centre is (0, 0): (10, 0) is 0° and (0, 10) is 90°.
+    pointerAt(dial, 'pointerdown', 10, 0);
+    await settle();
+    pointerAt(dial, 'pointermove', 7, 7);
+    await settle();
+    pointerAt(dial, 'pointermove', 0, 10);
+    await settle();
+    pointerAt(dial, 'pointerup', 0, 10);
+    await settle();
+    expect(rotationOf(tri.id).rotate).toBe(90);
+    expect(useVamsStore.getState().past).toHaveLength(1);
+    useVamsStore.getState().undo();
+    await settle();
+    expect(rotationOf(tri.id).rotate).toBe(0);
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-19: The rotate dial and scale pad answer arrow keys', () => {
+  it('turns by 1° (15° with Shift) and scales by 0.05 per axis', async () => {
+    const tri = addTriangle();
+    select(tri.id);
+    useVamsStore.setState({ past: [], future: [] });
+    const host = mount(h(ObjectTransformPanel, {}));
+    const dial = host.querySelector('[role="slider"][aria-label="Rotation"]') as HTMLElement;
+    const right = key(dial, 'ArrowRight');
+    await settle();
+    expect(right.defaultPrevented).toBe(true);
+    expect(rotationOf(tri.id).rotate).toBe(1);
+    expect(useVamsStore.getState().past).toHaveLength(1);
+    key(dial, 'ArrowDown', { shiftKey: true });
+    await settle();
+    expect(rotationOf(tri.id).rotate).toBe(-14);
+    expect(host.querySelector('[role="slider"][aria-label="Rotation"]')!.getAttribute('aria-valuenow')).toBe('-14');
+
+    const pad = host.querySelector('[role="slider"][aria-label="Scale X and Y"]') as HTMLElement;
+    // Locked by default: X and Y move together.
+    key(pad, 'ArrowRight');
+    await settle();
+    expect(rotationOf(tri.id).scaleX).toBeCloseTo(1.05, 5);
+    expect(rotationOf(tri.id).scaleY).toBeCloseTo(1.05, 5);
+    (host.querySelector('button[aria-label="Unlock scale X and Y"]') as HTMLButtonElement).click();
+    await settle();
+    key(host.querySelector('[role="slider"][aria-label="Scale X and Y"]')!, 'ArrowUp');
+    await settle();
+    expect(rotationOf(tri.id).scaleX).toBeCloseTo(1.05, 5);
+    expect(rotationOf(tri.id).scaleY).toBeCloseTo(1.1, 5);
+    expect(host.querySelector('[role="slider"][aria-label="Scale X and Y"]')!.getAttribute('aria-valuetext')).toBe('scaleX 1.05, scaleY 1.10');
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-20: The UV Editor has a typed table of texture coordinates', () => {
+  it('shows the glTexCoord2f hint and updates a vertex u from its field', async () => {
+    const quad = loadTexturedQuad();
+    useVamsStore.setState({ activeSection: 'Textures', past: [], future: [] });
+    const host = mount(h(UVEditorPanel, {}));
+    await settle();
+    expect(hints(host)).toContain('glTexCoord2f(u, v)');
+    expect(host.querySelector('caption')!.textContent).toBe('Texture coordinates');
+    const u0 = fieldNamed(host, 'Vertex 0 U')!;
+    expect(u0).not.toBeNull();
+    expect(fieldNamed(host, 'Vertex 0 V')).not.toBeNull();
+    typeInto(u0, '0.25');
+    await settle();
+    const uvs = useVamsStore.getState().objects.find((o) => o.id === quad.id)!.uvs!;
+    expect(uvs[0].u).toBe(0.25);
+    expect(useVamsStore.getState().past).toHaveLength(1);
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-21: Delete on a focused tree row deletes that row', () => {
+  it('removes the focused object, not the selected one, and keeps the key from the window', async () => {
+    const a = addTriangle(-0.5, 0);
+    const b = addTriangle(0.5, 0);
+    select(a.id);
+    const host = mount(h(SceneHierarchyPanel, {}));
+    await settle();
+    const row = host.querySelector(`[role="treeitem"][data-object-id="${b.id}"]`) as HTMLElement;
+    row.focus();
+    let windowDeletes = 0;
+    const spy = (event: KeyboardEvent) => {
+      if (event.key === 'Delete') windowDeletes++;
+    };
+    window.addEventListener('keydown', spy);
+    const event = key(row, 'Delete');
+    window.removeEventListener('keydown', spy);
+    await settle();
+    expect(event.defaultPrevented).toBe(true);
+    expect(windowDeletes).toBe(0);
+    const ids = useVamsStore.getState().objects.map((o) => o.id);
+    expect(ids).toContain(a.id);
+    expect(ids).not.toContain(b.id);
     unmount(host);
   });
 });

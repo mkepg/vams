@@ -231,11 +231,15 @@ export default function SceneHierarchyPanel() {
       case 'F2':
         startRename(id);
         break;
+      case 'Delete':
+        // The focused row, which may not be the selected object; the window shortcut would delete the selection.
+        deleteWithUndo(id, row.isGroup);
+        break;
       default:
         handled = false;
     }
     if (handled) {
-      // Keep window-level shortcuts (F2 rename, Enter to finish a shape) from acting twice.
+      // Keep window-level shortcuts (F2 rename, Delete, Enter to finish a shape) from acting twice.
       e.preventDefault();
       e.stopPropagation();
     }

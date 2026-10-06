@@ -301,6 +301,19 @@
   stroke-width: 0.008;
 }
 
+.uve-table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+
+  .uve-index {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--ink-muted);
+  }
+}
+
 .uve-foot {
   display: flex;
   align-items: center;

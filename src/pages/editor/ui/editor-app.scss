@@ -2,7 +2,11 @@
   position: relative;
   display: grid;
   grid-template-rows: 44px minmax(0, 1fr);
-  grid-template-columns: 300px minmax(0, 1fr) clamp(360px, 30vw, 480px);
+  // Column widths as variables, so overlays such as the toaster can centre on the canvas.
+  --editor-column-width: 300px;
+  --editor-code-width: clamp(360px, 30vw, 480px);
+  grid-template-columns: var(--editor-column-width) minmax(0, 1fr) var(--editor-code-width);
+  height: 100vh;
   height: 100dvh;
   width: 100vw;
   overflow: hidden;
@@ -42,10 +46,12 @@
   }
 
   &--narrow {
-    grid-template-columns: minmax(0, 1fr) clamp(320px, 34vw, 400px);
+    --editor-column-width: 0px;
+    --editor-code-width: clamp(320px, 34vw, 400px);
+    grid-template-columns: minmax(0, 1fr) var(--editor-code-width);
 
     // The Panels button sits at the canvas's top-left, so the viewport chip moves after it.
-    .canvas-wrapper .viewport-info { left: 104px; }
+    .canvas-wrapper .viewport-info { left: 112px; }
 
     .editor__canvas { grid-column: 1; }
     .editor__code { grid-column: 2; }
@@ -73,6 +79,11 @@
 
   // The open drawer covers the canvas's left edge, so the button moves beside it to stay clickable.
   &.is-drawer-open .editor__panels-toggle { left: 310px; }
+
+  // Toasts centre on the canvas column at every width, so they never cover the code and math column.
+  [data-sonner-toaster][data-x-position='center'] {
+    left: calc(var(--editor-column-width) + (100vw - var(--editor-column-width) - var(--editor-code-width)) / 2);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

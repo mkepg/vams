@@ -277,7 +277,12 @@
       box-shadow: 0 0 8px rgba(var(--accent-blue-rgb), 0.2);
     }
 
+    // One line per formula; a narrow column scrolls the formula sideways instead of wrapping it.
     code {
+      min-width: 0;
+      overflow-x: auto;
+      white-space: nowrap;
+      scrollbar-width: thin;
       font-family: $font-mono;
       font-size: 0.8rem;
       color: $text-main;
@@ -286,7 +291,8 @@
       padding: 0.4rem 0.6rem;
       border-radius: 4px;
       border: 1px solid var(--rule);
-      
+      @include scrollbar;
+
       sub {
         font-size: 0.65rem;
         color: $text-dim;

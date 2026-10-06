@@ -71,9 +71,21 @@
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
+      position: relative;
       width: 14px;
       color: var(--ink-muted);
       cursor: pointer;
+
+      // A 24 × 24 px hit area around the 14 px chevron, without moving the row's layout.
+      &::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 24px;
+        height: 24px;
+        transform: translate(-50%, -50%);
+      }
     }
 
     .item-actions {

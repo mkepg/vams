@@ -3,7 +3,7 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { Grid3x3, RotateCcw, LocateFixed } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
-import { Button } from '@/shared/ui/controls';
+import { Button, DataTable, GlHint, NumberField, type DataColumn } from '@/shared/ui/controls';
 
 export default function UVEditorPanel() {
   const objects = useVamsStore((s) => s.objects);
@@ -169,6 +169,50 @@ export default function UVEditorPanel() {
     }
   };
 
+  // --- Typed coordinates: the keyboard path to every handle ---
+  // The field's onBeginChange records the undo step, so the edit itself runs batched.
+  const setUV = (index: number, patch: { u?: number; v?: number }) => {
+    const current = uvs[index];
+    startBatch();
+    updateUV(selected.id, index, { u: patch.u ?? current.u, v: patch.v ?? current.v });
+    endBatch();
+  };
+  const uvColumns: DataColumn<{ u: number; v: number }>[] = [
+    { key: 'index', header: '#', width: '28px', render: (_uv, i) => <span className="uve-index">{i}</span> },
+    {
+      key: 'u',
+      header: 'U',
+      numeric: true,
+      render: (uv, i) => (
+        <NumberField
+          label={`Vertex ${i} U`}
+          hideTag
+          value={uv.u}
+          step={0.01}
+          precision={2}
+          onBeginChange={pushToHistory}
+          onChange={(value) => setUV(i, { u: value })}
+        />
+      ),
+    },
+    {
+      key: 'v',
+      header: 'V',
+      numeric: true,
+      render: (uv, i) => (
+        <NumberField
+          label={`Vertex ${i} V`}
+          hideTag
+          value={uv.v}
+          step={0.01}
+          precision={2}
+          onBeginChange={pushToHistory}
+          onChange={(value) => setUV(i, { v: value })}
+        />
+      ),
+    },
+  ];
+
   // --- Geometry Generation ---
   const edges: Array<[number, number]> = [];
   const t = selected.type;
@@ -289,6 +333,16 @@ export default function UVEditorPanel() {
           >
             Reset
           </Button>
+        </div>
+        <div className="uve-table">
+          <GlHint call="glTexCoord2f" args="u, v" />
+          <DataTable
+            caption="Texture coordinates"
+            columns={uvColumns}
+            rows={uvs}
+            rowKey={(_uv, i) => String(i)}
+            activeRowKey={draggingIdx !== null ? String(draggingIdx) : null}
+          />
         </div>
       </div>
     </CollapsibleSection>
