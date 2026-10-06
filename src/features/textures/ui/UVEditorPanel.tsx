@@ -3,6 +3,7 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { Grid3x3, RotateCcw, LocateFixed } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
+import { Button } from '@/shared/ui/controls';
 
 export default function UVEditorPanel() {
   const objects = useVamsStore((s) => s.objects);
@@ -95,6 +96,7 @@ export default function UVEditorPanel() {
         title="UV Editor"
         icon={<Grid3x3 size={14} />}
         defaultOpen={true}
+        hint="glTexCoord2f"
       >
         <div className="uve-empty">
           Apply a texture to a primitive to edit its UV coordinates.
@@ -196,6 +198,7 @@ export default function UVEditorPanel() {
       title="UV Editor"
       icon={<Grid3x3 size={14} />}
       defaultOpen={true}
+      hint="glTexCoord2f"
     >
       <div className="uve-panel">
         <div
@@ -207,14 +210,14 @@ export default function UVEditorPanel() {
           onPointerLeave={onPointerUp}
           onContextMenu={(e) => e.preventDefault()}
         >
-          <button
-            type="button"
+          <Button
+            variant="quiet"
+            iconOnly
+            label="Recenter Camera"
+            icon={<LocateFixed size={14} />}
             className="uve-recenter"
             onClick={() => setCamera({ cx: 0.5, cy: 0.5, zoom: 2.0 })}
-            title="Recenter Camera"
-          >
-            <LocateFixed size={12} />
-          </button>
+          />
           
           <svg
             className="uve-stage-svg"
@@ -277,15 +280,15 @@ export default function UVEditorPanel() {
           <span className="uve-foot-hint">
             Drag handles to edit UVs. <strong>Shift + Drag</strong> to pan. <strong>Shift + Scroll</strong> to zoom.
           </span>
-          <button
-            type="button"
+          <Button
+            variant="quiet"
             className="uve-reset"
+            icon={<RotateCcw size={13} />}
             onClick={() => resetUVsToDefault(selected.id)}
             title="Reset UVs to default unit-square mapping"
           >
-            <RotateCcw size={11} />
-            <span>Reset</span>
-          </button>
+            Reset
+          </Button>
         </div>
       </div>
     </CollapsibleSection>

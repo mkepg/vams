@@ -13,6 +13,12 @@ import CustomShapeBuilderPanel from '@/features/custom-shapes/ui/CustomShapeBuil
 import ObjectAppearancePanel from '@/features/object-appearance/ui/ObjectAppearancePanel';
 import LineStylePanel from '@/features/line-style/ui/LineStylePanel';
 import CallbacksPanel from '@/features/callbacks/ui/CallbacksPanel';
+import PipelineModeControls from '@/features/pipeline-controls/ui/PipelineModeControls';
+import BuffersPanel from '@/features/buffers/ui/BuffersPanel';
+import TextureLibraryPanel from '@/features/textures/ui/TextureLibraryPanel';
+import TextureAttachmentPanel from '@/features/textures/ui/TextureAttachmentPanel';
+import { getPreset } from '@/entities/project/model/scene-presets';
+import { loadProjectData } from '@/features/scene-library';
 import { addPrimitive, addTriangle } from '../helpers/store';
 
 async function settle() {
@@ -313,6 +319,80 @@ describe('BB-PANEL-13: Scene Hierarchy groups expand, collapse and rename from t
     const inputs = host.querySelectorAll('.rename-input');
     expect(inputs).toHaveLength(1);
     expect(inputs[0].closest('[role="treeitem"]')).toBe(group);
+    unmount(host);
+  });
+});
+
+function loadTexturedQuad() {
+  loadProjectData(getPreset('textured-quad')!.data);
+  const quad = useVamsStore.getState().objects[0];
+  select(quad.id);
+  return quad;
+}
+
+describe('BB-PANEL-14: Viewport mode is an arrow-key radiogroup', () => {
+  it('moves the mode with ArrowDown', async () => {
+    useVamsStore.setState({ activeSection: 'Pipeline', pipelineMode: 'Playground' });
+    const host = mount(h(PipelineModeControls, {}));
+    const group = host.querySelector('[role="radiogroup"][aria-label="Viewport mode"]')!;
+    const radios = group.querySelectorAll('[role="radio"]');
+    expect([...radios].map((r) => r.textContent?.trim())).toEqual(['Coordinate Playground', 'Pipeline Diagram', 'Raster vs. Vector']);
+    key(radios[0], 'ArrowDown');
+    await settle();
+    expect(useVamsStore.getState().pipelineMode).toBe('Diagram');
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-15: Buffers names its GL calls and keeps keyboard radiogroups', () => {
+  it('shows the header hint and moves the rendering mode with arrows', async () => {
+    const tri = addTriangle();
+    select(tri.id);
+    useVamsStore.setState({ activeSection: 'Buffers' });
+    const host = mount(h(BuffersPanel, {}));
+    await settle();
+    expect(hints(host)).toContain('glVertexPointer');
+    const group = host.querySelector('[role="radiogroup"][aria-label="Rendering mode"]')!;
+    const radios = [...group.querySelectorAll('[role="radio"]')] as HTMLElement[];
+    const checkedBefore = radios.findIndex((r) => r.getAttribute('aria-checked') === 'true');
+    expect(radios[checkedBefore].getAttribute('tabindex')).toBe('0');
+    key(radios[checkedBefore], 'ArrowRight');
+    await settle();
+    const after = [...host.querySelectorAll('[role="radiogroup"][aria-label="Rendering mode"] [role="radio"]')];
+    expect(after.findIndex((r) => r.getAttribute('aria-checked') === 'true')).toBe((checkedBefore + 1) % radios.length);
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-16: Apply Texture uses GL constant segmented controls', () => {
+  it('shows filter and wrap with their glTexParameteri hints', async () => {
+    loadTexturedQuad();
+    useVamsStore.setState({ activeSection: 'Textures' });
+    const host = mount(h(TextureAttachmentPanel, {}));
+    await settle();
+    expect(hints(host)).toEqual(expect.arrayContaining([
+      'glBindTexture',
+      'glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter)',
+      'glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap)',
+    ]));
+    const filter = host.querySelector('[role="radiogroup"][aria-label="Filter mode"]')!;
+    expect([...filter.querySelectorAll('[role="radio"]')].map((r) => r.textContent)).toEqual(['GL_NEAREST', 'GL_LINEAR']);
+    ([...filter.querySelectorAll('[role="radio"]')][1] as HTMLButtonElement).click();
+    await settle();
+    const linear = [...host.querySelectorAll('[role="radiogroup"][aria-label="Filter mode"] [role="radio"]')][1];
+    expect(linear.getAttribute('aria-checked')).toBe('true');
+    const wrap = host.querySelector('[role="radiogroup"][aria-label="Wrap mode"]')!;
+    expect([...wrap.querySelectorAll('[role="radio"]')].map((r) => r.textContent)).toEqual(['GL_REPEAT', 'GL_CLAMP_TO_EDGE']);
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-17: Texture Library remove buttons name their texture', () => {
+  it('labels each remove button with the texture name', async () => {
+    useVamsStore.setState({ uploadedTextures: [{ id: 'tex-1', name: 'Bricks', isSample: false, dataUrl: 'data:image/png;base64,', width: 4, height: 4 }] });
+    const host = mount(h(TextureLibraryPanel, {}));
+    await settle();
+    expect(host.querySelector('button[aria-label="Remove Bricks"]')).not.toBeNull();
     unmount(host);
   });
 });

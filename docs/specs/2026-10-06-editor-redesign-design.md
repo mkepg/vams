@@ -275,8 +275,10 @@ Hints name the call exactly as the code generator emits it, with parameter names
 | Line Style | pattern and factor | `glLineStipple(factor, pattern)` |
 | Create Primitive | primitive buttons | the button labels already are the GL constants (`GL_TRIANGLES`, …) |
 | Create Primitive | vertex rows | `glVertex2f(x, y)` |
-| Buffers | storage choice | `glVertexPointer` / `glBufferData` (per option) |
+| Buffers | header | `glVertexPointer` |
+| Buffers | rendering mode | `glBegin(mode)` / `glVertexPointer(2, GL_FLOAT, 0, verts)` / `glBufferData(GL_ARRAY_BUFFER, size, data, usage)` (per option) |
 | Buffers | usage hint | `glBufferData(…, usage)` |
+| Buffers | update method | `glBufferSubData(GL_ARRAY_BUFFER, 0, size, data)` / `glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY)` (per option) |
 | Apply Texture | header | `glBindTexture` |
 | Apply Texture | filter | `glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter)` |
 | Apply Texture | wrap | `glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap)` |

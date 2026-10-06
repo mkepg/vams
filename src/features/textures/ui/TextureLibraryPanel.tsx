@@ -4,6 +4,7 @@ import { Image as ImageIcon, Upload, Trash2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useVamsStore } from '@/core/store';
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
+import { Button } from '@/shared/ui/controls';
 import type { TextureAsset } from '@/core/types/textures';
 
 const MAX_BYTES = 4 * 1024 * 1024; // 4 MB ceiling per upload
@@ -82,14 +83,13 @@ export default function TextureLibraryPanel() {
           onChange={handleFileChange}
           style={{ display: 'none' }}
         />
-        <button
-          type="button"
+        <Button
           className="tx-upload-btn"
+          icon={<Upload size={13} />}
           onClick={() => fileInputRef.current?.click()}
         >
-          <Upload size={13} />
-          <span>Upload Image</span>
-        </button>
+          Upload Image
+        </Button>
 
         <div className="tx-section-label">
           <Sparkles size={11} />
@@ -157,14 +157,14 @@ function TextureCard({ asset, active, onSelect, onDelete }: CardProps) {
       <div className="tx-card-meta">
         <span className="tx-card-name" title={asset.name}>{asset.name}</span>
         {onDelete && (
-          <button
-            type="button"
+          <Button
+            variant="quiet"
+            iconOnly
+            label={`Remove ${asset.name}`}
+            icon={<Trash2 size={13} />}
             className="tx-card-del"
             onClick={onDelete}
-            title="Remove"
-          >
-            <Trash2 size={11} />
-          </button>
+          />
         )}
       </div>
     </div>

@@ -1,7 +1,8 @@
 import './textures-panels.scss';
-import { Link, Unlink, Hash, Filter, Repeat, Square as SquareIcon, ImageOff } from 'lucide-react';
+import { Link, Unlink, ImageOff } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
+import { Button, GlHint, SegmentedControl } from '@/shared/ui/controls';
 import type { SceneNode } from '@/core/types/scene';
 import type { TextureFilter, TextureWrap } from '@/core/types/textures';
 
@@ -29,6 +30,7 @@ export default function TextureAttachmentPanel() {
         title="Apply Texture"
         icon={<Link size={14} />}
         defaultOpen={true}
+        hint="glBindTexture"
       >
         <div className="tx-attach-empty">
           <ImageOff size={28} strokeWidth={1.5} />
@@ -56,6 +58,7 @@ export default function TextureAttachmentPanel() {
       title="Apply Texture"
       icon={<Link size={14} />}
       defaultOpen={true}
+      hint="glBindTexture"
     >
       <div className="tx-attach">
         {attached ? (
@@ -70,19 +73,18 @@ export default function TextureAttachmentPanel() {
                 {attached.width} × {attached.height}
               </span>
             </div>
-            <button
-              type="button"
-              className="tx-attach-detach"
+            <Button
+              icon={<Unlink size={13} />}
               onClick={() => detachTexture(selected.id)}
             >
-              <Unlink size={11} />
-              <span>Detach</span>
-            </button>
+              Detach
+            </Button>
           </div>
         ) : (
-          <button
-            type="button"
+          <Button
+            variant="primary"
             className="tx-attach-apply"
+            icon={<Link size={13} />}
             disabled={!canApply}
             onClick={() => candidate && attachTexture(selected.id, candidate.id)}
             title={
@@ -91,71 +93,40 @@ export default function TextureAttachmentPanel() {
                 : 'Pick a texture in the library first'
             }
           >
-            <Link size={13} />
-            <span>
-              {canApply ? `Apply "${candidate!.name}"` : 'Pick a texture in the library above'}
-            </span>
-          </button>
+            {canApply ? `Apply "${candidate!.name}"` : 'Pick a texture in the library above'}
+          </Button>
         )}
 
         {selected.texture && (
           <>
             <div className="tx-attach-block">
-              <div className="tx-attach-block-head">
-                <span className="tx-attach-block-label">Filter</span>
-                <span className="tx-attach-block-hint">
-                  {filter === 'NEAREST' ? 'GL_NEAREST' : 'GL_LINEAR'}
-                </span>
-              </div>
-              <div className="tx-attach-toggle" role="radiogroup" aria-label="Filter mode">
-                <button
-                  type="button"
-                  className={filter === 'NEAREST' ? 'active' : ''}
-                  onClick={() => updateTextureFilter(selected.id, 'NEAREST')}
-                  title="Nearest-neighbour sampling — blocky on zoom"
-                >
-                  <Hash size={11} />
-                  <span>Nearest</span>
-                </button>
-                <button
-                  type="button"
-                  className={filter === 'LINEAR' ? 'active' : ''}
-                  onClick={() => updateTextureFilter(selected.id, 'LINEAR')}
-                  title="Bilinear sampling — smooth on zoom"
-                >
-                  <Filter size={11} />
-                  <span>Linear</span>
-                </button>
-              </div>
+              <span className="tx-attach-block-label">Filter</span>
+              <GlHint call="glTexParameteri" args="GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter" />
+              <SegmentedControl<TextureFilter>
+                label="Filter mode"
+                mono
+                options={[
+                  { value: 'NEAREST', label: 'GL_NEAREST', title: 'Nearest-neighbour sampling — blocky on zoom' },
+                  { value: 'LINEAR', label: 'GL_LINEAR', title: 'Bilinear sampling — smooth on zoom' },
+                ]}
+                value={filter}
+                onChange={(next) => updateTextureFilter(selected.id, next)}
+              />
             </div>
 
             <div className="tx-attach-block">
-              <div className="tx-attach-block-head">
-                <span className="tx-attach-block-label">Wrap</span>
-                <span className="tx-attach-block-hint">
-                  {wrap === 'REPEAT' ? 'GL_REPEAT' : 'GL_CLAMP_TO_EDGE'}
-                </span>
-              </div>
-              <div className="tx-attach-toggle" role="radiogroup" aria-label="Wrap mode">
-                <button
-                  type="button"
-                  className={wrap === 'REPEAT' ? 'active' : ''}
-                  onClick={() => updateTextureWrap(selected.id, 'REPEAT')}
-                  title="Tile the texture beyond [0,1]"
-                >
-                  <Repeat size={11} />
-                  <span>Repeat</span>
-                </button>
-                <button
-                  type="button"
-                  className={wrap === 'CLAMP_TO_EDGE' ? 'active' : ''}
-                  onClick={() => updateTextureWrap(selected.id, 'CLAMP_TO_EDGE')}
-                  title="Stretch the edge pixels beyond [0,1]"
-                >
-                  <SquareIcon size={11} />
-                  <span>Clamp</span>
-                </button>
-              </div>
+              <span className="tx-attach-block-label">Wrap</span>
+              <GlHint call="glTexParameteri" args="GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap" />
+              <SegmentedControl<TextureWrap>
+                label="Wrap mode"
+                mono
+                options={[
+                  { value: 'REPEAT', label: 'GL_REPEAT', title: 'Tile the texture beyond [0,1]' },
+                  { value: 'CLAMP_TO_EDGE', label: 'GL_CLAMP_TO_EDGE', title: 'Stretch the edge pixels beyond [0,1]' },
+                ]}
+                value={wrap}
+                onChange={(next) => updateTextureWrap(selected.id, next)}
+              />
             </div>
           </>
         )}
