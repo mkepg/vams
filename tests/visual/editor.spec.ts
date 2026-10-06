@@ -6,14 +6,27 @@ import { test, expect, type Page } from '@playwright/test';
 
 type Theme = 'vellum' | 'blueprint';
 
+// Timed notices stay out of screenshots: the offline notice appears once the service worker
+// installs, and toasts appear on their own schedule.
+const HIDE_TIMED_NOTICES = '.update-notice, [data-sonner-toaster] { display: none !important; }';
+
 async function open(page: Page, path: string, theme: Theme = 'vellum') {
-  await page.addInitScript((t) => {
-    window.localStorage.setItem('vams-theme', t);
-  }, theme);
+  await page.addInitScript(
+    ({ t, css }) => {
+      window.localStorage.setItem('vams-theme', t);
+      // Injected before any app script runs, so a notice never paints even for one frame.
+      const inject = () => {
+        const style = document.createElement('style');
+        style.textContent = css;
+        (document.head ?? document.documentElement).appendChild(style);
+      };
+      if (document.documentElement) inject();
+      else document.addEventListener('DOMContentLoaded', inject, { once: true });
+    },
+    { t: theme, css: HIDE_TIMED_NOTICES },
+  );
   await page.goto(path);
   await page.waitForSelector('.editor');
-  // The offline notice appears on a timer once the service worker installs; keep it out of screenshots.
-  await page.addStyleTag({ content: '.update-notice { display: none !important; }' });
   await page.evaluate(async () => {
     await document.fonts.ready;
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
