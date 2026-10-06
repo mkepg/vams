@@ -215,7 +215,7 @@ Every control renders a visible label, or, for icon-only buttons, both an `aria-
 
 ### 4.4 ColorField behaviour
 
-- **Value:** a hex string, `#rrggbb`. The swatch is a native colour input, and the hex field accepts 3- or 6-digit hex with or without a leading `#`. Invalid hex shows "Enter a hex colour like #B91C1C" and reverts.
+- **Value:** a hex string, `#rrggbb`. The swatch is a native colour input, and the hex field accepts 3- or 6-digit hex with or without a leading `#`. Invalid hex shows "Enter a hex color like #B91C1C" and reverts.
 - **GL readout:** `glColor3f(r, g, b)`, each value rounded to 2 decimals. When the object's emission mode is `glColor3ub` (from the Appearance panel), the readout is `glColor3ub(r, g, b)` with integers 0–255.
   - The background colour field uses `glClearColor(r, g, b, 1.0)`.
   - The field takes a `glCall: 'glColor3f' | 'glColor3ub' | 'glClearColor'` prop.
