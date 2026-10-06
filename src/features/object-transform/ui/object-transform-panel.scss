@@ -1,23 +1,16 @@
-@use '../../../shared/styles/tokens' as *;
-
 .transform-panel {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  /* Never widen beyond the container — lets children use min-width:0 properly */
+  gap: var(--space-3);
   min-width: 0;
 }
 
-/* ------------------------------------------------------------ */
-/* Gizmo row: scale pad + rotation dial                          */
-/* ------------------------------------------------------------ */
-
+/* Scale pad and rotate dial, side by side. */
 .gizmo-row {
   display: grid;
-  /* Dial has a fixed size; pad takes the rest */
-  grid-template-columns: 1fr 72px;
-  gap: 0.55rem;
-  align-items: start;
+  grid-template-columns: repeat(2, 128px);
+  justify-content: space-between;
+  gap: var(--space-3);
   min-width: 0;
 }
 
@@ -25,451 +18,230 @@
   min-width: 0;
 }
 
-.scale-pad {
+.scale-pad,
+.rotate-dial {
   position: relative;
-  width: 100%;
-  /* Cap the square so it never dominates the panel */
-  max-width: 180px;
-  aspect-ratio: 1 / 1;
-  margin: 0 auto;
-  background:
-    radial-gradient(circle at 50% 50%, rgba(var(--accent-blue-rgb), 0.08), transparent 70%),
-    rgba(var(--well-rgb), 0.28);
-  border: 1px solid $border-color;
-  border-radius: 6px;
-  cursor: grab;
+  width: 128px;
+  height: 128px;
+  background: var(--paper-sunken);
+  border: 1px solid var(--field-line);
   user-select: none;
-  overflow: hidden;
   touch-action: none;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  cursor: grab;
 
-  &:hover {
-    border-color: var(--border-highlight);
-  }
   &:focus-visible {
     outline: 2px solid var(--focus-ring);
-    outline-offset: 1px;
+    outline-offset: 2px;
   }
   &.dragging {
     cursor: grabbing;
-    border-color: $accent-blue-text;
-    box-shadow: 0 0 0 2px rgba(var(--accent-blue-rgb), 0.22) inset;
-    .pad-puck {
-      background: var(--accent-blue-light);
-      box-shadow: 0 0 14px rgba(var(--accent-blue-rgb), 0.85);
-    }
+    border-color: var(--live);
+    box-shadow: inset 0 0 0 2px var(--live-tint);
   }
+}
+
+.scale-pad {
+  border-radius: var(--radius-m);
+  overflow: hidden;
 
   .pad-grid {
     position: absolute;
     inset: 0;
     pointer-events: none;
-
-    .pad-axis {
-      position: absolute;
-      background: rgba(var(--accent-blue-rgb), 0.08);
-    }
-    .pad-axis-x {
-      left: 8%;
-      right: 8%;
-      top: 50%;
-      height: 1px;
-    }
-    .pad-axis-y {
-      top: 8%;
-      bottom: 8%;
-      left: 50%;
-      width: 1px;
-    }
-    /* Identity marker — outlined ring at center (scale = 1,1) */
-    .pad-identity {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      border: 1px solid rgba(var(--accent-blue-rgb), 0.55);
-      transform: translate(-50%, -50%);
-      box-shadow: 0 0 6px rgba(var(--accent-blue-rgb), 0.25);
-    }
-    /* Guide rail shown while aspect-lock is on */
-    .pad-diagonal {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 141%; /* √2 ≈ 1.414 so the line reaches corner-to-corner */
-      height: 1px;
-      background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(var(--accent-blue-rgb), 0.35),
-        rgba(var(--accent-blue-rgb), 0.35),
-        transparent
-      );
-      transform: translate(-50%, -50%) rotate(-45deg);
-    }
   }
-
+  .pad-axis {
+    position: absolute;
+    background: var(--hairline);
+  }
+  .pad-axis-x {
+    left: 8%;
+    right: 8%;
+    top: 50%;
+    height: 1px;
+  }
+  .pad-axis-y {
+    top: 8%;
+    bottom: 8%;
+    left: 50%;
+    width: 1px;
+  }
+  .pad-identity {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1px solid var(--ink-faint);
+    transform: translate(-50%, -50%);
+  }
+  /* Guide rail shown while the aspect lock is on. */
+  .pad-diagonal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 141%;
+    height: 1px;
+    background: var(--hairline);
+    transform: translate(-50%, -50%) rotate(-45deg);
+  }
   .pad-puck {
     position: absolute;
-    width: 11px;
-    height: 11px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
-    background: rgba(var(--accent-blue-rgb), 0.85);
-    border: 2px solid rgba(var(--well-rgb), 0.6);
+    background: var(--live);
+    border: 2px solid var(--paper-raised);
     transform: translate(-50%, -50%);
-    box-shadow: 0 0 8px rgba(var(--accent-blue-rgb), 0.5);
-    transition: background-color 0.15s ease, box-shadow 0.15s ease;
     pointer-events: none;
   }
-
   .pad-readout {
     position: absolute;
     bottom: 3px;
     right: 4px;
-    font-family: $font-mono;
-    font-size: 0.58rem;
-    color: $text-dim;
-    background: rgba(var(--well-rgb), 0.55);
-    padding: 0.05rem 0.28rem;
-    border-radius: 2px;
-    letter-spacing: 0.03em;
+    padding: 0 var(--space-1);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    color: var(--ink-muted);
+    background: var(--paper);
+    border-radius: var(--radius-s);
     pointer-events: none;
   }
 }
 
-/* ------------------------------------------------------------ */
-/* Rotation dial                                                 */
-/* ------------------------------------------------------------ */
-
 .rotate-dial {
-  position: relative;
-  width: 72px;
-  height: 72px;
-  justify-self: center;
-  background:
-    radial-gradient(circle at 50% 50%, rgba(var(--accent-blue-rgb), 0.06), transparent 70%),
-    rgba(var(--well-rgb), 0.28);
-  border: 1px solid $border-color;
   border-radius: 50%;
-  cursor: grab;
-  user-select: none;
-  touch-action: none;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
-  /* Leave room underneath for the degree readout */
-  margin-bottom: 0.85rem;
-
-  &:hover { border-color: var(--border-highlight); }
-  &:focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 1px;
-  }
-  &.dragging {
-    cursor: grabbing;
-    border-color: $accent-blue-text;
-    box-shadow: 0 0 0 2px rgba(var(--accent-blue-rgb), 0.22) inset;
-  }
 
   .dial-ring {
     position: absolute;
-    inset: 5px;
-    border: 1px dashed var(--rule);
+    inset: 8px;
+    border: 1px dashed var(--ink-faint);
     border-radius: 50%;
     pointer-events: none;
   }
-
   .dial-tick {
     position: absolute;
     top: 0;
     left: 50%;
     width: 1px;
-    height: 5px;
-    background: rgba(var(--accent-blue-rgb), 0.25);
-    /* Rotate about the dial center, not the tick's own top */
-    transform-origin: 50% 36px;
+    height: 8px;
+    background: var(--ink-faint);
+    transform-origin: 50% 64px;
     pointer-events: none;
   }
-
   .dial-needle {
     position: absolute;
     top: 50%;
     left: 50%;
     width: 2px;
     height: 40%;
-    background: linear-gradient(
-      180deg,
-      var(--accent-blue-light),
-      rgba(var(--accent-blue-rgb), 0.3) 90%,
-      transparent
-    );
+    background: var(--live);
     transform-origin: bottom center;
     border-radius: 1px;
-    box-shadow: 0 0 5px rgba(var(--accent-blue-rgb), 0.6);
     pointer-events: none;
   }
-
   .dial-hub {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 7px;
-    height: 7px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    background: var(--accent-blue-light);
+    background: var(--live);
     transform: translate(-50%, -50%);
-    box-shadow: 0 0 6px rgba(var(--accent-blue-rgb), 0.6);
     pointer-events: none;
   }
-
   .dial-readout {
     position: absolute;
-    bottom: -3px;
+    bottom: 14px;
     left: 50%;
-    transform: translate(-50%, 100%);
-    font-family: $font-mono;
-    font-size: 0.58rem;
-    color: $text-dim;
+    transform: translateX(-50%);
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    color: var(--ink-muted);
     white-space: nowrap;
     pointer-events: none;
   }
 }
 
-/* ------------------------------------------------------------ */
-/* Numeric rows                                                  */
-/* ------------------------------------------------------------ */
-
+/* Numeric rows, one GL call per group. */
 .input-stack {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  margin-top: 0.15rem;
+  gap: var(--space-3);
   min-width: 0;
 }
 
-.row-group {
-  min-width: 0;
-  /* Axis tint on the label icon to reinforce X/Y/R association. */
-  &[data-axis='x'] .input-row label .icon { color: var(--channel-r); }
-  &[data-axis='y'] .input-row label .icon { color: var(--channel-g); }
-  &[data-axis='r'] .input-row label .icon { color: var(--accent-blue-light); }
-}
-
-/* Tight input-row layout — label takes remaining space, input is fixed */
-.input-row {
+.tp-group {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8rem;
+  flex-direction: column;
+  gap: var(--space-1);
   min-width: 0;
-
-  label {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    color: $text-muted;
-    min-width: 0;
-    flex: 1;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-
-    .icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: $text-dim;
-      flex-shrink: 0;
-
-      svg { opacity: 0.9; }
-    }
-  }
-
-  input[type='number'] {
-    width: 72px;
-    flex-shrink: 0;
-    background-color: $bg-input;
-    border: 1px solid $border-color;
-    border-radius: 4px;
-    padding: 3px 6px;
-    text-align: right;
-    font-family: $font-mono;
-    font-size: 0.75rem;
-    color: $text-main;
-    -moz-appearance: textfield;
-
-    &::-webkit-outer-spin-button,
-    &::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
-    }
-
-    &:focus {
-      outline: none;
-      border-color: $accent-blue-text;
-      box-shadow: 0 0 0 2px rgba(var(--accent-blue-rgb), 0.18);
-    }
-  }
 }
 
-/* ------------------------------------------------------------ */
-/* Scale section with aspect-lock                                */
-/* ------------------------------------------------------------ */
-
-.scale-section {
-  position: relative;
+.tp-row {
   display: grid;
-  grid-template-columns: 20px 1fr;
-  gap: 0.3rem;
-  align-items: stretch;
+  grid-template-columns: 3.75rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
   min-width: 0;
-
-  .lock-toggle {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: 1px solid $border-color;
-    border-radius: 4px;
-    color: $text-dim;
-    cursor: pointer;
-    padding: 0;
-    transition: all 0.15s ease;
-
-    /* Bracket cues connecting the button to the two rows it links */
-    &::before, &::after {
-      content: '';
-      position: absolute;
-      right: -2px;
-      width: 4px;
-      border: 1px solid transparent;
-    }
-    &::before {
-      top: 6px;
-      bottom: 50%;
-      border-right: none;
-      border-top-right-radius: 3px;
-      border-bottom: none;
-    }
-    &::after {
-      top: 50%;
-      bottom: 6px;
-      border-right: none;
-      border-top: none;
-      border-bottom-right-radius: 3px;
-    }
-
-    &:hover {
-      color: $text-main;
-      border-color: var(--border-highlight);
-    }
-
-    &.on {
-      color: var(--accent-blue-light);
-      border-color: rgba(var(--accent-blue-rgb), 0.45);
-      background-color: rgba(var(--accent-blue-rgb), 0.1);
-
-      &::before, &::after {
-        border-color: rgba(var(--accent-blue-rgb), 0.45);
-      }
-    }
-  }
-
-  .scale-inputs {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    min-width: 0;
-  }
 }
 
-/* ------------------------------------------------------------ */
-/* Matrix readout — horizontally scrollable so it never overflows */
-/* ------------------------------------------------------------ */
+.tp-row__label {
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+}
+
+.tp-row__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.tp-row__fields--lock {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: var(--space-1);
+}
 
 .transform-matrix {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.5rem;
-  background: rgba(var(--well-rgb), 0.25);
-  border: 1px solid $border-color;
-  border-radius: 4px;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--paper-sunken);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-m);
   min-width: 0;
 
   .matrix-label {
-    font-family: $font-mono;
-    font-size: 0.58rem;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: $text-dim;
+    color: var(--ink-faint);
     flex-shrink: 0;
   }
-
   .matrix-value {
     flex: 1;
     min-width: 0;
-    font-family: $font-mono;
+    font-family: var(--font-mono);
     font-size: 0.68rem;
-    color: $text-muted;
+    color: var(--ink-muted);
     white-space: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
-    -ms-overflow-style: none;
     scrollbar-width: none;
 
-    &::-webkit-scrollbar { display: none; }
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 }
-
-/* ------------------------------------------------------------ */
-/* Footer actions                                                */
-/* ------------------------------------------------------------ */
 
 .transform-footer {
   display: flex;
-  gap: 0.35rem;
+  gap: var(--space-2);
   justify-content: flex-end;
   flex-wrap: wrap;
-
-  .footer-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.28rem 0.5rem;
-    background: transparent;
-    border: 1px solid $border-color;
-    border-radius: 4px;
-    color: $text-muted;
-    font-family: $font-mono;
-    font-size: 0.66rem;
-    letter-spacing: 0.04em;
-    cursor: pointer;
-    transition: all 0.15s ease;
-
-    &:hover:not(:disabled) {
-      color: $text-main;
-      border-color: var(--border-highlight);
-      background: rgba(var(--accent-blue-rgb), 0.03);
-    }
-    &:disabled {
-      opacity: 0.35;
-      cursor: not-allowed;
-    }
-  }
-}
-
-/* ------------------------------------------------------------ */
-/* Narrow fallback — stack gizmos vertically in very tight panels */
-/* ------------------------------------------------------------ */
-
-@container (max-width: 260px) {
-  .gizmo-row {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-    justify-items: center;
-  }
-  .scale-pad { max-width: 160px; }
 }

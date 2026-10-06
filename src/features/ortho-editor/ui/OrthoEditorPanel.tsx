@@ -1,16 +1,8 @@
 import './ortho-editor-panel.scss';
-import {
-  ScanLine,
-  RotateCcw,
-  ChevronLeft,
-  ChevronRight,
-  ChevronUp,
-  ChevronDown,
-  Info,
-} from 'lucide-react';
+import { ScanLine, RotateCcw, Info } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
-import NumberInput from '@/shared/ui/number-input/NumberInput';
+import { Button, GlHint, NumberField } from '@/shared/ui/controls';
 import type { ViewportLimits } from '@/core/types/scene';
 
 const DEFAULT_LIMITS: ViewportLimits = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
@@ -34,7 +26,6 @@ export default function OrthoEditorPanel() {
     // Reject collapsed or inverted ranges — they break glOrtho's visible volume
     // and produce a dead canvas. Silent rejection is friendlier than a toast.
     if (next.minX >= next.maxX || next.minY >= next.maxY) return;
-    pushToHistory();
     setViewportLimits(next);
   };
 
@@ -58,6 +49,7 @@ export default function OrthoEditorPanel() {
       panelId="ortho-editor"
       title="Viewing Volume"
       icon={<ScanLine size={14} />}
+      hint="glOrtho"
       defaultOpen={true}
     >
       <div className="oep-panel">
@@ -97,47 +89,24 @@ export default function OrthoEditorPanel() {
         </div>
 
         {/* ----- Numeric inputs (X-axis pair, then Y-axis pair) ----- */}
+        <GlHint call="glOrtho" args="left, right, bottom, top, -1.0, 1.0" />
         <div className="oep-inputs">
-          <div className="oep-row" data-axis="x">
-            <NumberInput
-              label="Left"
-              value={limits.minX}
-              onChange={(v) => commit({ minX: v })}
-              icon={<ChevronLeft size={14} />}
-              step={0.1}
-              precision={2}
-            />
-          </div>
-          <div className="oep-row" data-axis="x">
-            <NumberInput
-              label="Right"
-              value={limits.maxX}
-              onChange={(v) => commit({ maxX: v })}
-              icon={<ChevronRight size={14} />}
-              step={0.1}
-              precision={2}
-            />
-          </div>
-          <div className="oep-row" data-axis="y">
-            <NumberInput
-              label="Bottom"
-              value={limits.minY}
-              onChange={(v) => commit({ minY: v })}
-              icon={<ChevronDown size={14} />}
-              step={0.1}
-              precision={2}
-            />
-          </div>
-          <div className="oep-row" data-axis="y">
-            <NumberInput
-              label="Top"
-              value={limits.maxY}
-              onChange={(v) => commit({ maxY: v })}
-              icon={<ChevronUp size={14} />}
-              step={0.1}
-              precision={2}
-            />
-          </div>
+          <NumberField
+            label="Left" tag="Left" axis="x" value={limits.minX} step={0.1} precision={2}
+            onBeginChange={pushToHistory} onChange={(v) => commit({ minX: v })}
+          />
+          <NumberField
+            label="Right" tag="Right" axis="x" value={limits.maxX} step={0.1} precision={2}
+            onBeginChange={pushToHistory} onChange={(v) => commit({ maxX: v })}
+          />
+          <NumberField
+            label="Bottom" tag="Bottom" axis="y" value={limits.minY} step={0.1} precision={2}
+            onBeginChange={pushToHistory} onChange={(v) => commit({ minY: v })}
+          />
+          <NumberField
+            label="Top" tag="Top" axis="y" value={limits.maxY} step={0.1} precision={2}
+            onBeginChange={pushToHistory} onChange={(v) => commit({ maxY: v })}
+          />
         </div>
 
         {/* ----- Footer: live size + reset ----- */}
@@ -148,16 +117,15 @@ export default function OrthoEditorPanel() {
               {width.toFixed(2)} × {height.toFixed(2)}
             </code>
           </span>
-          <button
-            type="button"
-            className="oep-reset"
+          <Button
+            variant="quiet"
+            icon={<RotateCcw size={11} />}
             onClick={reset}
             disabled={isDefault}
             title="Reset to glOrtho(-1, 1, -1, 1)"
           >
-            <RotateCcw size={11} />
-            <span>Reset</span>
-          </button>
+            Reset
+          </Button>
         </div>
 
         {/* ----- Inline note ----- */}

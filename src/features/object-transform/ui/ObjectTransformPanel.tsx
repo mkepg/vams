@@ -1,19 +1,10 @@
 import './object-transform-panel.scss';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import {
-  Move,
-  RotateCw,
-  Link2,
-  Unlink2,
-  RotateCcw,
-  Maximize2,
-  MoveHorizontal,
-  MoveVertical,
-} from 'lucide-react';
+import { Move, Link2, Unlink2, RotateCcw, Maximize2 } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
 import EmptySelectionState from '@/shared/ui/empty-state/EmptySelectionState';
-import NumberInput from '@/shared/ui/number-input/NumberInput';
+import { Button, GlHint, NumberField } from '@/shared/ui/controls';
 import type { TransformState } from '@/core/types/scene';
 const DEFAULT_TRANSFORM: TransformState = {
   translateX: 0,
@@ -22,20 +13,6 @@ const DEFAULT_TRANSFORM: TransformState = {
   scaleX: 1,
   scaleY: 1,
 };
-const ScaleXIcon = ({ size = 14 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 12H4" />
-    <rect width="4" height="4" x="2" y="10" rx="1" />
-    <rect width="4" height="4" x="18" y="10" rx="1" />
-  </svg>
-);
-const ScaleYIcon = ({ size = 14 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 20V4" />
-    <rect width="4" height="4" x="10" y="2" rx="1" />
-    <rect width="4" height="4" x="10" y="18" rx="1" />
-  </svg>
-);
 const SCALE_RANGE = 2.5;
 const SCALE_MIN = -SCALE_RANGE + 1 + 0.01;
 const SCALE_MAX = SCALE_RANGE + 1;
@@ -241,22 +218,22 @@ export default function ObjectTransformPanel() {
     },
     [selectedObjectId, updateObjectTransform],
   );
-  const handleScaleChange = useCallback(
+  const applyScale = useCallback(
     (axis: 'X' | 'Y', value: number) => {
       if (!selectedObject) return;
       if (lockScale) {
         const { scaleX, scaleY } = selectedObject.transform;
         const source = axis === 'X' ? scaleX : scaleY;
         const ratio = source === 0 ? 1 : value / source;
-        commit({
+        liveUpdate({
           scaleX: parseFloat((scaleX * ratio).toFixed(4)),
           scaleY: parseFloat((scaleY * ratio).toFixed(4)),
         });
       } else {
-        commit(axis === 'X' ? { scaleX: value } : { scaleY: value });
+        liveUpdate(axis === 'X' ? { scaleX: value } : { scaleY: value });
       }
     },
-    [selectedObject, lockScale, commit],
+    [selectedObject, lockScale, liveUpdate],
   );
   const matrixString = useMemo(() => {
     if (!selectedObject) return '';
@@ -305,101 +282,76 @@ export default function ObjectTransformPanel() {
           />
         </div>
         <div className="input-stack">
-          {/* Position (numeric only — canvas handles interactive drag) */}
-          <div className="row-group" data-axis="x">
-            <NumberInput
-              label="Position X"
-              value={transform.translateX}
-              onChange={(v) => commit({ translateX: v })}
-              icon={<MoveHorizontal size={14} />}
-              step={0.05}
-              precision={2}
-            />
-          </div>
-          <div className="row-group" data-axis="y">
-            <NumberInput
-              label="Position Y"
-              value={transform.translateY}
-              onChange={(v) => commit({ translateY: v })}
-              icon={<MoveVertical size={14} />}
-              step={0.05}
-              precision={2}
-            />
-          </div>
-          {/* Rotate numeric */}
-          <div className="row-group" data-axis="r">
-            <NumberInput
-              label="Rotate (deg)"
-              value={transform.rotate}
-              onChange={(v) => commit({ rotate: v })}
-              icon={<RotateCw size={14} />}
-              step={1}
-              precision={2}
-            />
-          </div>
-          {/* Scale numeric + lock */}
-          <div className={`scale-section ${lockScale ? 'locked' : ''}`}>
-            <button
-              type="button"
-              className={`lock-toggle ${lockScale ? 'on' : ''}`}
-              onClick={() => setLockScale((v) => !v)}
-              title={lockScale ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
-              aria-pressed={lockScale}
-              aria-label={lockScale ? 'Unlock scale X and Y' : 'Lock scale X and Y'}
-            >
-              {lockScale ? <Link2 size={13} /> : <Unlink2 size={13} />}
-            </button>
-            <div className="scale-inputs">
-              <div className="row-group">
-                <NumberInput
-                  label="Scale X"
-                  value={transform.scaleX}
-                  onChange={(v) => handleScaleChange('X', v)}
-                  icon={<ScaleXIcon size={14} />}
-                  step={0.05}
-                  precision={2}
+          <div className="tp-group">
+            <GlHint call="glTranslatef" args="x, y, 0.0f" />
+            <div className="tp-row">
+              <span className="tp-row__label">Translate</span>
+              <div className="tp-row__fields">
+                <NumberField
+                  label="Translate X" tag="X" axis="x" value={transform.translateX} step={0.05} precision={2}
+                  onBeginChange={pushToHistory} onChange={(v) => liveUpdate({ translateX: v })}
+                />
+                <NumberField
+                  label="Translate Y" tag="Y" axis="y" value={transform.translateY} step={0.05} precision={2}
+                  onBeginChange={pushToHistory} onChange={(v) => liveUpdate({ translateY: v })}
                 />
               </div>
-              <div className="row-group">
-                <NumberInput
-                  label="Scale Y"
-                  value={transform.scaleY}
-                  onChange={(v) => handleScaleChange('Y', v)}
-                  icon={<ScaleYIcon size={14} />}
-                  step={0.05}
-                  precision={2}
+            </div>
+          </div>
+          <div className="tp-group">
+            <GlHint call="glRotatef" args="angle, 0.0f, 0.0f, 1.0f" />
+            <div className="tp-row">
+              <span className="tp-row__label">Rotate</span>
+              <div className="tp-row__fields">
+                <NumberField
+                  label="Rotate" tag="θ" value={transform.rotate} step={1} precision={1} unit="°"
+                  onBeginChange={pushToHistory} onChange={(v) => liveUpdate({ rotate: v })}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="tp-group">
+            <GlHint call="glScalef" args="sx, sy, 1.0f" />
+            <div className="tp-row">
+              <span className="tp-row__label">Scale</span>
+              <div className="tp-row__fields tp-row__fields--lock">
+                <NumberField
+                  label="Scale X" tag="X" axis="x" value={transform.scaleX} step={0.05} precision={2}
+                  onBeginChange={pushToHistory} onChange={(v) => applyScale('X', v)}
+                />
+                <Button
+                  variant="quiet"
+                  iconOnly
+                  label={lockScale ? 'Unlock scale X and Y' : 'Lock scale X and Y'}
+                  aria-pressed={lockScale}
+                  icon={lockScale ? <Link2 size={13} /> : <Unlink2 size={13} />}
+                  onClick={() => setLockScale((v) => !v)}
+                />
+                <NumberField
+                  label="Scale Y" tag="Y" axis="y" value={transform.scaleY} step={0.05} precision={2}
+                  onBeginChange={pushToHistory} onChange={(v) => applyScale('Y', v)}
                 />
               </div>
             </div>
           </div>
         </div>
-        {}
         <div className="transform-matrix" title="Composite 2D affine matrix">
           <span className="matrix-label">matrix</span>
           <code className="matrix-value">{matrixString}</code>
         </div>
-        {}
         <div className="transform-footer">
-          <button
-            type="button"
-            className="footer-btn"
+          <Button
+            variant="quiet"
+            icon={<Maximize2 size={12} />}
             onClick={() => commit({ scaleX: 1, scaleY: 1 })}
             disabled={transform.scaleX === 1 && transform.scaleY === 1}
             title="Reset scale to 1×1"
           >
-            <Maximize2 size={12} />
-            <span>Unit Scale</span>
-          </button>
-          <button
-            type="button"
-            className="footer-btn"
-            onClick={resetAll}
-            disabled={isIdentity}
-            title="Reset all transforms"
-          >
-            <RotateCcw size={12} />
-            <span>Reset</span>
-          </button>
+            Unit Scale
+          </Button>
+          <Button variant="quiet" icon={<RotateCcw size={12} />} onClick={resetAll} disabled={isIdentity} title="Reset all transforms">
+            Reset
+          </Button>
         </div>
       </div>
     </CollapsibleSection>

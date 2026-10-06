@@ -1,13 +1,14 @@
 import './animation-preview-panel.scss';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Film, Play, Square, Save, Trash2, Check } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
+import { Button, SegmentedControl } from '@/shared/ui/controls';
 import { useAnimationPreview } from '../model/useAnimationPreview';
 import { animationController } from '../model/animation-controller';
 import { MOTIONS, type MotionType } from '../model/motion';
 
-const SPEED_STEPS = [0.5, 1, 2];
+const SPEED_OPTIONS = [0.5, 1, 2].map((n) => ({ value: String(n), label: `${n}×` }));
 
 /**
  * Animation controls for the selected object (Author Mode, single selection).
@@ -27,6 +28,7 @@ export default function AnimationPreviewPanel() {
   const { playing, objectId, motion, speed, play, stop } = useAnimationPreview();
 
   const selectedObject = objects.find((o) => o.id === selectedObjectId);
+  const motionRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const savedAnim = selectedObject?.animation ?? null;
 
   // When selection changes, sync the selectors to that object's saved
@@ -60,6 +62,35 @@ export default function AnimationPreviewPanel() {
     else animationController.setPreferredSpeed(next);
   };
 
+  const chooseMotion = (index: number) => {
+    const next = (index + MOTIONS.length) % MOTIONS.length;
+    selectMotion(MOTIONS[next].type);
+    motionRefs.current[next]?.focus();
+  };
+  const onMotionKeyDown = (event: KeyboardEvent) => {
+    const current = Math.max(0, MOTIONS.findIndex((m) => m.type === motion));
+    switch (event.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        event.preventDefault();
+        chooseMotion(current + 1);
+        break;
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        event.preventDefault();
+        chooseMotion(current - 1);
+        break;
+      case 'Home':
+        event.preventDefault();
+        chooseMotion(0);
+        break;
+      case 'End':
+        event.preventDefault();
+        chooseMotion(MOTIONS.length - 1);
+        break;
+    }
+  };
+
   const handleSave = () => setObjectAnimation(selectedObjectId, { motion, speed });
   const handleRemove = () => setObjectAnimation(selectedObjectId, null);
 
@@ -69,15 +100,20 @@ export default function AnimationPreviewPanel() {
       icon={<Film size={14} />}
       defaultOpen={false}
       panelId="animation-preview"
+      hint="glutIdleFunc"
     >
       <div className="anim-preview">
-        <div className="anim-motion-grid" role="radiogroup" aria-label="Animation motion">
-          {MOTIONS.map((m) => (
+        <div className="anim-motion-grid" role="radiogroup" aria-label="Animation motion" onKeyDown={onMotionKeyDown}>
+          {MOTIONS.map((m, index) => (
             <button
               key={m.type}
+              ref={(el) => {
+                motionRefs.current[index] = el;
+              }}
               type="button"
               role="radio"
               aria-checked={motion === m.type}
+              tabIndex={motion === m.type ? 0 : -1}
               className={`anim-motion-btn ${motion === m.type ? 'active' : ''}`}
               onClick={() => selectMotion(m.type)}
               title={m.blurb}
@@ -89,51 +125,43 @@ export default function AnimationPreviewPanel() {
         </div>
 
         <div className="anim-controls-row">
-          <button
-            type="button"
-            className={`anim-play-btn ${isPlayingThis ? 'playing' : ''}`}
+          <Button
+            className="anim-play-btn"
+            variant="secondary"
+            icon={isPlayingThis ? <Square size={13} /> : <Play size={13} />}
             onClick={handleToggle}
           >
-            {isPlayingThis ? <Square size={13} /> : <Play size={13} />}
-            <span>{isPlayingThis ? 'Stop' : 'Preview'}</span>
-          </button>
+            {isPlayingThis ? 'Stop' : 'Preview'}
+          </Button>
 
-          <div className="anim-speed" role="radiogroup" aria-label="Animation speed">
-            {SPEED_STEPS.map((s) => (
-              <button
-                key={s}
-                type="button"
-                role="radio"
-                aria-checked={speed === s}
-                className={`anim-speed-btn ${speed === s ? 'active' : ''}`}
-                onClick={() => selectSpeed(s)}
-              >
-                {s}×
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            label="Animation speed"
+            options={SPEED_OPTIONS}
+            value={String(speed)}
+            onChange={(v) => selectSpeed(Number(v))}
+          />
         </div>
 
         <div className="anim-save-row">
-          <button
-            type="button"
-            className={`anim-save-btn ${isSaved ? 'saved' : ''}`}
+          <Button
+            className="anim-save-btn"
+            variant="primary"
+            icon={isSaved ? <Check size={13} /> : <Save size={13} />}
             onClick={handleSave}
             disabled={isSaved}
             title="Save this animation onto the object (written to the code and the .vams file)"
           >
-            {isSaved ? <Check size={13} /> : <Save size={13} />}
-            <span>{isSaved ? 'Saved' : hasSaved ? 'Update' : 'Save animation'}</span>
-          </button>
+            {isSaved ? 'Saved' : hasSaved ? 'Update' : 'Save animation'}
+          </Button>
           {hasSaved && (
-            <button
-              type="button"
-              className="anim-remove-btn"
+            <Button
+              variant="danger"
+              iconOnly
+              label="Remove saved animation"
+              icon={<Trash2 size={13} />}
               onClick={handleRemove}
               title="Remove the saved animation from this object"
-            >
-              <Trash2 size={13} />
-            </button>
+            />
           )}
         </div>
 
