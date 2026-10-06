@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { Button, Dialog } from '@/shared/ui/controls';
 import { useConfirmStore } from './confirm-store';
 import './confirm-dialog.scss';
 
@@ -17,56 +18,36 @@ function ConfirmDialogInner() {
   const handleConfirm = useConfirmStore((s) => s.handleConfirm);
   const handleCancel = useConfirmStore((s) => s.handleCancel);
   const confirmRef = useRef<HTMLButtonElement>(null);
-  const previouslyFocused = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    previouslyFocused.current = document.activeElement as HTMLElement | null;
-    requestAnimationFrame(() => confirmRef.current?.focus());
-    return () => previouslyFocused.current?.focus?.();
-  }, []);
-
-  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Escape') {
-      e.stopPropagation();
-      handleCancel();
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      handleConfirm();
-    }
-  };
-
   const tone = options?.tone ?? 'default';
 
   return (
-    <div className="confirm-overlay" onMouseDown={handleCancel}>
-      <div
-        className="confirm-dialog"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="confirm-title"
-        tabIndex={-1}
-        onMouseDown={(e) => e.stopPropagation()}
-        onKeyDown={onKeyDown}
-      >
-        <div className="confirm-header">
-          {tone === 'danger' && <AlertTriangle size={18} className="confirm-icon" aria-hidden />}
-          <h2 id="confirm-title">{options?.title}</h2>
-        </div>
-        {options?.message && <p className="confirm-message">{options.message}</p>}
-        <div className="confirm-actions">
-          <button type="button" className="confirm-btn cancel" onClick={handleCancel}>
-            {options?.cancelLabel ?? 'Cancel'}
-          </button>
-          <button
-            ref={confirmRef}
-            type="button"
-            className={`confirm-btn confirm ${tone}`}
-            onClick={handleConfirm}
-          >
-            {options?.confirmLabel ?? 'Confirm'}
-          </button>
-        </div>
+    <Dialog
+      open
+      role="alertdialog"
+      size="sm"
+      labelledBy="confirm-title"
+      describedBy={options?.message ? 'confirm-message' : undefined}
+      initialFocusRef={confirmRef}
+      onClose={handleCancel}
+      className="confirm-dialog"
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          handleConfirm();
+        }
+      }}
+    >
+      <div className="confirm-header">
+        {tone === 'danger' && <AlertTriangle size={18} className="confirm-icon" aria-hidden />}
+        <h2 id="confirm-title">{options?.title}</h2>
       </div>
-    </div>
+      {options?.message && <p id="confirm-message" className="confirm-message">{options.message}</p>}
+      <div className="confirm-actions">
+        <Button onClick={handleCancel}>{options?.cancelLabel ?? 'Cancel'}</Button>
+        <Button ref={confirmRef} variant={tone === 'danger' ? 'danger' : 'primary'} onClick={handleConfirm}>
+          {options?.confirmLabel ?? 'Confirm'}
+        </Button>
+      </div>
+    </Dialog>
   );
 }

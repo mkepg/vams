@@ -1,31 +1,10 @@
 @use '../../../shared/styles/tokens' as *;
 
-.help-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000; // above the top bar (z-index 200)
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-  background-color: rgba(var(--shadow-rgb), 0.55);
-  backdrop-filter: blur(2px);
-  animation: help-overlay-in 0.15s ease-out;
-}
-
 .help-dialog {
   display: flex;
   flex-direction: column;
-  width: min(960px, 100%);
-  height: min(680px, 100%);
-  background-color: $bg-panel;
-  color: $text-main;
-  border: 1px solid $border-color;
-  border-radius: 10px;
-  box-shadow: 0 16px 48px rgba(var(--shadow-rgb), 0.45);
+  height: min(680px, calc(100dvh - 48px));
   overflow: hidden;
-  outline: none;
-  animation: help-dialog-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .help-dialog-header {
@@ -389,23 +368,8 @@
   }
 }
 
-@keyframes help-overlay-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes help-dialog-in {
-  from { opacity: 0; transform: translateY(12px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .help-overlay,
-  .help-dialog { animation: none; }
-}
-
 @media (max-width: 720px) {
-  .help-overlay { padding: 0; }
-  .help-dialog { width: 100%; height: 100%; border-radius: 0; }
+  .help-dialog { height: calc(100dvh - 48px); }
   .help-body { flex-direction: column; }
   .help-nav {
     width: 100%;

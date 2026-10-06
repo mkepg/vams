@@ -12,3 +12,6 @@ export { pushRecentColor, useRecentColors, resetRecentColorsForTests } from './r
 export { Panel, type PanelProps } from './Panel';
 export { PanelLayoutContext, type PanelLayout } from './panel-context';
 export { DataTable, type DataTableProps, type DataColumn } from './DataTable';
+export { Dialog, type DialogProps } from './Dialog';
+export { MenuButton, type MenuButtonProps, type MenuEntry } from './MenuButton';
+export { focusableWithin, trapTab } from './focus-trap';

@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { Wrench, Eye, Code2, X } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
+import { Dialog } from '@/shared/ui/controls';
 import './welcome-card.scss';
 
 /**
@@ -20,10 +21,6 @@ function WelcomeCardInner() {
   const openHelp = useVamsStore((state) => state.openHelp);
   const closeRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    requestAnimationFrame(() => closeRef.current?.focus());
-  }, []);
-
   const dismiss = () => markWelcomeSeen();
 
   const takeTour = () => {
@@ -31,23 +28,8 @@ function WelcomeCardInner() {
     openHelp('workspace-tour');
   };
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Escape') {
-      e.stopPropagation();
-      dismiss();
-    }
-  };
-
   return (
-    <div className="welcome-overlay" onMouseDown={dismiss}>
-      <div
-        className="welcome-card"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="welcome-title"
-        onMouseDown={(e) => e.stopPropagation()}
-        onKeyDown={onKeyDown}
-      >
+    <Dialog open onClose={dismiss} labelledBy="welcome-title" size="md" className="welcome-card" initialFocusRef={closeRef}>
         <button ref={closeRef} type="button" className="welcome-close" onClick={dismiss} aria-label="Dismiss welcome">
           <X size={18} />
         </button>
@@ -89,7 +71,6 @@ function WelcomeCardInner() {
             Take the tour
           </button>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }

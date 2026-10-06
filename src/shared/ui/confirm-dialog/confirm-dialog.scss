@@ -1,28 +1,7 @@
 @use '../../styles/tokens' as *;
 
-.confirm-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1100; // above the Help Center (1000)
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-  background-color: rgba(var(--shadow-rgb), 0.5);
-  backdrop-filter: blur(2px);
-  animation: confirm-overlay-in 0.12s ease-out;
-}
-
 .confirm-dialog {
-  width: min(420px, 100%);
-  padding: 1.25rem 1.4rem 1.1rem;
-  background-color: $bg-panel;
-  color: $text-main;
-  border: 1px solid $border-color;
-  border-radius: 10px;
-  box-shadow: 0 16px 48px rgba(var(--shadow-rgb), 0.45);
-  outline: none;
-  animation: confirm-dialog-in 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 18px 20px 16px;
 
   .confirm-header {
     display: flex;
@@ -45,46 +24,4 @@
     justify-content: flex-end;
     gap: 0.6rem;
   }
-
-  .confirm-btn {
-    padding: 0.45rem 0.95rem;
-    font-size: 0.85rem;
-    font-weight: 600;
-    border-radius: 6px;
-    border: 1px solid transparent;
-    cursor: pointer;
-    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
-
-    &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-
-    &.cancel {
-      color: $text-main;
-      background-color: transparent;
-      border-color: $border-color;
-      &:hover { background-color: rgba(var(--border-rgb), 0.4); }
-    }
-    &.confirm {
-      color: var(--on-accent-blue);
-      background-color: $accent-blue;
-      &:hover { background-color: var(--accent-blue-light); color: var(--on-accent-light); }
-      &.danger {
-        background-color: $accent-red;
-        &:hover { background-color: var(--accent-red-light); color: var(--on-accent-light); }
-      }
-    }
-  }
-}
-
-@keyframes confirm-overlay-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes confirm-dialog-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .confirm-overlay,
-  .confirm-dialog { animation: none; }
 }

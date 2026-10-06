@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useVamsStore } from '@/core/store';
 import { sanitizeProjectData } from '@/entities/project/model/project-io';
 import { getSceneLibrary, MAX_NAME_LENGTH, type SceneEntry } from '@/entities/project/model/scene-library';
+import { Dialog } from '@/shared/ui/controls';
 import { confirm } from '@/shared/ui/confirm-dialog/confirm-store';
 import { useMyScenesDialog } from '../model/dialog-store';
 import { backupLabel, downloadEntry, isSceneEmpty, replaceScene, saveCurrentScene } from '../model/scene-ops';
@@ -44,14 +45,11 @@ function MyScenesDialogInner() {
 
   useEffect(() => {
     aliveRef.current = true;
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    requestAnimationFrame(() => nameRef.current?.focus());
     // Loading from IndexedDB on open: the async result arrives after the effect, never synchronously.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh().catch((error) => console.error(error));
     return () => {
       aliveRef.current = false;
-      previouslyFocused?.focus?.();
     };
   }, [refresh]);
 
@@ -111,13 +109,6 @@ function MyScenesDialogInner() {
     } catch (error) {
       console.error(error);
       toast.error("Couldn't download the scene.");
-    }
-  };
-
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key === 'Escape') {
-      event.stopPropagation();
-      close();
     }
   };
 
@@ -215,15 +206,7 @@ function MyScenesDialogInner() {
   );
 
   return (
-    <div className="my-scenes-overlay" onMouseDown={close}>
-      <div
-        className="my-scenes"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="my-scenes-title"
-        onMouseDown={(e) => e.stopPropagation()}
-        onKeyDown={onKeyDown}
-      >
+    <Dialog open onClose={close} labelledBy="my-scenes-title" size="md" className="my-scenes" initialFocusRef={nameRef}>
         <header className="my-scenes__header">
           <h2 id="my-scenes-title">My scenes</h2>
           <button type="button" className="my-scenes__close" onClick={close} aria-label="Close My scenes">
@@ -257,7 +240,6 @@ function MyScenesDialogInner() {
         {renderList('backups', 'Backups (last 5 are kept)', backups, 'No backups yet.')}
 
         <p className="my-scenes__note">{persistent ? STORED_HERE : TAB_ONLY}</p>
-      </div>
-    </div>
+    </Dialog>
   );
 }

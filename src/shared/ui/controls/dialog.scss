@@ -1,0 +1,25 @@
+.vdialog-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(var(--shadow-rgb), 0.45);
+}
+
+.vdialog {
+  width: 100%;
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 18px 50px rgba(var(--shadow-rgb), 0.28);
+
+  &:focus { outline: none; }
+  &--sm { max-width: 420px; }
+  &--md { max-width: 560px; }
+  &--lg { max-width: 760px; }
+}

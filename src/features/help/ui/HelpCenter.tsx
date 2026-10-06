@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, ArrowLeft, BookOpen } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
+import { Dialog } from '@/shared/ui/controls';
 import type { HelpTopicId } from '@/features/help/model/types';
 import {
   HELP_CATEGORIES,
@@ -12,9 +13,6 @@ import {
 } from '@/features/help/model/help-content';
 import HelpContent from './HelpContent';
 import './help-center.scss';
-
-const FOCUSABLE =
-  'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
  * Always mounted in the app shell. Renders nothing until Help is opened, then
@@ -38,24 +36,19 @@ function HelpDialog() {
   const markWelcomeSeen = useVamsStore((state) => state.markWelcomeSeen);
 
   const [query, setQuery] = useState('');
-  const dialogRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const previouslyFocused = useRef<HTMLElement | null>(null);
 
   const currentTopicId = (activeHelpTopicId as HelpTopicId | null) ?? topicForSection(activeSection);
   const currentTopic = getHelpTopic(currentTopicId) ?? getHelpTopic(DEFAULT_HELP_TOPIC);
 
   const results = useMemo(() => searchHelpTopics(query), [query]);
 
-  // Lock body scroll, and capture/restore focus around the dialog's lifetime.
+  // Lock body scroll for the dialog's lifetime.
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    previouslyFocused.current = document.activeElement as HTMLElement | null;
-    requestAnimationFrame(() => dialogRef.current?.focus());
     return () => {
       document.body.style.overflow = previousOverflow;
-      previouslyFocused.current?.focus?.();
     };
   }, []);
 
@@ -69,40 +62,8 @@ function HelpDialog() {
     setQuery('');
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Escape') {
-      event.stopPropagation();
-      closeHelp();
-      return;
-    }
-    if (event.key !== 'Tab') return;
-    // Focus trap.
-    const focusables = dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE);
-    if (!focusables || focusables.length === 0) return;
-    const first = focusables[0];
-    const last = focusables[focusables.length - 1];
-    const active = document.activeElement;
-    if (event.shiftKey && (active === first || active === dialogRef.current)) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && active === last) {
-      event.preventDefault();
-      first.focus();
-    }
-  };
-
   return (
-    <div className="help-overlay" onMouseDown={closeHelp}>
-      <div
-        className="help-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="help-center-title"
-        tabIndex={-1}
-        ref={dialogRef}
-        onMouseDown={(e) => e.stopPropagation()}
-        onKeyDown={handleKeyDown}
-      >
+    <Dialog open onClose={closeHelp} labelledBy="help-center-title" size="lg" className="help-dialog">
         <header className="help-dialog-header">
           <div className="help-title">
             <BookOpen size={18} />
@@ -209,7 +170,6 @@ function HelpDialog() {
             <HelpContent topic={currentTopic} onNavigate={handleNavigate} />
           </div>
         </div>
-      </div>
-    </div>
+    </Dialog>
   );
 }
