@@ -4,7 +4,10 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
-import { Button, GlHint, NumberField, SegmentedControl, SliderField, Switch, TextField, parseNumberInput } from '@/shared/ui/controls';
+import {
+  Button, ColorField, GlHint, NumberField, SegmentedControl, SliderField, Switch, TextField,
+  glColorReadout, normalizeHex, parseNumberInput, resetRecentColorsForTests,
+} from '@/shared/ui/controls';
 
 async function settle() {
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
@@ -299,6 +302,87 @@ describe('BB-CTRL-14: SliderField pairs a range with an exact number', () => {
     expect(onCommit).toHaveBeenCalledTimes(1);
     expect(host.textContent).toContain('0.5');
     expect(host.textContent).toContain('12');
+    unmount(host);
+  });
+});
+
+describe('BB-CTRL-15: Hex parsing and the GL readout', () => {
+  it('normalizes hex and formats glColor3f, glColor3ub and glClearColor', () => {
+    expect(normalizeHex('B91C1C')).toBe('#b91c1c');
+    expect(normalizeHex('#abc')).toBe('#aabbcc');
+    expect(normalizeHex('#12345')).toBeNull();
+    expect(normalizeHex('red')).toBeNull();
+    expect(glColorReadout('#b91c1c', 'glColor3f')).toBe('glColor3f(0.73, 0.11, 0.11)');
+    expect(glColorReadout('#b91c1c', 'glColor3ub')).toBe('glColor3ub(185, 28, 28)');
+    expect(glColorReadout('#000000', 'glClearColor')).toBe('glClearColor(0.00, 0.00, 0.00, 1.0)');
+  });
+});
+
+describe('BB-CTRL-16: Typing a hex value commits once and updates the readout', () => {
+  it('calls onBeginChange, onChange and onCommit once', async () => {
+    resetRecentColorsForTests();
+    const onChange = vi.fn();
+    const onBeginChange = vi.fn();
+    const onCommit = vi.fn();
+    const host = mount(h(ColorField, { label: 'Fill', value: '#ffffff', glCall: 'glColor3f', onChange, onBeginChange, onCommit }));
+    const hex = host.querySelector('input[type="text"]') as HTMLInputElement;
+    expect(hex.getAttribute('aria-label')).toBe('Fill hex value');
+    expect(host.querySelector('.vcolor__gl')!.textContent).toBe('glColor3f(1.00, 1.00, 1.00)');
+    hex.dispatchEvent(new FocusEvent('focus'));
+    hex.value = 'b91c1c';
+    hex.dispatchEvent(new Event('input', { bubbles: true }));
+    key(hex, 'Enter');
+    await settle();
+    expect(onBeginChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith('#b91c1c');
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    render(h(ColorField, { label: 'Fill', value: '#b91c1c', glCall: 'glColor3f', onChange, onBeginChange, onCommit }), host);
+    await settle();
+    expect(host.querySelector('.vcolor__gl')!.textContent).toBe('glColor3f(0.73, 0.11, 0.11)');
+    unmount(host);
+  });
+});
+
+describe('BB-CTRL-17: An invalid hex value shows a message and reverts', () => {
+  it('never calls onChange', async () => {
+    const onChange = vi.fn();
+    const host = mount(h(ColorField, { label: 'Fill', value: '#ffffff', glCall: 'glColor3f', onChange }));
+    const hex = host.querySelector('input[type="text"]') as HTMLInputElement;
+    hex.dispatchEvent(new FocusEvent('focus'));
+    hex.value = 'zz';
+    hex.dispatchEvent(new Event('input', { bubbles: true }));
+    key(hex, 'Enter');
+    await settle();
+    expect(host.textContent).toContain('Enter a hex color like #B91C1C');
+    hex.dispatchEvent(new FocusEvent('blur'));
+    await settle();
+    expect(onChange).not.toHaveBeenCalled();
+    expect(hex.value).toBe('FFFFFF');
+    unmount(host);
+  });
+});
+
+describe('BB-CTRL-18: Picking begins history once and fills the recent colours', () => {
+  it('one onBeginChange per picking session; recent swatch applies its colour', async () => {
+    resetRecentColorsForTests();
+    const onChange = vi.fn();
+    const onBeginChange = vi.fn();
+    const onCommit = vi.fn();
+    const host = mount(h(ColorField, { label: 'Fill', value: '#ffffff', glCall: 'glColor3f', onChange, onBeginChange, onCommit }));
+    const picker = host.querySelector('input[type="color"]') as HTMLInputElement;
+    picker.value = '#ff0000';
+    picker.dispatchEvent(new Event('input', { bubbles: true }));
+    picker.value = '#00ff00';
+    picker.dispatchEvent(new Event('input', { bubbles: true }));
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+    expect(onBeginChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenLastCalledWith('#00ff00');
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    const chip = host.querySelector('button[aria-label="Use #00FF00"]') as HTMLButtonElement;
+    expect(chip).not.toBeNull();
+    chip.click();
+    expect(onChange).toHaveBeenLastCalledWith('#00ff00');
     unmount(host);
   });
 });

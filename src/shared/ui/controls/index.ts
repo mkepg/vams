@@ -6,3 +6,6 @@ export { TextField, type TextFieldProps } from './TextField';
 export { NumberField, type NumberFieldProps } from './NumberField';
 export { SliderField, type SliderFieldProps } from './SliderField';
 export { parseNumberInput, decimalsFor, roundToStep } from './number-utils';
+export { ColorField, type ColorFieldProps } from './ColorField';
+export { normalizeHex, hexToBytes, glColorArgs, glColorReadout, type ColorGlCall } from './color-utils';
+export { pushRecentColor, useRecentColors, resetRecentColorsForTests } from './recent-colors';
