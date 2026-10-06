@@ -31,10 +31,13 @@ function ConfirmDialogInner() {
       onClose={handleCancel}
       className="confirm-dialog"
       onKeyDown={(event) => {
-        if (event.key === 'Enter') {
-          event.preventDefault();
-          handleConfirm();
-        }
+        // Enter confirms from the Confirm button or from a non-button target; Enter on any
+        // other button (Cancel) keeps its own click.
+        if (event.key !== 'Enter') return;
+        const target = event.target as HTMLElement | null;
+        if (target?.closest('button') && target.closest('button') !== confirmRef.current) return;
+        event.preventDefault();
+        handleConfirm();
       }}
     >
       <div className="confirm-header">

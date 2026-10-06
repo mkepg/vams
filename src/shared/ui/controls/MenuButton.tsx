@@ -41,6 +41,8 @@ export function MenuButton({
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const itemRefs = useRef<(HTMLElement | null)[]>([]);
+  // Set by a Space keydown inside the open menu; the matching keyup activates the item.
+  const spaceDownRef = useRef(false);
   const menuId = useId();
   const actionable = entries.filter(isActionable);
 
@@ -51,6 +53,7 @@ export function MenuButton({
   };
 
   const openMenu = (from: 'first' | 'last') => {
+    spaceDownRef.current = false;
     setActive(startIndex(from));
     setOpen(true);
   };
@@ -118,9 +121,14 @@ export function MenuButton({
         close(false);
         break;
       case 'Enter':
-      case ' ':
         event.preventDefault();
         activate(actionable[active]);
+        break;
+      case ' ':
+        // Space activates on keyup, as a native button does. Activating on keydown would move
+        // focus to the trigger, and Firefox would then click whatever has focus on keyup.
+        event.preventDefault();
+        spaceDownRef.current = true;
         break;
       default:
         if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
@@ -134,6 +142,15 @@ export function MenuButton({
           }
         }
     }
+  };
+
+  const onMenuKeyUp = (event: KeyboardEvent) => {
+    if (event.key !== ' ') return;
+    event.preventDefault();
+    if (!spaceDownRef.current) return;
+    spaceDownRef.current = false;
+    const entry = actionable[active];
+    if (entry) activate(entry);
   };
 
   // Split entries into labelled groups, separated by separators.
@@ -214,6 +231,7 @@ export function MenuButton({
           aria-label={label}
           className={['vmenu__list', `vmenu__list--${align}`, menuClassName ?? ''].filter(Boolean).join(' ')}
           onKeyDown={onMenuKeyDown}
+          onKeyUp={onMenuKeyUp}
         >
           {blocks.map((block) => {
             const groupId = `${menuId}-${block.key}`;

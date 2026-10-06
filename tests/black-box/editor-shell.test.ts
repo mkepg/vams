@@ -412,3 +412,49 @@ describe('BB-SHELL-17: The canvas plate tokens exist in both themes', () => {
     }
   });
 });
+
+describe('BB-SHELL-18: Enter on the focused Cancel button cancels the confirm dialog', () => {
+  it('resolves false and never confirms', async () => {
+    const host = mount(h(ConfirmDialog, {}));
+    const result = confirm({ title: 'Delete this scene?', confirmLabel: 'Delete', tone: 'danger' });
+    await settle();
+    expect(document.activeElement?.textContent).toBe('Delete');
+    // Tab from Confirm, the last control, wraps to Cancel.
+    key(document.activeElement!, 'Tab');
+    const cancel = document.activeElement as HTMLButtonElement;
+    expect(cancel.textContent).toBe('Cancel');
+    const enter = key(cancel, 'Enter');
+    // The browser turns Enter on a focused button into a click unless the keydown was cancelled.
+    if (!enter.defaultPrevented) cancel.click();
+    await expect(result).resolves.toBe(false);
+    expect(useConfirmStore.getState().open).toBe(false);
+    unmount(host);
+  });
+});
+
+describe('BB-SHELL-19: Space activates a menu item once, on keyup', () => {
+  it('runs the item once and leaves the menu closed after the key is released', async () => {
+    const log: string[] = [];
+    const host = mount(h(MenuButton, { label: 'Fruit', entries: entries(log) }, 'Fruit'));
+    const trigger = host.querySelector('button[aria-haspopup="menu"]') as HTMLButtonElement;
+    trigger.click();
+    await settle();
+    const item = document.activeElement as HTMLElement;
+    expect(item.textContent).toContain('Apples');
+    const down = key(item, ' ');
+    expect(down.defaultPrevented).toBe(true);
+    await settle();
+    expect(log).toEqual([]);
+    item.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', bubbles: true, cancelable: true }));
+    await settle();
+    expect(log).toEqual(['a']);
+    expect(host.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    // A stray keyup after activation (Firefox fires it on the refocused trigger) changes nothing.
+    trigger.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', bubbles: true, cancelable: true }));
+    await settle();
+    expect(log).toEqual(['a']);
+    expect(host.querySelector('[role="menu"]')).toBeNull();
+    unmount(host);
+  });
+});
