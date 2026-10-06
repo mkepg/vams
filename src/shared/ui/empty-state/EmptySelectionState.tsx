@@ -1,4 +1,5 @@
 import { MousePointerClick } from 'lucide-react';
+import './empty-selection-state.scss';
 
 interface EmptySelectionStateProps {
   title?: string;

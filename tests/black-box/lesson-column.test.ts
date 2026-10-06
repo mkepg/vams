@@ -2,10 +2,16 @@
  * BLACK-BOX TEST SUITE — BB-LCOL
  * The lesson column: the runner hook, the lesson card and panel focus.
  */
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
 import { useVamsStore } from '@/core/store';
 import LessonCard from '@/features/lesson-engine/ui/LessonCard';
+import { Panel } from '@/shared/ui/controls';
+import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
+import { SectionColumn, SECTION_PANELS, type SectionPanels } from '@/widgets/layout/section-column';
+import EditorShell from '@/pages/editor/ui/EditorShell';
+import ObjectTransformPanel from '@/features/object-transform/ui/ObjectTransformPanel';
+import TextNodePanel from '@/features/text-nodes/ui/TextNodePanel';
 
 async function settle() {
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
@@ -108,6 +114,106 @@ describe('BB-LCOL-05: Esc on the window exits the lesson', () => {
     key(window, 'Escape');
     await settle();
     expect(useVamsStore.getState().appMode).toBe('Author');
+    unmount(host);
+  });
+});
+
+function fakePanels(): SectionPanels {
+  const panel = (id: string, title: string, defaultOpen = true) => ({
+    id,
+    render: () => h(Panel, { panelId: id, title, defaultOpen }, `${title} body`),
+  });
+  return {
+    Pipeline: [panel('pipeline-mode-controls', 'Viewport Mode'), panel('scene-hierarchy', 'Scene Hierarchy')],
+    Primitives: [panel('scene-hierarchy', 'Scene Hierarchy'), panel('line-style-panel', 'Line Style')],
+    Buffers: [panel('scene-hierarchy', 'Scene Hierarchy'), panel('buffers-panel', 'Memory & Buffers')],
+    Transforms: [
+      panel('scene-hierarchy', 'Scene Hierarchy'),
+      panel('ortho-editor', 'Viewing Volume', false),
+      panel('object-transform', 'Object Transform'),
+    ],
+    Textures: [panel('scene-hierarchy', 'Scene Hierarchy'), panel('uv-editor', 'UV Editor')],
+  };
+}
+const titles = (host: HTMLElement) => [...host.querySelectorAll('.vpanel__title')].map((t) => t.textContent);
+
+describe('BB-LCOL-06: In Lesson mode the column shows the lesson instead of the section menu', () => {
+  it('has a lesson card and no section menu', async () => {
+    startLesson('transforms-exercise-1');
+    const host = mount(h(SectionColumn, { panels: fakePanels() }));
+    await settle();
+    expect(host.querySelector('.lesson-card')).not.toBeNull();
+    expect(host.querySelector('.section-menu')).toBeNull();
+    unmount(host);
+  });
+});
+
+describe('BB-LCOL-07: The focus panel comes first, open, under "Use this panel"', () => {
+  it('reorders and collapses the rest', async () => {
+    // Step 1 of transforms-exercise-1 targets object-transform, which is last in the fake list.
+    startLesson('transforms-exercise-1');
+    const host = mount(h(SectionColumn, { panels: fakePanels() }));
+    await settle();
+    expect(titles(host)).toEqual(['Object Transform', 'Scene Hierarchy', 'Viewing Volume']);
+    expect(host.querySelector('.section-column__use')!.textContent).toContain('Use this panel');
+    const headers = host.querySelectorAll('.vpanel__header');
+    expect(headers[0].getAttribute('aria-expanded')).toBe('true');
+    expect(headers[1].getAttribute('aria-expanded')).toBe('false');
+    expect(headers[2].getAttribute('aria-expanded')).toBe('false');
+    unmount(host);
+  });
+});
+
+describe('BB-LCOL-08: Every lesson focusPanel is a panel in its section', () => {
+  it('resolves all ids against SECTION_PANELS', () => {
+    const missing: string[] = [];
+    for (const lesson of Object.values(LESSON_REGISTRY)) {
+      const ids = new Set(SECTION_PANELS[lesson.section].map((entry) => entry.id));
+      for (const step of lesson.steps) {
+        if (step.focusPanel && !ids.has(step.focusPanel)) missing.push(`${lesson.id}:${step.focusPanel}`);
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+});
+
+describe('BB-LCOL-09: Object Transform and Create Text carry the ids lessons use', () => {
+  it('renders data-panel-id and the Object Transform title', () => {
+    let host = mount(h(ObjectTransformPanel, {}));
+    expect(host.querySelector('[data-panel-id="object-transform"]')).not.toBeNull();
+    expect(host.querySelector('.vpanel__title')!.textContent).toBe('Object Transform');
+    unmount(host);
+    host = mount(h(TextNodePanel, {}));
+    expect(host.querySelector('[data-panel-id="text-node-panel"]')).not.toBeNull();
+    expect(host.querySelector('button[aria-label="Add text"]')).not.toBeNull();
+    unmount(host);
+  });
+});
+
+describe('BB-LCOL-10: On narrow screens Esc in the open drawer closes only the drawer', () => {
+  it('keeps the lesson running and returns focus to the Panels button', async () => {
+    const realMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {},
+      addListener: () => {}, removeListener: () => {}, onchange: null, dispatchEvent: () => false,
+    }));
+    startLesson('transforms-exercise-1');
+    const host = mount(h(EditorShell, {
+      topBar: h('header', {}, 'top'),
+      column: h('div', {}, h(LessonCard, {}), h('button', { id: 'inside' }, 'inside')),
+      canvas: h('div', {}, 'canvas'),
+      codeMath: h('div', {}, 'code'),
+    }));
+    await settle();
+    const toggle = [...host.querySelectorAll('button')].find((b) => b.textContent?.includes('Panels'))!;
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    (host.querySelector('#inside') as HTMLElement).focus();
+    key(host.querySelector('#inside')!, 'Escape');
+    await settle();
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(toggle);
+    expect(useVamsStore.getState().appMode).toBe('Lesson');
+    window.matchMedia = realMatchMedia;
     unmount(host);
   });
 });

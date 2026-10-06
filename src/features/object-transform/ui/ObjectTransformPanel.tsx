@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
+import EmptySelectionState from '@/shared/ui/empty-state/EmptySelectionState';
 import NumberInput from '@/shared/ui/number-input/NumberInput';
 import type { TransformState } from '@/core/types/scene';
 const DEFAULT_TRANSFORM: TransformState = {
@@ -270,7 +271,13 @@ export default function ObjectTransformPanel() {
     const fmt = (n: number) => n.toFixed(2);
     return `matrix(${fmt(a)}, ${fmt(b)}, ${fmt(cc)}, ${fmt(d)}, ${fmt(translateX)}, ${fmt(translateY)})`;
   }, [selectedObject]);
-  if (!selectedObject) return null;
+  if (!selectedObject) {
+    return (
+      <CollapsibleSection panelId="object-transform" title="Object Transform" icon={<Move size={14} />} defaultOpen={true}>
+        <EmptySelectionState message="Select an object in the scene to translate, rotate, or scale it." />
+      </CollapsibleSection>
+    );
+  }
   const { transform } = selectedObject;
   const isIdentity =
     transform.translateX === 0 &&
@@ -280,7 +287,7 @@ export default function ObjectTransformPanel() {
     transform.scaleY === 1;
   const resetAll = () => commit(DEFAULT_TRANSFORM);
   return (
-    <CollapsibleSection title="Position, Rotation, & Scale" icon={<Move size={14} />} defaultOpen={true}>
+    <CollapsibleSection panelId="object-transform" title="Object Transform" icon={<Move size={14} />} defaultOpen={true}>
       <div className="transform-panel">
         {/* Scale pad + Rotate dial side-by-side */}
         <div className="gizmo-row">

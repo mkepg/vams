@@ -61,7 +61,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     category: 'workspace',
     title: 'Workspace Tour',
     summary: 'The three regions: build on the left, see in the center, read on the right.',
-    keywords: ['layout', 'panels', 'sidebar', 'regions', 'tour', 'top bar'],
+    keywords: ['layout', 'panels', 'column', 'regions', 'tour', 'top bar', 'section menu', 'file menu'],
     blocks: [
       {
         kind: 'paragraph',
@@ -71,19 +71,19 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'list',
         items: [
-          'Left — Build. The section tabs and the panels for creating and editing scene objects.',
+          'Left — Build. The section menu and the panels for creating and editing scene objects. During a lesson this column shows the lesson instead.',
           'Center — See. The canvas, where your scene is drawn and where you place vertices.',
           'Right — Read. The generated OpenGL code (top) and the contextual math breakdown (bottom).',
         ],
       },
-      { kind: 'heading', text: 'The section tabs' },
+      { kind: 'heading', text: 'The section menu' },
       {
         kind: 'paragraph',
-        text: 'The five tabs on the left follow the OpenGL curriculum. Switching tabs changes which build tools appear and what the math panel explains.',
+        text: 'The name at the top of the left column is the current section. Click it to switch to any of the five sections; switching changes which build tools appear and what the math panel explains.',
       },
       {
         kind: 'table',
-        headers: ['Tab', 'What it covers'],
+        headers: ['Section', 'What it covers'],
         rows: [
           ['Pipeline', 'How vertices become pixels: NDC, rasterization, GLUT structure'],
           ['Primitives', 'Points, lines, triangles, color, line style, and text'],
@@ -96,12 +96,11 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'list',
         items: [
+          'Lessons — launch a guided, narrated lesson for the current section.',
+          'File — start a new workspace, open My scenes, open or save a project file, or export the C++ code.',
           'Undo / Redo — step backward and forward through your edits.',
-          'New Workspace — clear the scene and start fresh.',
-          'Save / Load — write the scene to a project file and read it back.',
           'Theme — switch between dark and light.',
-          'View Settings — toggle axes, gridlines, the coordinate tracker, and open the shortcut list.',
-          'Lessons — launch a guided, narrated lesson.',
+          'View settings — toggle axes, gridlines, the coordinate tracker, and open the shortcut list.',
           'Help — open this Help Center (also ? or F1).',
         ],
       },
@@ -178,13 +177,9 @@ export const HELP_TOPICS: HelpTopic[] = [
       { kind: 'heading', text: 'Running a lesson' },
       {
         kind: 'paragraph',
-        text: 'Launch a lesson from the launcher in the top bar. Your sandbox scene is set aside while the lesson runs and restored automatically when you leave, so you never lose your own work.',
+        text: 'Launch a lesson from the Lessons menu in the top bar. Your sandbox scene is set aside while the lesson runs and restored automatically when you leave, so you never lose your own work.',
       },
-      {
-        kind: 'callout',
-        tone: 'warning',
-        text: 'Switching section tabs during a lesson asks you to confirm first, because leaving ends the lesson and returns you to Author mode.',
-      },
+      { kind: 'callout', tone: 'info', text: 'During a lesson the left column shows the lesson and the panel each step uses. To switch sections, exit the lesson first; your own scene comes back when you leave.' },
     ],
     related: ['welcome', 'workspace-tour'],
   },
@@ -459,7 +454,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: 'The Scene Hierarchy panel sits at the top of the left sidebar in every section and lists every object in your scene. It is where you organize, name, and structure your work.',
+        text: 'The Scene Hierarchy panel sits near the top of the left column in every section and lists every object in your scene. It is where you organize, name, and structure your work.',
       },
       { kind: 'heading', text: 'What you can do' },
       {
@@ -650,14 +645,14 @@ export const HELP_TOPICS: HelpTopic[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: 'Use the project actions in the top bar to manage your work.',
+        text: 'Use the File menu in the top bar to manage your work.',
       },
       {
         kind: 'definitions',
         items: [
-          { term: 'Save', description: 'Writes the entire scene — objects, colors, transforms, animations, buffers, callbacks, and textures — to a project file you can keep or share.' },
-          { term: 'Load', description: 'Reads a project file back into the workspace, replacing the current scene.' },
-          { term: 'New Workspace', description: 'Clears the scene to a blank slate (with a confirmation first).' },
+          { term: 'Save project file', description: 'Writes the entire scene — objects, colors, transforms, animations, buffers, callbacks, and textures — to a project file you can keep or share.' },
+          { term: 'Open project file', description: 'Reads a project file back into the workspace, replacing the current scene.' },
+          { term: 'New workspace', description: 'Clears the scene to a blank slate (with a confirmation first).' },
         ],
       },
       {

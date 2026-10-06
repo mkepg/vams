@@ -19,7 +19,7 @@ export default function TextNodePanel() {
     setTextInput('');
   };
   return (
-    <CollapsibleSection title="Create Text" icon={<Type size={14} />} defaultOpen={true}>
+    <CollapsibleSection panelId="text-node-panel" title="Create Text" icon={<Type size={14} />} defaultOpen={true}>
       <div className="text-objects-section">
         {/* Creation Input */}
         <div>
@@ -37,6 +37,8 @@ export default function TextNodePanel() {
             <button
               onClick={handleAddText}
               disabled={!textInput.trim()}
+              aria-label="Add text"
+              title="Add text"
               style={{
                 display: 'flex',
                 alignItems: 'center',

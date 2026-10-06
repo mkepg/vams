@@ -44,7 +44,7 @@ function WelcomeCardInner() {
             <Wrench size={18} aria-hidden />
             <div>
               <strong>Build</strong>
-              <span>The left panels: create and edit scene objects.</span>
+              <span>The left column: pick a section, then create and edit scene objects.</span>
             </div>
           </li>
           <li>
@@ -58,7 +58,7 @@ function WelcomeCardInner() {
             <Code2 size={18} aria-hidden />
             <div>
               <strong>Read</strong>
-              <span>The right panels: the generated OpenGL code and the math behind it.</span>
+              <span>The right column: the generated OpenGL code and the math behind it.</span>
             </div>
           </li>
         </ul>

@@ -7,7 +7,7 @@ import { TEXTURES_LESSONS }   from './textures-lessons';
 
 /**
  * Master lesson registry. Keys are lesson IDs.
- * Existing consumers (LessonBar, LessonLauncher) iterate via Object.values.
+ * useLessonRunner looks lessons up by ID; LessonLauncher iterates via Object.values.
  */
 export const LESSON_REGISTRY: Record<string, Lesson> = {
   ...PIPELINE_LESSONS,

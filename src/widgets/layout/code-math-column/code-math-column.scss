@@ -1,0 +1,19 @@
+.code-math-column {
+  display: grid;
+  grid-template-rows: minmax(0, 58fr) minmax(0, 42fr);
+  grid-template-columns: minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  border-left: 1px solid var(--rule);
+  background: var(--paper);
+
+  // The code viewer and the math panel fill their cell absolutely and scroll inside it;
+  // the math panel draws its own top rule.
+  &__code,
+  &__math {
+    position: relative;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+}

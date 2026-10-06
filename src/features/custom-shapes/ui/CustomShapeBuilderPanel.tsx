@@ -173,7 +173,7 @@ export default function CustomShapeBuilderPanel() {
 
   if (!pendingShapeType) {
     return (
-      <CollapsibleSection title="Create Primitive" icon={<Edit3 size={12} />} defaultOpen={true}>
+      <CollapsibleSection panelId="primitive-palette" title="Create Primitive" icon={<Edit3 size={12} />} defaultOpen={true}>
         <div className="grid-buttons">
           {SHAPE_DEFS.map((def) => (
             <button

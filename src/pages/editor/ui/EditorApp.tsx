@@ -1,10 +1,8 @@
 import { useEffect, useLayoutEffect } from 'react';
-import './editor-app.scss';
 import TopBar from '@/widgets/layout/top-bar';
-import LeftSidebar from '@/widgets/layout/left-sidebar';
-import RightSidebar from '@/widgets/layout/right-sidebar';
+import { SectionColumn } from '@/widgets/layout/section-column';
+import CodeMathColumn from '@/widgets/layout/code-math-column';
 import ViewportRouter from '@/widgets/canvas/ViewportRouter';
-import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import { MyScenesDialog } from '@/features/scene-library';
 import HelpCenter from '@/features/help/ui/HelpCenter';
 import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
@@ -14,6 +12,7 @@ import { getActiveTheme, subscribeTheme, toEditorTheme, type SiteTheme } from '@
 import { useKeyboardShortcuts } from '@/shared/hooks/useKeyboardShortcuts';
 import { useEditorLink } from '../model/useEditorLink';
 import { useCorruptSaveNotice } from '../model/recovery';
+import EditorShell from './EditorShell';
 
 export default function EditorApp() {
   useKeyboardShortcuts();
@@ -29,24 +28,21 @@ export default function EditorApp() {
     mirror(getActiveTheme());
     return subscribeTheme(mirror);
   }, []);
-  const appMode = useVamsStore((state) => state.appMode);
 
   return (
-    <div className="app-container">
-      <TopBar />
-      <div className="main-workspace">
-        <LeftSidebar />
-        <main className="canvas-area">
-          <ViewportRouter />
-        </main>
-        <RightSidebar />
-      </div>
-      
-      {appMode === 'Lesson' && <LessonBar />}
-      <HelpCenter />
-      <MyScenesDialog />
-      <ConfirmDialog />
-      <WelcomeCard />
-    </div>
+    <EditorShell
+      topBar={<TopBar />}
+      column={<SectionColumn />}
+      canvas={<ViewportRouter />}
+      codeMath={<CodeMathColumn />}
+      overlays={
+        <>
+          <HelpCenter />
+          <MyScenesDialog />
+          <ConfirmDialog />
+          <WelcomeCard />
+        </>
+      }
+    />
   );
 }
