@@ -12,6 +12,8 @@ import { SectionColumn, SECTION_PANELS, type SectionPanels } from '@/widgets/lay
 import EditorShell from '@/pages/editor/ui/EditorShell';
 import ObjectTransformPanel from '@/features/object-transform/ui/ObjectTransformPanel';
 import TextNodePanel from '@/features/text-nodes/ui/TextNodePanel';
+import SceneHierarchyPanel from '@/features/scene-hierarchy/ui/SceneHierarchyPanel';
+import { addTriangle, findById } from '../helpers/store';
 
 async function settle() {
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
@@ -190,30 +192,123 @@ describe('BB-LCOL-09: Object Transform and Create Text carry the ids lessons use
   });
 });
 
+/** Makes the narrow-layout media query match; returns the restore function. */
+function mockNarrow() {
+  const realMatchMedia = window.matchMedia;
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {},
+    addListener: () => {}, removeListener: () => {}, onchange: null, dispatchEvent: () => false,
+  }));
+  return () => {
+    window.matchMedia = realMatchMedia;
+  };
+}
+function narrowShell(column: VNode) {
+  return mount(h(EditorShell, {
+    topBar: h('header', {}, 'top'),
+    column,
+    canvas: h('div', {}, 'canvas'),
+    codeMath: h('div', {}, 'code'),
+  }));
+}
+const panelsToggle = (host: HTMLElement) =>
+  [...host.querySelectorAll('button')].find((b) => b.textContent?.includes('Panels'))!;
+
 describe('BB-LCOL-10: On narrow screens Esc in the open drawer closes only the drawer', () => {
   it('keeps the lesson running and returns focus to the Panels button', async () => {
-    const realMatchMedia = window.matchMedia;
-    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-      matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {},
-      addListener: () => {}, removeListener: () => {}, onchange: null, dispatchEvent: () => false,
-    }));
+    const restore = mockNarrow();
+    try {
+      startLesson('transforms-exercise-1');
+      const host = narrowShell(h('div', {}, h(LessonCard, {}), h('button', { id: 'inside' }, 'inside')));
+      await settle();
+      const toggle = panelsToggle(host);
+      expect(toggle.getAttribute('aria-expanded')).toBe('true');
+      (host.querySelector('#inside') as HTMLElement).focus();
+      key(host.querySelector('#inside')!, 'Escape');
+      await settle();
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+      expect(document.activeElement).toBe(toggle);
+      expect(useVamsStore.getState().appMode).toBe('Lesson');
+      unmount(host);
+    } finally {
+      restore();
+    }
+  });
+});
+
+describe('BB-LCOL-11: Esc in a rename field inside the drawer cancels the rename only', () => {
+  it('keeps the old name and the drawer open', async () => {
+    const restore = mockNarrow();
+    try {
+      startLesson('transforms-exercise-1');
+      const triangle = addTriangle();
+      const originalName = triangle.name;
+      const host = narrowShell(h(SceneHierarchyPanel, {}));
+      await settle();
+      (host.querySelector('button[aria-label="Rename"]') as HTMLButtonElement).click();
+      await settle();
+      const input = host.querySelector('.rename-input') as HTMLInputElement;
+      input.focus();
+      input.value = 'Typed but cancelled';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await settle();
+      key(input, 'Escape');
+      await settle();
+      expect(findById(triangle.id)!.name).toBe(originalName);
+      expect(panelsToggle(host).getAttribute('aria-expanded')).toBe('true');
+      unmount(host);
+    } finally {
+      restore();
+    }
+  });
+});
+
+describe('BB-LCOL-12: The drawer closes when the lesson ends', () => {
+  it('opens for a step and closes on exit', async () => {
+    const restore = mockNarrow();
+    try {
+      startLesson('transforms-exercise-1');
+      const host = narrowShell(h('div', {}, 'column'));
+      await settle();
+      expect(panelsToggle(host).getAttribute('aria-expanded')).toBe('true');
+      useVamsStore.getState().clearLessonState();
+      useVamsStore.getState().setAppMode('Author');
+      await settle();
+      expect(panelsToggle(host).getAttribute('aria-expanded')).toBe('false');
+      expect(host.querySelector('.editor')!.classList.contains('is-drawer-open')).toBe(false);
+      unmount(host);
+    } finally {
+      restore();
+    }
+  });
+});
+
+describe('BB-LCOL-13: Exit hands focus to the section menu', () => {
+  it('focuses the section-menu trigger when the card took focus with it', async () => {
     startLesson('transforms-exercise-1');
-    const host = mount(h(EditorShell, {
-      topBar: h('header', {}, 'top'),
-      column: h('div', {}, h(LessonCard, {}), h('button', { id: 'inside' }, 'inside')),
-      canvas: h('div', {}, 'canvas'),
-      codeMath: h('div', {}, 'code'),
-    }));
+    const host = mount(h(SectionColumn, { panels: fakePanels() }));
     await settle();
-    const toggle = [...host.querySelectorAll('button')].find((b) => b.textContent?.includes('Panels'))!;
-    expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    (host.querySelector('#inside') as HTMLElement).focus();
-    key(host.querySelector('#inside')!, 'Escape');
+    const exit = buttonNamed(host, 'Exit')!;
+    exit.focus();
+    exit.click();
     await settle();
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    expect(document.activeElement).toBe(toggle);
-    expect(useVamsStore.getState().appMode).toBe('Lesson');
-    window.matchMedia = realMatchMedia;
+    expect(useVamsStore.getState().appMode).toBe('Author');
+    expect(document.activeElement).toBe(host.querySelector('.section-menu__trigger'));
     unmount(host);
+  });
+
+  it('leaves focus alone when it is elsewhere', async () => {
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    startLesson('transforms-exercise-1');
+    const host = mount(h(SectionColumn, { panels: fakePanels() }));
+    await settle();
+    outside.focus();
+    useVamsStore.getState().clearLessonState();
+    useVamsStore.getState().setAppMode('Author');
+    await settle();
+    expect(document.activeElement).toBe(outside);
+    unmount(host);
+    outside.remove();
   });
 });

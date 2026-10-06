@@ -18,6 +18,11 @@
     border-bottom: 1px solid var(--rule);
   }
 
+  // On short screens a tall lesson card (a quiz) would hide its own buttons if pinned.
+  @media (max-height: 640px) {
+    &__head { position: static; }
+  }
+
   &__panels {
     padding-bottom: 2rem;
   }

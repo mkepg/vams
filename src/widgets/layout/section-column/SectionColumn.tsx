@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import { Fragment } from 'preact';
 import { ArrowDown } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
@@ -18,6 +19,19 @@ export default function SectionColumn({ panels = SECTION_PANELS }: { panels?: Se
   const focusPanelId = useVamsStore((s) => s.lessonFocusPanel);
   const list = panels[activeSection];
 
+  // Leaving a lesson swaps the card (and its focused Exit button) for the section menu.
+  // When that drops focus to the page, hand it to the menu trigger; never take it from elsewhere.
+  const headRef = useRef<HTMLDivElement>(null);
+  const wasInLesson = useRef(inLesson);
+  useLayoutEffect(() => {
+    const left = wasInLesson.current && !inLesson;
+    wasInLesson.current = inLesson;
+    if (!left) return;
+    const active = document.activeElement;
+    if (active && active !== document.body && document.contains(active)) return;
+    headRef.current?.querySelector<HTMLElement>('.section-menu__trigger')?.focus();
+  }, [inLesson]);
+
   let ordered = list;
   const focus = inLesson ? list.find((entry) => entry.id === focusPanelId) : undefined;
   if (focus) {
@@ -29,7 +43,7 @@ export default function SectionColumn({ panels = SECTION_PANELS }: { panels?: Se
 
   return (
     <div className="section-column" data-scroll-root>
-      <div className="section-column__head">{inLesson ? <LessonCard /> : <SectionMenu />}</div>
+      <div ref={headRef} className="section-column__head">{inLesson ? <LessonCard /> : <SectionMenu />}</div>
       <PanelLayoutContext.Provider value={{ mode: inLesson ? 'lesson' : 'author', focusPanelId: inLesson ? focusPanelId : null }}>
         <div className="section-column__panels" key={inLesson ? `lesson-${focusPanelId ?? 'none'}` : `author-${activeSection}`}>
           {ordered.map((entry, index) => (
