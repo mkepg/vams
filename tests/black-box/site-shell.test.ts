@@ -189,26 +189,25 @@ describe('BB-SITE-12: Route copy follows the student-facing language rules', () 
 import { h, render } from 'preact';
 import Logo from '@/shared/ui/logo';
 
-describe('BB-SITE-13: The full logo exposes an accessible name and wordmark', () => {
-  it('renders the vertex mark with the selected apex and the VAMS wordmark', () => {
+describe('BB-SITE-13: The wordmark exposes an accessible name and its text', () => {
+  it('renders VAMS as text inside a named image', () => {
     const host = document.createElement('div');
-    render(h(Logo, { variant: 'full' }), host);
+    render(h(Logo, {}), host);
     const logo = host.querySelector('.vams-logo')!;
     expect(logo.getAttribute('role')).toBe('img');
     expect(logo.getAttribute('aria-label')).toBe('VAMS');
-    expect(host.querySelectorAll('.vams-logo__vertex').length).toBe(3);
-    expect(host.querySelector('.vams-logo__vertex--selected')).not.toBeNull();
     expect(host.querySelector('.vams-logo__word')?.textContent).toBe('VAMS');
+    expect(host.querySelector('svg')).toBeNull();
     render(null, host);
   });
 });
 
-describe('BB-SITE-14: The mark-only logo omits the wordmark', () => {
-  it('renders only the symbol', () => {
+describe('BB-SITE-14: The wordmark text is hidden from assistive technology', () => {
+  it('keeps the name on the wrapper only, and accepts a custom name', () => {
     const host = document.createElement('div');
-    render(h(Logo, { variant: 'mark' }), host);
-    expect(host.querySelector('.vams-logo__mark')).not.toBeNull();
-    expect(host.querySelector('.vams-logo__word')).toBeNull();
+    render(h(Logo, { title: 'VAMS home' }), host);
+    expect(host.querySelector('.vams-logo')!.getAttribute('aria-label')).toBe('VAMS home');
+    expect(host.querySelector('.vams-logo__word')!.getAttribute('aria-hidden')).toBe('true');
     render(null, host);
   });
 });
@@ -389,4 +388,32 @@ describe('BB-SITE-23: Text and focus tokens meet WCAG AA on every surface', () =
       expect(contrast(t['--field-line'], t['--field-bg'])).toBeGreaterThanOrEqual(3);
     });
   }
+});
+
+describe('BB-SITE-24: Every header, footer and loading screen shows the wordmark', () => {
+  it('has no vertex mark left and names the header link VAMS home', () => {
+    for (const file of [
+      'src/widgets/site-header/ui/SiteHeader.tsx',
+      'src/widgets/layout/top-bar/TopBar.tsx',
+      'src/widgets/site-footer/ui/SiteFooter.tsx',
+      'src/pages/editor/ui/EditorLoading.tsx',
+    ]) {
+      const source = readFileSync(file, 'utf8');
+      expect(source, file).toContain('<Logo');
+      expect(source, file).not.toContain('VertexMark');
+    }
+    expect(readFileSync('src/widgets/site-header/ui/SiteHeader.tsx', 'utf8')).toContain('aria-label="VAMS home"');
+  });
+});
+
+describe('BB-SITE-25: The wordmark font is preloaded and cannot shift the header', () => {
+  it('preloads Minecrafter, blocks on it briefly, and sizes the word in em', () => {
+    const html = readFileSync('index.html', 'utf8');
+    expect(html).toContain('<link rel="preload" href="/fonts/Minecrafter.ttf" as="font" type="font/ttf" crossorigin />');
+    const global = readFileSync('src/app/styles/global.scss', 'utf8');
+    expect(global).toMatch(/font-family: 'Minecrafter';[\s\S]*?font-display: block;/);
+    const logo = readFileSync('src/shared/ui/logo/logo.scss', 'utf8');
+    expect(logo).toMatch(/height: 1em;/);
+    expect(logo).toMatch(/prefers-reduced-motion: no-preference/);
+  });
 });

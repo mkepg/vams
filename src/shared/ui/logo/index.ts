@@ -1,1 +1,1 @@
-export { default, VertexMark } from './Logo';
+export { default } from './Logo';

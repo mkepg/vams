@@ -1,44 +1,39 @@
+@keyframes vams-logo-glitch {
+  0% { transform: skew(0deg); }
+  20% { transform: skew(-2deg); }
+  40% { transform: skew(2deg); }
+  60% { transform: skew(-1deg); }
+  80% { transform: skew(1deg); }
+  100% { transform: skew(0deg); }
+}
+
 .vams-logo {
   display: inline-flex;
   align-items: center;
-  gap: 0.55em;
-  color: var(--ink);
   line-height: 1;
 
-  > .vams-logo__mark {
-    flex: none;
-    width: 2.2em;
-    height: auto;
-    overflow: visible;
-  }
-  &__fill { fill: rgba(var(--accent-rgb), 0.14); }
-  &__stroke {
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linejoin: round;
-  }
-  &__vertex { fill: currentColor; }
-  &__vertex--selected { fill: var(--accent); }
-
-  &__text {
-    display: flex;
-    flex-direction: column;
-  }
   &__word {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 1.55em;
-    letter-spacing: 0.02em;
-  }
-  &__tagline {
-    margin-top: 0.35em;
-    font-family: var(--font-mono);
-    font-size: 0.62em;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--ink-muted);
+    display: inline-block;
+    /* A fixed box: the header keeps its height whether or not the font has loaded. */
+    height: 1em;
+    font-family: var(--font-logo);
+    font-size: 1.75em;
+    font-style: italic;
+    font-weight: normal;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    color: var(--logo-fill);
+    -webkit-text-stroke: 1.5px var(--logo-stroke);
+    paint-order: stroke fill;
+    text-shadow: 3px 3px 0 var(--logo-depth), var(--logo-glow);
   }
 }
 
-.vams-logo__mark { overflow: visible; }
+@media (prefers-reduced-motion: no-preference) {
+  a:hover > .vams-logo .vams-logo__word,
+  .vams-logo:hover .vams-logo__word {
+    animation: vams-logo-glitch 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite;
+    text-shadow: 4px 4px 0 var(--logo-depth), -2px -2px 0 #ff00ff, 0 0 20px var(--logo-depth);
+  }
+}

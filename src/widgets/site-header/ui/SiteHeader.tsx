@@ -9,7 +9,7 @@ export default function SiteHeader() {
       <a className="skip-link" href="#main">Skip to content</a>
       <header className="site-header">
         <a className="site-header__home" href="/" aria-label="VAMS home">
-          <Logo variant="full" />
+          <Logo />
         </a>
         <nav className="site-header__nav" aria-label="Site">
           {NAV_LINKS.map((link) => (

@@ -1,5 +1,15 @@
 @use '../../shared/styles/tokens' as *;
 
+/* The wordmark face. block: a moment of blank logo beats a fallback that jumps when the font lands. */
+@font-face {
+  font-family: 'Minecrafter';
+  src: url('/fonts/Minecrafter.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+
 html {
   font-size: 100%;
   -webkit-text-size-adjust: 100%;

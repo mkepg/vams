@@ -8,19 +8,13 @@
   gap: var(--space-4);
   color: var(--ink);
   background-color: var(--paper);
-  background-image:
-    linear-gradient(var(--grid-major) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
-    linear-gradient(var(--grid-minor) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
-  background-size: 64px 64px, 64px 64px, 16px 16px, 16px 16px;
+
+  &__logo { font-size: 1.75rem; }
 
   &__label {
     margin: 0;
-    font-family: var(--font-mono);
-    font-size: 0.85rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
     color: var(--ink-muted);
   }
 }

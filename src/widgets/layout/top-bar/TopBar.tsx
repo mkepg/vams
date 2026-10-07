@@ -15,7 +15,7 @@ export default function TopBar() {
     <header className="top-bar">
       <Toaster position="bottom-center" theme={theme} />
       <a className="top-bar__home" href="/" aria-label="VAMS home">
-        <Logo variant="full" title="VAMS" />
+        <Logo />
       </a>
       <div className="top-bar__actions">
         <LessonLauncher />
