@@ -333,3 +333,60 @@ describe('BB-SITE-20: Client-side navigation updates the document title', () => 
     host.remove();
   });
 });
+
+const TOKENS = readFileSync('src/shared/styles/_tokens.scss', 'utf8');
+
+/** `--name: #rrggbb;` declarations inside one top-level block. */
+function block(selector: string): Record<string, string> {
+  const start = TOKENS.indexOf(`${selector} {`);
+  const body = TOKENS.slice(start, TOKENS.indexOf('\n}\n', start));
+  const values: Record<string, string> = {};
+  for (const m of body.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)) values[m[1]] = m[2].toLowerCase();
+  return values;
+}
+
+function luminance(hex: string) {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrast(a: string, b: string) {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+const PALETTE = {
+  dark: { '--paper': '#121419', '--paper-raised': '#191c22', '--paper-sunken': '#0e1014', '--rule': '#262a33', '--ink': '#e6e8ec', '--ink-muted': '#a3a9b5', '--ink-faint': '#8b92a0', '--accent': '#4762f5', '--on-accent': '#ffffff', '--accent-text': '#93a6ff', '--focus-ring': '#93a6ff' },
+  light: { '--paper': '#f7f8fa', '--paper-raised': '#fcfcfd', '--paper-sunken': '#eef0f3', '--rule': '#dadde3', '--ink': '#141821', '--ink-muted': '#4f5665', '--ink-faint': '#656c7b', '--accent': '#2f4de0', '--on-accent': '#ffffff', '--accent-text': '#2f4de0', '--focus-ring': '#2f4de0' },
+};
+
+describe('BB-SITE-22: The tokens declare the Ink + Cobalt palette for both themes', () => {
+  it('matches the spec values and no longer names the old themes', () => {
+    const light = block(':root');
+    const dark = block("[data-theme='dark']");
+    for (const [token, value] of Object.entries(PALETTE.light)) expect(light[token], token).toBe(value);
+    for (const [token, value] of Object.entries(PALETTE.dark)) expect(dark[token], token).toBe(value);
+    expect(TOKENS).not.toMatch(/blueprint|vellum/i);
+    expect(TOKENS).toContain("'Bricolage Grotesque Variable'");
+    expect(TOKENS).toContain("'JetBrains Mono Variable'");
+  });
+});
+
+describe('BB-SITE-23: Text and focus tokens meet WCAG AA on every surface', () => {
+  for (const [theme, selector] of [['light', ':root'], ['dark', "[data-theme='dark']"]] as const) {
+    it(`${theme} theme`, () => {
+      const t = block(selector);
+      const surfaces = ['--paper', '--paper-raised', '--paper-sunken', '--code-bg'];
+      for (const fg of ['--ink', '--ink-muted', '--ink-faint', '--accent-text', '--success', '--danger']) {
+        for (const bg of surfaces) expect(contrast(t[fg], t[bg]), `${fg} on ${bg}`).toBeGreaterThanOrEqual(4.5);
+      }
+      expect(contrast(t['--on-accent'], t['--accent'])).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(t['--focus-ring'], t['--paper'])).toBeGreaterThanOrEqual(3);
+      expect(contrast(t['--field-line'], t['--paper'])).toBeGreaterThanOrEqual(3);
+      expect(contrast(t['--field-line'], t['--field-bg'])).toBeGreaterThanOrEqual(3);
+    });
+  }
+});

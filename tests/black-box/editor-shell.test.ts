@@ -404,7 +404,7 @@ describe('BB-SHELL-16: Canvas overlays keep their text and actions', () => {
 });
 
 describe('BB-SHELL-17: The canvas plate tokens exist in both themes', () => {
-  it('declares the plate tokens identically for vellum and blueprint', async () => {
+  it('declares the plate tokens identically for light and dark', async () => {
     const { readFileSync } = await import('node:fs');
     const scss = readFileSync('src/shared/styles/_tokens.scss', 'utf8');
     for (const token of ['--canvas-plate', '--canvas-plate-line', '--canvas-x', '--canvas-y']) {

@@ -207,13 +207,20 @@
     overflow: auto;
     display: flex;
     font-family: $font-mono;
-    font-size: 12.5px;
-    line-height: 20px;
+    font-size: 13px;
+    line-height: 1.6;
     align-items: stretch;
     @include scrollbar;
     scroll-behavior: smooth;
 
     &::-webkit-scrollbar-corner { background: transparent; }
+
+    pre,
+    code {
+      font-family: inherit;
+      font-size: inherit;
+      line-height: inherit;
+    }
 
     .line-numbers {
       padding: 0.85rem 0;
@@ -393,7 +400,7 @@
   }
 
   /* Syntax-token palette: a deliberate per-theme palette tuned for each code
-     background, so these literals are intentional (blueprint values below). */
+     background, so these literals are intentional (dark values below). */
   .tk { white-space: pre; }
   .tk-kw       { color: #6236d9; font-weight: 600; }
   .tk-pp       { color: #b33a0e; font-style: italic; }
@@ -408,7 +415,7 @@
   .tk-op       { color: #006064; }
   .tk-ws       { color: inherit; }
 
-  [data-theme='blueprint'] & {
+  [data-theme='dark'] & {
     .tk-kw      { color: #c792ea; }
     .tk-pp      { color: #f78c6c; }
     .tk-comment { color: #8fa6bd; }

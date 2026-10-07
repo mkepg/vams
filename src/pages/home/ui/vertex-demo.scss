@@ -159,8 +159,6 @@
   }
 }
 
-/* A thin orange wash turns muddy on navy, so blueprint shades the shape with the grid ink instead. */
-[data-theme='blueprint'] .vertex-demo__fill { fill: var(--grid-major); }
 
 @media (max-width: 900px) {
   .vertex-demo__grid {

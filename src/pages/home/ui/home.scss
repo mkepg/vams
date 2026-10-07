@@ -135,8 +135,6 @@
   }
 }
 
-/* A thin orange wash turns muddy on navy, so blueprint shades the shape with the cool grid ink instead. */
-[data-theme='blueprint'] .hero-figure__fill { fill: var(--grid-major); }
 
 /* One staggered reveal on load, only when motion is welcome; nothing moves after it settles.
    Without the media query match everything is simply visible. */

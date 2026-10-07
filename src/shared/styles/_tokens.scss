@@ -6,94 +6,98 @@
   font-display: swap;
 }
 
-$font-display: 'Newsreader', Georgia, 'Times New Roman', serif;
-$font-ui: 'Chivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
-$font-mono: 'Chivo Mono', ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
+$font-display: 'Bricolage Grotesque Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+$font-ui: 'Bricolage Grotesque Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+$font-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
 $header-height: 3.7rem;
 
-/* Drafting Vellum: vellum (light) is the default theme. */
+/* Ink + Cobalt. :root is the light theme; [data-theme='dark'] overrides it. */
 :root {
   color-scheme: light;
 
   --font-display: #{$font-display};
   --font-ui: #{$font-ui};
   --font-mono: #{$font-mono};
+  --font-logo: 'Minecrafter', system-ui, sans-serif;
+
+  /* Type scale. Nothing renders below --text-xs. */
+  --text-xs: 11px;   --lh-xs: 1.4;
+  --text-sm: 12px;   --lh-sm: 1.45;
+  --text-base: 13px; --lh-base: 1.5;
+  --text-md: 15px;   --lh-md: 1.55;
+  --text-lg: 18px;   --lh-lg: 1.5;
+  --text-xl: 24px;   --lh-xl: 1.2;
+  --text-2xl: clamp(2.5rem, 5vw, 4rem); --lh-2xl: 1.05;
 
   --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
   --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
-  --radius-s: 2px;
-  --radius-m: 4px;
+  /* One radius everywhere. */
+  --radius-s: 3px;
+  --radius-m: 3px;
 
-  --paper: #f4f5f2;
-  --paper-raised: #ffffff;
-  --paper-sunken: #e9ebe6;
-  --ink: #1d2b4f;
-  --ink-muted: #45557a;
-  --ink-faint: #5b6888;
-  --rule: rgba(29, 43, 79, 0.22);
-  --grid-major: rgba(29, 43, 79, 0.10);
-  --grid-minor: rgba(29, 43, 79, 0.04);
-  --accent: #ff5a1f;
-  --accent-rgb: 255, 90, 31;
-  --on-accent: #1a0d06;
-  /* Orange used as large text only: #d9480f is about 3.9:1 on vellum paper,
-     which meets 3:1 for large text but not 4.5:1 for body text. */
-  --accent-text: #d9480f;
-  --focus-ring: #d9480f;
-  --code-bg: #1d2b4f;
-  --code-ink: #e6eefb;
-  --code-fn: #9fb8ff;
-  --success: #15803d;
+  --paper: #f7f8fa;
+  --paper-raised: #fcfcfd;
+  --paper-sunken: #eef0f3;
+  --ink: #141821;
+  --ink-muted: #4f5665;
+  --ink-faint: #656c7b;
+  --rule: #dadde3;
+  --grid-major: rgba(20, 24, 33, 0.08);
+  --grid-minor: rgba(20, 24, 33, 0.035);
+  --accent: #2f4de0;
+  --accent-rgb: 47, 77, 224;
+  --on-accent: #ffffff;
+  --accent-text: #2f4de0;
+  --accent-tint: rgba(47, 77, 224, 0.10);
+  --focus-ring: #2f4de0;
+  --code-bg: #fcfcfd;
+  --code-ink: #141821;
+  --code-fn: #2f4de0;
+  --success: #166534;
   --danger: #b91c1c;
 
-  /* Editor variables, reassigned onto the palette (names and RGB-triplet format unchanged). */
-  --bg-dark-rgb: 233, 235, 230;
-  --bg-panel-rgb: 244, 245, 242;
-  --bg-bar-rgb: 244, 245, 242;
-  --bg-input-rgb: 255, 255, 255;
-  --border-rgb: 198, 203, 211;
-  --text-main: #1d2b4f;
-  --text-muted: #45557a;
-  --text-dim: #566382;
-  --accent-blue-rgb: 29, 43, 79;
+  /* The pixel wordmark is the same in both themes, apart from the dark theme's glow. */
+  --logo-fill: #fcee0a;
+  --logo-stroke: #000000;
+  --logo-depth: #00f0ff;
+  --logo-glow: 0 0 0 transparent;
+
+  /* Editor variables, reassigned onto the palette (names and RGB-triplet format unchanged).
+     The accent-blue family maps to neutral ink so the accent stays rare. */
+  --bg-dark-rgb: 238, 240, 243;
+  --bg-panel-rgb: 247, 248, 250;
+  --bg-bar-rgb: 247, 248, 250;
+  --bg-input-rgb: 252, 252, 253;
+  --border-rgb: 218, 221, 227;
+  --text-main: #141821;
+  --text-muted: #4f5665;
+  --text-dim: #656c7b;
+  --accent-blue-rgb: 79, 86, 101;
   --accent-green-rgb: 21, 128, 61;
   --accent-red-rgb: 185, 28, 28;
-  --bg-panel-hover: #e9ebe6;
-  --accent-blue-light: #24438f;
+  --bg-panel-hover: #eef0f3;
+  --accent-blue-light: #141821;
   --accent-red-light: #b91c1c;
   --accent-green-light: #15803d;
-  /* Accent hues used as text, icons and state borders: each clears 4.5:1 on
-     the editor panels. Green takes green-800, since green-700 drops under
-     4.5:1 on the sunken panel and on its own tint. */
-  --accent-blue-text: #1d2b4f;
+  --accent-blue-text: #141821;
   --accent-red-text: #b91c1c;
   --accent-green-text: #166534;
-  --border-highlight: #9aa4b8;
-  --panel-tab: #e1e4dd;
-  --keyword-fallback: #1d2b4f;
-  --code-content: #24438f;
+  --border-highlight: #656c7b;
+  --panel-tab: #eef0f3;
+  --keyword-fallback: #141821;
+  --code-content: #141821;
 
-  /* Editor depth: wells are a white wash on vellum (like its inputs) and a
-     black wash on blueprint; shadows and modal scrims take the ink hue. */
-  --well-rgb: 255, 255, 255;
-  --shadow-rgb: 29, 43, 79;
-  /* Text on filled ink and warning buttons, and on the lighter *-light fills
-     those buttons take on hover. */
+  --well-rgb: 238, 240, 243;
+  --shadow-rgb: 20, 24, 33;
   --on-accent-blue: #ffffff;
   --on-accent-light: #ffffff;
   --warning: #b45309;
   --warning-rgb: 180, 83, 9;
   --warning-strong: #92400e;
-  /* Code panel amber change highlight: the text shade is amber-800 so the
-     changed line number stays readable on its own amber tint. */
   --code-changed-rgb: 180, 83, 9;
   --code-changed-light: #92400e;
-  /* Code search matches (kept apart from the amber change highlight). */
   --code-match-rgb: 133, 77, 14;
   --code-match-light: #854d0e;
-  /* Pedagogical hues, shaded per theme so labels in them stay readable:
-     R/G/B channels and x/y axes, vertex input (sky), output (violet),
-     and GL function names (matching the code panel). */
   --channel-r: #b91c1c;
   --channel-g: #166534;
   --channel-b: #1d4ed8;
@@ -101,78 +105,80 @@ $header-height: 3.7rem;
   --hue-sky-rgb: 7, 89, 133;
   --hue-violet: #6d28d9;
   --hue-violet-rgb: 109, 40, 217;
-  --gl-fn: #0f4c75;
-  --gl-fn-rgb: 15, 76, 117;
+  --gl-fn: #4f5665;
+  --gl-fn-rgb: 79, 86, 101;
 
-  /* Shared control set (editor). */
+  /* Shared control set (editor). Field lines keep 3:1 against paper and field. */
   --control-h: 28px;
   --control-h-lg: 32px;
-  --field-bg: #ffffff;
-  --field-line: #7a8296;
-  --hairline: rgba(29, 43, 79, 0.10);
+  --field-bg: #fcfcfd;
+  --field-line: #7d8390;
+  --hairline: #dadde3;
   --live: var(--accent);
-  --live-tint: rgba(255, 90, 31, 0.10);
-  --gl-hint: var(--gl-fn);
+  --live-tint: var(--accent-tint);
+  --gl-hint: #4f5665;
   --switch-thumb-on: #ffffff;
   /* Canvas overlay plate: the GL canvas is dark in both themes, so the plate
-     and its axis colours are fixed and identical for vellum and blueprint. */
-  --canvas-plate: rgba(14, 26, 52, 0.85);
-  --canvas-plate-line: rgba(186, 214, 255, 0.24);
+     and its axis colours are fixed and identical for both themes. */
+  --canvas-plate: rgba(14, 16, 20, 0.85);
+  --canvas-plate-line: rgba(230, 232, 236, 0.18);
   --canvas-x: #f87171;
   --canvas-y: #4ade80;
 }
 
-/* Blueprint: the dark theme. */
-[data-theme='blueprint'] {
+[data-theme='dark'] {
   color-scheme: dark;
 
-  --paper: #0e2a4a;
-  --paper-raised: #13355b;
-  --paper-sunken: #0a2140;
-  --ink: #e6eefb;
-  --ink-muted: #b3c4e0;
-  --ink-faint: #7f95ba;
-  --rule: rgba(186, 214, 255, 0.24);
-  --grid-major: rgba(186, 214, 255, 0.10);
-  --grid-minor: rgba(186, 214, 255, 0.04);
-  --accent: #ff6a2b;
-  --accent-rgb: 255, 106, 43;
-  --on-accent: #1a0d06;
-  --accent-text: var(--accent);
-  --focus-ring: #ff8a55;
-  --code-bg: #0a2140;
-  --code-ink: #e6eefb;
-  --code-fn: #9fb8ff;
+  --paper: #121419;
+  --paper-raised: #191c22;
+  --paper-sunken: #0e1014;
+  --ink: #e6e8ec;
+  --ink-muted: #a3a9b5;
+  --ink-faint: #8b92a0;
+  --rule: #262a33;
+  --grid-major: rgba(230, 232, 236, 0.07);
+  --grid-minor: rgba(230, 232, 236, 0.03);
+  --accent: #4762f5;
+  --accent-rgb: 71, 98, 245;
+  --on-accent: #ffffff;
+  --accent-text: #93a6ff;
+  --accent-tint: rgba(71, 98, 245, 0.16);
+  --focus-ring: #93a6ff;
+  --code-bg: #0f1115;
+  --code-ink: #e6e8ec;
+  --code-fn: #93a6ff;
   --success: #4ade80;
   --danger: #f87171;
 
-  --bg-dark-rgb: 10, 33, 64;
-  --bg-panel-rgb: 14, 42, 74;
-  --bg-bar-rgb: 14, 42, 74;
-  --bg-input-rgb: 10, 33, 64;
-  --border-rgb: 39, 74, 115;
-  --text-main: #e6eefb;
-  --text-muted: #b3c4e0;
-  --text-dim: #7f95ba;
-  --accent-blue-rgb: 47, 95, 170;
+  --logo-glow: 0 0 15px rgba(0, 240, 255, 0.4);
+
+  --bg-dark-rgb: 14, 16, 20;
+  --bg-panel-rgb: 18, 20, 25;
+  --bg-bar-rgb: 18, 20, 25;
+  --bg-input-rgb: 15, 17, 21;
+  --border-rgb: 38, 42, 51;
+  --text-main: #e6e8ec;
+  --text-muted: #a3a9b5;
+  --text-dim: #8b92a0;
+  --accent-blue-rgb: 163, 169, 181;
   --accent-green-rgb: 21, 128, 61;
   --accent-red-rgb: 185, 28, 28;
-  --bg-panel-hover: #17406b;
-  --accent-blue-light: #9cc2f5;
+  --bg-panel-hover: #0e1014;
+  --accent-blue-light: #e6e8ec;
   --accent-red-light: #f87171;
   --accent-green-light: #4ade80;
-  --accent-blue-text: #9cc2f5;
+  --accent-blue-text: #e6e8ec;
   --accent-red-text: #f87171;
   --accent-green-text: #4ade80;
-  --border-highlight: #3d6493;
-  --panel-tab: rgba(0, 0, 0, 0.2);
-  --keyword-fallback: #cdd9ee;
-  --code-content: #9cc2f5;
+  --border-highlight: #8b92a0;
+  --panel-tab: #0e1014;
+  --keyword-fallback: #e6e8ec;
+  --code-content: #e6e8ec;
 
-  --well-rgb: 0, 0, 0;
+  --well-rgb: 14, 16, 20;
   --shadow-rgb: 0, 0, 0;
   --on-accent-blue: #ffffff;
-  --on-accent-light: #0a2140;
+  --on-accent-light: #121419;
   --warning: #b45309;
   --warning-rgb: 180, 83, 9;
   --warning-strong: #92400e;
@@ -187,20 +193,20 @@ $header-height: 3.7rem;
   --hue-sky-rgb: 125, 211, 252;
   --hue-violet: #a78bfa;
   --hue-violet-rgb: 167, 139, 250;
-  --gl-fn: #82aaff;
-  --gl-fn-rgb: 130, 170, 255;
+  --gl-fn: #a3a9b5;
+  --gl-fn-rgb: 163, 169, 181;
 
-  --field-bg: #0a2140;
-  --field-line: #6f8bb5;
-  --hairline: rgba(186, 214, 255, 0.10);
+  --field-bg: #0f1115;
+  --field-line: #6b7280;
+  --hairline: #262a33;
   --live: var(--accent);
-  --live-tint: rgba(255, 106, 43, 0.14);
-  --gl-hint: var(--gl-fn);
+  --live-tint: var(--accent-tint);
+  --gl-hint: #a3a9b5;
   --switch-thumb-on: #ffffff;
   /* Canvas overlay plate: the GL canvas is dark in both themes, so the plate
-     and its axis colours are fixed and identical for vellum and blueprint. */
-  --canvas-plate: rgba(14, 26, 52, 0.85);
-  --canvas-plate-line: rgba(186, 214, 255, 0.24);
+     and its axis colours are fixed and identical for both themes. */
+  --canvas-plate: rgba(14, 16, 20, 0.85);
+  --canvas-plate-line: rgba(230, 232, 236, 0.18);
   --canvas-x: #f87171;
   --canvas-y: #4ade80;
 }
