@@ -346,8 +346,8 @@ These additions go into the roadmap's divergence list:
 
 ## Out of scope
 
-- Shareable scene-in-URL and QR codes (roadmap item 6).
-- The full example gallery (item 7). The four presets and `PRESET_LINKS` are its seed.
+- Shareable scene-in-URL and QR codes (roadmap item 8).
+- The full example gallery (item 9). The four presets and `PRESET_LINKS` are its seed.
 - Thumbnails, cross-device sync, and library import and export beyond per-entry Download.
 - Resuming a lesson at its step after a reload. A reload exits the lesson and restores the scene.
 

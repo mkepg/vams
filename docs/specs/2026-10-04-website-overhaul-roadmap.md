@@ -20,9 +20,9 @@ The overhaul has three goals:
 | Decision | Choice |
 | --- | --- |
 | Audience | Students day to day; the expert expo audience sets the priorities |
-| Visual direction | **Drafting Vellum**: cool grid paper, navy ink, a safety-orange accent, dimension lines and leader lines from vertex to code. Type: Newsreader (display), Chivo (text), Chivo Mono (labels and code) |
-| Themes | `vellum` (light) is the default; `blueprint` (dark) is the toggle. One choice is shared by the site and the editor |
-| Logo | Vertex mark: a `GL_TRIANGLES` outline with one orange selected vertex, plus "VAMS" in Newsreader. The mark alone is the favicon |
+| Visual direction | **Ink + Cobalt** (replaced Drafting Vellum on 2026-10-07): flat neutral surfaces, 1px dividers, one cobalt accent used only for active and selected things. Type: Bricolage Grotesque (UI and headlines), JetBrains Mono (code). See [the visual identity spec](2026-10-07-visual-identity-design.md) |
+| Themes | `dark` and `light`. A first visit follows the operating system; the toggle overrides it and is remembered. One choice is shared by the site and the editor |
+| Logo | The pixel wordmark: "VAMS" in Minecrafter, yellow with a black outline and a cyan offset shadow. A pixel "V" is the favicon |
 | Framework | Preact + Vite. preact-iso routing; the editor is lazy-loaded on `/app`; content pages are prerendered at build time with per-page metadata. Next.js was considered and rejected: migration risk before the expo, and no server needs |
 | Pages | Home `/`, editor `/app`, About `/about`, Learn `/learn`, Guide `/guide`. The header links only finished pages |
 | Accessibility | WCAG 2.2 AA in every sub-project |
@@ -47,23 +47,25 @@ The product rules in `AGENTS.md` and [docs/product-plan.md](../product-plan.md) 
 | 2 | **SP2 Landing page and stage mode** | Complete (2026-10-04): [spec](2026-10-04-landing-stage-design.md), [plan](../plans/2026-10-04-landing-stage.md) |
 | 3 | **SP3 Demo readiness:** lesson and scene links, My scenes library with backups, crash recovery screen, offline installable app | Complete (2026-10-06): [spec](2026-10-06-demo-readiness-design.md), [plan](../plans/2026-10-06-demo-readiness.md) |
 | 4 | **SP5 Editor layout redesign:** a shared control set, then the top bar, left rail, canvas overlays, right sidebar, lesson bar and dialogs. Includes the lesson-narration and `focusPanel` updates the new layout forces. Due by Oct 28 | Complete (2026-10-06): [spec](2026-10-06-editor-redesign-design.md), [plan](../plans/2026-10-06-editor-redesign.md) |
-| 5 | **About page** | Not started |
+| 5 | **Visual identity: Ink + Cobalt.** Tokens, fonts, themes, the pixel wordmark and the landing page restyle | In progress ([spec](2026-10-07-visual-identity-design.md)) |
+| 6 | **Editor refinement:** the lessons button, the pipeline sections and the editor review's layout findings. Due by Oct 28 | Design discussion pending |
+| 7 | **About page** | Not started |
 
 ### Should
 
-6. Shareable scene links and QR code
-7. Example gallery of curated scenes
-8. SP4 Learn hub and Guide pages
-9. Polish the demo lesson(s)
-10. Screenshot regression checks, a safety net for SP5. Done with SP5 (`npm run test:visual`)
+8. Shareable scene links and QR code
+9. Example gallery of curated scenes
+10. SP4 Learn hub and Guide pages
+11. Polish the demo lesson(s)
+12. Screenshot regression checks, a safety net for SP5. Done with SP5 (`npm run test:visual`)
 
 ### Could
 
-11. Glossary
-12. First-visit editor tour (by Oct 28)
-13. "Explain this line" for generated code (by Oct 28)
-14. Ctrl+K search
-15. Instructor page
+13. Glossary
+14. First-visit editor tour (by Oct 28)
+15. "Explain this line" for generated code (by Oct 28)
+16. Ctrl+K search
+17. Instructor page
 
 ### Below the line
 
@@ -99,7 +101,7 @@ The thesis manuscript is final and describes the evaluated build. The overhauled
 
 1. §3.4.2 describes "a single-page Preact application". The site now has prerendered routes, though the editor itself stays a single page.
 2. §3.3.3 and Fig. 5 say the user selects a curriculum area on launch. Launch now opens the landing page.
-3. Figures 10–15 show the old interface (dark navy, pixel logo, sidebar tabs).
+3. Figures 10–15 show the old interface (dark navy, pixel logo, sidebar tabs). The pixel wordmark is back since 2026-10-07; the colours, type and layout still differ.
 4. Ch. 6 Rec. 3 frames offline use as future work, and §3.6.2 says students need internet access. The site now works offline after one visit and can be installed as an app (SP3).
 5. Ch. 4 reports Algorithm 3 latency "across the eighty-nine measurable steps in the lesson library". Any change to the lesson library changes that count in regenerated reports.
 6. The Ch. 4 learning-effectiveness results were measured against the evaluated lessons, and do not cover polished or new lessons.
