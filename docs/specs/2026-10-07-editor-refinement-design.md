@@ -67,7 +67,9 @@ The three columns, their widths and the code and math column keep SP5's structur
 
 The Scene header shows the object count. Below it is the existing hierarchy (`SceneHierarchyPanel`, panel ID `scene-hierarchy`), with its rename, visibility, group, duplicate and delete actions.
 
-The Add row replaces the primitive palette that SP5 repeats in three sections. It shows the most common primitives by OpenGL name (Points, Lines, Triangles, Quads) and a **More** menu with the rest, the convenience presets and Text. It keeps the panel ID `primitive-palette` and reuses the palette's creation logic, including the click-to-place flow for polygon, strip and fan primitives. A preset stays labelled with its underlying primitive type.
+The Add row replaces the primitive palette that SP5 repeats in three sections. It shows the most common primitives by OpenGL name (Points, Lines, Triangles, Quads) and a **More** menu with the rest (`GL_LINE_STRIP`, `GL_LINE_LOOP`, `GL_TRIANGLE_STRIP`, `GL_TRIANGLE_FAN`, `GL_QUAD_STRIP`, `GL_POLYGON`). It keeps the panel ID `primitive-palette` and reuses the palette's creation logic, including the click-to-place flow and the vertex list while placing.
+
+The Create Text panel (`text-node-panel`) sits under the Add row. Two lessons tell the student to "open the 'Create Text' panel" with nothing selected, so text creation stays a scene-level tool. With a text object selected, the same panel shows its edit box, as it does today.
 
 ### 3.2 Inspector for a selected object
 
@@ -78,7 +80,7 @@ An object header shows the object's name and a line such as `GL_TRIANGLES · 3 v
 | Vertices | One row per vertex with x and y number fields, editing through `updateVertexPosition`. New UI on an existing store action | `glVertex2f` |
 | Buffers | The render-mode control (`buffers-panel`) | The current mode: `glBegin`, `glDrawArrays` or the VBO calls |
 | Transform | Translate, rotate, scale (`object-transform`) | `glTranslatef · glRotatef · glScalef` |
-| Appearance | Colour and shading (`appearance-panel`). Line style (`line-style-panel`) for line primitives. Text settings (`text-node-panel`) for text objects | `glColor3f` |
+| Appearance | Colour and shading (`appearance-panel`). Line style (`line-style-panel`) for line primitives | `glColor3f` |
 | Texture | Attach (`texture-attach`) and the UV editor (`uv-editor`) | `glBindTexture`, or "none" |
 | Animation | The animation preview (`animation-preview`) | `glutIdleFunc` |
 
@@ -147,7 +149,8 @@ A step's `focusPanel` names a panel ID, as today. One table in the lesson engine
 | `buffers-panel` | Buffers group |
 | `object-transform` | Transform group |
 | `appearance-panel` | Appearance group with an object selected. Background setting with nothing selected |
-| `line-style-panel`, `text-node-panel` | Appearance group, at that panel |
+| `line-style-panel` | Appearance group, at that panel |
+| `text-node-panel` | Create Text panel, under the Add row |
 | `texture-attach`, `uv-editor` | Texture group, at that panel |
 | `animation-preview` | Animation group |
 | `ortho-editor` | Viewing volume setting |
@@ -175,7 +178,7 @@ The focus style comes from data the lessons already carry: `type` and registry o
 | Exercise, except the last exercise in its section | The focused group is opened and outlined. Nothing is dimmed |
 | The last exercise in its section | No focus. The card shows the goal and the check only |
 
-Closing the card leaves the plain editor with the scene as the lesson left it.
+Closing the card leaves the plain editor. The student's own scene comes back exactly as it was before the lesson, as it does today: a lesson works on a copy, so starting one never costs the student their work.
 
 A pure function, `focusStyleFor(lesson, registry)`, returns `'tight' | 'outline' | 'none'`. It is tested directly.
 
@@ -217,7 +220,7 @@ The tab follows what the student is doing:
 
 | Situation | Tab |
 | --- | --- |
-| A lesson step with a focus | The tab for the focused place: Scene list, Add row, Vertices or Appearance → Primitives; Buffers → Buffers; Transform, Animation or Viewing volume → Transforms; Texture or Texture library → Textures; Background, Callbacks or the pipeline toggle → Pipeline |
+| A lesson step with a focus | The tab for the focused place: Scene list, Add row, Create Text, Vertices or Appearance → Primitives; Buffers → Buffers; Transform, Animation or Viewing volume → Transforms; Texture or Texture library → Textures; Background, Callbacks or the pipeline toggle → Pipeline |
 | Outside a lesson, after opening an inspector group | The same mapping, for the group last opened |
 | Otherwise | The current section's tab |
 
