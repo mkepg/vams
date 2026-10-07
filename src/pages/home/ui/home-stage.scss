@@ -37,34 +37,30 @@ html.stage {
   }
 
   /* Type, read from the back of a room. */
-  .home__eyebrow,
-  .home-section__eyebrow { font-size: 0.875rem; }
   .home__title { font-size: 4.25rem; }
   .home-section__title { max-width: 26ch; font-size: 3.25rem; }
   .home-section__head { margin-bottom: var(--space-6); }
   .home__lede,
-  .home-section__subhead { font-size: 1.25rem; line-height: 1.5; }
+  .home-section__subhead { font-size: 1.3rem; line-height: 1.5; }
   .home-section__subhead { max-width: 48rem; }
 
-  /* 01 Hero: the code plate reads at code size. */
+  /* Hero: the code plate reads at code size. */
   .hero-figure__code { font-size: 1rem; line-height: 1.7; }
   .hero-figure__caption { max-width: none; font-size: 0.875rem; }
   /* Squarer screens (4:3) have fewer rem across: give the figure more of the row so the code
      plate shows its full lines instead of scrolling. */
   @media (max-aspect-ratio: 3/2) {
     .home__hero { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: var(--space-6); }
-    .home__eyebrow { font-size: 0.75rem; letter-spacing: 0.1em; }
     .home__title { font-size: 3.75rem; }
     .hero-figure__drawing { grid-template-columns: minmax(0, 0.75fr) minmax(0, 1fr); }
     .hero-figure__code { font-size: 0.875rem; }
   }
 
-  /* 02 Problem */
-  .problem-list > li { font-size: 1.25rem; line-height: 1.5; }
-  .problem-list > li::before { font-size: 0.875rem; }
+  /* Problem */
+  .problem-list > li { font-size: 1.3rem; line-height: 1.5; }
   .problem-list strong { font-size: 1.75rem; }
 
-  /* 03 Views: the tallest slide. The canvas square takes what the heading and caption leave. */
+  /* Views: the tallest slide. The canvas square takes what the heading and caption leave. */
   #views .home-section__head { margin-bottom: var(--space-5); }
   .vertex-demo__grid { row-gap: var(--space-4); }
   .vertex-demo__label { font-size: 0.875rem; }
@@ -89,27 +85,27 @@ html.stage {
   .vertex-demo__math > div { grid-template-columns: 5rem minmax(0, 1fr); padding: 0.35rem 0; }
   .vertex-demo__caption { max-width: none; margin-top: var(--space-4); font-size: 0.875rem; }
 
-  /* 04 Curriculum: five columns, the widest content at 4:3. */
-  .curriculum-list > li { gap: var(--space-2); padding: var(--space-4); }
-  .curriculum-list__number { font-size: 0.875rem; }
-  .curriculum-list__name { font-size: 1.625rem; }
-  .curriculum-list__summary { font-size: 1.0625rem; line-height: 1.45; }
-  .curriculum-list__calls code { font-size: 0.875rem; }
+  /* Curriculum: five columns, the widest content at 4:3. */
+  .pipeline { gap: var(--space-4); }
+  .pipeline__stop { gap: var(--space-2); }
+  .pipeline__name { font-size: 1.625rem; }
+  .pipeline__summary { font-size: 1.3rem; line-height: 1.4; }
+  .pipeline__calls code { font-size: 0.875rem; }
   .mode-list { margin-top: var(--space-5); }
   .mode-list dt { font-size: 1.125rem; }
-  .mode-list dd { font-size: 1.25rem; line-height: 1.45; }
+  .mode-list dd { font-size: 1.3rem; line-height: 1.45; }
 
-  /* 05 Under the hood */
+  /* Under the hood */
   .hood-list dt { font-size: 1.625rem; }
-  .hood-list dd { font-size: 1.1875rem; line-height: 1.5; }
+  .hood-list dd { font-size: 1.3rem; line-height: 1.5; }
   .hood-stack { font-size: 1.125rem; }
 
-  /* 06 Team */
+  /* Team */
   .team-list dt { font-size: 1.875rem; }
-  .team-list dd { font-size: 1rem; }
+  .team-list dd { font-size: 1.3rem; }
 
-  /* 07 Try it: the closing slide mirrors the hero, and the address is the one thing to copy down. */
+  /* Try it: the closing slide mirrors the hero, and the address is the one thing to copy down. */
   .home-section--try .home-section__title { font-size: 4.25rem; }
   .try-url { justify-self: start; font-size: 2rem; border-bottom-width: 2px; }
-  .try-note { font-size: 1.25rem; }
+  .try-note { font-size: 1.3rem; }
 }

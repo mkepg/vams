@@ -104,10 +104,10 @@ export interface TeamMember {
 
 export const TEAM: { name: string; program: string; members: readonly TeamMember[] } = {
   name: 'Panic@TheCisco',
-  program: 'BS Computer Science, Software Engineering · FEU Institute of Technology',
+  program: 'BS Computer Science, Software Engineering. FEU Institute of Technology',
   members: [
-    { name: 'Mikhael Edman P. Gomez', credit: 'Primary Developer & Designer · Research & Documentation', role: 'member' },
-    { name: 'Justine Jhigz D. Vizco', credit: 'Thesis Leader · Research, Documentation & QA', role: 'member' },
+    { name: 'Mikhael Edman P. Gomez', credit: 'Primary Developer & Designer, Research & Documentation', role: 'member' },
+    { name: 'Justine Jhigz D. Vizco', credit: 'Thesis Leader, Research, Documentation & QA', role: 'member' },
     { name: 'Johann Patrick S. Taguiam', credit: 'Research, Documentation & QA', role: 'member' },
     { name: 'Elisa V. Malasaga', credit: 'Thesis Adviser', role: 'adviser' },
   ],

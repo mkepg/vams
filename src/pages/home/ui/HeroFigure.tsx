@@ -43,7 +43,7 @@ export default function HeroFigure() {
         </code></pre>
       </div>
       <figcaption className="hero-figure__caption">
-        Fig. 1 — A triangle in VAMS and the OpenGL calls that draw it. The selected vertex and its line of code stay linked.
+        Fig. 1. A triangle in VAMS and the OpenGL calls that draw it. The selected vertex and its line of code stay linked.
       </figcaption>
     </figure>
   );

@@ -271,7 +271,7 @@ describe('BB-HOME-15: The prerendered home page carries every section of the tal
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
     expect(html.match(/data-slide(?:="")?[\s>]/g)?.length).toBe(7);
     for (const member of TEAM.members) expect(html).toContain(member.name);
-    expect(html).toContain(UNDER_THE_HOOD.stack.join(' · '));
+    for (const item of UNDER_THE_HOOD.stack) expect(html).toContain(`<li>${item}</li>`);
     // The demo colours each function name in its own span, so match the code line with tags removed.
     expect(html.replace(/<[^>]+>/g, '')).toContain('glVertex2f(0.0000f, 0.5000f);');
     const text = html
@@ -446,5 +446,33 @@ describe('BB-HOME-19: Present starts at the first slide and tracking follows the
 
     render(null, host);
     host.remove();
+  });
+});
+
+describe('BB-HOME-20: Sections carry no eyebrows, sheet numbers or decorative separators', () => {
+  it('renders headlines alone and keeps em dashes and middots out of visible copy', async () => {
+    window.history.replaceState(null, '', '/');
+    const { html } = await prerender({ url: '/' });
+    expect(html).not.toContain('home-section__eyebrow');
+    expect(html).not.toContain('home__eyebrow');
+    expect(html).not.toContain('curriculum-list__number');
+    const visible = html
+      .replace(/<script[\s\S]*?<\/script>/g, '')
+      .replace(/<head>[\s\S]*?<\/head>/, '')
+      .replace(/<dl class="vertex-demo__math"[\s\S]*?<\/dl>/g, '')
+      .replace(/<[^>]+>/g, ' ');
+    expect(visible).not.toContain('—');
+    expect(visible).not.toContain('·');
+  });
+});
+
+describe('BB-HOME-21: The hero colours one word and the curriculum is a five-stop pipeline', () => {
+  it('uses an accent span, not italics, and lists the five sections in order', async () => {
+    window.history.replaceState(null, '', '/');
+    const { html } = await prerender({ url: '/' });
+    expect(html).toContain('<span class="home__accent">program.</span>');
+    expect(html).not.toMatch(/<em>program\.<\/em>/);
+    const names = [...html.matchAll(/<h3 class="pipeline__name">([^<]+)<\/h3>/g)].map((m) => m[1]);
+    expect(names).toEqual(['Pipeline', 'Primitives', 'Buffers', 'Transforms', 'Textures']);
   });
 });

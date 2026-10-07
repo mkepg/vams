@@ -1,4 +1,4 @@
-/* Shared frame for the content pages: cool grid paper, navy ink. */
+/* Shared frame for the content pages: one flat surface. */
 .site-page {
   /* Content pages share one column so the header, hero and footer line up. */
   --site-max: 1200px;
@@ -8,12 +8,6 @@
   display: flex;
   flex-direction: column;
   background-color: var(--paper);
-  background-image:
-    linear-gradient(var(--grid-major) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
-    linear-gradient(var(--grid-minor) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
-  background-size: 64px 64px, 64px 64px, 16px 16px, 16px 16px;
   color: var(--ink);
 }
 
