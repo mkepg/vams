@@ -2,65 +2,108 @@
  * BLACK-BOX TEST SUITE — BB-SITE
  * Site shell: theming, route metadata and SEO output, prerendering, site chrome.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   readStoredTheme,
+  resolveTheme,
   getActiveTheme,
   setTheme,
   toggleTheme,
   subscribeTheme,
+  followSystemTheme,
   toEditorTheme,
   THEME_STORAGE_KEY,
 } from '@/shared/lib/theme';
+
+/** A controllable prefers-color-scheme query. */
+function mockScheme(initiallyDark: boolean) {
+  let dark = initiallyDark;
+  const listeners = new Set<() => void>();
+  const query = {
+    get matches() { return dark; },
+    media: '(prefers-color-scheme: dark)',
+    addEventListener: (_: string, l: () => void) => listeners.add(l),
+    removeEventListener: (_: string, l: () => void) => listeners.delete(l),
+  };
+  vi.spyOn(window, 'matchMedia').mockImplementation(() => query as unknown as MediaQueryList);
+  return {
+    set(next: boolean) {
+      dark = next;
+      listeners.forEach((l) => l());
+    },
+    listenerCount: () => listeners.size,
+  };
+}
 
 function resetTheme() {
   localStorage.clear();
   delete document.documentElement.dataset.theme;
 }
 
-describe('BB-SITE-01: Theme defaults to vellum', () => {
+afterEach(() => vi.restoreAllMocks());
+
+describe('BB-SITE-01: Stored themes resolve, and legacy names migrate', () => {
   beforeEach(resetTheme);
-  it('returns vellum when nothing is stored', () => {
-    expect(readStoredTheme()).toBe('vellum');
-    expect(getActiveTheme()).toBe('vellum');
+  it('reads dark and light, and rewrites blueprint and vellum under the same key', () => {
+    localStorage.setItem(THEME_STORAGE_KEY, 'dark');
+    expect(readStoredTheme()).toBe('dark');
+    localStorage.setItem(THEME_STORAGE_KEY, 'blueprint');
+    expect(readStoredTheme()).toBe('dark');
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark');
+    localStorage.setItem(THEME_STORAGE_KEY, 'vellum');
+    expect(readStoredTheme()).toBe('light');
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('light');
   });
 });
 
-describe('BB-SITE-02: Invalid stored theme values are ignored', () => {
+describe('BB-SITE-02: With no usable stored value the theme follows the OS', () => {
   beforeEach(resetTheme);
-  it('falls back to vellum for an unknown value', () => {
-    localStorage.setItem(THEME_STORAGE_KEY, 'dark');
-    expect(readStoredTheme()).toBe('vellum');
+  it('ignores unknown values and survives storage that throws', () => {
+    mockScheme(true);
+    localStorage.setItem(THEME_STORAGE_KEY, 'toString');
+    expect(readStoredTheme()).toBeNull();
+    expect(resolveTheme()).toBe('dark');
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    expect(resolveTheme()).toBe('dark');
+    expect(getActiveTheme()).toBe('dark');
   });
 });
 
 describe('BB-SITE-03: setTheme persists and applies the theme', () => {
   beforeEach(resetTheme);
   it('stores the value and sets data-theme on <html>', () => {
-    setTheme('blueprint');
-    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('blueprint');
-    expect(document.documentElement.dataset.theme).toBe('blueprint');
-    expect(getActiveTheme()).toBe('blueprint');
+    setTheme('dark');
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(getActiveTheme()).toBe('dark');
   });
 });
 
-describe('BB-SITE-04: toggleTheme flips themes and notifies subscribers', () => {
+describe('BB-SITE-04: The OS is followed live only until the student chooses', () => {
   beforeEach(resetTheme);
-  it('alternates vellum and blueprint and stops notifying after unsubscribe', () => {
+  it('applies OS changes while unset, then ignores them after a toggle', () => {
+    const scheme = mockScheme(false);
     const seen: string[] = [];
     const unsubscribe = subscribeTheme((theme) => seen.push(theme));
-    expect(toggleTheme()).toBe('blueprint');
-    expect(toggleTheme()).toBe('vellum');
+    const stop = followSystemTheme();
+    scheme.set(true);
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(toggleTheme()).toBe('light');
+    scheme.set(true);
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(seen).toEqual(['dark', 'light']);
+    stop();
+    expect(scheme.listenerCount()).toBe(0);
     unsubscribe();
-    toggleTheme();
-    expect(seen).toEqual(['blueprint', 'vellum']);
   });
 });
 
-describe('BB-SITE-05: Site themes map onto the editor store values', () => {
-  it('maps blueprint to dark and vellum to light', () => {
-    expect(toEditorTheme('blueprint')).toBe('dark');
-    expect(toEditorTheme('vellum')).toBe('light');
+describe('BB-SITE-05: Site themes are the editor store values', () => {
+  it('maps each theme to itself', () => {
+    expect(toEditorTheme('dark')).toBe('dark');
+    expect(toEditorTheme('light')).toBe('light');
   });
 });
 
@@ -227,7 +270,34 @@ describe('BB-SITE-19: The early theme script matches the theme module', () => {
     const html = readFileSync('index.html', 'utf8');
     expect(html).toContain(`'${THEME_STORAGE_KEY}'`);
     expect(html).toContain("classList.add('route-editor')");
+    expect(html).toContain("'(prefers-color-scheme: dark)'");
   });
+});
+
+describe('BB-SITE-21: The pre-paint script resolves the same theme as the module', () => {
+  const html = readFileSync('index.html', 'utf8');
+  const script = /<script>([\s\S]*?)<\/script>/.exec(html)![1];
+  const cases: { stored: string | null; osDark: boolean }[] = [
+    { stored: null, osDark: false },
+    { stored: null, osDark: true },
+    { stored: 'dark', osDark: false },
+    { stored: 'light', osDark: true },
+    { stored: 'blueprint', osDark: false },
+    { stored: 'vellum', osDark: true },
+    { stored: 'nonsense', osDark: true },
+  ];
+  for (const { stored, osDark } of cases) {
+    it(`stored=${stored} osDark=${osDark}`, () => {
+      localStorage.clear();
+      if (stored !== null) localStorage.setItem(THEME_STORAGE_KEY, stored);
+      mockScheme(osDark);
+      delete document.documentElement.dataset.theme;
+      new Function(script)();
+      const painted = document.documentElement.dataset.theme;
+      delete document.documentElement.dataset.theme;
+      expect(painted).toBe(resolveTheme());
+    });
+  }
 });
 
 import SiteApp from '@/app/SiteApp';

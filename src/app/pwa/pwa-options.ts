@@ -1,8 +1,8 @@
 import type { VitePWAOptions } from 'vite-plugin-pwa';
 
-/** Navy ink and vellum paper from src/shared/styles/_tokens.scss. */
-export const PWA_THEME_COLOR = '#1d2b4f';
-export const PWA_BACKGROUND_COLOR = '#f4f5f2';
+/** The light paper from src/shared/styles/_tokens.scss; a manifest allows one colour. */
+export const PWA_THEME_COLOR = '#f7f8fa';
+export const PWA_BACKGROUND_COLOR = '#f7f8fa';
 
 interface PrecacheEntry {
   url: string;

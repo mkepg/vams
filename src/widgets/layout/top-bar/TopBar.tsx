@@ -13,7 +13,7 @@ export default function TopBar() {
   const theme = useSiteTheme();
   return (
     <header className="top-bar">
-      <Toaster position="bottom-center" theme={theme === 'blueprint' ? 'dark' : 'light'} />
+      <Toaster position="bottom-center" theme={theme} />
       <a className="top-bar__home" href="/" aria-label="VAMS home">
         <Logo variant="full" title="VAMS" />
       </a>

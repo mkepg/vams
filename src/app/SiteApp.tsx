@@ -1,9 +1,11 @@
+import { useEffect } from 'react';
 import { ErrorBoundary, LocationProvider, Route, Router } from 'preact-iso';
 import HomePage from '@/pages/home';
 import EditorPage from '@/pages/editor';
 import NotFoundPage from '@/pages/not-found';
 import { findRouteMeta } from '@/app/routes/route-meta';
 import UpdateNotice from '@/app/pwa/UpdateNotice';
+import { followSystemTheme } from '@/shared/lib/theme';
 
 /** Prerendering sets each page's title; client-side navigation keeps it in step. */
 function syncDocumentTitle(url: string) {
@@ -16,6 +18,7 @@ function logRenderError(error: unknown) {
 }
 
 export default function SiteApp() {
+  useEffect(() => followSystemTheme(), []);
   return (
     <LocationProvider>
       <ErrorBoundary onError={logRenderError}>

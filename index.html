@@ -4,17 +4,28 @@
    <meta charset="UTF-8" />
    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-   <meta name="theme-color" content="#1d2b4f" />
+   <meta name="theme-color" content="#f7f8fa" media="(prefers-color-scheme: light)" />
+   <meta name="theme-color" content="#121419" media="(prefers-color-scheme: dark)" />
    <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
    <title>VAMS</title>
    <script>
      (function () {
        var root = document.documentElement;
+       var theme = null;
        try {
-         root.dataset.theme = localStorage.getItem('vams-theme') === 'blueprint' ? 'blueprint' : 'vellum';
-       } catch (e) {
-         root.dataset.theme = 'vellum';
+         var stored = localStorage.getItem('vams-theme');
+         if (stored === 'blueprint') stored = 'dark';
+         else if (stored === 'vellum') stored = 'light';
+         if (stored === 'dark' || stored === 'light') theme = stored;
+       } catch (e) {}
+       if (!theme) {
+         try {
+           theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+         } catch (e) {
+           theme = 'light';
+         }
        }
+       root.dataset.theme = theme;
        if (/^\/app\/?$/.test(location.pathname)) root.classList.add('route-editor');
        if (location.pathname === '/' && new URLSearchParams(location.search).has('stage')) root.classList.add('stage');
      })();
