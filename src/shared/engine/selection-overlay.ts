@@ -1,4 +1,5 @@
 import { Container, Graphics } from 'pixi.js';
+import { readCssColor } from '@/shared/lib/theme';
 
 export class SelectionOverlay extends Container {
     private border: Graphics;
@@ -51,7 +52,7 @@ export class SelectionOverlay extends Container {
         const parentScale = this.parent ? Math.abs(this.parent.scale.x) : 1;
         const objectScale = Math.abs(this.scale.x) || 1;
         const lineWidth = 2 / (parentScale * objectScale);
-        const lineColor = 0x0099ff;
+        const lineColor = readCssColor('--accent', 0x4762f5);
 
         // Draw the clean bounding box outline without the fake corner handles
         this.border.rect(bounds.x, bounds.y, bounds.width, bounds.height);

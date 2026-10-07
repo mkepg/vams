@@ -12,6 +12,7 @@ import {
 } from "../utils/geometry-utils";
 import { drawWithGraphics } from "./graphicsRenderer";
 import { createMesh } from "./meshRenderer";
+import { readCssColor } from '@/shared/lib/theme';
 
 export interface CreateDrawableOptions {
   groupChildren?: SceneNode[];
@@ -62,7 +63,7 @@ function createGroupDrawable(
   if (options?.isSelected) {
       groupGraphics.setStrokeStyle({
         width: pxToWorld(1, worldScaleX),
-        color: 0x0099ff,
+        color: readCssColor('--accent', 0x4762f5),
         alpha: 0.3,
         alignment: 0.5
       });

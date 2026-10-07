@@ -458,3 +458,28 @@ describe('BB-SHELL-19: Space activates a menu item once, on keyup', () => {
     unmount(host);
   });
 });
+
+import { readCssColor } from '@/shared/lib/theme';
+
+describe('BB-SHELL-20: Canvas colours are read from the theme tokens', () => {
+  it('parses a #rrggbb custom property and falls back otherwise', () => {
+    const root = document.documentElement;
+    root.style.setProperty('--accent', '#4762f5');
+    expect(readCssColor('--accent', 0)).toBe(0x4762f5);
+    root.style.setProperty('--accent', 'rgb(1, 2, 3)');
+    expect(readCssColor('--accent', 0x123456)).toBe(0x123456);
+    root.style.removeProperty('--accent');
+    expect(readCssColor('--missing', 0xabcdef)).toBe(0xabcdef);
+  });
+});
+
+describe('BB-SHELL-21: The canvas selection outline uses the accent, not a fixed blue', () => {
+  it('has no hard-coded selection colour left in the engine', async () => {
+    const { readFileSync } = await import('node:fs');
+    for (const file of ['src/shared/engine/selection-overlay.ts', 'src/shared/engine/pixi/primitives/rendering/drawableFactory.ts']) {
+      const source = readFileSync(file, 'utf8');
+      expect(source, file).not.toContain('0x0099ff');
+      expect(source, file).toContain("readCssColor('--accent'");
+    }
+  });
+});

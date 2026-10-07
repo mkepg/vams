@@ -15,3 +15,4 @@ export {
   toEditorTheme,
 } from './theme';
 export { useSiteTheme } from './useSiteTheme';
+export { readCssColor } from './css-color';

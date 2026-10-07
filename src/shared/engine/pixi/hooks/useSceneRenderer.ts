@@ -44,6 +44,8 @@ export function useSceneRenderer({
   const handleGraphicsRef = useRef<HandleGraphics[]>([]);
   const objects = useVamsStore((s) => s.objects);
   const selectedObjectId = useVamsStore((s) => s.selectedObjectId);
+  // Selection outlines read --accent; redraw them when the theme changes.
+  const theme = useVamsStore((s) => s.theme);
   const interactionMode = useVamsStore((s) => s.interactionMode);
   const selectObject = useVamsStore((s) => s.selectObject);
   const updateObjectTransform = useVamsStore((s) => s.updateObjectTransform);
@@ -407,6 +409,7 @@ export function useSceneRenderer({
     pixiReady,
     objects,
     selectedObjectId,
+    theme,
     worldRef,
     appRef,
     overlayRef,
@@ -429,5 +432,5 @@ export function useSceneRenderer({
       overlay.setTarget(null);
       overlay.visible = false;
     }
-  }, [selectedObjectId, objects, worldRef, overlayRef]);
+  }, [selectedObjectId, objects, worldRef, overlayRef, theme]);
 }

@@ -3,38 +3,27 @@
 <head>
 <meta charset="UTF-8" />
 <style>
-  @font-face { font-family: 'Newsreader'; font-weight: 600; src: url('../../node_modules/@fontsource/newsreader/files/newsreader-latin-600-normal.woff2') format('woff2'); }
-  @font-face { font-family: 'Chivo Mono'; font-weight: 400; src: url('../../node_modules/@fontsource/chivo-mono/files/chivo-mono-latin-400-normal.woff2') format('woff2'); }
+  @font-face { font-family: 'Minecrafter'; src: url('../../public/fonts/Minecrafter.ttf') format('truetype'); }
+  @font-face { font-family: 'Bricolage'; font-weight: 200 800; src: url('../../node_modules/@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2') format('woff2'); }
   html, body { margin: 0; }
   body {
     width: 1200px; height: 630px; box-sizing: border-box; padding: 96px 104px;
-    display: flex; flex-direction: column; justify-content: center; gap: 28px;
-    color: #1d2b4f; background-color: #f4f5f2;
-    background-image:
-      linear-gradient(rgba(29,43,79,.10) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(29,43,79,.10) 1px, transparent 1px),
-      linear-gradient(rgba(29,43,79,.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(29,43,79,.04) 1px, transparent 1px);
-    background-size: 64px 64px, 64px 64px, 16px 16px, 16px 16px;
+    display: flex; flex-direction: column; justify-content: center; gap: 36px;
+    background: #121419; color: #e6e8ec;
   }
-  .lockup { display: flex; align-items: center; gap: 40px; }
-  .word { font-family: 'Newsreader', serif; font-weight: 600; font-size: 140px; line-height: 1; letter-spacing: .02em; }
-  .tag { font-family: 'Chivo Mono', monospace; font-size: 30px; letter-spacing: .08em; text-transform: uppercase; color: #45557a; }
-  .rule { width: 160px; height: 4px; background: #ff5a1f; }
+  .word {
+    font-family: 'Minecrafter', sans-serif; font-style: italic; font-size: 168px; line-height: 1; letter-spacing: .08em;
+    color: #fcee0a; -webkit-text-stroke: 4px #000; paint-order: stroke fill;
+    text-shadow: 8px 8px 0 #00f0ff, 0 0 40px rgba(0, 240, 255, .4);
+  }
+  .tag { margin: 0; font-family: 'Bricolage', sans-serif; font-weight: 600; font-size: 44px; letter-spacing: -.02em; }
+  .tag span { color: #93a6ff; }
+  .rule { width: 160px; height: 4px; background: #4762f5; }
 </style>
 </head>
 <body>
-  <div class="lockup">
-    <svg width="168" height="151" viewBox="0 0 40 36" aria-hidden="true">
-      <polygon points="4,32 36,32 20,4" fill="rgba(255,90,31,.14)" />
-      <polygon points="4,32 36,32 20,4" fill="none" stroke="#1d2b4f" stroke-width="2" stroke-linejoin="round" />
-      <circle cx="4" cy="32" r="3" fill="#1d2b4f" />
-      <circle cx="36" cy="32" r="3" fill="#1d2b4f" />
-      <circle cx="20" cy="4" r="3.6" fill="#ff5a1f" />
-    </svg>
-    <span class="word">VAMS</span>
-  </div>
+  <div class="word">VAMS</div>
   <div class="rule"></div>
-  <p class="tag" style="margin:0">See the OpenGL behind every shape</p>
+  <p class="tag">See the OpenGL behind <span>every shape.</span></p>
 </body>
 </html>
