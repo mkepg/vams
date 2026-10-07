@@ -48,24 +48,25 @@ The product rules in `AGENTS.md` and [docs/product-plan.md](../product-plan.md) 
 | 3 | **SP3 Demo readiness:** lesson and scene links, My scenes library with backups, crash recovery screen, offline installable app | Complete (2026-10-06): [spec](2026-10-06-demo-readiness-design.md), [plan](../plans/2026-10-06-demo-readiness.md) |
 | 4 | **SP5 Editor layout redesign:** a shared control set, then the top bar, left rail, canvas overlays, right sidebar, lesson bar and dialogs. Includes the lesson-narration and `focusPanel` updates the new layout forces. Due by Oct 28 | Complete (2026-10-06): [spec](2026-10-06-editor-redesign-design.md), [plan](../plans/2026-10-06-editor-redesign.md) |
 | 5 | **Visual identity: Ink + Cobalt.** Tokens, fonts, themes, the pixel wordmark and the landing page restyle | In progress ([spec](2026-10-07-visual-identity-design.md)) |
-| 6 | **Editor refinement:** the lessons button, the pipeline sections and the editor review's layout findings. Due by Oct 28 | Design discussion pending |
+| 6 | **Editor refinement:** one editor with a pipeline-ordered inspector in every section, lessons as a guide card with fading focus, a Learn drawer with progress, and the editor review's layout findings. Due by Oct 28 | Designed ([spec](2026-10-07-editor-refinement-design.md)) |
 | 7 | **About page** | Not started |
 
 ### Should
 
 8. Shareable scene links and QR code
 9. Example gallery of curated scenes
-10. SP4 Learn hub and Guide pages
+10. `/learn` page (replaces the SP4 Learn hub): the course map outside the editor, reusing the Learn drawer's course data and progress. By Nov 2. The Guide page follows it
 11. Polish the demo lesson(s)
 12. Screenshot regression checks, a safety net for SP5. Done with SP5 (`npm run test:visual`)
+13. Functional callbacks: keyboard, mouse, motion, reshape and idle behaviours defined in the GUI, with generated handler bodies and a canvas Run mode that never writes scene state. Needs its own spec and a product plan amendment, since the plan specifies empty stubs. Touches the editor
 
 ### Could
 
-13. Glossary
-14. First-visit editor tour (by Oct 28)
-15. "Explain this line" for generated code (by Oct 28)
-16. Ctrl+K search
-17. Instructor page
+14. Glossary
+15. First-visit editor tour (by Oct 28)
+16. "Explain this line" for generated code (by Oct 28)
+17. Ctrl+K search
+18. Instructor page
 
 ### Below the line
 
@@ -109,6 +110,7 @@ The thesis manuscript is final and describes the evaluated build. The overhauled
 8. SP5 renames one panel title, "Position, Rotation, & Scale" to "Object Transform", to match the lesson narration, and wires two `focusPanel` targets (`object-transform`, `text-node-panel`) that never matched a panel. The narration that names screen positions stays true in the new layout.
 9. §3.4.2 describes saving only as project-file download and upload. The editor now also keeps a My scenes library and automatic backups in the browser, opens lessons and prepared scenes from links, and shows a recovery screen after a crash (SP3).
 10. §3.4.2's five layout regions and its top-bar actions. The lesson bar becomes a lesson card at the top of the section column, the section tabs become a menu at the top of that column, and the file actions move into a File menu in the top bar (SP5).
+11. The manuscript describes a tools rail whose panels change with the selected curriculum section, with the Pipeline section's canvas modes as section tools. The editor is now the same in every section: a scene list and a pipeline-ordered inspector. Sections become the course map in a Learn drawer, and the Pipeline views appear during Pipeline lessons (editor refinement).
 
 The following manuscript descriptions may also be crossed by later sub-projects. When one is, it is added to the list above:
 - The default canvas background `#000000`. Changing it changes generated code and the replay baseline.
