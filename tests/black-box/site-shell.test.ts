@@ -336,21 +336,33 @@ describe('BB-SITE-20: Client-side navigation updates the document title', () => 
 
 const TOKENS = readFileSync('src/shared/styles/_tokens.scss', 'utf8');
 
+/** The text of one top-level block. */
+function blockBody(selector: string): string {
+  const start = TOKENS.indexOf(`${selector} {`);
+  return TOKENS.slice(start, TOKENS.indexOf('\n}\n', start));
+}
+
+function toHex(channels: number[]): string {
+  return '#' + channels.map((c) => Math.round(c).toString(16).padStart(2, '0')).join('');
+}
+
 /** `--name: #rrggbb;` declarations inside one top-level block. */
 function block(selector: string): Record<string, string> {
-  const start = TOKENS.indexOf(`${selector} {`);
-  const body = TOKENS.slice(start, TOKENS.indexOf('\n}\n', start));
   const values: Record<string, string> = {};
-  for (const m of body.matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)) values[m[1]] = m[2].toLowerCase();
+  for (const m of blockBody(selector).matchAll(/(--[\w-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)) values[m[1]] = m[2].toLowerCase();
   return values;
 }
 
 /** A `--name: r, g, b;` triplet inside one top-level block, as #rrggbb. */
 function rgbToken(selector: string, name: string): string {
-  const start = TOKENS.indexOf(`${selector} {`);
-  const body = TOKENS.slice(start, TOKENS.indexOf('\n}\n', start));
-  const m = new RegExp(`${name}:\\s*(\\d+),\\s*(\\d+),\\s*(\\d+)\\s*;`).exec(body)!;
-  return '#' + m.slice(1, 4).map((c) => Number(c).toString(16).padStart(2, '0')).join('');
+  const m = new RegExp(`${name}:\\s*(\\d+),\\s*(\\d+),\\s*(\\d+)\\s*;`).exec(blockBody(selector))!;
+  return toHex(m.slice(1, 4).map(Number));
+}
+
+/** The translucent `--canvas-plate` composited over an opaque backdrop, as #rrggbb. */
+function plateOver(selector: string, backdrop: string): string {
+  const [r, g, b, a] = /--canvas-plate:\s*rgba\(([^)]+)\)/.exec(blockBody(selector))![1].split(',').map(Number);
+  return toHex([r, g, b].map((c, i) => c * a + parseInt(backdrop.slice(1 + i * 2, 3 + i * 2), 16) * (1 - a)));
 }
 
 function luminance(hex: string) {
@@ -394,6 +406,7 @@ describe('BB-SITE-23: Text and focus tokens meet WCAG AA on every surface', () =
       expect(contrast(t['--on-accent'], t['--accent'])).toBeGreaterThanOrEqual(4.5);
       expect(contrast(t['--on-accent-blue'], rgbToken(selector, '--accent-blue-rgb')), '--on-accent-blue').toBeGreaterThanOrEqual(4.5);
       expect(contrast(t['--on-accent-light'], t['--accent-blue-light']), '--on-accent-light').toBeGreaterThanOrEqual(4.5);
+      expect(contrast(t['--canvas-plate-text'], plateOver(selector, t['--paper'])), '--canvas-plate-text').toBeGreaterThanOrEqual(4.5);
       expect(contrast(t['--focus-ring'], t['--paper'])).toBeGreaterThanOrEqual(3);
       expect(contrast(t['--field-line'], t['--paper'])).toBeGreaterThanOrEqual(3);
       expect(contrast(t['--field-line'], t['--field-bg'])).toBeGreaterThanOrEqual(3);
@@ -426,5 +439,12 @@ describe('BB-SITE-25: The wordmark font is preloaded and cannot shift the header
     const logo = readFileSync('src/shared/ui/logo/logo.scss', 'utf8');
     expect(logo).toMatch(/height: 1em;/);
     expect(logo).toMatch(/prefers-reduced-motion: no-preference/);
+  });
+});
+
+describe('BB-SITE-26: Canvas overlays take their text colour from the plate, not the accent', () => {
+  it('uses --canvas-plate-text on the plate', () => {
+    const canvas = readFileSync('src/widgets/canvas/vams-canvas.scss', 'utf8');
+    expect(canvas).toMatch(/color: var\(--canvas-plate-text\);\s*background: var\(--canvas-plate\);/);
   });
 });

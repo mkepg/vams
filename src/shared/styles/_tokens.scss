@@ -121,6 +121,7 @@ $header-height: 3.7rem;
   /* Canvas overlay plate: the GL canvas is dark in both themes, so the plate
      and its axis colours are fixed and identical for both themes. */
   --canvas-plate: rgba(14, 16, 20, 0.85);
+  --canvas-plate-text: #e6e8ec;
   --canvas-plate-line: rgba(230, 232, 236, 0.18);
   --canvas-x: #f87171;
   --canvas-y: #4ade80;
@@ -206,6 +207,7 @@ $header-height: 3.7rem;
   /* Canvas overlay plate: the GL canvas is dark in both themes, so the plate
      and its axis colours are fixed and identical for both themes. */
   --canvas-plate: rgba(14, 16, 20, 0.85);
+  --canvas-plate-text: #e6e8ec;
   --canvas-plate-line: rgba(230, 232, 236, 0.18);
   --canvas-x: #f87171;
   --canvas-y: #4ade80;
