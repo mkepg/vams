@@ -24,7 +24,7 @@ const STIPPLE_PRESETS: StipplePreset[] = [
   { label: 'Sparse',      factor: 4, pattern: 0xAAAA },
 ];
 
-const LINE_TYPES: ReadonlySet<SceneNode['type']> = new Set([
+export const LINE_TYPES: ReadonlySet<SceneNode['type']> = new Set([
   'LINES', 'LINE_STRIP', 'LINE_LOOP',
 ]);
 

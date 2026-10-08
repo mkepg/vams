@@ -6,7 +6,7 @@ import { Button, GlHint, SegmentedControl } from '@/shared/ui/controls';
 import type { SceneNode } from '@/core/types/scene';
 import type { TextureFilter, TextureWrap } from '@/core/types/textures';
 
-const TEXTUREABLE_TYPES: ReadonlySet<SceneNode['type']> = new Set([
+export const TEXTUREABLE_TYPES: ReadonlySet<SceneNode['type']> = new Set([
   'TRIANGLES', 'TRIANGLE_STRIP', 'TRIANGLE_FAN',
   'QUADS', 'QUAD_STRIP', 'POLYGON',
 ]);

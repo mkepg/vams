@@ -1,0 +1,5 @@
+.vertices-panel {
+  display: grid;
+  gap: 6px;
+  .vertex-index { color: var(--ink-faint); font-family: var(--font-mono); }
+}

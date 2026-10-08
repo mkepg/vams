@@ -65,3 +65,26 @@
     box-shadow: 0 0 0 4px var(--live-tint);
   }
 }
+
+.vpanel--embedded {
+  border-bottom: 0;
+  padding-top: 6px;
+
+  .vpanel__subhead {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 0;
+    padding: 0 12px 4px;
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--ink-muted);
+  }
+  .vpanel__body { padding-top: 0; }
+  &.is-lesson-focus {
+    outline: 1px solid var(--accent);
+    outline-offset: -1px;
+    background: var(--accent-tint);
+  }
+}

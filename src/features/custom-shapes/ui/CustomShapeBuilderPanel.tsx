@@ -10,7 +10,7 @@ import { BsBoxes } from "react-icons/bs";
 import type { PendingVertex, PrimitiveType } from "@/core/types/scene";
 import { useVamsStore } from "@/core/store";
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
-import { Button, DataTable, GlHint, NumberField, type DataColumn } from '@/shared/ui/controls';
+import { Button, DataTable, GlHint, MenuButton, NumberField, type DataColumn } from '@/shared/ui/controls';
 
 interface ShapeDefinition {
   type: PrimitiveType;
@@ -104,13 +104,8 @@ const SHAPE_DEFS: ShapeDefinition[] = [
   },
 ];
 
-/** Lets long GL_* names wrap after an underscore instead of mid-word. */
-function breakableLabel(label: string) {
-  const parts = label.split('_');
-  return parts.map((part, i) => (
-    <span key={i}>{part}{i < parts.length - 1 && <>_<wbr /></>}</span>
-  ));
-}
+/** The four primitives most lessons start from; the rest sit in the More menu. */
+const PRIMARY: readonly PrimitiveType[] = ['POINTS', 'LINES', 'TRIANGLES', 'QUADS'];
 
 const STRIDE_LABEL_SINGULAR: Partial<Record<PrimitiveType, string>> = {
   LINES: 'segment',
@@ -230,21 +225,31 @@ export default function CustomShapeBuilderPanel() {
   };
 
   if (!pendingShapeType) {
+    const start = (def: ShapeDefinition) => startCustomShape(def.type, def.minVertices, def.stride);
     return (
       <CollapsibleSection panelId="primitive-palette" title="Create Primitive" icon={<Edit3 size={12} />} defaultOpen={true}>
-        <div className="primitive-grid">
-          {SHAPE_DEFS.map((def) => (
-            <button
-              key={def.type}
-              type="button"
-              onClick={() => startCustomShape(def.type, def.minVertices, def.stride)}
-              className="primitive-tile"
-              title={`Create ${def.label}`}
-            >
-              <span className="primitive-tile__icon" aria-hidden="true">{def.icon}</span>
-              <span className="primitive-tile__label">{breakableLabel(def.label)}</span>
+        <div className="add-row">
+          {SHAPE_DEFS.filter((def) => PRIMARY.includes(def.type)).map((def) => (
+            <button key={def.type} type="button" className="add-row__item" title={def.hint} onClick={() => start(def)}>
+              <span className="add-row__icon" aria-hidden="true">{def.icon}</span>
+              <span>{def.label}</span>
             </button>
           ))}
+          <MenuButton
+            label="More primitives"
+            variant="quiet"
+            triggerClassName="add-row__more"
+            entries={SHAPE_DEFS.filter((def) => !PRIMARY.includes(def.type)).map((def) => ({
+              kind: 'item' as const,
+              id: def.type,
+              label: def.label,
+              description: def.hint,
+              icon: def.icon,
+              onSelect: () => start(def),
+            }))}
+          >
+            More
+          </MenuButton>
         </div>
       </CollapsibleSection>
     );

@@ -21,7 +21,6 @@ const SPEED_OPTIONS = [0.5, 1, 2].map((n) => ({ value: String(n), label: `${n}×
  * playback loop.
  */
 export default function AnimationPreviewPanel() {
-  const appMode = useVamsStore((s) => s.appMode);
   const selectedObjectId = useVamsStore((s) => s.selectedObjectId);
   const objects = useVamsStore((s) => s.objects);
   const setObjectAnimation = useVamsStore((s) => s.setObjectAnimation);
@@ -42,7 +41,7 @@ export default function AnimationPreviewPanel() {
   }, [selectedObjectId]);
 
   // The store carries a single selection, so a selected id IS "exactly one".
-  if (appMode !== 'Author' || !selectedObjectId) return null;
+  if (!selectedObjectId) return null;
 
   const isPlayingThis = playing && objectId === selectedObjectId;
   const isSaved = !!savedAnim && savedAnim.motion === motion && savedAnim.speed === speed;
