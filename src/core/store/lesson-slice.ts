@@ -62,12 +62,15 @@ export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (
     },
   })),
   setSuccessState: (success) => set({ isSuccess: success }),
-  setLessonFocusPanel: (panelId) => set({ lessonFocusPanel: panelId }),
+  setLessonFocusPanel: (panelId) => set({ lessonFocusPanel: panelId, mathTabOverride: null }),
   setDmaDriverStep: (index) => set({ dmaDriverStep: index }),
   setChangedCodeLines: (lines) => set({ changedCodeLines: lines }),
   clearLessonState: () => {
     const state = get();
     set({
+      pipelineMode: 'Playground',
+      activePipelineStage: null,
+      mathTabOverride: null,
       activeLessonId: null,
       currentStepIndex: 0,
       exerciseAnswers: {},
