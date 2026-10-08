@@ -31,7 +31,7 @@
 - **Before every commit:** `npm run lint`, `npm run build` and `npm test` all pass. Then `git checkout -- tests/reports`.
 - **Test IDs:**
   - Existing IDs keep their numbers. A test whose behaviour this work removes is rewritten under the same ID for the behaviour that replaces it.
-  - New IDs: BB-INSP-01+ (new file `tests/black-box/editor-inspector.test.ts`), BB-LEARN-01+ (new file `tests/black-box/learn-drawer.test.ts`), BB-LCOL-18+, BB-SHELL-22+, BB-PANEL-22+, BB-CTRL-25+, VIS-EDITOR-06+.
+  - New IDs: BB-INSP-01+ (new file `tests/black-box/editor-inspector.test.ts`), BB-LEARN-01+ (new file `tests/black-box/learn-drawer.test.ts`), BB-LCOL-18+, BB-SHELL-22+, BB-PANEL-22+, BB-CTRL-25+, VIS-EDITOR-09+.
 - **Student-facing text** never uses "coming soon", "not supported", "future", "deferred", "3D" or "lighting".
 - **Section labels are exactly** `Pipeline | Primitives | Buffers | Transforms | Textures`, everywhere they appear (Learn rail, math tabs).
 - **Modes:** two only, Author and Lesson.
@@ -2608,7 +2608,7 @@ git commit -m "feat(editor): math tabs, help and the empty state follow what the
 
 **Files:**
 - Modify: every editor stylesheet in the scope below (type sweep); `src/shared/styles/_tokens.scss` (mixin, change-highlight tokens); the selected-state blocks listed in Step 4; `src/shared/ui/code-viewer/CodeViewer.tsx:224-228`; `src/shared/ui/code-viewer/code-viewer.scss`; `src/shared/engine/pixi/hooks/useGridSystem.ts`
-- Test: `tests/black-box/editor-shell.test.ts` (BB-SHELL-22…24), `tests/visual/editor.spec.ts` (VIS-EDITOR-06)
+- Test: `tests/black-box/editor-shell.test.ts` (BB-SHELL-22…24), `tests/visual/editor.spec.ts` (VIS-EDITOR-09)
 
 **Editor stylesheet scope:** every `src/**/*.scss` tracked by git, except files under these paths:
 - `src/pages/home/`, `src/pages/not-found/`;
@@ -2669,7 +2669,7 @@ describe('BB-SHELL-24: Selected items share one selection style', () => {
 Add to `tests/visual/editor.spec.ts`:
 
 ```ts
-test('VIS-EDITOR-06: No horizontal page overflow at 960 px', async ({ page }) => {
+test('VIS-EDITOR-09: No horizontal page overflow at 960 px', async ({ page }) => {
   await page.setViewportSize({ width: 960, height: 720 });
   await open(page, '/app?scene=transforms');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -2780,7 +2780,7 @@ In `code-viewer.scss`, inside the `.code-line` `&.changed` block, add `box-shado
 Run: `npx vitest run tests/black-box/editor-shell.test.ts`
 Expected: PASS.
 
-Run: `npx playwright test tests/visual/editor.spec.ts -g "VIS-EDITOR-06"`
+Run: `npx playwright test tests/visual/editor.spec.ts -g "VIS-EDITOR-09"`
 Expected: PASS. If it fails, find the overflowing element:
 
 ```js
@@ -2873,12 +2873,12 @@ Expected: no matches.
 In `tests/visual/editor.spec.ts`, update any VIS-EDITOR test that waits for or names the section menu or the Lessons menu to the new column and Learn. Add two tests:
 
 ```ts
-test('VIS-EDITOR-07: Scene settings with nothing selected, light, 1280', async ({ page }) => {
+test('VIS-EDITOR-10: Scene settings with nothing selected, light, 1280', async ({ page }) => {
   await open(page, '/app');
   await expect(page).toHaveScreenshot('settings-light-1280.png');
 });
 
-test('VIS-EDITOR-08: Learn drawer, dark, 1280', async ({ page }) => {
+test('VIS-EDITOR-11: Learn drawer, dark, 1280', async ({ page }) => {
   await open(page, '/app?scene=transforms', 'dark');
   await page.getByRole('button', { name: 'Learn' }).click();
   await expect(page).toHaveScreenshot('learn-dark-1280.png');
