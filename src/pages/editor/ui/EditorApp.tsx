@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect } from 'react';
 import TopBar from '@/widgets/layout/top-bar';
-import { SectionColumn } from '@/widgets/layout/section-column';
+import { EditorColumn } from '@/widgets/layout/editor-column';
 import CodeMathColumn from '@/widgets/layout/code-math-column';
 import ViewportRouter from '@/widgets/canvas/ViewportRouter';
 import { MyScenesDialog } from '@/features/scene-library';
@@ -32,7 +32,7 @@ export default function EditorApp() {
   return (
     <EditorShell
       topBar={<TopBar />}
-      column={<SectionColumn />}
+      column={<EditorColumn />}
       canvas={<ViewportRouter />}
       codeMath={<CodeMathColumn />}
       overlays={

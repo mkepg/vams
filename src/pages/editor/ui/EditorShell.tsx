@@ -15,7 +15,7 @@ export interface EditorShellProps {
   overlays?: ComponentChildren;
 }
 
-/** The editor grid. Below 1100 px the section column becomes a drawer over the canvas. */
+/** The editor grid. Below 1100 px the editor column becomes a drawer over the canvas. */
 export default function EditorShell({ topBar, column, canvas, codeMath, overlays }: EditorShellProps) {
   const narrow = useNarrowLayout();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -65,7 +65,7 @@ export default function EditorShell({ topBar, column, canvas, codeMath, overlays
   return (
     <div className={classes}>
       {topBar}
-      <aside ref={columnRef} id="editor-section-column" className="editor__column" aria-label="Section panels">
+      <aside ref={columnRef} id="editor-column" className="editor__column" aria-label="Scene and inspector">
         {column}
       </aside>
       <main className="editor__canvas canvas-area">
@@ -75,7 +75,7 @@ export default function EditorShell({ topBar, column, canvas, codeMath, overlays
             className="editor__panels-toggle"
             icon={<PanelLeft />}
             aria-expanded={drawerOpen}
-            aria-controls="editor-section-column"
+            aria-controls="editor-column"
             onClick={() => setDrawerOpen((open) => !open)}
           >
             Panels

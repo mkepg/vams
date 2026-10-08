@@ -38,6 +38,7 @@ export default function LessonLauncher() {
       icon={<GraduationCap />}
       entries={[...group('demo', 'Demos'), ...group('exercise', 'Exercises')]}
       align="end"
+      triggerClassName="learn-trigger"
     >
       Lessons
     </MenuButton>

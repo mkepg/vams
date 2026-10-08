@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type { ComponentChildren } from 'preact';
 import { ChevronLeft, ChevronRight, CheckCircle2, X } from 'lucide-react';
 import { Button } from '@/shared/ui/controls';
 import { useLessonRunner } from '../model/useLessonRunner';
@@ -6,8 +7,8 @@ import MultipleChoiceWidget from './exercise-widgets/MultipleChoiceWidget';
 import OrderListWidget from './exercise-widgets/OrderListWidget';
 import './lesson-card.scss';
 
-/** The lesson, shown at the top of the section column in Lesson mode. Runs the step engine; mount once. */
-export default function LessonCard() {
+/** The lesson, shown at the top of the editor column in Lesson mode. Runs the step engine; mount once. */
+export default function LessonCard({ children }: { children?: ComponentChildren }) {
   const runner = useLessonRunner();
   const titleRef = useRef<HTMLHeadingElement>(null);
   const lessonId = runner.active ? runner.lesson?.id ?? null : null;
@@ -49,6 +50,7 @@ export default function LessonCard() {
         <span className="lesson-card__count">{stepIndex + 1} / {stepCount}</span>
       </div>
       <p className="lesson-card__narration" aria-live="polite">{step.narration}</p>
+      {children}
       {step.exercise && (
         <div className="lesson-card__exercise" key={`ex-${stepKey}`}>
           {step.exercise.kind === 'multiple-choice' && (

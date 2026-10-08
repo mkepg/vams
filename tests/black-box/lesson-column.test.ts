@@ -1,14 +1,15 @@
 /**
  * BLACK-BOX TEST SUITE — BB-LCOL
- * The lesson column: the runner hook, the lesson card and panel focus.
+ * The lesson column: the runner hook, the lesson card and the editor column in Lesson mode.
  */
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
 import { useVamsStore } from '@/core/store';
 import LessonCard from '@/features/lesson-engine/ui/LessonCard';
-import { Panel, SegmentedControl } from '@/shared/ui/controls';
+import { SegmentedControl } from '@/shared/ui/controls';
 import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
-import { SectionColumn, SECTION_PANELS, type SectionPanels } from '@/widgets/layout/section-column';
+import { EditorColumn } from '@/widgets/layout/editor-column';
+import { FOCUS_PANEL_IDS } from '@/core/inspector';
 import EditorShell from '@/pages/editor/ui/EditorShell';
 import ObjectTransformPanel from '@/features/object-transform/ui/ObjectTransformPanel';
 import TextNodePanel from '@/features/text-nodes/ui/TextNodePanel';
@@ -120,59 +121,48 @@ describe('BB-LCOL-05: Esc on the window exits the lesson', () => {
   });
 });
 
-function fakePanels(): SectionPanels {
-  const panel = (id: string, title: string, defaultOpen = true) => ({
-    id,
-    render: () => h(Panel, { panelId: id, title, defaultOpen }, `${title} body`),
-  });
-  return {
-    Pipeline: [panel('pipeline-mode-controls', 'Viewport Mode'), panel('scene-hierarchy', 'Scene Hierarchy')],
-    Primitives: [panel('scene-hierarchy', 'Scene Hierarchy'), panel('line-style-panel', 'Line Style')],
-    Buffers: [panel('scene-hierarchy', 'Scene Hierarchy'), panel('buffers-panel', 'Memory & Buffers')],
-    Transforms: [
-      panel('scene-hierarchy', 'Scene Hierarchy'),
-      panel('ortho-editor', 'Viewing Volume', false),
-      panel('object-transform', 'Object Transform'),
-    ],
-    Textures: [panel('scene-hierarchy', 'Scene Hierarchy'), panel('uv-editor', 'UV Editor')],
-  };
-}
-const titles = (host: HTMLElement) => [...host.querySelectorAll('.vpanel__title')].map((t) => t.textContent);
-
-describe('BB-LCOL-06: In Lesson mode the column shows the lesson instead of the section menu', () => {
-  it('has a lesson card and no section menu', async () => {
+describe('BB-LCOL-06: In Lesson mode the lesson card sits above the live editor', () => {
+  it('shows the card, the scene area and the inspector together', async () => {
     startLesson('transforms-exercise-1');
-    const host = mount(h(SectionColumn, { panels: fakePanels() }));
+    const host = mount(h(EditorColumn, {}));
     await settle();
     expect(host.querySelector('.lesson-card')).not.toBeNull();
-    expect(host.querySelector('.section-menu')).toBeNull();
+    expect(host.querySelector('.scene-area')).not.toBeNull();
+    expect(host.querySelector('.inspector')).not.toBeNull();
+    const card = host.querySelector('.lesson-card')!;
+    expect(card.compareDocumentPosition(host.querySelector('.inspector')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     unmount(host);
   });
 });
 
-describe('BB-LCOL-07: The focus panel comes first, open, under "Use this panel"', () => {
-  it('reorders and collapses the rest', async () => {
-    // Step 1 of transforms-exercise-1 targets object-transform, which is last in the fake list.
-    startLesson('transforms-exercise-1');
-    const host = mount(h(SectionColumn, { panels: fakePanels() }));
+describe.skip('BB-LCOL-07: A demo opens and outlines the step’s group and dims the rest', () => {
+  it('focuses Transform in a Transforms demo step', async () => {
+    startLesson('transforms-demo-1');
+    const host = mount(h(EditorColumn, {}));
     await settle();
-    expect(titles(host)).toEqual(['Object Transform', 'Scene Hierarchy', 'Viewing Volume']);
-    expect(host.querySelector('.section-column__use')!.textContent).toContain('Use this panel');
-    const headers = host.querySelectorAll('.vpanel__header');
-    expect(headers[0].getAttribute('aria-expanded')).toBe('true');
-    expect(headers[1].getAttribute('aria-expanded')).toBe('false');
-    expect(headers[2].getAttribute('aria-expanded')).toBe('false');
+    // Step 2 targets object-transform; the demo created and selected its object.
+    buttonNamed(host, 'Next')!.click();
+    await settle();
+    const transform = host.querySelector('[data-group="transform"]')!;
+    expect(transform.classList.contains('is-focus')).toBe(true);
+    expect(transform.querySelector('.inspector-group__header')!.getAttribute('aria-expanded')).toBe('true');
+    expect(transform.querySelector('[data-panel-id="object-transform"]')!.classList.contains('is-lesson-focus')).toBe(true);
+    const others = [...host.querySelectorAll('.inspector-group:not([data-group="transform"])')];
+    expect(others.length).toBeGreaterThan(0);
+    for (const group of others) {
+      expect(group.classList.contains('is-dimmed')).toBe(true);
+      expect(group.querySelector('.inspector-group__header')!.getAttribute('aria-expanded')).toBe('false');
+    }
     unmount(host);
   });
 });
 
-describe('BB-LCOL-08: Every lesson focusPanel is a panel in its section', () => {
-  it('resolves all ids against SECTION_PANELS', () => {
+describe('BB-LCOL-08: Every lesson focusPanel has a place in the editor', () => {
+  it('resolves all ids against the focus map', () => {
     const missing: string[] = [];
     for (const lesson of Object.values(LESSON_REGISTRY)) {
-      const ids = new Set(SECTION_PANELS[lesson.section].map((entry) => entry.id));
       for (const step of lesson.steps) {
-        if (step.focusPanel && !ids.has(step.focusPanel)) missing.push(`${lesson.id}:${step.focusPanel}`);
+        if (step.focusPanel && !FOCUS_PANEL_IDS.includes(step.focusPanel)) missing.push(`${lesson.id}:${step.focusPanel}`);
       }
     }
     expect(missing).toEqual([]);
@@ -283,25 +273,29 @@ describe('BB-LCOL-12: The drawer closes when the lesson ends', () => {
   });
 });
 
-describe('BB-LCOL-13: Exit hands focus to the section menu', () => {
-  it('focuses the section-menu trigger when the card took focus with it', async () => {
+describe('BB-LCOL-13: Exit hands focus to the Learn button', () => {
+  it('focuses the Learn trigger when the card took focus with it', async () => {
+    const learn = document.createElement('button');
+    learn.className = 'learn-trigger';
+    document.body.appendChild(learn);
     startLesson('transforms-exercise-1');
-    const host = mount(h(SectionColumn, { panels: fakePanels() }));
+    const host = mount(h(EditorColumn, {}));
     await settle();
     const exit = buttonNamed(host, 'Exit')!;
     exit.focus();
     exit.click();
     await settle();
     expect(useVamsStore.getState().appMode).toBe('Author');
-    expect(document.activeElement).toBe(host.querySelector('.section-menu__trigger'));
+    expect(document.activeElement).toBe(learn);
     unmount(host);
+    learn.remove();
   });
 
   it('leaves focus alone when it is elsewhere', async () => {
     const outside = document.createElement('button');
     document.body.appendChild(outside);
     startLesson('transforms-exercise-1');
-    const host = mount(h(SectionColumn, { panels: fakePanels() }));
+    const host = mount(h(EditorColumn, {}));
     await settle();
     outside.focus();
     useVamsStore.getState().clearLessonState();

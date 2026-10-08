@@ -1,11 +1,11 @@
 /**
  * BLACK-BOX TEST SUITE — BB-SHELL
- * The editor shell: dialogs, menus, the top bar and the section column.
+ * The editor shell: dialogs, menus, the top bar and the editor column.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
 import { useState } from 'react';
-import { Dialog, MenuButton, Panel, type MenuEntry } from '@/shared/ui/controls';
+import { Dialog, MenuButton, type MenuEntry } from '@/shared/ui/controls';
 import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
 import { confirm, useConfirmStore } from '@/shared/ui/confirm-dialog/confirm-store';
 import { useVamsStore } from '@/core/store';
@@ -15,10 +15,10 @@ import NewWorkspaceButton from '@/features/workspace-reset/ui/NewWorkspaceButton
 import EditorPreferencesMenu from '@/features/editor-preferences/ui/EditorPreferencesMenu';
 import LessonLauncher from '@/features/lesson-engine/ui/LessonLauncher';
 import FileMenu from '@/widgets/layout/top-bar/FileMenu';
-import { SectionColumn, SectionMenu, type SectionPanels } from '@/widgets/layout/section-column';
+import { EditorColumn, Inspector } from '@/widgets/layout/editor-column';
 import { useMyScenesDialog } from '@/features/scene-library';
 import { CanvasOverlays } from '@/widgets/canvas/ui/CanvasOverlays';
-import { addTriangle } from '../helpers/store';
+import { addPrimitive, addTriangle } from '../helpers/store';
 
 async function settle() {
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
@@ -336,43 +336,76 @@ describe('BB-SHELL-13: The Lessons menu lists the section’s demos and exercise
   });
 });
 
-describe('BB-SHELL-14: The section menu lists the five sections and switches', () => {
-  it('uses the exact labels, checks the active one, and calls setActiveSection', async () => {
-    useVamsStore.setState({ activeSection: 'Transforms', appMode: 'Author' });
-    const host = mount(h(SectionMenu, {}));
-    expect(host.querySelector('.section-menu__name')!.textContent).toBe('Transforms');
-    expect(host.querySelector('.section-menu__desc')!.textContent).toBe('Translate, rotate, scale, and the matrix stack');
-    await openMenu(host, 'Transforms');
-    expect(menuItems(host)).toEqual(['Pipeline', 'Primitives', 'Buffers', 'Transforms', 'Textures']);
-    const checked = host.querySelector('[role="menuitemradio"][aria-checked="true"]')!;
-    expect(checked.textContent).toContain('Transforms');
-    expect(document.activeElement).toBe(checked);
-    chooseItem(host, 'Buffers');
-    await settle();
-    expect(useVamsStore.getState().activeSection).toBe('Buffers');
-    unmount(host);
+describe('BB-SHELL-14: The editor column is the same in every section', () => {
+  it('shows the scene area and the inspector whatever the section, with no section menu', async () => {
+    const tri = addTriangle();
+    useVamsStore.setState({ appMode: 'Author', selectedObjectId: tri.id });
+    for (const section of ['Pipeline', 'Primitives', 'Buffers', 'Transforms', 'Textures'] as const) {
+      useVamsStore.setState({ activeSection: section });
+      const host = mount(h(EditorColumn, {}));
+      await settle();
+      expect(host.querySelector('.section-menu')).toBeNull();
+      expect(host.querySelector('[data-panel-id="scene-hierarchy"]')).not.toBeNull();
+      expect(host.querySelector('[data-panel-id="primitive-palette"]')).not.toBeNull();
+      expect(host.querySelector('[data-panel-id="text-node-panel"]')).not.toBeNull();
+      expect(host.querySelector('.inspector')).not.toBeNull();
+      unmount(host);
+    }
+    useVamsStore.setState({ objects: [], selectedObjectId: null });
   });
 });
 
-describe('BB-SHELL-15: Scene Hierarchy is pinned first except in Pipeline', () => {
-  it('reorders Author-mode panels per section', async () => {
-    const panel = (id: string, title: string) => ({ id, render: () => h(Panel, { panelId: id, title }, 'x') });
-    const panels: SectionPanels = {
-      Pipeline: [panel('pipeline-mode-controls', 'Viewport Mode'), panel('scene-hierarchy', 'Scene Hierarchy')],
-      Primitives: [panel('line-style-panel', 'Line Style'), panel('scene-hierarchy', 'Scene Hierarchy')],
-      Buffers: [panel('scene-hierarchy', 'Scene Hierarchy')],
-      Transforms: [panel('scene-hierarchy', 'Scene Hierarchy')],
-      Textures: [panel('scene-hierarchy', 'Scene Hierarchy')],
-    };
-    const titlesOf = (host: HTMLElement) => [...host.querySelectorAll('.vpanel__title')].map((t) => t.textContent);
-    useVamsStore.setState({ activeSection: 'Primitives', appMode: 'Author' });
-    const host = mount(h(SectionColumn, { panels }));
+describe('BB-SHELL-15: The inspector shows the object in pipeline order, or the scene settings', () => {
+  it('orders object groups, leaves out ones that do not apply, and switches to settings', async () => {
+    const groupTitles = (host: HTMLElement) => [...host.querySelectorAll('.inspector-group__title')].map((t) => t.textContent);
+    const tri = addTriangle();
+    useVamsStore.setState({ appMode: 'Author', selectedObjectId: tri.id });
+    const host = mount(h(Inspector, {}));
     await settle();
-    expect(titlesOf(host)).toEqual(['Scene Hierarchy', 'Line Style']);
-    useVamsStore.setState({ activeSection: 'Pipeline' });
+    expect(groupTitles(host)).toEqual(['Vertices', 'Buffers', 'Transform', 'Appearance', 'Texture', 'Animation']);
+    expect(host.querySelector('[data-group="transform"] .inspector-group__header')!.getAttribute('aria-expanded')).toBe('true');
+    expect(host.querySelector('[data-group="vertices"] .inspector-group__header')!.getAttribute('aria-expanded')).toBe('false');
+    expect(host.querySelector('[data-group="transform"] .inspector-group__hint')!.textContent).toContain('glTranslatef');
+    useVamsStore.setState({ selectedObjectId: null });
     await settle();
-    expect(titlesOf(host)).toEqual(['Viewport Mode', 'Scene Hierarchy']);
+    expect(groupTitles(host)).toEqual(['Background', 'Viewing volume', 'Texture library', 'Callbacks']);
+    expect(host.querySelector('.inspector__name')!.textContent).toBe('Scene settings');
     unmount(host);
+    useVamsStore.setState({ objects: [] });
+  });
+
+  it('leaves out Line style for a triangle and the Texture group for a line', async () => {
+    const line = addPrimitive('LINES', [{ x: -0.5, y: 0 }, { x: 0.5, y: 0 }]);
+    useVamsStore.setState({ appMode: 'Author', selectedObjectId: line.id });
+    const host = mount(h(Inspector, {}));
+    await settle();
+    expect(host.querySelector('[data-group="texture"]')).toBeNull();
+    useVamsStore.getState().toggleGroup('appearance');
+    await settle();
+    expect(host.querySelector('[data-panel-id="line-style-panel"]')).not.toBeNull();
+    const tri = addTriangle();
+    useVamsStore.setState({ selectedObjectId: tri.id });
+    await settle();
+    expect(host.querySelector('[data-panel-id="line-style-panel"]')).toBeNull();
+    expect(host.querySelector('[data-group="texture"]')).not.toBeNull();
+    unmount(host);
+    useVamsStore.setState({ objects: [], selectedObjectId: null, openGroups: ['transform', 'background'] });
+  });
+
+  it('shows only Transform and Animation for a group, with its child count', async () => {
+    const groupTitles = (host: HTMLElement) => [...host.querySelectorAll('.inspector-group__title')].map((t) => t.textContent);
+    const tri = addTriangle();
+    const line = addPrimitive('LINES', [{ x: -0.5, y: 0 }, { x: 0.5, y: 0 }]);
+    useVamsStore.setState({ appMode: 'Author' });
+    useVamsStore.getState().createGroup([tri.id, line.id]);
+    const group = useVamsStore.getState().objects.find((o) => o.type === 'GROUP')!;
+    expect(useVamsStore.getState().selectedObjectId).toBe(group.id);
+    const host = mount(h(Inspector, {}));
+    await settle();
+    expect(groupTitles(host)).toEqual(['Transform', 'Animation']);
+    expect(host.querySelector('.inspector__meta')!.textContent).toBe('Group · 2 objects');
+    unmount(host);
+    useVamsStore.setState({ objects: [], selectedObjectId: null });
   });
 });
 

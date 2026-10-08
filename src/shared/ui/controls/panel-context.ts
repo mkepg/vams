@@ -7,5 +7,5 @@ export interface PanelLayout {
   embedded?: boolean;
 }
 
-/** Set by the section column: in lesson mode only the step's focus panel starts open. */
+/** Set by the editor column: in lesson mode only the step's focus panel starts open. */
 export const PanelLayoutContext = createContext<PanelLayout>({ mode: 'author', focusPanelId: null });
