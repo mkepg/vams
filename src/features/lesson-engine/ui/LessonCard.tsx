@@ -18,7 +18,7 @@ export default function LessonCard({ children }: { children?: ComponentChildren 
   useEffect(() => {
     if (!lessonId) return;
     const active = document.activeElement;
-    if (!active || active === document.body || !active.isConnected) titleRef.current?.focus();
+    if (!active || active === document.body || !active.isConnected || active.closest('.learn-trigger')) titleRef.current?.focus();
   }, [lessonId]);
 
   if (!runner.active || !runner.lesson || !runner.step) return null;

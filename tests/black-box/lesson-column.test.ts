@@ -10,6 +10,8 @@ import { SegmentedControl } from '@/shared/ui/controls';
 import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
 import { EditorColumn } from '@/widgets/layout/editor-column';
 import { FOCUS_PANEL_IDS } from '@/core/inspector';
+import { focusStyleFor } from '@/features/lesson-engine/model/guidance';
+import { showsIllustration } from '@/widgets/canvas/illustration';
 import EditorShell from '@/pages/editor/ui/EditorShell';
 import ObjectTransformPanel from '@/features/object-transform/ui/ObjectTransformPanel';
 import TextNodePanel from '@/features/text-nodes/ui/TextNodePanel';
@@ -135,7 +137,7 @@ describe('BB-LCOL-06: In Lesson mode the lesson card sits above the live editor'
   });
 });
 
-describe.skip('BB-LCOL-07: A demo opens and outlines the step’s group and dims the rest', () => {
+describe('BB-LCOL-07: A demo opens and outlines the step’s group and dims the rest', () => {
   it('focuses Transform in a Transforms demo step', async () => {
     startLesson('transforms-demo-1');
     const host = mount(h(EditorColumn, {}));
@@ -401,5 +403,70 @@ describe('BB-LCOL-17: The narration is one live region across steps', () => {
     expect(host.querySelector('[aria-live="polite"]')).toBe(region);
     expect(region.textContent).toContain('Translate moves the shape');
     unmount(host);
+  });
+});
+
+describe('BB-LCOL-18: Guidance fades through a section', () => {
+  it('is tight for demos, an outline for exercises, and none for each section’s last exercise', () => {
+    const lastExercise = new Map<string, string>();
+    for (const lesson of Object.values(LESSON_REGISTRY)) if (lesson.type === 'exercise') lastExercise.set(lesson.section, lesson.id);
+    for (const lesson of Object.values(LESSON_REGISTRY)) {
+      const expected = lesson.type === 'demo' ? 'tight' : lastExercise.get(lesson.section) === lesson.id ? 'none' : 'outline';
+      expect(focusStyleFor(lesson), lesson.id).toBe(expected);
+    }
+    expect(focusStyleFor(LESSON_REGISTRY['transforms-exercise-4'])).toBe('none');
+    expect(focusStyleFor(LESSON_REGISTRY['transforms-exercise-1'])).toBe('outline');
+  });
+});
+
+describe('BB-LCOL-19: An exercise outlines its group and dims nothing; the last exercise focuses nothing', () => {
+  it('outlines Transform in transforms-exercise-1 and sets no focus in transforms-exercise-4', async () => {
+    startLesson('transforms-exercise-1');
+    let host = mount(h(EditorColumn, {}));
+    await settle();
+    expect(host.querySelector('[data-group="transform"]')!.classList.contains('is-focus')).toBe(true);
+    expect(host.querySelectorAll('.inspector-group.is-dimmed')).toHaveLength(0);
+    unmount(host);
+    useVamsStore.getState().clearLessonState();
+    useVamsStore.setState({ appMode: 'Author' });
+
+    startLesson('transforms-exercise-4');
+    host = mount(h(EditorColumn, {}));
+    await settle();
+    expect(useVamsStore.getState().lessonFocusPanel).toBeNull();
+    expect(host.querySelectorAll('.is-focus, .is-lesson-focus')).toHaveLength(0);
+    unmount(host);
+  });
+});
+
+describe('BB-LCOL-20: A per-object focus selects the newest object, and never crashes on an empty scene', () => {
+  it('selects the lesson’s object when nothing is selected', async () => {
+    startLesson('transforms-exercise-1');
+    const host = mount(h(EditorColumn, {}));
+    await settle();
+    const s = useVamsStore.getState();
+    expect(s.objects.length).toBeGreaterThan(0);
+    expect(s.selectedObjectId).toBe(s.objects[0].id);
+    unmount(host);
+  });
+
+  it('shows scene settings when there is nothing to select', async () => {
+    startLesson('transforms-exercise-1');
+    const host = mount(h(EditorColumn, {}));
+    await settle();
+    useVamsStore.setState({ objects: [], selectedObjectId: null, lessonFocusPanel: 'object-transform' });
+    await settle();
+    expect(host.querySelector('.inspector__name')!.textContent).toBe('Scene settings');
+    unmount(host);
+  });
+});
+
+describe('BB-LCOL-21: The Pipeline illustrations appear only during Pipeline lessons', () => {
+  // The router mounts the PixiJS canvas, which cannot initialise under happy-dom; the decision it
+  // renders from is checked directly.
+  it('shows the diagram in a Pipeline lesson and the scene canvas otherwise', () => {
+    expect(showsIllustration({ appMode: 'Author', activeSection: 'Pipeline', pipelineMode: 'Diagram' })).toBe(false);
+    expect(showsIllustration({ appMode: 'Lesson', activeSection: 'Pipeline', pipelineMode: 'Diagram' })).toBe(true);
+    expect(showsIllustration({ appMode: 'Lesson', activeSection: 'Pipeline', pipelineMode: 'Playground' })).toBe(false);
   });
 });

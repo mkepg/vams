@@ -31,9 +31,8 @@ export function Panel({ title, icon, children, defaultOpen = false, panelId, hin
     if (!isFocus || embedded) return;
     const el = sectionRef.current;
     if (!el) return;
-    // The section column puts the focus panel first, under the sticky lesson card and its
-    // "Use this panel" label; scrolling the column to the top shows all three. Scrolling the
-    // panel itself into view would tuck its header under the sticky card.
+    // A standalone focus panel resets its scroll root to the top, or scrolls itself into view
+    // when it has none. Embedded panels leave scrolling to the inspector group that holds them.
     const root = el.closest<HTMLElement>('[data-scroll-root]');
     if (root) root.scrollTop = 0;
     else if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
