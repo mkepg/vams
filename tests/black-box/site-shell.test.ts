@@ -334,7 +334,8 @@ describe('BB-SITE-20: Client-side navigation updates the document title', () => 
   });
 });
 
-const TOKENS = readFileSync('src/shared/styles/_tokens.scss', 'utf8');
+/** Line endings normalised, so a CRLF checkout (core.autocrlf) parses the same. */
+const TOKENS = readFileSync('src/shared/styles/_tokens.scss', 'utf8').replace(/\r\n/g, '\n');
 
 /** The text of one top-level block. */
 function blockBody(selector: string): string {
