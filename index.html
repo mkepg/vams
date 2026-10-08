@@ -15,8 +15,8 @@
        var theme = null;
        try {
          var stored = localStorage.getItem('vams-theme');
-         if (stored === 'blueprint') stored = 'dark';
-         else if (stored === 'vellum') stored = 'light';
+         var legacy = stored === 'blueprint' ? 'dark' : stored === 'vellum' ? 'light' : null;
+         if (legacy) localStorage.setItem('vams-theme', (stored = legacy));
          if (stored === 'dark' || stored === 'light') theme = stored;
        } catch (e) {}
        if (!theme) {

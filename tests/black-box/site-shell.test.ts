@@ -294,6 +294,7 @@ describe('BB-SITE-21: The pre-paint script resolves the same theme as the module
       new Function(script)();
       const painted = document.documentElement.dataset.theme;
       delete document.documentElement.dataset.theme;
+      if (stored === 'blueprint' || stored === 'vellum') expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe(painted);
       expect(painted).toBe(resolveTheme());
     });
   }
@@ -344,6 +345,14 @@ function block(selector: string): Record<string, string> {
   return values;
 }
 
+/** A `--name: r, g, b;` triplet inside one top-level block, as #rrggbb. */
+function rgbToken(selector: string, name: string): string {
+  const start = TOKENS.indexOf(`${selector} {`);
+  const body = TOKENS.slice(start, TOKENS.indexOf('\n}\n', start));
+  const m = new RegExp(`${name}:\\s*(\\d+),\\s*(\\d+),\\s*(\\d+)\\s*;`).exec(body)!;
+  return '#' + m.slice(1, 4).map((c) => Number(c).toString(16).padStart(2, '0')).join('');
+}
+
 function luminance(hex: string) {
   const [r, g, b] = [1, 3, 5].map((i) => {
     const c = parseInt(hex.slice(i, i + 2), 16) / 255;
@@ -383,6 +392,8 @@ describe('BB-SITE-23: Text and focus tokens meet WCAG AA on every surface', () =
         for (const bg of surfaces) expect(contrast(t[fg], t[bg]), `${fg} on ${bg}`).toBeGreaterThanOrEqual(4.5);
       }
       expect(contrast(t['--on-accent'], t['--accent'])).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(t['--on-accent-blue'], rgbToken(selector, '--accent-blue-rgb')), '--on-accent-blue').toBeGreaterThanOrEqual(4.5);
+      expect(contrast(t['--on-accent-light'], t['--accent-blue-light']), '--on-accent-light').toBeGreaterThanOrEqual(4.5);
       expect(contrast(t['--focus-ring'], t['--paper'])).toBeGreaterThanOrEqual(3);
       expect(contrast(t['--field-line'], t['--paper'])).toBeGreaterThanOrEqual(3);
       expect(contrast(t['--field-line'], t['--field-bg'])).toBeGreaterThanOrEqual(3);
