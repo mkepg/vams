@@ -186,7 +186,7 @@ export const TEXTURES_LESSONS: Record<string, Lesson> = {
       },
       {
         narration:
-          "Because the wrap mode is GL_REPEAT, OpenGL loops the image seamlessly. This is how massive 3D walls and floors are textured using tiny image files.",
+          "Because the wrap mode is GL_REPEAT, OpenGL loops the image seamlessly. This is how large walls and floors are textured using tiny image files.",
         waitForUser: true,
       },
       {

@@ -636,7 +636,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: 'Below the code, the math panel shows the numbers behind what you see. It has one tab per section, and the tab follows what you are doing: the control a lesson step opens, otherwise the inspector group you opened last, otherwise the current section. Pick a tab yourself at any time; your pick holds until the next lesson step or the next group you open.',
+        text: 'Below the code, the math panel shows the numbers behind what you see. It has one tab per section, and the tab follows what you are doing: during a lesson, the control the step opens, otherwise the current section; outside a lesson, the inspector group you opened last, otherwise the current section. Pick a tab yourself at any time; your pick holds until the next lesson step or the next group you open.',
       },
       { kind: 'heading', text: 'What the tabs show' },
       {
