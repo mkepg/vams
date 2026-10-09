@@ -13,7 +13,7 @@ import { isSceneEmpty } from '@/entities/project/model/scene-empty';
 import HistoryControls from '@/features/history-controls/ui/HistoryControls';
 import NewWorkspaceButton from '@/features/workspace-reset/ui/NewWorkspaceButton';
 import EditorPreferencesMenu from '@/features/editor-preferences/ui/EditorPreferencesMenu';
-import LessonLauncher from '@/features/lesson-engine/ui/LessonLauncher';
+import LearnButton from '@/features/lesson-engine/ui/LearnButton';
 import FileMenu from '@/widgets/layout/top-bar/FileMenu';
 import { EditorColumn, Inspector } from '@/widgets/layout/editor-column';
 import { useMyScenesDialog } from '@/features/scene-library';
@@ -319,20 +319,20 @@ describe('BB-SHELL-12: The settings menu toggles view options and opens shortcut
   });
 });
 
-describe('BB-SHELL-13: The Lessons menu lists the section’s demos and exercises', () => {
-  it('groups lessons and starts the chosen one', async () => {
-    useVamsStore.setState({ activeSection: 'Transforms', appMode: 'Author' });
-    const host = mount(h(LessonLauncher, {}));
-    await openMenu(host, 'Lessons');
-    const groups = [...host.querySelectorAll('.vmenu__group')].map((g) => g.textContent);
-    expect(groups).toEqual(['Demos', 'Exercises']);
-    chooseItem(host, 'Translate to Position');
-    await settle();
-    expect(useVamsStore.getState().appMode).toBe('Lesson');
-    expect(useVamsStore.getState().activeLessonId).toBe('transforms-exercise-1');
-    useVamsStore.getState().clearLessonState();
-    useVamsStore.setState({ appMode: 'Author' });
-    unmount(host);
+describe('BB-SHELL-13: The Learn button opens the course drawer in both modes', () => {
+  it('is a dialog trigger named Learn that sets learnOpen', async () => {
+    for (const appMode of ['Author', 'Lesson'] as const) {
+      useVamsStore.setState({ appMode, learnOpen: false });
+      const host = mount(h(LearnButton, {}));
+      const button = host.querySelector('button.learn-trigger') as HTMLButtonElement;
+      expect(button.textContent).toContain('Learn');
+      expect(button.getAttribute('aria-haspopup')).toBe('dialog');
+      button.click();
+      await settle();
+      expect(useVamsStore.getState().learnOpen).toBe(true);
+      unmount(host);
+    }
+    useVamsStore.setState({ appMode: 'Author', learnOpen: false });
   });
 });
 

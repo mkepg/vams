@@ -4,6 +4,7 @@ import { EditorColumn } from '@/widgets/layout/editor-column';
 import CodeMathColumn from '@/widgets/layout/code-math-column';
 import ViewportRouter from '@/widgets/canvas/ViewportRouter';
 import { MyScenesDialog } from '@/features/scene-library';
+import LearnDrawer from '@/features/lesson-engine/ui/LearnDrawer';
 import HelpCenter from '@/features/help/ui/HelpCenter';
 import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
 import WelcomeCard from '@/features/onboarding/ui/WelcomeCard';
@@ -37,6 +38,7 @@ export default function EditorApp() {
       codeMath={<CodeMathColumn />}
       overlays={
         <>
+          <LearnDrawer />
           <HelpCenter />
           <MyScenesDialog />
           <ConfirmDialog />

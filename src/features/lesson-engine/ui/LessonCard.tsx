@@ -84,7 +84,7 @@ export default function LessonCard({ children }: { children?: ComponentChildren 
           icon={isLastStep ? <CheckCircle2 /> : <ChevronRight />}
           title={isLastStep ? 'Finish lesson' : 'Next step (→)'}
           disabled={!canAdvance}
-          onClick={isLastStep ? runner.exit : runner.next}
+          onClick={isLastStep ? runner.finish : runner.next}
         >
           {isLastStep ? 'Finish' : 'Next'}
         </Button>

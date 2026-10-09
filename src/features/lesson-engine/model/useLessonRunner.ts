@@ -3,6 +3,7 @@ import { useVamsStore } from '@/core/store';
 import type { Lesson, LessonStep } from '@/core/types/lesson';
 import { resolveFocus } from '@/core/inspector';
 import { LESSON_REGISTRY } from './lesson-registry';
+import { markLessonComplete, recordLessonLeft } from './progress';
 import { focusStyleFor } from './guidance';
 import { useCanvasSize } from '@/features/code-generation/model/useCanvasSize';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
@@ -32,6 +33,7 @@ export interface LessonRunner {
   next: () => void;
   back: () => void;
   exit: () => void;
+  finish: () => void;
 }
 
 /** The step's focus target, or none for a section's last exercise. */
@@ -266,12 +268,24 @@ export function useLessonRunner(): LessonRunner {
     if (currentStepIndex > 0) setCurrentStep(currentStepIndex - 1);
   }, [currentStepIndex, setCurrentStep]);
 
-  const handleExit = useCallback(() => {
+  const leave = useCallback(() => {
     clearLessonState();
     setAppMode('Author');
     lastExecutedStepRef.current = null;
     lastStepIndexRef.current = -1;
   }, [clearLessonState, setAppMode]);
+
+  /** Exit or Esc mid-lesson: remember the place, then return the student's scene. */
+  const handleExit = useCallback(() => {
+    if (activeLessonId) recordLessonLeft(activeLessonId, currentStepIndex);
+    leave();
+  }, [activeLessonId, currentStepIndex, leave]);
+
+  /** The last step passed: the lesson is complete. */
+  const handleFinish = useCallback(() => {
+    if (activeLessonId) markLessonComplete(activeLessonId);
+    leave();
+  }, [activeLessonId, leave]);
 
   useEffect(() => {
     if (appMode !== 'Lesson' || !lesson || !step) return;
@@ -319,5 +333,6 @@ export function useLessonRunner(): LessonRunner {
     next: handleNext,
     back: handleBack,
     exit: handleExit,
+    finish: handleFinish,
   };
 }
