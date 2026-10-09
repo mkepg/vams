@@ -17,7 +17,7 @@ export function CanvasOverlays({
   showCoordinateTracker,
   showEmptyHint = false,
 }: CanvasOverlaysProps) {
-  const setActiveSection = useVamsStore((s) => s.setActiveSection);
+  const setLearnOpen = useVamsStore((s) => s.setLearnOpen);
   return (
     <>
       <AnimationCodeOverlay />
@@ -42,9 +42,12 @@ export function CanvasOverlays({
         <div className="empty-canvas-hint">
           <Shapes size={32} aria-hidden />
           <p>Your scene is empty.</p>
-          <Button variant="primary" onClick={() => setActiveSection("Primitives")}>
-            Add your first shape
-          </Button>
+          <div className="empty-canvas-hint__actions">
+            <Button variant="primary" onClick={() => document.querySelector<HTMLElement>(".add-row__item")?.focus()}>
+              Add a shape
+            </Button>
+            <Button onClick={() => setLearnOpen(true)}>Start a lesson</Button>
+          </div>
         </div>
       )}
     </>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, ArrowLeft, BookOpen } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
+import { contextSection } from '@/core/inspector';
 import { Dialog } from '@/shared/ui/controls';
 import type { HelpTopicId } from '@/features/help/model/types';
 import {
@@ -28,7 +29,7 @@ export default function HelpCenter() {
 function HelpDialog() {
   const activeHelpTopicId = useVamsStore((state) => state.activeHelpTopicId);
   const helpHistory = useVamsStore((state) => state.helpHistory);
-  const activeSection = useVamsStore((state) => state.activeSection);
+  const section = useVamsStore(contextSection);
   const hasSeenWelcome = useVamsStore((state) => state.hasSeenWelcome);
   const navigateHelp = useVamsStore((state) => state.navigateHelp);
   const closeHelp = useVamsStore((state) => state.closeHelp);
@@ -38,7 +39,7 @@ function HelpDialog() {
   const [query, setQuery] = useState('');
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const currentTopicId = (activeHelpTopicId as HelpTopicId | null) ?? topicForSection(activeSection);
+  const currentTopicId = (activeHelpTopicId as HelpTopicId | null) ?? topicForSection(section);
   const currentTopic = getHelpTopic(currentTopicId) ?? getHelpTopic(DEFAULT_HELP_TOPIC);
 
   const results = useMemo(() => searchHelpTopics(query), [query]);

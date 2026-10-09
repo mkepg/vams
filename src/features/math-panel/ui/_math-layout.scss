@@ -12,7 +12,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 32px;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 32px;
     padding: 0 12px;
     background-color: var(--paper-sunken);
     border-bottom: 1px solid $border-color;
@@ -25,18 +27,6 @@
       text-transform: uppercase;
       letter-spacing: 0.06em;
       font-weight: 700;
-    }
-
-    .math-section-tag {
-      font-family: $font-mono;
-      font-size: 0.6rem;
-      color: var(--accent-blue-light);
-      background: rgba(var(--accent-blue-rgb), 0.12);
-      border: 1px solid rgba(var(--accent-blue-rgb), 0.28);
-      padding: 0.1rem 0.45rem;
-      border-radius: 999px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
     }
   }
 

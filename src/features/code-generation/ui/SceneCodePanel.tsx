@@ -13,7 +13,6 @@ export default function SceneCodePanel() {
   const selectedObjectId = useVamsStore(s => s.selectedObjectId);
   const canvasBackgroundColor = useVamsStore(s => s.canvasBackgroundColor);
   const appMode = useVamsStore(s => s.appMode);
-  const activeSection = useVamsStore(s => s.activeSection);
   const callbacks = useVamsStore(s => s.callbacks);
   const changedCodeLines = useVamsStore(s => s.changedCodeLines);
   const viewportLimits = useVamsStore(s => s.viewportLimits);
@@ -86,7 +85,7 @@ export default function SceneCodePanel() {
     [baseCode, previewCode],
   );
 
-  const showAnnotations = activeSection === 'Pipeline' && objects.length === 0;
+  const showAnnotations = objects.length === 0;
   const isLessonMode = appMode === 'Lesson';
   const changedLines = isLessonMode ? changedCodeLines : previewChanged;
   return (

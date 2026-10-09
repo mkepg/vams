@@ -3,6 +3,7 @@
  * The unified editor: inspector groups, lesson focus places, math tabs and help context.
  */
 import { describe, it, expect, afterEach } from 'vitest';
+import { h, render, type VNode } from 'preact';
 import { useVamsStore } from '@/core/store';
 import {
   DEFAULT_OPEN_GROUPS,
@@ -12,6 +13,9 @@ import {
   resolveFocus,
   sectionForPlace,
 } from '@/core/inspector';
+import MathPanel from '@/features/math-panel/ui/MathPanel';
+import HelpButton from '@/features/help/ui/HelpButton';
+import SceneCodePanel from '@/features/code-generation/ui/SceneCodePanel';
 
 afterEach(() => {
   useVamsStore.getState().clearLessonState();
@@ -115,5 +119,72 @@ describe('BB-INSP-05: The persisted shape is unchanged and transient state is ne
       'showCoordinateTracker', 'theme', 'uploadedTextures', 'uploadedTexturesBackup', 'viewportLimits',
       'viewportLimitsBackup',
     ]);
+  });
+});
+
+async function settle() {
+  for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+}
+function mountEl(vnode: VNode) {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  render(vnode, host);
+  return host;
+}
+function unmountEl(host: HTMLElement) {
+  render(null, host);
+  host.remove();
+}
+
+describe('BB-INSP-06: The math panel has one tab per section and follows the student', () => {
+  it('names the five tabs, follows the opened group, and holds a manual pick until the next group', async () => {
+    const host = mountEl(h(MathPanel, {}));
+    try {
+      await settle();
+      const tabs = () => [...host.querySelectorAll('[role="tab"]')];
+      const selected = () => host.querySelector('[role="tab"][aria-selected="true"]')!.textContent;
+      expect(tabs().map((t) => t.textContent)).toEqual(['Pipeline', 'Primitives', 'Buffers', 'Transforms', 'Textures']);
+      expect(selected()).toBe('Pipeline');
+      useVamsStore.getState().toggleGroup('buffers');
+      await settle();
+      expect(selected()).toBe('Buffers');
+      (tabs()[3] as HTMLButtonElement).click();
+      await settle();
+      expect(selected()).toBe('Transforms');
+      useVamsStore.getState().toggleGroup('texture');
+      await settle();
+      expect(selected()).toBe('Textures');
+    } finally {
+      unmountEl(host);
+    }
+  });
+});
+
+describe('BB-INSP-07: Help opens on the topic for what the student is doing', () => {
+  it('uses the opened group section before the course section', async () => {
+    useVamsStore.setState({ activeSection: 'Pipeline', lastOpenedGroup: 'texture', isHelpOpen: false, activeHelpTopicId: null });
+    const host = mountEl(h(HelpButton, {}));
+    try {
+      (host.querySelector('button') as HTMLButtonElement).click();
+      await settle();
+      const { topicForSection } = await import('@/features/help/model/help-content');
+      expect(useVamsStore.getState().activeHelpTopicId).toBe(topicForSection('Textures'));
+    } finally {
+      useVamsStore.getState().closeHelp();
+      unmountEl(host);
+    }
+  });
+});
+
+describe('BB-INSP-08: An empty scene shows the annotated program in every section', () => {
+  it('annotates the boilerplate outside Pipeline too', async () => {
+    useVamsStore.setState({ activeSection: 'Textures', objects: [] });
+    const host = mountEl(h(SceneCodePanel, {}));
+    try {
+      await settle();
+      expect(host.querySelector('.has-annot')).not.toBeNull();
+    } finally {
+      unmountEl(host);
+    }
   });
 });

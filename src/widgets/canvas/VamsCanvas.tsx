@@ -20,7 +20,6 @@ export default function VamsCanvas({ isHidden = false }: VamsCanvasProps) {
   const viewportLimits = useVamsStore((state) => state.viewportLimits);
   const interactionMode = useVamsStore((state) => state.interactionMode);
   const showCoordinateTracker = useVamsStore((state) => state.showCoordinateTracker);
-  const activeSection = useVamsStore((state) => state.activeSection);
   const setCursorWorld = useVamsStore((state) => state.setCursorWorld);
   const objectCount = useVamsStore((state) => state.objects.length);
   const appMode = useVamsStore((state) => state.appMode);
@@ -71,13 +70,13 @@ export default function VamsCanvas({ isHidden = false }: VamsCanvasProps) {
 
   const cursorStyle = interactionMode === 'VERTEX_PLACE' ? 'crosshair' : undefined;
   
-  // Derive effective visibility: disable in Pipeline tab to prevent redundant UI, 
-  // but preserve the underlying user setting for when they switch tabs.
-  const effectiveShowCoordinateTracker = showCoordinateTracker && activeSection !== 'Pipeline';
+  // Derive effective visibility: hidden along with the canvas, while the underlying
+  // user setting is preserved.
+  const effectiveShowCoordinateTracker = showCoordinateTracker && !isHidden;
 
   // Onboarding nudge: only on the real editing canvas, in Author mode, with an empty scene.
   const showEmptyHint =
-    !isHidden && appMode === 'Author' && activeSection !== 'Pipeline' && objectCount === 0;
+    !isHidden && appMode === 'Author' && objectCount === 0;
 
   return (
     <div

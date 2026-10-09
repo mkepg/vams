@@ -411,7 +411,6 @@ describe('BB-SHELL-15: The inspector shows the object in pipeline order, or the 
 
 describe('BB-SHELL-16: Canvas overlays keep their text and actions', () => {
   it('shows the viewport, the placement banner and the empty hint', async () => {
-    useVamsStore.setState({ activeSection: 'Transforms' });
     const host = mount(h(CanvasOverlays, {
       viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
       interactionMode: 'SELECT',
@@ -421,10 +420,11 @@ describe('BB-SHELL-16: Canvas overlays keep their text and actions', () => {
     }));
     expect(host.querySelector('.viewport-info')!.textContent).toBe('Viewport: (-1, 1)');
     expect(host.querySelector('.coordinate-tracker')!.textContent).toContain('0.42');
-    const add = [...host.querySelectorAll('button')].find((b) => b.textContent?.includes('Add your first shape')) as HTMLButtonElement;
-    expect(add.className).toContain('vbtn--primary');
-    add.click();
-    expect(useVamsStore.getState().activeSection).toBe('Primitives');
+    const buttons = [...host.querySelectorAll('.empty-canvas-hint button')].map((b) => b.textContent?.trim());
+    expect(buttons).toEqual(['Add a shape', 'Start a lesson']);
+    ([...host.querySelectorAll('.empty-canvas-hint button')][1] as HTMLButtonElement).click();
+    expect(useVamsStore.getState().learnOpen).toBe(true);
+    useVamsStore.setState({ learnOpen: false });
     render(h(CanvasOverlays, {
       viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
       interactionMode: 'VERTEX_PLACE',
