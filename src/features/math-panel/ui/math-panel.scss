@@ -4,3 +4,16 @@
 @use 'buffers-math';
 @use 'transforms-math';
 @use 'textures-math';
+
+.math-tabs { display: flex; gap: 2px; }
+.math-tab {
+  padding: 3px 7px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  &[aria-selected='true'] { color: var(--ink); border-bottom-color: var(--accent); }
+  &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+}

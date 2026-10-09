@@ -2,24 +2,16 @@ import { useVamsStore } from '@/core/store';
 import VamsCanvas from './VamsCanvas';
 import PipelineDiagram from './views/PipelineDiagram';
 import RasterVectorView from './views/RasterVectorView';
+import { showsIllustration } from './illustration';
+
+/** The editor always shows the scene; the Pipeline illustrations belong to Pipeline lessons. */
 export default function ViewportRouter() {
-  const activeSection = useVamsStore((state) => state.activeSection);
-  const pipelineMode = useVamsStore((state) => state.pipelineMode);
-  const isOverlayActive = activeSection === 'Pipeline' && (
-    pipelineMode === 'Diagram' || pipelineMode === 'RasterVector'
-  );
+  const illustration = useVamsStore((s) => (showsIllustration(s) ? s.pipelineMode : 'Playground'));
   return (
     <>
-      {
-}
-      <VamsCanvas isHidden={isOverlayActive} />
-      {}
-      {activeSection === 'Pipeline' && (
-        <>
-          {pipelineMode === 'Diagram' && <PipelineDiagram />}
-          {pipelineMode === 'RasterVector' && <RasterVectorView />}
-        </>
-      )}
+      <VamsCanvas isHidden={illustration !== 'Playground'} />
+      {illustration === 'Diagram' && <PipelineDiagram />}
+      {illustration === 'RasterVector' && <RasterVectorView />}
     </>
   );
 }

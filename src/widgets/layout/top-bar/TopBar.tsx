@@ -4,7 +4,7 @@ import { useSiteTheme } from '@/shared/lib/theme';
 import HistoryControls from '@/features/history-controls/ui/HistoryControls';
 import ThemeToggleButton from '@/features/theme-toggle/ui/ThemeToggleButton';
 import EditorPreferencesMenu from '@/features/editor-preferences/ui/EditorPreferencesMenu';
-import LessonLauncher from '@/features/lesson-engine/ui/LessonLauncher';
+import LearnButton from '@/features/lesson-engine/ui/LearnButton';
 import HelpButton from '@/features/help/ui/HelpButton';
 import FileMenu from './FileMenu';
 import './top-bar.scss';
@@ -18,7 +18,7 @@ export default function TopBar() {
         <Logo />
       </a>
       <div className="top-bar__actions">
-        <LessonLauncher />
+        <LearnButton />
         <FileMenu />
         <span className="top-bar__sep" aria-hidden="true" />
         <HistoryControls />

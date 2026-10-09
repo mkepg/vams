@@ -17,7 +17,7 @@ export interface PanelProps {
 }
 
 export function Panel({ title, icon, children, defaultOpen = false, panelId, hint, className }: PanelProps) {
-  const { mode, focusPanelId } = useContext(PanelLayoutContext);
+  const { mode, focusPanelId, embedded = false } = useContext(PanelLayoutContext);
   const isFocus = mode === 'lesson' && !!panelId && panelId === focusPanelId;
   const [open, setOpen] = useState(() => (mode === 'lesson' ? isFocus : defaultOpen));
   const [wasFocus, setWasFocus] = useState(isFocus);
@@ -28,21 +28,34 @@ export function Panel({ title, icon, children, defaultOpen = false, panelId, hin
 
   const sectionRef = useRef<HTMLElement>(null);
   useEffect(() => {
-    if (!isFocus) return;
+    if (!isFocus || embedded) return;
     const el = sectionRef.current;
     if (!el) return;
-    // The section column puts the focus panel first, under the sticky lesson card and its
-    // "Use this panel" label; scrolling the column to the top shows all three. Scrolling the
-    // panel itself into view would tuck its header under the sticky card.
+    // A standalone focus panel resets its scroll root to the top, or scrolls itself into view
+    // when it has none. Embedded panels leave scrolling to the inspector group that holds them.
     const root = el.closest<HTMLElement>('[data-scroll-root]');
     if (root) root.scrollTop = 0;
     else if (typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' });
-  }, [isFocus]);
+  }, [isFocus, embedded]);
 
   const bodyId = useId();
+  const titleId = useId();
   const classes = ['vpanel', open ? 'is-open' : '', isFocus ? 'is-lesson-focus' : '', className ?? '']
     .filter(Boolean)
     .join(' ');
+
+  if (embedded) {
+    const flat = ['vpanel', 'vpanel--embedded', isFocus ? 'is-lesson-focus' : '', className ?? ''].filter(Boolean).join(' ');
+    return (
+      <section ref={sectionRef} className={flat} data-panel-id={panelId} aria-labelledby={titleId}>
+        <h4 id={titleId} className="vpanel__subhead">
+          <span className="vpanel__title">{title}</span>
+          {hint && <code className="vpanel__hint" aria-hidden="true">{hint}</code>}
+        </h4>
+        <div className="vpanel__body">{children}</div>
+      </section>
+    );
+  }
 
   return (
     <section ref={sectionRef} className={classes} data-panel-id={panelId}>

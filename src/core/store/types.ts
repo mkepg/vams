@@ -1,3 +1,4 @@
+import type { InspectorGroupId } from '@/core/inspector/groups';
 import type {
   PrimitiveType,
   SceneNode,
@@ -131,6 +132,21 @@ export interface RuntimeSlice {
   pipelineMode: PipelineMode;
   activePipelineStage: number | null;
   cursorWorld: { x: number; y: number } | null;
+  /** Inspector groups that are open. Session only. */
+  openGroups: InspectorGroupId[];
+  /** The group the student opened most recently; the math tab and help follow it. Session only. */
+  lastOpenedGroup: InspectorGroupId | null;
+  /** A math tab picked by hand; cleared by the next lesson step or opened group. Session only. */
+  mathTabOverride: CurriculumSection | null;
+  learnOpen: boolean;
+  /** Counts "Add a shape" requests; each one opens the column, scrolls to the Add row and marks it. Session only. */
+  addRowCue: number;
+  toggleGroup: (id: InspectorGroupId) => void;
+  openGroup: (id: InspectorGroupId) => void;
+  setOpenGroups: (ids: readonly InspectorGroupId[]) => void;
+  setMathTabOverride: (section: CurriculumSection | null) => void;
+  setLearnOpen: (open: boolean) => void;
+  cueAddRow: () => void;
   setAppMode: (mode: AppMode) => void;
   setActiveSection: (section: CurriculumSection) => void;
   setPipelineMode: (mode: PipelineMode) => void;

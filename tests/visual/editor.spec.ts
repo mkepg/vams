@@ -82,17 +82,57 @@ test('VIS-EDITOR-07: Narrow layout, drawer closed and open', async ({ page }) =>
   await expect(page).toHaveScreenshot('narrow-open-960.png');
 });
 
-test('VIS-EDITOR-08: Menus and the My scenes dialog', async ({ page }) => {
+test('VIS-EDITOR-08: Menus, the Learn drawer and the My scenes dialog', async ({ page }) => {
   await open(page, '/app?scene=transforms');
   await page.getByRole('button', { name: 'File' }).click();
   await expect(page).toHaveScreenshot('file-menu.png');
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Transforms' }).click();
-  await expect(page).toHaveScreenshot('section-menu.png');
+  await page.getByRole('button', { name: 'Learn' }).click();
+  await expect(page).toHaveScreenshot('learn-drawer.png');
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'File' }).click();
   await page.getByRole('menuitem', { name: 'My scenes…' }).click();
   // The name field starts with a timestamp; fix it so the capture does not change by the minute.
   await page.getByRole('dialog').getByRole('textbox').fill('Scene name');
   await expect(page).toHaveScreenshot('my-scenes.png');
+});
+
+test('VIS-EDITOR-09: No horizontal page overflow at 960 px', async ({ page }) => {
+  await page.setViewportSize({ width: 960, height: 720 });
+  await open(page, '/app?scene=transforms');
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test('VIS-EDITOR-10: Scene settings with nothing selected, light, 1280', async ({ page }) => {
+  await open(page, '/app');
+  // A first visit opens the welcome card over the editor; dismiss it so the capture shows the column.
+  await page.getByRole('button', { name: 'Start building' }).click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page).toHaveScreenshot('settings-light-1280.png');
+});
+
+test('VIS-EDITOR-11: Learn drawer, dark, 1280', async ({ page }) => {
+  await open(page, '/app?scene=transforms', 'dark');
+  await page.getByRole('button', { name: 'Learn' }).click();
+  await expect(page).toHaveScreenshot('learn-dark-1280.png');
+});
+
+test('VIS-EDITOR-12: A selected object shows its inspector groups, light, 1280', async ({ page }) => {
+  await open(page, '/app?scene=transforms');
+  // A leaf row is a primitive, so the inspector shows the full set of object groups.
+  await page.locator('[data-panel-id="scene-hierarchy"] [role="treeitem"]:not([aria-expanded]) .tree-item').first().click();
+  await expect(page.locator('.inspector__meta')).toContainText('GL_');
+  await expect(page).toHaveScreenshot('selected-light-1280.png');
+});
+
+test('VIS-EDITOR-13: A demo step outlines its group and dims the rest, dark, 1280', async ({ page }) => {
+  // Tall enough that the dimmed groups below the open Transform group are in the capture.
+  await page.setViewportSize({ width: 1280, height: 1100 });
+  await open(page, '/app?lesson=transforms-demo-1', 'dark');
+  // Step 2 focuses the Transform group.
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(page.locator('[data-group="transform"].is-focus')).toBeVisible();
+  await expect(page.locator('.inspector-group.is-dimmed').first()).toBeVisible();
+  await expect(page).toHaveScreenshot('demo-dimmed-dark-1280.png');
 });

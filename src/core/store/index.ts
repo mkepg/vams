@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 import { enableMapSet } from 'immer';
 import type { VamsState } from '@/core/store/types';
 import { createSceneSlice } from '@/entities/scene/model/scene-slice';
@@ -17,6 +17,26 @@ import { reportCorruptSave } from '@/core/store/recovery-signal';
 
 enableMapSet();
 export const STORAGE_KEY = 'vams-storage';
+
+/** A full or blocked localStorage loses the autosave; it never breaks the action that triggered it. */
+const safeStorage: StateStorage = {
+  getItem: (name) => localStorage.getItem(name),
+  setItem: (name, value) => {
+    try {
+      localStorage.setItem(name, value);
+    } catch {
+      // Autosave is skipped for this change.
+    }
+  },
+  removeItem: (name) => {
+    try {
+      localStorage.removeItem(name);
+    } catch {
+      // Nothing to remove if storage is blocked.
+    }
+  },
+};
+
 export const useVamsStore = create<VamsState>()(
   persist(
     (...a) => ({
@@ -39,6 +59,7 @@ export const useVamsStore = create<VamsState>()(
     {
       name: STORAGE_KEY,
       version: 7,
+      storage: createJSONStorage(() => safeStorage),
       onRehydrateStorage: () => {
         return (rehydratedState, error) => {
           if (error) {

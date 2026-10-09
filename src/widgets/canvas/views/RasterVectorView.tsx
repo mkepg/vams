@@ -44,9 +44,9 @@ export default function RasterVectorView() {
               <circle cx="40" cy="160" r="3" className="rv-vertex" />
               <circle cx="160" cy="140" r="3" className="rv-vertex" />
               <circle cx="110" cy="40" r="3" className="rv-vertex" />
-              <text x="30" y="175" className="rv-label">(-0.6, -0.6)</text>
-              <text x="130" y="135" className="rv-label">(0.6, -0.4)</text>
-              <text x="80" y="35" className="rv-label">(0.1, 0.6)</text>
+              <text x="30" y="175" className="rv-label" fontSize={10.5}>(-0.6, -0.6)</text>
+              <text x="196" y="158" textAnchor="end" className="rv-label" fontSize={10.5}>(0.6, -0.4)</text>
+              <text x="80" y="32" className="rv-label" fontSize={10.5}>(0.1, 0.6)</text>
             </svg>
           </div>
         </div>

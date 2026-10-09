@@ -491,3 +491,23 @@ describe('BB-CTRL-24: A scrub discards a typed draft that was not committed', ()
     unmount(host);
   });
 });
+
+describe('BB-CTRL-25: An embedded panel is flat: a titled section, always open, outlined when focused', () => {
+  it('renders no toggle and keeps data-panel-id and the lesson focus outline', () => {
+    const tree = h(
+      PanelLayoutContext.Provider,
+      { value: { mode: 'lesson', focusPanelId: 'object-transform', embedded: true } },
+      h(Panel, { title: 'Object Transform', panelId: 'object-transform', hint: 'glTranslatef' }, 'fields'),
+      h(Panel, { title: 'Scene Hierarchy', panelId: 'scene-hierarchy' }, 'tree'),
+    );
+    const host = mount(tree);
+    expect(host.querySelectorAll('.vpanel__header')).toHaveLength(0);
+    const sections = host.querySelectorAll('.vpanel--embedded');
+    expect(sections).toHaveLength(2);
+    expect(sections[0].getAttribute('data-panel-id')).toBe('object-transform');
+    expect(sections[0].classList.contains('is-lesson-focus')).toBe(true);
+    expect(sections[0].querySelector('.vpanel__subhead')!.textContent).toContain('Object Transform');
+    expect(sections[1].textContent).toContain('tree');
+    unmount(host);
+  });
+});

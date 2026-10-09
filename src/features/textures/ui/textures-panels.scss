@@ -1,3 +1,5 @@
+@use '../../../shared/styles/tokens' as *;
+
 .tx-library {
   display: flex;
   flex-direction: column;
@@ -14,9 +16,7 @@
   align-items: center;
   gap: var(--space-2);
   font-family: var(--font-mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: var(--text-xs);
   color: var(--ink-faint);
   padding-top: var(--space-1);
 
@@ -25,14 +25,13 @@
     border: 1px solid var(--hairline);
     padding: 0 var(--space-2);
     border-radius: 999px;
-    font-size: 0.62rem;
+    font-size: var(--text-xs);
     color: var(--ink-muted);
-    letter-spacing: 0.04em;
   }
 }
 
 .tx-empty {
-  font-size: 0.72rem;
+  font-size: var(--text-xs);
   color: var(--ink-muted);
   font-style: italic;
   text-align: center;
@@ -58,7 +57,7 @@
   overflow: hidden;
 
   &.active {
-    border-color: var(--live);
+    @include selected-mark;
     box-shadow: 0 0 0 1px var(--live);
   }
 
@@ -97,7 +96,7 @@
       flex: 1;
       min-width: 0;
       font-family: var(--font-mono);
-      font-size: 0.62rem;
+      font-size: var(--text-xs);
       color: var(--ink);
       letter-spacing: 0.02em;
       overflow: hidden;
@@ -132,7 +131,7 @@
 
   p {
     margin: 0;
-    font-size: 0.76rem;
+    font-size: var(--text-xs);
     line-height: 1.5;
     color: var(--ink-muted);
     max-width: 32ch;
@@ -167,7 +166,7 @@
 
     .tx-attach-name {
       font-family: var(--font-mono);
-      font-size: 0.78rem;
+      font-size: var(--text-xs);
       color: var(--ink);
       overflow: hidden;
       text-overflow: ellipsis;
@@ -176,9 +175,8 @@
 
     .tx-attach-dim {
       font-family: var(--font-mono);
-      font-size: 0.62rem;
+      font-size: var(--text-xs);
       color: var(--ink-muted);
-      letter-spacing: 0.04em;
     }
   }
 }
@@ -206,9 +204,7 @@
 
   .tx-attach-block-label {
     font-family: var(--font-mono);
-    font-size: 0.6rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    font-size: var(--text-xs);
     color: var(--ink-faint);
   }
 
@@ -230,7 +226,7 @@
 }
 
 .uve-empty {
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   color: var(--ink-muted);
   font-style: italic;
   text-align: center;
@@ -292,7 +288,7 @@
 .uve-handle-label {
   fill: white;
   font-family: monospace;
-  font-size: 0.04px;
+  /* Size is set on the <text> element: the stage is a 0..1 viewBox, so it is in UV units. */
   text-anchor: middle;
   pointer-events: none;
   paint-order: stroke;
@@ -309,7 +305,7 @@
 
   .uve-index {
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: var(--text-xs);
     color: var(--ink-muted);
   }
 }
@@ -322,9 +318,8 @@
 
   .uve-foot-hint {
     font-family: var(--font-mono);
-    font-size: 0.62rem;
+    font-size: var(--text-xs);
     color: var(--ink-muted);
-    letter-spacing: 0.04em;
     flex: 1;
     min-width: 0;
     line-height: 1.4;

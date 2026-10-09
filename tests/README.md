@@ -40,7 +40,7 @@ tests/
 │   │                                        set)
 │   ├── editor-shell.test.ts              (BB-SHELL-*: the editor shell:
 │   │                                        dialogs, menus, the top bar,
-│   │                                        the section column and
+│   │                                        the editor column and
 │   │                                        overlays)
 │   ├── lesson-column.test.ts             (BB-LCOL-*: the lesson card,
 │   │                                        the runner and panel focus)

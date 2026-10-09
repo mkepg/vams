@@ -9,6 +9,7 @@ import { useVamsStore } from '@/core/store';
 import ObjectTransformPanel from '@/features/object-transform/ui/ObjectTransformPanel';
 import OrthoEditorPanel from '@/features/ortho-editor/ui/OrthoEditorPanel';
 import SceneHierarchyPanel from '@/features/scene-hierarchy/ui/SceneHierarchyPanel';
+import VerticesPanel from '@/features/vertex-editor/ui/VerticesPanel';
 import CustomShapeBuilderPanel from '@/features/custom-shapes/ui/CustomShapeBuilderPanel';
 import ObjectAppearancePanel from '@/features/object-appearance/ui/ObjectAppearancePanel';
 import LineStylePanel from '@/features/line-style/ui/LineStylePanel';
@@ -156,17 +157,22 @@ describe('BB-PANEL-06: Scene Hierarchy is a keyboard-navigable tree', () => {
   });
 });
 
-describe('BB-PANEL-07: The primitive palette names every primitive and starts placement', () => {
-  it('lists the GL primitives and shows the vertex table hint while building', async () => {
+describe('BB-PANEL-07: The Add row names every primitive and starts placement', () => {
+  it('shows four primitives, keeps the rest in More, and shows the vertex table hint while building', async () => {
     const host = mount(h(CustomShapeBuilderPanel, {}));
-    const labels = [...host.querySelectorAll('button')].map((b) => b.textContent?.trim());
-    for (const name of ['GL_POINTS', 'GL_LINES', 'GL_LINE_STRIP', 'GL_LINE_LOOP', 'GL_TRIANGLES', 'GL_TRIANGLE_STRIP', 'GL_TRIANGLE_FAN', 'GL_QUADS', 'GL_POLYGON']) {
-      expect(labels).toContain(name);
-    }
-    ([...host.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'GL_TRIANGLES') as HTMLButtonElement).click();
+    const row = [...host.querySelectorAll('.add-row__item')].map((b) => b.textContent?.trim());
+    expect(row).toEqual(['GL_POINTS', 'GL_LINES', 'GL_TRIANGLES', 'GL_QUADS']);
+    (host.querySelector('.add-row__more') as HTMLButtonElement).click();
+    await settle();
+    const more = [...host.querySelectorAll('[role^="menuitem"] .vmenu__label')].map((el) => el.textContent);
+    expect(more).toEqual(['GL_LINE_STRIP', 'GL_LINE_LOOP', 'GL_TRIANGLE_STRIP', 'GL_TRIANGLE_FAN', 'GL_QUAD_STRIP', 'GL_POLYGON']);
+    key(document.activeElement!, 'Escape');
+    await settle();
+    ([...host.querySelectorAll('.add-row__item')].find((b) => b.textContent?.trim() === 'GL_TRIANGLES') as HTMLButtonElement).click();
     await settle();
     expect(useVamsStore.getState().pendingShapeType).toBe('TRIANGLES');
     expect(hints(host)).toContain('glVertex2f(x, y)');
+    useVamsStore.getState().cancelCustomShape();
     unmount(host);
   });
 });
@@ -504,6 +510,24 @@ describe('BB-PANEL-21: Delete on a focused tree row deletes that row', () => {
     const ids = useVamsStore.getState().objects.map((o) => o.id);
     expect(ids).toContain(a.id);
     expect(ids).not.toContain(b.id);
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-22: The Vertices panel edits glVertex2f positions with one undo step', () => {
+  it('lists each vertex and moves it through the store', async () => {
+    const tri = addTriangle();
+    select(tri.id);
+    const host = mount(h(VerticesPanel, {}));
+    await settle();
+    expect(host.querySelectorAll('tbody tr')).toHaveLength(3);
+    useVamsStore.setState({ past: [], future: [] });
+    const before = useVamsStore.getState().past.length;
+    typeInto(fieldNamed(host, 'Vertex 0 X')!, '0.25');
+    await settle();
+    const moved = useVamsStore.getState().objects.find((o) => o.id === tri.id)!;
+    expect(moved.vertices[0].x).toBeCloseTo(0.25);
+    expect(useVamsStore.getState().past.length).toBe(before + 1);
     unmount(host);
   });
 });

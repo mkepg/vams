@@ -23,7 +23,7 @@ VAMS is a **GUI-only, 2D OpenGL teaching simulator**. Students interact with a v
 ```
 ┌──────────────────────────────────────────────────┐
 │              STUDENT INTERACTION (GUI)            │
-│     Tools Rail · Canvas · Lesson Bar              │
+│  Scene + Inspector · Canvas · Lesson card         │
 └──────────────────────┬───────────────────────────┘
                        │
        ┌───────────────┼───────────────┐
@@ -68,6 +68,8 @@ Non-negotiable. Do not violate without a written amendment to this document.
 
 ### Section Switching Semantics
 
+The current section is the student's place in the course. It is set by choosing a lesson in the Learn drawer (or opening a lesson link). The editor's tools are the same in every section.
+
 When the student switches curriculum sections:
 
 | State | Behavior on section change |
@@ -78,7 +80,7 @@ When the student switches curriculum sections:
 | Loaded textures | **Preserved.** |
 | Active lesson | **Auto-exits with a confirmation dialog** if mid-lesson. If no lesson is active, no dialog. |
 | Exercise answers | **Cleared.** Each section's exercises start fresh. |
-| Ephemeral tools-rail state (collapsed panels, transient picker states) | **Reset to defaults.** |
+| Transient panel state (open inspector groups, the last opened group, a hand-picked math tab) | **Reset to defaults.** |
 | Section-specific view modes | **Reset to defaults.** |
 
 This behavior is enforced at a single, well-defined point in the section-switching flow. It is not scattered across individual components.
@@ -91,14 +93,14 @@ This behavior is enforced at a single, well-defined point in the section-switchi
 
 ### Goals
 
-1. The application has a stable workspace layout: a tools rail on the left, a 2D canvas in the center, and a right column containing a code panel and a math panel.
+1. The application has a stable workspace layout: a scene and inspector column on the left, a 2D canvas in the center, and a right column containing a code panel and a math panel.
 2. Application state is organized into clearly owned slices with no overlapping responsibility.
 3. The code generator produces deterministic, section-appropriate OpenGL output from scene state.
 4. The renderer displays 2D primitives correctly on the canvas.
 5. Undo/redo and project save/load work end-to-end and are preserved through all subsequent changes.
 6. The lesson engine can run a scripted, narrated, multi-step demo with scene mutations and success checks.
-7. The section selector switches between curriculum sections with the correct state semantics defined above.
-8. The math panel scaffold exists and can display content specific to the active section.
+7. The Learn drawer moves between curriculum sections with the correct state semantics defined above.
+8. The math panel has one tab per curriculum section and follows the control the student is using.
 
 ### Application State
 
@@ -116,11 +118,11 @@ VAMS maintains several distinct areas of state, each with a single clear owner. 
 The workspace has four regions:
 
 - **Top bar** — application-level controls: project actions (new, open, save), undo/redo, mode indicator.
-- **Tools rail** — left sidebar. Section-specific tools and panels for authoring the scene. Content changes per active section.
+- **Scene and inspector column**: left sidebar, the same in every section. On top, the scene: the object hierarchy, an Add row of primitives by OpenGL name, and Create Text. Below, an inspector for the selected object with groups in pipeline order (Vertices, Buffers, Transform, Appearance, Texture, Animation), each naming its OpenGL call; with nothing selected, the scene's settings (Background, Viewing volume, Texture library, Callbacks).
 - **Canvas** — central 2D viewport. Displays the scene. Supports mouse interaction for object placement, selection, vertex editing, and navigation.
 - **Code + Math column** — right sidebar split vertically. Top portion: the code panel. Bottom portion: the math panel.
 
-A lesson bar appears at the bottom when a lesson is active, showing the narration text and navigation controls (Back, Next, Exit). It is not visible in Author mode.
+A lesson card appears at the top of that column when a lesson is active, showing the narration and Back, Next and Exit. The step's control is opened and outlined in the live editor; demos also dim the other groups, exercises only outline, and a section's last exercise gives no focus. The top bar's Learn button opens the course map: the five sections in pipeline order, each section's demos and exercises, and the student's progress, stored in the browser.
 
 ### Code Generation
 
@@ -138,7 +140,7 @@ The generated program structure includes at minimum: includes/setup, global decl
 
 A lesson is a sequence of steps. Each step may include:
 
-- **Narration text** — displayed in the lesson bar.
+- **Narration text** — displayed in the lesson card.
 - **A scene mutation** — a scripted change to scene state, expressed through the same mutation API the GUI uses.
 - **A code highlight** — specific lines in the code panel to visually emphasize.
 - **A wait-for-user flag** — whether the student must press Next to advance, or whether the step auto-advances.
@@ -158,12 +160,12 @@ VAMS supports saving and loading the full scene as a project file. Requirements:
 
 ### Acceptance Criteria
 
-- [ ] The workspace renders with tools rail, canvas, code panel, and math panel in the correct layout.
+- [ ] The workspace renders with the scene and inspector column, canvas, code panel, and math panel in the correct layout.
 - [ ] Creating, selecting, moving, and deleting objects works.
 - [ ] Generated code updates in real time as scene state changes; changed lines animate.
 - [ ] Undo and redo work across all scene mutations.
 - [ ] Project save and load round-trip without data loss.
-- [ ] The section selector switches sections with the correct state semantics.
+- [ ] The Learn drawer switches sections with the correct state semantics.
 - [ ] At least one end-to-end demo lesson plays: narration advances, scene mutations fire, code panel reflects changes.
 - [ ] The math panel scaffold is present and can display section-specific content.
 - [ ] No deferred symbols appear in any generated code.
@@ -187,7 +189,7 @@ Covers: pipeline stages (vertex specification → vertex processing → primitiv
 
 ### Workspace Configuration
 
-- **Tools Rail:** section-specific viewport mode controls (pipeline diagram, NDC coordinate playground, raster/vector view), and a mode switch to toggle between them.
+- **Lesson card (Pipeline lessons):** a view toggle (scene, pipeline diagram, raster vs vector) shown during Pipeline lessons. Outside Pipeline lessons the canvas always shows the scene, and the coordinate playground is the normal canvas.
 - **Viewport:** the active mode determines what's shown:
   - *Pipeline diagram mode* — a visual, step-through diagram of the seven pipeline stages.
   - *Coordinate playground mode* — a coordinate grid where the student can place and move markers, reading their NDC positions.
@@ -238,7 +240,7 @@ Covers: `glBegin`/`glEnd` with `GL_POINTS`, `GL_LINES`, `GL_LINE_STRIP`, `GL_LIN
 
 ### Workspace Configuration
 
-- **Tools Rail:** primitive palette (all curriculum primitives by OpenGL name), color picker with float/byte mode toggle, line style panel (shown only for line primitives), callbacks panel, and existing object hierarchy and properties.
+- **Inspector:** the Add row (all curriculum primitives by OpenGL name) and Create Text in the scene area; color picker with float/byte mode toggle and line style panel (shown only for line primitives) in Appearance; callbacks panel in scene settings; and the existing object hierarchy and properties.
 - **Viewport:** 2D authoring canvas. Students click to place vertices and click to select objects.
 - **Code Panel:** full generated scene code. Changed lines animate on every scene mutation.
 - **Math Panel:** color conversion formulas (float ↔ byte), barycentric color interpolation (for triangles with per-vertex colors), stipple pattern bit display, and a vertex coordinate table for the selected object.
@@ -252,7 +254,7 @@ Covers: `glBegin`/`glEnd` with `GL_POINTS`, `GL_LINES`, `GL_LINE_STRIP`, `GL_LIN
 
 ### Callback Panel Behavior
 
-The callbacks panel allows the student to register handler names for keyboard, mouse, reshape, and related events. Each registration causes the code generator to emit the corresponding `glutXxxFunc(handlerName)` call and an empty handler body stub.
+The callbacks panel allows the student to register handler names for keyboard, mouse, reshape, and related events. Each registration causes the code generator to emit the corresponding `glutXxxFunc(handlerName)` call and an empty handler body stub. The panel sits in the inspector's scene settings.
 
 The panel includes a persistent informational note explaining that handler execution requires compiling and running the exported code. This is accurate framing, not a feature disclaimer. The note does not use the words "coming soon", "deferred", "3D", "future", or "not supported".
 
@@ -306,7 +308,7 @@ Covers: immediate mode vs. vertex arrays vs. VBOs, `glEnableClientState` / `glVe
 
 ### Workspace Configuration
 
-- **Tools Rail:** all prior tools + a rendering mode selector (Immediate / Vertex Array / VBO) per object + a buffer usage selector (Static / Dynamic / Stream) shown only for VBO-mode objects.
+- **Inspector:** all prior tools + the Buffers group, holding a rendering mode selector (Immediate / Vertex Array / VBO) per object + a buffer usage selector (Static / Dynamic / Stream) shown only for VBO-mode objects.
 - **Viewport:** same 2D authoring canvas. Visual rendering is identical across all three modes — the mode affects only the generated code, not the visual output.
 - **Code Panel:** the structural change between modes is the key teaching moment. The diff animation is especially important in this section.
 - **Math Panel:** buffer size formula (byte count from vertex count), array vs. indexed savings (when applicable), interleaved layout diagram (when per-vertex colors are present), and context-specific diagrams during relevant demo steps.
@@ -385,7 +387,7 @@ Covers: `glTranslatef`, `glRotatef`, `glScalef`, `glPushMatrix`/`glPopMatrix`, `
 
 ### Workspace Configuration
 
-- **Tools Rail:** all prior tools + transform gizmo mode toggle (translate / rotate / scale) + numeric transform inputs for the selected object + glOrtho editor (left, right, bottom, top).
+- **Inspector:** all prior tools + the Transform group (transform gizmo mode toggle (translate / rotate / scale) + numeric transform inputs for the selected object), Animation, and the glOrtho editor (left, right, bottom, top) under Viewing volume in scene settings.
 - **Viewport:** selected object shows a transform gizmo appropriate to the current mode (translate arrows, rotate ring, scale handles). A matrix stack panel appears as a compact overlay when in the Transforms section.
 - **Code Panel:** generated code includes `glMatrixMode`, `glLoadIdentity`, and per-object `glPushMatrix`/transform calls/`glPopMatrix` sequences. The `glOrtho` call appears at the top of `display()`.
 - **Math Panel:** 4×4 matrix display of the selected object's transform, matrix composition trace, and the glOrtho mapping equation.
@@ -466,9 +468,9 @@ Covers: `glGenTextures`, `glBindTexture`, `glTexImage2D`, `glTexParameteri` (fil
 
 ### Workspace Configuration
 
-- **Tools Rail:** all prior tools + texture library (upload button, thumbnail list, delete) + texture attachment control (apply a loaded texture to the selected object) + filter mode toggle (Nearest / Linear) + wrap mode toggle (Repeat / Clamp).
+- **Inspector:** all prior tools + the texture library in scene settings (upload button, thumbnail list, delete) + the Texture group for the selected object: texture attachment control (apply a loaded texture), filter mode toggle (Nearest / Linear), wrap mode toggle (Repeat / Clamp), and the UV editor.
 - **Viewport:** textured objects render with the applied texture. The canvas reflects filter and wrap settings visually.
-- **UV Editor:** a compact inline panel in the tools rail showing the attached texture at small scale with draggable UV handles, one per vertex. Handles can be dragged outside `[0, 1]` to demonstrate wrap behavior.
+- **UV Editor:** a compact inline panel in the Texture group showing the attached texture at small scale with draggable UV handles, one per vertex. Handles can be dragged outside `[0, 1]` to demonstrate wrap behavior.
 - **Code Panel:** texture setup in `init()`; per-object bind + `glTexCoord2f` + `glVertex2f` in `display()`.
 - **Math Panel:** UV coordinate table, texel sampling equations (based on active filter mode), wrap equations (based on active wrap mode), UV barycentric interpolation for triangles.
 
@@ -575,7 +577,7 @@ A lesson is a named, section-associated sequence of steps. Lessons are one of tw
 
 Each step may include:
 
-- Narration text (displayed in the lesson bar)
+- Narration text (displayed in the lesson card)
 - A scene mutation (executed via the same API the GUI uses — nothing a lesson does bypasses normal state management)
 - A code panel highlight (specific lines to visually emphasize)
 - A wait-for-user flag

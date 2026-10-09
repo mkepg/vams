@@ -9,7 +9,7 @@
   color: var(--ink);
   background-color: var(--paper);
 
-  &__logo { font-size: 1.75rem; }
+  &__logo { font-size: var(--text-xl); }
 
   &__label {
     margin: 0;

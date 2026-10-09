@@ -1,3 +1,5 @@
+@use '../../../shared/styles/tokens' as *;
+
 .anim-preview {
   display: flex;
   flex-direction: column;
@@ -35,17 +37,16 @@
     outline-offset: 2px;
   }
   &.active {
-    border-color: var(--live);
-    background: var(--live-tint);
+    @include selected-mark;
   }
 
   .motion-label {
-    font-size: 0.8rem;
+    font-size: var(--text-xs);
     font-weight: 600;
     color: var(--ink);
   }
   .motion-blurb {
-    font-size: 0.68rem;
+    font-size: var(--text-xs);
     color: var(--ink-muted);
   }
 }
@@ -67,7 +68,7 @@
 
 .anim-note {
   margin: 0;
-  font-size: 0.68rem;
+  font-size: var(--text-xs);
   line-height: 1.4;
   color: var(--ink-muted);
 }

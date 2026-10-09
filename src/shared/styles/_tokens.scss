@@ -94,8 +94,8 @@ $header-height: 3.7rem;
   --warning: #b45309;
   --warning-rgb: 180, 83, 9;
   --warning-strong: #92400e;
-  --code-changed-rgb: 180, 83, 9;
-  --code-changed-light: #92400e;
+  --code-changed-rgb: 47, 77, 224;
+  --code-changed-light: var(--accent-text);
   --code-match-rgb: 133, 77, 14;
   --code-match-light: #854d0e;
   --channel-r: #b91c1c;
@@ -183,8 +183,8 @@ $header-height: 3.7rem;
   --warning: #b45309;
   --warning-rgb: 180, 83, 9;
   --warning-strong: #92400e;
-  --code-changed-rgb: 245, 158, 11;
-  --code-changed-light: #fbbf24;
+  --code-changed-rgb: 71, 98, 245;
+  --code-changed-light: var(--accent-text);
   --code-match-rgb: 251, 191, 36;
   --code-match-light: #fbbf24;
   --channel-r: #f87171;
@@ -248,4 +248,11 @@ $accent-red-text: var(--accent-red-text);
       background-color: var(--text-muted);
     }
   }
+}
+
+/* The one selection style: accent tint behind, accent-coloured text. */
+@mixin selected-mark {
+  background: var(--accent-tint);
+  color: var(--accent-text);
+  border-color: var(--accent);
 }

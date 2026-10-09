@@ -238,9 +238,9 @@ function BarycentricMixer({ vertices }: { vertices: Vertex[] }) {
               <circle cx="20" cy="140" r="7" fill={vertices[2].color}
                 stroke="rgba(0,0,0,0.55)" strokeWidth="1.5" />
 
-              <text x="110" y="9" textAnchor="middle" className="pb-mesh-label">C₀</text>
-              <text x="208" y="148" textAnchor="start" className="pb-mesh-label">C₁</text>
-              <text x="12" y="148" textAnchor="end" className="pb-mesh-label">C₂</text>
+              <text x="121" y="19" textAnchor="start" className="pb-mesh-label" fontSize={10.5}>C₀</text>
+              <text x="200" y="157" textAnchor="middle" className="pb-mesh-label" fontSize={10.5}>C₁</text>
+              <text x="20" y="157" textAnchor="middle" className="pb-mesh-label" fontSize={10.5}>C₂</text>
             </g>
           </svg>
         </div>

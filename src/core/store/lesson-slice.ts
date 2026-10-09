@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 import type { VamsState, LessonSlice } from '@/core/store/types';
 import type { GlutCallbackKind, ViewportLimits } from '@/core/types/scene';
+import { DEFAULT_OPEN_GROUPS } from '@/core/inspector/groups';
 const EMPTY_CALLBACKS: Record<GlutCallbackKind, string> = {
   keyboard: '',
   mouse: '',
@@ -44,6 +45,8 @@ export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (
         lessonFocusPanel: null,
         dmaDriverStep: null,
         changedCodeLines: [],
+        // A group opened before the lesson says nothing about the lesson's steps.
+        lastOpenedGroup: null,
       });
     } else {
       set({
@@ -62,12 +65,18 @@ export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (
     },
   })),
   setSuccessState: (success) => set({ isSuccess: success }),
-  setLessonFocusPanel: (panelId) => set({ lessonFocusPanel: panelId }),
+  setLessonFocusPanel: (panelId) => set({ lessonFocusPanel: panelId, mathTabOverride: null }),
   setDmaDriverStep: (index) => set({ dmaDriverStep: index }),
   setChangedCodeLines: (lines) => set({ changedCodeLines: lines }),
   clearLessonState: () => {
     const state = get();
     set({
+      pipelineMode: 'Playground',
+      activePipelineStage: null,
+      mathTabOverride: null,
+      // Leaving a lesson leaves the plain editor: the demo's collapsed groups open again.
+      openGroups: [...DEFAULT_OPEN_GROUPS],
+      lastOpenedGroup: null,
       activeLessonId: null,
       currentStepIndex: 0,
       exerciseAnswers: {},

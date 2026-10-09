@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useVamsStore } from '@/core/store';
 import type { Lesson, LessonStep } from '@/core/types/lesson';
+import { resolveFocus } from '@/core/inspector';
 import { LESSON_REGISTRY } from './lesson-registry';
+import { markLessonComplete, recordLessonLeft } from './progress';
+import { focusStyleFor } from './guidance';
 import { useCanvasSize } from '@/features/code-generation/model/useCanvasSize';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { resolveChangedLines } from '@/features/code-generation/model/code-diff';
@@ -30,6 +33,20 @@ export interface LessonRunner {
   next: () => void;
   back: () => void;
   exit: () => void;
+  finish: () => void;
+}
+
+/** The step's focus target, or none for a section's last exercise. */
+function effectiveFocus(lesson: Lesson, step: LessonStep): string | null {
+  return focusStyleFor(lesson) === 'none' ? null : step.focusPanel ?? null;
+}
+
+/** A per-object focus needs an object: pick the newest when nothing is selected. */
+function selectForFocus(panelId: string | null) {
+  const s = useVamsStore.getState();
+  if (!panelId || s.selectedObjectId || s.objects.length === 0) return;
+  if (resolveFocus(panelId, false)?.area !== 'object') return;
+  s.selectObject(s.objects[0].id);
 }
 
 export function useLessonRunner(): LessonRunner {
@@ -124,7 +141,7 @@ export function useLessonRunner(): LessonRunner {
   /*  We snapshot the generated code immediately before and after the   */
   /*  step's action mutates state, run a line-level diff, and write the */
   /*  result into `changedCodeLines`. SceneCodePanel reads that and     */
-  /*  passes it to CodeViewer, which renders the amber highlight + auto-*/
+  /*  passes it to CodeViewer, which draws the change highlight + auto- */
   /*  scrolls vertically to the topmost change.                         */
   /*                                                                    */
   /*  Both snapshots use the SAME canvas size, so window-size-only      */
@@ -170,7 +187,9 @@ export function useLessonRunner(): LessonRunner {
 
       postCode = snapshotCode();
 
-      store.setLessonFocusPanel(currentStep.focusPanel || null);
+      const focus = effectiveFocus(lesson, currentStep);
+      store.setLessonFocusPanel(focus);
+      selectForFocus(focus);
       store.setDmaDriverStep(currentStep.dmaStep ?? null);
     } else {
       // Non-linear navigation (Back, lesson-start, jump): rebuild from scratch.
@@ -199,7 +218,9 @@ export function useLessonRunner(): LessonRunner {
       if (currentStep.action) currentStep.action(useVamsStore.getState());
       postCode = snapshotCode();
 
-      store.setLessonFocusPanel(currentStep.focusPanel || null);
+      const focus = effectiveFocus(lesson, currentStep);
+      store.setLessonFocusPanel(focus);
+      selectForFocus(focus);
       store.setDmaDriverStep(currentStep.dmaStep ?? null);
     }
 
@@ -247,12 +268,24 @@ export function useLessonRunner(): LessonRunner {
     if (currentStepIndex > 0) setCurrentStep(currentStepIndex - 1);
   }, [currentStepIndex, setCurrentStep]);
 
-  const handleExit = useCallback(() => {
+  const leave = useCallback(() => {
     clearLessonState();
     setAppMode('Author');
     lastExecutedStepRef.current = null;
     lastStepIndexRef.current = -1;
   }, [clearLessonState, setAppMode]);
+
+  /** Exit or Esc mid-lesson: remember the place, then return the student's scene. */
+  const handleExit = useCallback(() => {
+    if (activeLessonId) recordLessonLeft(activeLessonId, currentStepIndex);
+    leave();
+  }, [activeLessonId, currentStepIndex, leave]);
+
+  /** The last step passed: the lesson is complete. */
+  const handleFinish = useCallback(() => {
+    if (activeLessonId) markLessonComplete(activeLessonId);
+    leave();
+  }, [activeLessonId, leave]);
 
   useEffect(() => {
     if (appMode !== 'Lesson' || !lesson || !step) return;
@@ -300,5 +333,6 @@ export function useLessonRunner(): LessonRunner {
     next: handleNext,
     back: handleBack,
     exit: handleExit,
+    finish: handleFinish,
   };
 }

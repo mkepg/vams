@@ -101,7 +101,7 @@
     right: 4px;
     padding: 0 var(--space-1);
     font-family: var(--font-mono);
-    font-size: 0.62rem;
+    font-size: var(--text-xs);
     color: var(--ink-muted);
     background: var(--paper);
     border-radius: var(--radius-s);
@@ -157,7 +157,7 @@
     left: 50%;
     transform: translateX(-50%);
     font-family: var(--font-mono);
-    font-size: 0.62rem;
+    font-size: var(--text-xs);
     color: var(--ink-muted);
     white-space: nowrap;
     pointer-events: none;
@@ -188,7 +188,7 @@
 }
 
 .tp-row__label {
-  font-size: 0.78rem;
+  font-size: var(--text-xs);
   color: var(--ink-muted);
 }
 
@@ -216,9 +216,7 @@
 
   .matrix-label {
     font-family: var(--font-mono);
-    font-size: 0.6rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    font-size: var(--text-xs);
     color: var(--ink-faint);
     flex-shrink: 0;
   }
@@ -227,7 +225,7 @@
     flex: 1;
     min-width: 0;
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: var(--text-xs);
     line-height: 1.5;
     color: var(--ink-muted);
     white-space: normal;
