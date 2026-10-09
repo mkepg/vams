@@ -1,3 +1,5 @@
+@use '../../../shared/styles/tokens' as *;
+
 .rename-input.vfield-input {
   flex: 1;
   min-width: 0;
@@ -31,7 +33,7 @@
     margin-bottom: 2px;
     border: 1px solid transparent;
     border-radius: var(--radius-m);
-    font-size: 13px;
+    font-size: var(--text-base);
     color: var(--ink);
     cursor: pointer;
 
@@ -119,8 +121,7 @@
     }
 
     &.selected {
-      background: var(--live-tint);
-      border-color: var(--live);
+      @include selected-mark;
     }
 
     &[draggable='true'] {
@@ -160,7 +161,7 @@
 .empty-msg {
   margin: 0;
   padding: var(--space-2);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-style: italic;
   color: var(--ink-muted);
 }

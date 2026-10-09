@@ -311,6 +311,7 @@ export default function UVEditorPanel() {
                   <text
                     x={p.x}
                     y={p.y + 0.012}
+                    fontSize={0.04}
                     className="uve-handle-label"
                   >
                     {i}

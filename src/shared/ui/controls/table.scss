@@ -1,3 +1,5 @@
+@use '../../../shared/styles/tokens' as *;
+
 .vtable {
   border: 1px solid var(--field-line);
   border-radius: var(--radius-m);
@@ -8,7 +10,7 @@
     width: 100%;
     border-collapse: collapse;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
 
   th {
@@ -16,11 +18,9 @@
     padding: 0 8px;
     background: var(--paper-sunken);
     color: var(--ink-faint);
-    font-size: 10px;
+    font-size: var(--text-xs);
     font-weight: 700;
-    letter-spacing: 0.09em;
     text-align: left;
-    text-transform: uppercase;
   }
 
   td {
@@ -32,7 +32,7 @@
 
   .is-num { text-align: right; }
 
-  tr.is-active td,
+  tr.is-active td { @include selected-mark; }
   tbody tr:focus-within td { background: var(--live-tint); }
 
   td .vnum { width: 100%; }

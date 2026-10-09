@@ -44,7 +44,7 @@ export interface LessonStep {
    * Controls how the code panel highlights what changed in this step.
    *
    *  - omitted / 'auto'  → auto-diff the generated code before vs. after the
-   *    step's action and amber-highlight every line that differs.
+   *    step's action and highlight every line that differs.
    *  - 'none'            → suppress the highlight entirely (use for steps
    *    that touch state in a way that's not pedagogically interesting).
    *  - number[]          → explicit 0-indexed line numbers in the generated

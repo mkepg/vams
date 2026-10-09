@@ -1,3 +1,5 @@
+@use '../../../../shared/styles/tokens' as *;
+
 .exercise-widget {
   width: 100%;
   display: flex;
@@ -20,7 +22,7 @@
   }
 
   .widget-prompt {
-    font-size: 13px;
+    font-size: var(--text-base);
     color: var(--ink);
     line-height: 1.45;
   }
@@ -44,7 +46,7 @@
       border: 1px solid var(--field-line);
       border-radius: var(--radius-m);
       color: var(--ink);
-      font-size: 13px;
+      font-size: var(--text-base);
       cursor: pointer;
       text-align: left;
 
@@ -54,8 +56,7 @@
       &:hover { background: var(--live-tint); }
 
       &.selected {
-        background: var(--live-tint);
-        border-color: var(--live);
+        @include selected-mark;
         box-shadow: inset 0 0 0 1px var(--live);
       }
 
@@ -101,13 +102,13 @@
       .drag-handle { color: var(--ink-faint); }
       .order-num {
         font-family: var(--font-mono);
-        font-size: 12px;
+        font-size: var(--text-sm);
         font-weight: 700;
         color: var(--ink-faint);
         text-align: center;
       }
       .order-label {
-        font-size: 13px;
+        font-size: var(--text-base);
         color: var(--ink);
       }
 

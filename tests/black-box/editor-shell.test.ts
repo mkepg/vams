@@ -516,3 +516,47 @@ describe('BB-SHELL-21: The canvas selection outline uses the accent, not a fixed
     }
   });
 });
+
+import { execSync } from 'node:child_process';
+import { readFileSync as readSource } from 'node:fs';
+
+const EDITOR_SCSS = execSync('git ls-files "src/**/*.scss"', { encoding: 'utf8' })
+  .split('\n')
+  .filter(Boolean)
+  .filter((f) => !/^src\/(pages\/home|pages\/not-found|widgets\/site-header|widgets\/site-footer|app\/|shared\/styles|shared\/ui\/logo|features\/stage-mode)/.test(f));
+
+describe('BB-SHELL-22: Editor text sizes come from the type scale', () => {
+  it('uses only --text-* tokens or inherit for font-size', () => {
+    const offenders: string[] = [];
+    for (const file of EDITOR_SCSS) {
+      for (const m of readSource(file, 'utf8').matchAll(/font-size:\s*([^;]+);/g)) {
+        if (!/^(var\(--text-(xs|sm|base|md|lg|xl|2xl)\)|inherit)(\s*!important)?$/.test(m[1].trim())) offenders.push(`${file}: ${m[1]}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe('BB-SHELL-23: Editor labels are sentence case', () => {
+  it('has no uppercase text-transform in editor styles', () => {
+    const offenders = EDITOR_SCSS.filter((file) => /text-transform:\s*uppercase/.test(readSource(file, 'utf8')));
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe('BB-SHELL-24: Selected items share one selection style', () => {
+  it('marks each selected-state rule with the selected-mark mixin', () => {
+    // Only the selected item's own rule; descendant rules such as `&.active .icon` style its parts.
+    const SELECTED = /&\.(active|selected)\s*\{|&\[aria-checked='true'\]\s*\{|tr\.is-active td/;
+    const offenders: string[] = [];
+    for (const file of EDITOR_SCSS) {
+      const lines = readSource(file, 'utf8').split('\n');
+      lines.forEach((line, i) => {
+        if (!SELECTED.test(line) || line.includes('&__')) return;
+        const block = lines.slice(i, i + 12).join('\n');
+        if (!block.includes('@include selected-mark')) offenders.push(`${file}:${i + 1}`);
+      });
+    }
+    expect(offenders).toEqual([]);
+  });
+});

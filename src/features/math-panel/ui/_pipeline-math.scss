@@ -19,16 +19,14 @@
       min-width: 0;
 
       .axis {
-        font-size: 0.62rem;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
+        font-size: var(--text-xs);
         font-weight: 700;
         &.x { color: var(--channel-r); }
         &.y { color: var(--channel-g); }
       }
 
       .value {
-        font-size: 0.95rem;
+        font-size: var(--text-sm);
         color: $text-main;
         font-variant-numeric: tabular-nums;
       }

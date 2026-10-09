@@ -96,3 +96,10 @@ test('VIS-EDITOR-08: Menus and the My scenes dialog', async ({ page }) => {
   await page.getByRole('dialog').getByRole('textbox').fill('Scene name');
   await expect(page).toHaveScreenshot('my-scenes.png');
 });
+
+test('VIS-EDITOR-09: No horizontal page overflow at 960 px', async ({ page }) => {
+  await page.setViewportSize({ width: 960, height: 720 });
+  await open(page, '/app?scene=transforms');
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+});

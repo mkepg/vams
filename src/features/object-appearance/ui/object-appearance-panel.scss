@@ -22,14 +22,14 @@
     gap: var(--space-2);
 
     span:first-child {
-      font-size: 12px;
+      font-size: var(--text-sm);
       color: var(--ink-muted);
     }
 
     .emission-hint,
     .mode-hint {
       font-family: var(--font-mono);
-      font-size: 10.5px;
+      font-size: var(--text-xs);
       color: var(--ink-faint);
     }
   }
@@ -41,7 +41,7 @@
 
 .shading-header {
   margin-bottom: 6px;
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--ink-muted);
 }
 
@@ -50,7 +50,7 @@
   padding: 6px var(--space-2);
   border-radius: var(--radius-m);
   background: var(--paper-sunken);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-style: italic;
   color: var(--ink-muted);
 
@@ -85,7 +85,7 @@
 
   .vertex-coords {
     font-family: var(--font-mono);
-    font-size: 10.5px;
+    font-size: var(--text-xs);
     color: var(--ink-faint);
   }
 

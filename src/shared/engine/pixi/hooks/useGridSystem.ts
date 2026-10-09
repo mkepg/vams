@@ -52,8 +52,8 @@ export function useGridSystem({
     const world = worldRef.current;
     if (!app || !world || !pixiReady) return;
     const textStyle = new TextStyle({
-      fontFamily: "monospace",
-      fontSize: 10,
+      fontFamily: "'JetBrains Mono Variable', ui-monospace, monospace",
+      fontSize: 11,
       fill: 0xffffff,
     });
     const update = () => {
@@ -113,6 +113,18 @@ export function useGridSystem({
         if (originScreen.x >= 0 && originScreen.x <= screenWidth) {
           g.moveTo(originScreen.x, 0);
           g.lineTo(originScreen.x, screenHeight);
+        }
+        g.stroke();
+        g.setStrokeStyle({ width: 1, color: 0xffffff, alpha: 0.45 });
+        for (let x = startTickX; x <= endTickX; x += niceStep) {
+          const sx = world.toGlobal({ x, y: 0 }).x;
+          g.moveTo(sx, originScreen.y - 3);
+          g.lineTo(sx, originScreen.y + 3);
+        }
+        for (let y = startTickY; y <= endTickY; y += niceStep) {
+          const sy = world.toGlobal({ x: 0, y }).y;
+          g.moveTo(originScreen.x - 3, sy);
+          g.lineTo(originScreen.x + 3, sy);
         }
         g.stroke();
         for (let x = startTickX; x <= endTickX; x += niceStep) {

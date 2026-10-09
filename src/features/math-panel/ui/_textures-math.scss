@@ -24,15 +24,13 @@
 
   .tx-binding-key {
     font-family: $font-mono;
-    font-size: 0.6rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
+    font-size: var(--text-xs);
     color: $text-dim;
   }
 
   .tx-binding-val {
     font-family: $font-mono;
-    font-size: 0.74rem;
+    font-size: var(--text-xs);
     color: $text-main;
     font-weight: 600;
     letter-spacing: 0.02em;
@@ -43,13 +41,12 @@
 
   .tx-binding-meta {
     font-family: $font-mono;
-    font-size: 0.62rem;
+    font-size: var(--text-xs);
     color: var(--accent-blue-light);
     background: rgba(var(--accent-blue-rgb), 0.1);
     border: 1px solid rgba(var(--accent-blue-rgb), 0.25);
     padding: 0.18rem 0.4rem;
     border-radius: 3px;
-    letter-spacing: 0.04em;
     white-space: nowrap;
   }
 }
@@ -77,14 +74,11 @@
 
   .tx-uv-axis {
     font-family: $font-mono;
-    font-size: 7px;
     fill: $text-dim;
-    letter-spacing: 0.04em;
   }
 
   .tx-uv-pt-label {
     font-family: $font-mono;
-    font-size: 7px;
     fill: var(--accent-blue-light);
     font-weight: 600;
   }
@@ -107,15 +101,13 @@
     gap: 0.4rem;
     padding: 0.32rem 0.6rem;
     font-family: $font-mono;
-    font-size: 0.7rem;
+    font-size: var(--text-xs);
   }
 
   .tx-uv-table-head {
     background: rgba(var(--accent-blue-rgb), 0.04);
     color: $text-dim;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 0.6rem;
+    font-size: var(--text-xs);
   }
 
   .tx-uv-table-row {
@@ -142,7 +134,7 @@
   border-left: 2px solid var(--accent-blue-light);
   border-radius: 4px;
   font-family: $font-mono;
-  font-size: 0.74rem;
+  font-size: var(--text-xs);
   line-height: 1.55;
   color: $text-main;
   white-space: pre-wrap;
@@ -166,9 +158,8 @@
 
   .tx-sampling-foot {
     font-family: $font-mono;
-    font-size: 0.65rem;
+    font-size: var(--text-xs);
     color: $text-dim;
-    letter-spacing: 0.04em;
   }
 }
 
@@ -196,7 +187,7 @@
   align-items: center;
   justify-content: center;
   font-family: $font-mono;
-  font-size: 0.58rem;
+  font-size: var(--text-xs);
   color: $text-dim;
   text-align: center;
   position: relative;
@@ -222,7 +213,7 @@
     border-color: rgba(var(--accent-blue-rgb), 0.22);
 
     span {
-      font-size: 0.55rem;
+      font-size: var(--text-xs);
       letter-spacing: 0.02em;
     }
   }
@@ -303,13 +294,12 @@
 
   .tx-wrap-core-tag {
     font-family: $font-mono;
-    font-size: 0.65rem;
+    font-size: var(--text-xs);
     /* chip over the texture preview: intentionally fixed */
     color: white;
     background: rgba(0, 0, 0, 0.55);
     padding: 0.18rem 0.45rem;
     border-radius: 3px;
-    letter-spacing: 0.04em;
   }
 
   .tx-wrap-foot {
@@ -318,10 +308,8 @@
     justify-content: space-between;
     padding: 0.3rem 0.6rem;
     font-family: $font-mono;
-    font-size: 0.6rem;
+    font-size: var(--text-xs);
     color: $text-dim;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
     background: rgba(var(--well-rgb), 0.32);
     border-top: 1px solid $border-color;
   }
@@ -370,7 +358,6 @@
 
   .tx-tri-corner {
     font-family: $font-mono;
-    font-size: 8px;
     fill: $text-main;
     font-weight: 500;
     letter-spacing: 0.02em;
@@ -378,7 +365,6 @@
 
   .tx-tri-sample {
     font-family: $font-mono;
-    font-size: 8.5px;
     fill: var(--accent-blue-light);
     font-weight: 600;
   }

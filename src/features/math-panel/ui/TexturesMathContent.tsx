@@ -83,10 +83,10 @@ function UVSpacePlot({ uvs }: { uvs: { u: number; v: number }[] }) {
           stroke="rgba(96,165,250,0.55)"
           strokeWidth="0.8" />
 
-        <text x="-2" y="103" textAnchor="end" className="tx-uv-axis">0</text>
-        <text x="100" y="112" textAnchor="middle" className="tx-uv-axis">u → 1</text>
-        <text x="-2" y="2" textAnchor="end" className="tx-uv-axis">1</text>
-        <text x="-12" y="55" textAnchor="middle" className="tx-uv-axis"
+        <text x="-2" y="103" textAnchor="end" className="tx-uv-axis" fontSize={7}>0</text>
+        <text x="100" y="112" textAnchor="middle" className="tx-uv-axis" fontSize={7}>u → 1</text>
+        <text x="-2" y="2" textAnchor="end" className="tx-uv-axis" fontSize={7}>1</text>
+        <text x="-12" y="55" textAnchor="middle" className="tx-uv-axis" fontSize={7}
           style={{ writingMode: 'vertical-rl', letterSpacing: '0.1em' }}>v</text>
 
         {uvs.length >= 3 && (
@@ -112,7 +112,7 @@ function UVSpacePlot({ uvs }: { uvs: { u: number; v: number }[] }) {
             <text
               x={uv.u * 100 + 3.5}
               y={(1 - uv.v) * 100 - 3.5}
-              className="tx-uv-pt-label"
+              className="tx-uv-pt-label" fontSize={7}
             >
               {i}
             </text>
@@ -234,19 +234,19 @@ function TriangleUVDiagram({ uvs }: { uvs: { u: number; v: number }[] }) {
         <circle cx="25" cy="150" r="5" fill="var(--accent-blue-light)"
           stroke="rgba(0,0,0,0.55)" strokeWidth="1.2" />
 
-        <text x="120" y="11" textAnchor="middle" className="tx-tri-corner">
+        <text x="120" y="10" textAnchor="middle" className="tx-tri-corner" fontSize={10.5}>
           ({fmt(uv0.u)}, {fmt(uv0.v)})
         </text>
-        <text x="222" y="161" textAnchor="start" className="tx-tri-corner">
+        <text x="232" y="169" textAnchor="end" className="tx-tri-corner" fontSize={10.5}>
           ({fmt(uv1.u)}, {fmt(uv1.v)})
         </text>
-        <text x="18" y="161" textAnchor="end" className="tx-tri-corner">
+        <text x="8" y="169" textAnchor="start" className="tx-tri-corner" fontSize={10.5}>
           ({fmt(uv2.u)}, {fmt(uv2.v)})
         </text>
 
         <circle cx="120" cy="105" r="4" fill="white"
           stroke="var(--accent-blue-light)" strokeWidth="1.5" />
-        <text x="128" y="108" className="tx-tri-sample">
+        <text x="120" y="125" textAnchor="middle" className="tx-tri-sample" fontSize={10.5}>
           λ₀C₀ + λ₁C₁ + λ₂C₂
         </text>
       </svg>

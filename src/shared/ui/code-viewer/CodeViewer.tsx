@@ -221,11 +221,10 @@ const CodeViewer = memo(function CodeViewer({
         window.matchMedia &&
         window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-      const preservedLeft = scroller.scrollLeft;
-
+      // A highlighted line starts at its GL call, so its start is always shown.
       scroller.scrollTo({
         top: Math.max(0, targetTop),
-        left: preservedLeft,
+        left: 0,
         behavior: prefersReduced ? 'auto' : 'smooth',
       });
     });

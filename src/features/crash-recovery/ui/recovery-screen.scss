@@ -23,20 +23,20 @@
   &__title {
     margin: 0 0 0.5rem;
     font-family: var(--font-display);
-    font-size: 2rem;
+    font-size: var(--text-xl);
     font-weight: 500;
     &:focus { outline: none; }
     &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; }
   }
 
-  &__lead { margin: 0 0 1.5rem; font-size: 1.05rem; color: var(--ink-muted); }
+  &__lead { margin: 0 0 1.5rem; font-size: var(--text-base); color: var(--ink-muted); }
 
   &__actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
 
   &__btn {
     padding: 0.6rem 1.1rem;
     font-family: var(--font-ui);
-    font-size: 0.95rem;
+    font-size: var(--text-sm);
     font-weight: 600;
     color: var(--ink);
     background: transparent;
@@ -54,14 +54,14 @@
     }
   }
 
-  &__error { margin: 0.75rem 0 0; min-height: 0; font-size: 0.9rem; color: var(--danger); &:empty { display: none; } }
+  &__error { margin: 0.75rem 0 0; min-height: 0; font-size: var(--text-sm); color: var(--danger); &:empty { display: none; } }
 
-  &__hint { margin: 1rem 0 0; font-size: 0.85rem; color: var(--ink-muted); }
+  &__hint { margin: 1rem 0 0; font-size: var(--text-xs); color: var(--ink-muted); }
 
   &__details {
     margin-top: 1.25rem;
     font-family: var(--font-mono);
-    font-size: 0.8rem;
+    font-size: var(--text-xs);
     color: var(--ink-muted);
     summary { cursor: pointer; }
     pre {

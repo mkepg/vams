@@ -47,10 +47,8 @@
 
       .code-lang {
         font-family: $font-mono;
-        font-size: 11px;
+        font-size: var(--text-xs);
         color: var(--ink);
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
         font-weight: 700;
       }
 
@@ -60,14 +58,14 @@
         overflow: hidden;
         text-overflow: ellipsis;
         font-family: $font-mono;
-        font-size: 11px;
+        font-size: var(--text-xs);
         color: var(--ink-faint);
       }
 
       .code-focus {
         margin-left: auto;
         font-family: $font-mono;
-        font-size: 0.65rem;
+        font-size: var(--text-xs);
         color: var(--accent-blue-light);
         background: rgba(var(--accent-blue-rgb), 0.12);
         border: 1px solid rgba(var(--accent-blue-rgb), 0.28);
@@ -94,7 +92,7 @@
         padding: 0.1rem 0.45rem;
         border-radius: 999px;
         font-family: $font-mono;
-        font-size: 0.62rem;
+        font-size: var(--text-xs);
         color: var(--accent-blue-light);
         background: rgba(var(--accent-blue-rgb), 0.1);
         border: 1px solid rgba(var(--accent-blue-rgb), 0.22);
@@ -107,7 +105,7 @@
         }
       }
 
-      /* Lesson-only badge that complements the inline amber layer below. */
+      /* Lesson-only badge that complements the inline change layer below. */
       .code-change-badge {
         display: inline-flex;
         flex-shrink: 0;
@@ -116,9 +114,7 @@
         padding: 0.1rem 0.5rem;
         border-radius: 999px;
         font-family: $font-mono;
-        font-size: 0.62rem;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
+        font-size: var(--text-xs);
         color: var(--code-changed-light);
         background: rgba(var(--code-changed-rgb), 0.12);
         border: 1px solid rgba(var(--code-changed-rgb), 0.32);
@@ -160,14 +156,14 @@
         outline: none;
         color: $text-main;
         font-family: $font-mono;
-        font-size: 0.72rem;
+        font-size: var(--text-xs);
         min-width: 0;
       }
       input::placeholder { color: $text-dim; }
 
       .search-count {
         font-family: $font-mono;
-        font-size: 0.65rem;
+        font-size: var(--text-xs);
         color: var(--accent-blue-light);
         background: rgba(var(--accent-blue-rgb), 0.15);
         padding: 0 0.3rem;
@@ -190,7 +186,7 @@
 
     .copy-button {
       font-family: $font-mono;
-      font-size: 11px;
+      font-size: var(--text-xs);
 
       &.copied {
         color: $accent-green-text;
@@ -207,7 +203,7 @@
     overflow: auto;
     display: flex;
     font-family: $font-mono;
-    font-size: 13px;
+    font-size: var(--text-base);
     line-height: 1.6;
     align-items: stretch;
     @include scrollbar;
@@ -253,12 +249,11 @@
           background-color: rgba(var(--code-match-rgb), 0.1);
         }
 
-        /* Amber wins over blue in the gutter for the same reason it does
-           inline: change is the lesson's active focus. */
+        /* The change layer wins over the selection in the gutter for the
+           same reason it does inline: change is the lesson's active focus. */
         &.changed {
           color: var(--code-changed-light);
           background-color: rgba(var(--code-changed-rgb), 0.18);
-          font-weight: bold;
           animation: change-flash 0.45s ease-out;
         }
       }
@@ -292,15 +287,16 @@
           border-left-color: var(--code-match-light);
         }
 
-        /* ----- Amber change layer -----------------------------------
-           Composes on top of the blue selection layer. When both apply
-           we keep the amber background (the lesson is what the student
-           is looking at right now) but layer a subtle blue outline so
-           the selection signal isn't fully erased.
+        /* ----- Change layer -----------------------------------------
+           Accent tint with an accent edge. Composes on top of the
+           selection layer. When both apply we keep the change background
+           (the lesson is what the student is looking at right now) but
+           layer a subtle outline so the selection signal isn't erased.
            ------------------------------------------------------------ */
         &.changed {
           background-color: rgba(var(--code-changed-rgb), 0.14);
           border-left-color: var(--code-changed-light);
+          box-shadow: inset 2px 0 0 var(--accent);
           animation: change-flash 0.45s ease-out;
 
           .change-marker {
@@ -315,9 +311,9 @@
           }
         }
 
-        /* When a line is both selected and changed, keep amber dominant
-           but echo the blue stroke on the right edge so the relationship
-           is still visible. */
+        /* When a line is both selected and changed, keep the change layer
+           dominant but echo the selection stroke on the right edge so the
+           relationship is still visible. */
         &.highlight.changed {
           background-color: rgba(var(--code-changed-rgb), 0.16);
           border-left-color: var(--code-changed-light);
@@ -361,7 +357,7 @@
             .annot-title {
               display: block;
               font-family: $font-mono;
-              font-size: 0.72rem;
+              font-size: var(--text-xs);
               font-weight: 600;
               color: var(--accent-blue-light);
               margin-bottom: 0.2rem;
@@ -371,7 +367,7 @@
             .annot-desc {
               display: block;
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              font-size: 0.74rem;
+              font-size: var(--text-xs);
               line-height: 1.5;
               color: $text-main;
             }
@@ -388,7 +384,7 @@
   }
 
   /* Reduced-motion: kill the flash and the smooth-scroll easing.
-     The amber tint and the auto-scroll itself still happen — they're
+     The change tint and the auto-scroll itself still happen — they're
      the feature — but they happen instantly. */
   @media (prefers-reduced-motion: reduce) {
     .code-content { scroll-behavior: auto; }

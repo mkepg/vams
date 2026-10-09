@@ -37,10 +37,9 @@
 
     .cc-swatch-hex {
       font-family: $font-mono;
-      font-size: 0.6rem;
+      font-size: var(--text-xs);
       /* chip over the user's colour swatch: intentionally fixed */
       color: white;
-      letter-spacing: 0.04em;
       background: rgba(0, 0, 0, 0.6);
       padding: 0.15rem 0.35rem;
       border-radius: 3px;
@@ -60,7 +59,7 @@
     align-items: center;
     gap: 0.4rem;
     font-family: $font-mono;
-    font-size: 0.74rem;
+    font-size: var(--text-xs);
     padding: 0.3rem 0.5rem;
     background: rgba(var(--accent-blue-rgb), 0.03);
     border: 1px solid $border-color;
@@ -69,7 +68,7 @@
 
     .cc-chan-label {
       font-weight: 700;
-      font-size: 0.78rem;
+      font-size: var(--text-xs);
     }
 
     .cc-chan-byte {
@@ -119,14 +118,13 @@
 
     .cc-call-mode {
       font-family: $font-mono;
-      font-size: 0.66rem;
+      font-size: var(--text-xs);
       color: var(--accent-blue-light);
-      letter-spacing: 0.04em;
     }
 
     .cc-call-args {
       font-family: $font-mono;
-      font-size: 0.74rem;
+      font-size: var(--text-xs);
       color: $text-main;
       font-variant-numeric: tabular-nums;
     }
@@ -148,14 +146,12 @@
 
     .cc-formula-label {
       font-family: $font-mono;
-      font-size: 0.58rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+      font-size: var(--text-xs);
       color: $text-dim;
     }
     code {
       font-family: $font-mono;
-      font-size: 0.72rem;
+      font-size: var(--text-xs);
       color: $text-muted;
     }
   }
@@ -183,13 +179,12 @@
 
   .ps-hex {
     font-family: $font-mono;
-    font-size: 0.85rem;
+    font-size: var(--text-xs);
     color: var(--accent-blue-light);
     background: rgba(var(--accent-blue-rgb), 0.12);
     border: 1px solid rgba(var(--accent-blue-rgb), 0.32);
     padding: 0.2rem 0.45rem;
     border-radius: 3px;
-    letter-spacing: 0.04em;
   }
 
   .ps-meta-pill {
@@ -201,23 +196,21 @@
     &:nth-of-type(1) { margin-left: auto; }
 
     .ps-meta-label {
-      font-size: 0.58rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
+      font-size: var(--text-xs);
       color: $text-dim;
     }
     .ps-meta-num {
-      font-size: 0.85rem;
+      font-size: var(--text-xs);
       color: $text-main;
       font-weight: 600;
       font-variant-numeric: tabular-nums;
     }
     .ps-meta-total {
-      font-size: 0.62rem;
+      font-size: var(--text-xs);
       color: $text-dim;
     }
     code {
-      font-size: 0.72rem;
+      font-size: var(--text-xs);
       color: $text-main;
       font-variant-numeric: tabular-nums;
     }
@@ -245,7 +238,7 @@
       border: 1px solid $border-color;
       border-radius: 2px;
       font-family: $font-mono;
-      font-size: 0.55rem;
+      font-size: var(--text-xs);
       color: $text-dim;
       transition: all 0.15s ease;
 
@@ -271,9 +264,7 @@
 
     .ps-preview-label {
       font-family: $font-mono;
-      font-size: 0.58rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
+      font-size: var(--text-xs);
       color: $text-dim;
       text-align: right;
     }
@@ -329,7 +320,6 @@
 
     .pb-mesh-label {
       font-family: $font-mono;
-      font-size: 9px;
       fill: $text-main;
       font-weight: 600;
     }
@@ -348,7 +338,7 @@
 
     code {
       font-family: $font-mono;
-      font-size: 0.78rem;
+      font-size: var(--text-xs);
       color: $text-main;
       flex: 1;
       min-width: 0;
@@ -356,9 +346,8 @@
 
     .pb-note {
       font-family: $font-mono;
-      font-size: 0.62rem;
+      font-size: var(--text-xs);
       color: var(--accent-blue-light);
-      letter-spacing: 0.05em;
       padding: 0.2rem 0.45rem;
       background: rgba(var(--accent-blue-rgb), 0.1);
       border: 1px solid rgba(var(--accent-blue-rgb), 0.25);
@@ -394,9 +383,8 @@
 
       .pb-corner-label {
         font-family: $font-mono;
-        font-size: 0.62rem;
+        font-size: var(--text-xs);
         color: $text-dim;
-        letter-spacing: 0.04em;
       }
 
       &.pb-result .pb-corner-swatch {
@@ -414,7 +402,7 @@
     .pb-arrow {
       color: var(--accent-blue-light);
       font-family: $font-mono;
-      font-size: 0.95rem;
+      font-size: var(--text-sm);
       margin: 0 0.15rem;
     }
   }
@@ -439,9 +427,7 @@
   .pvt-head {
     padding: 0 0.55rem 0.3rem;
     font-family: $font-mono;
-    font-size: 0.6rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    font-size: var(--text-xs);
     color: $text-dim;
     border-bottom: 1px solid $border-color;
 
@@ -468,7 +454,7 @@
     border: 1px solid $border-color;
     border-radius: 4px;
     font-family: $font-mono;
-    font-size: 0.74rem;
+    font-size: var(--text-xs);
     color: $text-main;
     font-variant-numeric: tabular-nums;
     transition: background 0.15s ease, border-color 0.15s ease;
@@ -489,8 +475,7 @@
       border-radius: 4px;
       color: var(--accent-blue-light);
       font-weight: 600;
-      font-size: 0.65rem;
-      letter-spacing: 0.04em;
+      font-size: var(--text-xs);
     }
 
     .pvt-x { color: var(--channel-r); }
@@ -512,7 +497,7 @@
       }
 
       code {
-        font-size: 0.7rem;
+        font-size: var(--text-xs);
         color: $text-muted;
         overflow: hidden;
         text-overflow: ellipsis;

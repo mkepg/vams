@@ -141,7 +141,7 @@ export function useLessonRunner(): LessonRunner {
   /*  We snapshot the generated code immediately before and after the   */
   /*  step's action mutates state, run a line-level diff, and write the */
   /*  result into `changedCodeLines`. SceneCodePanel reads that and     */
-  /*  passes it to CodeViewer, which renders the amber highlight + auto-*/
+  /*  passes it to CodeViewer, which draws the change highlight + auto- */
   /*  scrolls vertically to the topmost change.                         */
   /*                                                                    */
   /*  Both snapshots use the SAME canvas size, so window-size-only      */

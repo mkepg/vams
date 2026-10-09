@@ -78,7 +78,7 @@ export default function SceneCodePanel() {
 
   const generatedCode = previewCode ?? baseCode;
 
-  // While previewing, amber-highlight the idle machinery that lit up (the diff
+  // While previewing, highlight the idle machinery that lit up (the diff
   // against the non-preview program). Lesson mode keeps its own change focus.
   const previewChanged = useMemo(
     () => (previewCode ? resolveChangedLines(baseCode, previewCode) : undefined),

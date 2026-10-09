@@ -31,21 +31,21 @@ const StageVisual: FC<Props> = ({ kind }) => {
           <circle cx="50" cy="40" r="5" className="v-dot" />
           <circle cx="130" cy="55" r="5" className="v-dot" />
           <circle cx="90" cy="90" r="5" className="v-dot" />
-          <text x="50" y="30" className="v-label">V0</text>
-          <text x="130" y="45" className="v-label">V1</text>
-          <text x="90" y="107" className="v-label">V2</text>
+          <text x="50" y="30" className="v-label" fontSize={12.5}>V0</text>
+          <text x="130" y="45" className="v-label" fontSize={12.5}>V1</text>
+          <text x="90" y="107" className="v-label" fontSize={12.5}>V2</text>
         </svg>
       );
     case 'process':
       return (
         <svg viewBox={`0 0 ${W} ${H}`} className="stage-svg">
           <rect x="20" y="40" width="40" height="40" rx="3" className="v-frame" />
-          <text x="40" y="65" className="v-label center">V</text>
-          <text x="80" y="65" className="v-op">×</text>
+          <text x="40" y="65" className="v-label center" fontSize={12.5}>V</text>
+          <text x="80" y="65" className="v-op" fontSize={14}>×</text>
           <rect x="95" y="40" width="40" height="40" rx="3" className="v-frame accent" />
-          <text x="115" y="60" className="v-label center">M</text>
-          <text x="115" y="74" className="v-sub center">4×4</text>
-          <text x="155" y="65" className="v-op">=</text>
+          <text x="115" y="59" className="v-label center" fontSize={12.5}>M</text>
+          <text x="115" y="75" className="v-sub center" fontSize={12}>4×4</text>
+          <text x="155" y="65" className="v-op" fontSize={14}>=</text>
         </svg>
       );
     case 'assembly':
@@ -113,17 +113,17 @@ const StageVisual: FC<Props> = ({ kind }) => {
           <rect x="30" y="62" width="30" height="30" className="v-frag mid" />
           <rect x="62" y="62" width="30" height="30" className="v-frag strong" />
           <rect x="94" y="62" width="30" height="30" className="v-frag intense" />
-          <text x="140" y="50" className="v-label">RGBA</text>
-          <text x="140" y="80" className="v-sub">per fragment</text>
+          <text x="132" y="66" className="v-label" fontSize={12.5}>RGBA</text>
+          <text x="77" y="110" className="v-sub center" fontSize={12}>per fragment</text>
         </svg>
       );
     case 'output':
       return (
         <svg viewBox={`0 0 ${W} ${H}`} className="stage-svg">
-          <rect x="25" y="25" width="130" height="70" className="v-frame accent" />
-          <rect x="35" y="35" width="110" height="50" className="v-buffer" />
-          <text x="90" y="60" className="v-label center">Framebuffer</text>
-          <text x="90" y="75" className="v-sub center">write-to-screen</text>
+          <rect x="14" y="25" width="152" height="70" className="v-frame accent" />
+          <rect x="22" y="33" width="136" height="54" className="v-buffer" />
+          <text x="90" y="59" className="v-label center" fontSize={12.5}>Framebuffer</text>
+          <text x="90" y="76" className="v-sub center" fontSize={12}>write-to-screen</text>
         </svg>
       );
     default:

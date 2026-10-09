@@ -26,16 +26,14 @@
 
     .bm-current-call-label {
       font-family: $font-mono;
-      font-size: 0.58rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+      font-size: var(--text-xs);
       color: $text-dim;
       flex-shrink: 0;
     }
 
     .bm-current-call-code {
       font-family: $font-mono;
-      font-size: 0.78rem;
+      font-size: var(--text-xs);
       color: $text-main;
       white-space: nowrap;
       overflow-x: auto;
@@ -48,7 +46,7 @@
 
     .bm-current-call-sub {
       font-family: $font-mono;
-      font-size: 0.66rem;
+      font-size: var(--text-xs);
       color: $text-dim;
       padding-left: calc(11px + 0.4rem);
       line-height: 1.4;
@@ -81,16 +79,14 @@
 
     .bm-stat-num {
       font-family: $font-mono;
-      font-size: 0.95rem;
+      font-size: var(--text-sm);
       color: $text-main;
       font-variant-numeric: tabular-nums;
     }
 
     .bm-stat-label {
       font-family: $font-mono;
-      font-size: 0.58rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
+      font-size: var(--text-xs);
       color: $text-dim;
     }
   }
@@ -98,7 +94,7 @@
   .bm-stat-op {
     font-family: $font-mono;
     color: var(--accent-blue-light);
-    font-size: 0.95rem;
+    font-size: var(--text-sm);
   }
 
   .bm-memory {
@@ -122,18 +118,17 @@
       flex-direction: column;
       gap: 0.1rem;
       min-width: 0;
-      .bm-memory-name { font-size: 0.74rem; color: $text-main; font-weight: 500; }
+      .bm-memory-name { font-size: var(--text-xs); color: $text-main; font-weight: 500; }
       .bm-memory-api {
         font-family: $font-mono;
-        font-size: 0.6rem;
-        letter-spacing: 0.04em;
+        font-size: var(--text-xs);
         color: var(--accent-blue-light);
       }
     }
 
     .bm-memory-val {
       font-family: $font-mono;
-      font-size: 0.85rem;
+      font-size: var(--text-xs);
       color: $text-main;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
@@ -141,7 +136,7 @@
 
     .bm-memory-sub {
       font-family: $font-mono;
-      font-size: 0.6rem;
+      font-size: var(--text-xs);
       color: $text-dim;
       letter-spacing: 0.02em;
       text-align: right;
@@ -149,7 +144,7 @@
 
     .bm-memory-delta {
       font-family: $font-mono;
-      font-size: 0.7rem;
+      font-size: var(--text-xs);
       padding: 0.32rem 0.55rem;
       border-radius: 3px;
       line-height: 1.4;
@@ -200,14 +195,13 @@
         padding: 0.35rem 0.5rem;
         align-self: stretch;
         justify-content: center;
-        .bm-vblock-idx { color: $text-dim; font-size: 0.85rem; }
+        .bm-vblock-idx { color: $text-dim; font-size: var(--text-xs); }
       }
 
       .bm-vblock-idx {
         font-family: $font-mono;
-        font-size: 0.62rem;
+        font-size: var(--text-xs);
         color: var(--accent-blue-light);
-        letter-spacing: 0.04em;
       }
 
       .bm-vblock-cells {
@@ -225,10 +219,8 @@
       align-items: center;
       justify-content: center;
       font-family: $font-mono;
-      font-size: 0.6rem;
+      font-size: var(--text-xs);
       border-radius: 2px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
 
       &.pos {
         background: rgba(var(--hue-sky-rgb), 0.18);
@@ -254,7 +246,7 @@
       display: flex;
       gap: 0.85rem;
       font-family: $font-mono;
-      font-size: 0.62rem;
+      font-size: var(--text-xs);
       color: $text-dim;
       span { display: inline-flex; align-items: center; gap: 0.3rem; }
       .bm-swatch {
@@ -268,7 +260,7 @@
 
     .bm-interleaved-summary {
       font-family: $font-mono;
-      font-size: 0.62rem;
+      font-size: var(--text-xs);
       color: $text-muted;
     }
   }
@@ -286,9 +278,7 @@
 
       .bm-flow-axis {
         font-family: $font-mono;
-        font-size: 0.6rem;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
+        font-size: var(--text-xs);
         color: $text-dim;
       }
 
@@ -330,7 +320,7 @@
       display: inline-block;
       text-align: center;
       font-family: $font-mono;
-      font-size: 0.7rem;
+      font-size: var(--text-xs);
       color: var(--grid-major);
       transition: color 0.2s;
     }
@@ -343,14 +333,12 @@
 
       .bm-flow-frames {
         font-family: $font-mono;
-        font-size: 0.58rem;
+        font-size: var(--text-xs);
         color: $text-dim;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
       }
 
       .bm-flow-legend {
-        font-size: 0.7rem;
+        font-size: var(--text-xs);
         color: $text-muted;
         line-height: 1.45;
       }
@@ -395,7 +383,7 @@
 
     .bm-dma-inactive-hint {
       margin: 0;
-      font-size: 0.7rem;
+      font-size: var(--text-xs);
       color: $text-dim;
       font-style: italic;
       line-height: 1.45;
@@ -436,8 +424,7 @@
 
   .bm-dma-pointer-label {
     font-family: $font-mono;
-    font-size: 0.65rem;
-    letter-spacing: 0.04em;
+    font-size: var(--text-xs);
     text-align: right;
     transition: color 0.2s ease;
 
@@ -451,9 +438,7 @@
 
   .bm-dma-buffer-label {
     font-family: $font-mono;
-    font-size: 0.6rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+    font-size: var(--text-xs);
     color: $text-dim;
     text-align: right;
   }
@@ -474,7 +459,7 @@
   }
 
   .bm-dma-caret {
-    font-size: 0.78rem;
+    font-size: var(--text-xs);
     color: var(--accent-blue-light);
     filter: drop-shadow(0 0 4px rgba(var(--accent-blue-rgb), 0.7));
     transition: transform 0.32s cubic-bezier(0.3, 0.7, 0.3, 1);
@@ -501,9 +486,8 @@
 
     .bm-dma-cell-idx {
       font-family: $font-mono;
-      font-size: 0.55rem;
+      font-size: var(--text-xs);
       color: $text-dim;
-      letter-spacing: 0.04em;
     }
 
     &.written {
@@ -542,9 +526,7 @@
     align-items: center;
     gap: 0.35rem;
     font-family: $font-mono;
-    font-size: 0.6rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    font-size: var(--text-xs);
     padding: 0.18rem 0.5rem;
     border-radius: 999px;
 
@@ -574,9 +556,8 @@
 
   .bm-dma-step-counter {
     font-family: $font-mono;
-    font-size: 0.62rem;
+    font-size: var(--text-xs);
     color: $text-dim;
-    letter-spacing: 0.06em;
     strong {
       color: var(--accent-blue-light);
       font-weight: 600;
@@ -596,7 +577,7 @@
   .bm-dma-code {
     margin: 0;
     font-family: $font-mono;
-    font-size: 0.74rem;
+    font-size: var(--text-xs);
     color: var(--code-content);
     white-space: pre-wrap;
     word-break: break-word;
@@ -605,7 +586,7 @@
 
   .bm-dma-caption {
     margin: 0;
-    font-size: 0.74rem;
+    font-size: var(--text-xs);
     color: $text-muted;
     line-height: 1.5;
     animation: bm-dma-caption-fade 0.28s ease both;
@@ -633,8 +614,7 @@
     border-radius: 4px;
     color: $text-muted;
     font-family: $font-mono;
-    font-size: 0.66rem;
-    letter-spacing: 0.05em;
+    font-size: var(--text-xs);
     cursor: pointer;
     transition: all 0.15s ease;
 
@@ -673,9 +653,7 @@
     border-radius: 999px;
     color: var(--accent-blue-light);
     font-family: $font-mono;
-    font-size: 0.6rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    font-size: var(--text-xs);
 
     .bm-dma-driven-dot {
       width: 6px;

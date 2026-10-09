@@ -20,7 +20,7 @@
     align-items: center;
     gap: 0.5rem;
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: var(--text-sm);
     flex-shrink: 0;
     svg { color: $accent-blue-text; }
   }
@@ -46,7 +46,7 @@
       border: none;
       background: transparent;
       color: $text-main;
-      font-size: 0.85rem;
+      font-size: var(--text-xs);
       outline: none;
       &::placeholder { color: $text-dim; }
     }
@@ -96,11 +96,11 @@
     border-radius: 8px;
     background-color: rgba(var(--accent-blue-rgb), 0.12);
     border: 1px solid rgba(var(--accent-blue-rgb), 0.35);
-    p { margin: 0 0 0.5rem; font-size: 0.8rem; font-weight: 600; }
+    p { margin: 0 0 0.5rem; font-size: var(--text-xs); font-weight: 600; }
     button {
       width: 100%;
       padding: 0.4rem;
-      font-size: 0.8rem;
+      font-size: var(--text-xs);
       font-weight: 600;
       color: var(--on-accent-blue);
       background-color: $accent-blue;
@@ -117,10 +117,8 @@
   .help-nav-count {
     display: block;
     padding: 0.35rem 0.5rem;
-    font-size: 0.68rem;
+    font-size: var(--text-xs);
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
     color: $text-dim;
   }
 
@@ -138,19 +136,18 @@
     cursor: pointer;
     transition: background-color 0.12s, color 0.12s;
 
-    .nav-item-title { font-size: 0.85rem; }
-    .nav-item-summary { font-size: 0.72rem; color: $text-dim; }
+    .nav-item-title { font-size: var(--text-xs); }
+    .nav-item-summary { font-size: var(--text-xs); color: $text-dim; }
 
     &:hover { background-color: rgba(var(--border-rgb), 0.35); color: $text-main; }
     &.active {
-      background-color: rgba(var(--accent-blue-rgb), 0.15);
-      color: $accent-blue-text;
+      @include selected-mark;
       .nav-item-title { font-weight: 600; }
     }
     &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
   }
 
-  .help-nav-empty { padding: 0.5rem; font-size: 0.8rem; color: $text-dim; }
+  .help-nav-empty { padding: 0.5rem; font-size: var(--text-xs); color: $text-dim; }
 }
 
 .help-content-pane {
@@ -166,7 +163,7 @@
     gap: 0.3rem;
     margin-bottom: 1rem;
     padding: 0.3rem 0.6rem;
-    font-size: 0.8rem;
+    font-size: var(--text-xs);
     color: $text-muted;
     background: transparent;
     border: 1px solid $border-color;
@@ -179,26 +176,26 @@
 .help-article {
   .help-article-header {
     margin-bottom: 1.25rem;
-    h2 { margin: 0 0 0.35rem; font-size: 1.4rem; }
-    .help-article-summary { margin: 0; color: $text-muted; font-size: 0.9rem; }
+    h2 { margin: 0 0 0.35rem; font-size: var(--text-lg); }
+    .help-article-summary { margin: 0; color: $text-muted; font-size: var(--text-sm); }
   }
 
   .help-article-body {
     .help-block-heading {
       margin: 1.5rem 0 0.5rem;
-      font-size: 1rem;
+      font-size: var(--text-base);
       color: $text-main;
     }
     .help-block-paragraph {
       margin: 0 0 0.85rem;
       line-height: 1.6;
-      font-size: 0.9rem;
+      font-size: var(--text-sm);
       color: $text-main;
     }
     .help-block-list {
       margin: 0 0 0.85rem;
       padding-left: 1.25rem;
-      li { margin-bottom: 0.4rem; line-height: 1.55; font-size: 0.9rem; }
+      li { margin-bottom: 0.4rem; line-height: 1.55; font-size: var(--text-sm); }
     }
     .help-block-code {
       margin: 0 0 1rem;
@@ -210,7 +207,7 @@
       @include scrollbar;
       code {
         font-family: $font-mono;
-        font-size: 0.82rem;
+        font-size: var(--text-xs);
         line-height: 1.55;
         color: $text-main;
         white-space: pre;
@@ -227,7 +224,7 @@
     .help-block-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.82rem;
+      font-size: var(--text-xs);
 
       th, td {
         padding: 0.5rem 0.75rem;
@@ -243,7 +240,7 @@
       }
       td {
         color: $text-muted;
-        &:first-child { color: $text-main; font-family: $font-mono; font-size: 0.78rem; }
+        &:first-child { color: $text-main; font-family: $font-mono; font-size: var(--text-xs); }
       }
       tr:last-child td { border-bottom: none; }
     }
@@ -257,13 +254,13 @@
       }
       dt {
         font-weight: 600;
-        font-size: 0.86rem;
+        font-size: var(--text-xs);
         color: $text-main;
         margin-bottom: 0.15rem;
       }
       dd {
         margin: 0;
-        font-size: 0.84rem;
+        font-size: var(--text-xs);
         line-height: 1.5;
         color: $text-muted;
       }
@@ -277,7 +274,7 @@
     padding: 0.7rem 0.85rem;
     border-radius: 8px;
     border: 1px solid;
-    p { margin: 0; font-size: 0.85rem; line-height: 1.5; }
+    p { margin: 0; font-size: var(--text-xs); line-height: 1.5; }
     .callout-icon { flex-shrink: 0; margin-top: 2px; }
 
     &.tone-info {
@@ -305,16 +302,14 @@
     .related-label {
       display: block;
       margin-bottom: 0.5rem;
-      font-size: 0.72rem;
+      font-size: var(--text-xs);
       font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
       color: $text-dim;
     }
     .related-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
     .related-chip {
       padding: 0.3rem 0.7rem;
-      font-size: 0.8rem;
+      font-size: var(--text-xs);
       color: $accent-blue-text;
       background-color: rgba(var(--accent-blue-rgb), 0.1);
       border: 1px solid rgba(var(--accent-blue-rgb), 0.3);
@@ -334,9 +329,7 @@
 
   .help-shortcut-group h4 {
     margin: 0 0 0.5rem;
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    font-size: var(--text-xs);
     color: $text-dim;
   }
 
@@ -351,20 +344,20 @@
     &:last-child { border-bottom: none; }
 
     dt { display: flex; align-items: center; gap: 0.25rem; flex-shrink: 0; }
-    dd { margin: 0; font-size: 0.85rem; color: $text-muted; text-align: right; }
+    dd { margin: 0; font-size: var(--text-xs); color: $text-muted; text-align: right; }
 
     kbd {
       display: inline-block;
       padding: 2px 7px;
       font-family: $font-mono;
-      font-size: 0.75rem;
+      font-size: var(--text-xs);
       color: $text-main;
       background-color: $bg-input;
       border: 1px solid var(--border-highlight);
       border-bottom-width: 2px;
       border-radius: 4px;
     }
-    .plus { margin: 0 0.25rem; color: $text-dim; font-size: 0.75rem; }
+    .plus { margin: 0 0.25rem; color: $text-dim; font-size: var(--text-xs); }
   }
 }
 

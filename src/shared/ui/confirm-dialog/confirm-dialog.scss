@@ -9,12 +9,12 @@
     gap: 0.55rem;
     margin-bottom: 0.5rem;
     .confirm-icon { color: $accent-red-text; flex-shrink: 0; }
-    h2 { margin: 0; font-size: 1.05rem; }
+    h2 { margin: 0; font-size: var(--text-base); }
   }
 
   .confirm-message {
     margin: 0 0 1.2rem;
-    font-size: 0.88rem;
+    font-size: var(--text-xs);
     line-height: 1.55;
     color: $text-muted;
   }
