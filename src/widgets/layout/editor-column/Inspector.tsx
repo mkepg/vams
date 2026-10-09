@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { useVamsStore } from '@/core/store';
 import { resolveFocus } from '@/core/inspector';
 import type { SceneNode } from '@/core/types/scene';
@@ -15,6 +15,14 @@ function metaLine(object: SceneNode): string {
     return `Group · ${n === 1 ? '1 object' : `${n} objects`}`;
   }
   return `GL_${object.type} · ${object.vertices.length} vertices`;
+}
+
+/** Scrolls the column so the group sits just under the sticky lesson card. */
+function scrollUnderCard(el: HTMLElement | null) {
+  const root = el?.closest<HTMLElement>('[data-scroll-root]');
+  if (!el || !root) return;
+  const head = root.querySelector<HTMLElement>('.editor-column__head');
+  root.scrollTop = Math.max(0, el.offsetTop - (head?.offsetHeight ?? 0) - 8);
 }
 
 /** The selected object's groups in pipeline order, or the scene settings when nothing is selected. */
@@ -40,15 +48,22 @@ export default function Inspector() {
   const defs = showSettings ? SETTINGS_GROUP_DEFS : OBJECT_GROUP_DEFS.filter((def) => !def.applies || def.applies(selected!));
 
   // Each step opens its group. A demo also collapses the others; the student can reopen them.
-  useEffect(() => {
+  // The scroll waits a frame: the collapse and the card's new narration render after this
+  // effect, and measuring before them leaves the group under the card.
+  const rootRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
     if (!target) return;
     if (style === 'tight') setOpenGroups([target]);
     else openGroup(target);
+    const frame = requestAnimationFrame(() =>
+      scrollUnderCard(rootRef.current?.querySelector<HTMLElement>(`[data-group="${target}"]`) ?? null),
+    );
+    return () => cancelAnimationFrame(frame);
   }, [target, style, stepIndex, lessonId, setOpenGroups, openGroup]);
 
   return (
     <PanelLayoutContext.Provider value={{ mode: inLesson ? 'lesson' : 'author', focusPanelId, embedded: true }}>
-      <div className="inspector">
+      <div ref={rootRef} className="inspector">
         <div className="inspector__head">
           {showSettings ? (
             <h2 className="inspector__name">Scene settings</h2>

@@ -37,7 +37,7 @@ function key(target: EventTarget, k: string, init: KeyboardEventInit = {}) {
   return event;
 }
 
-function startLesson(id: string, section: 'Transforms' | 'Pipeline' = 'Transforms') {
+function startLesson(id: string, section: 'Transforms' | 'Pipeline' | 'Textures' | 'Primitives' = 'Transforms') {
   useVamsStore.setState({ activeSection: section });
   useVamsStore.getState().setActiveLesson(id);
   useVamsStore.getState().setAppMode('Lesson');
@@ -450,6 +450,22 @@ describe('BB-LCOL-20: A per-object focus selects the newest object, and never cr
     unmount(host);
   });
 
+  it('selects the newest object when a step moves to a per-object focus with nothing selected', async () => {
+    startLesson('transforms-demo-1');
+    const host = mount(h(EditorColumn, {}));
+    await settle();
+    useVamsStore.setState({ selectedObjectId: null });
+    await settle();
+    // Step 2 focuses object-transform; its own action needs a selection and does nothing without one.
+    buttonNamed(host, 'Next')!.click();
+    await settle();
+    const s = useVamsStore.getState();
+    expect(s.lessonFocusPanel).toBe('object-transform');
+    expect(s.objects.length).toBeGreaterThan(0);
+    expect(s.selectedObjectId).toBe(s.objects[0].id);
+    unmount(host);
+  });
+
   it('shows scene settings when there is nothing to select', async () => {
     startLesson('transforms-exercise-1');
     const host = mount(h(EditorColumn, {}));
@@ -468,5 +484,56 @@ describe('BB-LCOL-21: The Pipeline illustrations appear only during Pipeline les
     expect(showsIllustration({ appMode: 'Author', activeSection: 'Pipeline', pipelineMode: 'Diagram' })).toBe(false);
     expect(showsIllustration({ appMode: 'Lesson', activeSection: 'Pipeline', pipelineMode: 'Diagram' })).toBe(true);
     expect(showsIllustration({ appMode: 'Lesson', activeSection: 'Pipeline', pipelineMode: 'Playground' })).toBe(false);
+  });
+});
+
+describe('BB-LCOL-22: A demo scrolls to the focused group on its final layout', () => {
+  it('scrolls to Texture once Transform above it has collapsed and Texture has opened', async () => {
+    startLesson('textures-demo-1', 'Textures');
+    const host = mount(h(EditorColumn, {}));
+    await settle();
+    // Step 2 places a quad; step 3 focuses texture-attach, below the open Transform group.
+    buttonNamed(host, 'Next')!.click();
+    await settle();
+    const expanded = (group: string) =>
+      host.querySelector(`[data-group="${group}"] .inspector-group__header`)?.getAttribute('aria-expanded') ?? 'absent';
+    expect(expanded('transform')).toBe('true');
+    const root = host.querySelector<HTMLElement>('[data-scroll-root]')!;
+    const layoutAtScroll: string[] = [];
+    Object.defineProperty(root, 'scrollTop', {
+      configurable: true,
+      get: () => 0,
+      set: () => {
+        layoutAtScroll.push(`transform=${expanded('transform')} texture=${expanded('texture')}`);
+      },
+    });
+    buttonNamed(host, 'Next')!.click();
+    await settle();
+    expect(host.querySelector('[data-group="texture"]')!.classList.contains('is-focus')).toBe(true);
+    expect(layoutAtScroll).toEqual(['transform=false texture=true']);
+    unmount(host);
+  });
+
+  it('scrolls after the card shows the new step when consecutive steps share a group', async () => {
+    startLesson('primitives-demo-3', 'Primitives');
+    const host = mount(h(EditorColumn, {}));
+    await settle();
+    // Steps 2 and 3 both focus line-style-panel; step 3's narration is longer, so the card grows.
+    buttonNamed(host, 'Next')!.click();
+    await settle();
+    const root = host.querySelector<HTMLElement>('[data-scroll-root]')!;
+    const narrationAtScroll: string[] = [];
+    Object.defineProperty(root, 'scrollTop', {
+      configurable: true,
+      get: () => 0,
+      set: () => {
+        narrationAtScroll.push(host.querySelector('.lesson-card__narration')!.textContent ?? '');
+      },
+    });
+    buttonNamed(host, 'Next')!.click();
+    await settle();
+    expect(narrationAtScroll.length).toBeGreaterThan(0);
+    for (const text of narrationAtScroll) expect(text).toContain('Stippling');
+    unmount(host);
   });
 });
