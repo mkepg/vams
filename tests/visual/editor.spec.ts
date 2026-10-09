@@ -82,13 +82,13 @@ test('VIS-EDITOR-07: Narrow layout, drawer closed and open', async ({ page }) =>
   await expect(page).toHaveScreenshot('narrow-open-960.png');
 });
 
-test('VIS-EDITOR-08: Menus and the My scenes dialog', async ({ page }) => {
+test('VIS-EDITOR-08: Menus, the Learn drawer and the My scenes dialog', async ({ page }) => {
   await open(page, '/app?scene=transforms');
   await page.getByRole('button', { name: 'File' }).click();
   await expect(page).toHaveScreenshot('file-menu.png');
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Transforms' }).click();
-  await expect(page).toHaveScreenshot('section-menu.png');
+  await page.getByRole('button', { name: 'Learn' }).click();
+  await expect(page).toHaveScreenshot('learn-drawer.png');
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'File' }).click();
   await page.getByRole('menuitem', { name: 'My scenes…' }).click();
@@ -102,4 +102,18 @@ test('VIS-EDITOR-09: No horizontal page overflow at 960 px', async ({ page }) =>
   await open(page, '/app?scene=transforms');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test('VIS-EDITOR-10: Scene settings with nothing selected, light, 1280', async ({ page }) => {
+  await open(page, '/app');
+  // A first visit opens the welcome card over the editor; dismiss it so the capture shows the column.
+  await page.getByRole('button', { name: 'Start building' }).click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page).toHaveScreenshot('settings-light-1280.png');
+});
+
+test('VIS-EDITOR-11: Learn drawer, dark, 1280', async ({ page }) => {
+  await open(page, '/app?scene=transforms', 'dark');
+  await page.getByRole('button', { name: 'Learn' }).click();
+  await expect(page).toHaveScreenshot('learn-dark-1280.png');
 });
