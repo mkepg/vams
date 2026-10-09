@@ -69,24 +69,44 @@ describe('BB-LEARN-02: Unreadable or foreign progress reads as clean progress', 
 });
 
 describe('BB-LEARN-03: A failed progress write never blocks finishing a lesson', () => {
-  it('finishes and returns to Author mode when storage throws', async () => {
+  async function finishLastStep() {
     useVamsStore.setState({ activeSection: 'Transforms' });
     useVamsStore.getState().setActiveLesson('transforms-exercise-4');
     useVamsStore.getState().setAppMode('Lesson');
     const host = mount(h(LessonCard, {}));
     await settle();
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('quota');
-    });
     useVamsStore.getState().setCurrentStep(LESSON_REGISTRY['transforms-exercise-4'].steps.length - 1);
     await settle();
+    return host;
+  }
+  const clickFinish = async (host: HTMLElement) => {
     const finish = [...host.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Finish') as HTMLButtonElement;
     // Force the last step's check open: the test is about the write, not the exercise.
     finish.disabled = false;
     finish.click();
     await settle();
+  };
+
+  it('records the lesson as complete and returns to Author mode', async () => {
+    const host = await finishLastStep();
+    await clickFinish(host);
     expect(useVamsStore.getState().appMode).toBe('Author');
-    unmount(host);
+    expect(readProgress().completed).toContain('transforms-exercise-4');
+  });
+
+  it('finishes and returns to Author mode when storage throws', async () => {
+    const host = await finishLastStep();
+    const setItem = vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      throw new Error('quota');
+    });
+    try {
+      await clickFinish(host);
+      expect(setItem).toHaveBeenCalled();
+      expect(useVamsStore.getState().appMode).toBe('Author');
+      expect(useVamsStore.getState().activeLessonId).toBeNull();
+    } finally {
+      setItem.mockRestore();
+    }
   });
 });
 
