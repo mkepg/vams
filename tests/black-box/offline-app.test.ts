@@ -35,8 +35,8 @@ describe('BB-PWA-01: Updates wait for the user and the app is installable', () =
       start_url: '/app',
       scope: '/',
       display: 'standalone',
-      theme_color: '#f7f8fa',
-      background_color: '#f7f8fa',
+      theme_color: '#1a2238',
+      background_color: '#e9edf6',
     });
     expect(manifest.icons?.some((icon) => icon.purpose === 'maskable')).toBe(true);
   });
@@ -138,8 +138,8 @@ describe('BB-PWA-06: No notice covers the slides while presenting', () => {
 describe('BB-PWA-07: The page and host headers support the installed app', () => {
   it('sets a theme colour and never caches the service worker file', () => {
     const html = readFileSync('index.html', 'utf8');
-    expect(html).toContain('<meta name="theme-color" content="#f7f8fa" media="(prefers-color-scheme: light)" />');
-    expect(html).toContain('<meta name="theme-color" content="#121419" media="(prefers-color-scheme: dark)" />');
+    expect(html).toContain('<meta name="theme-color" content="#1a2238" media="(prefers-color-scheme: light)" />');
+    expect(html).toContain('<meta name="theme-color" content="#080b12" media="(prefers-color-scheme: dark)" />');
     const headers = readFileSync('public/_headers', 'utf8');
     expect(headers).toMatch(/\/sw\.js\s+Cache-Control: no-cache/);
     expect(headers).toMatch(/\/manifest\.webmanifest\s+Cache-Control: no-cache/);

@@ -197,3 +197,60 @@ The editor sub-project's design discussion can start in parallel with step 1.
 - Editor layout, components, the lessons button, the section menu and the panel type scale (the editor sub-project).
 - New landing content or sections, and the About, Learn and Guide pages.
 - Any change to lessons, the code generator or the persisted store.
+
+## 12. Amendment, 2026-10-10: Cobalt mist, ink chrome and the ink plate
+
+After the identity shipped, the owner found three problems. The light theme read as one bare white sheet. The top bar blended into the editor. The yellow wordmark was weak on light paper. The owner chose each fix below from rendered options, and an Impeccable critique of the ink bar tuned the values. This section replaces the palette values in 3.1, and it adds to section 5.
+
+### 12.1 Cobalt mist surfaces
+
+Every neutral leans toward the cobalt accent, so both themes carry colour without adding a second hue.
+
+| Token | Dark | Light |
+| --- | --- | --- |
+| `--paper` | `#10141f` | `#e9edf6` |
+| `--paper-raised` | `#171d2b` | `#f6f8fd` |
+| `--paper-sunken` | `#0b0e16` | `#dde3f0` |
+| `--rule` / `--hairline` | `#29324a` | `#c6cfe2` |
+| `--rule-strong` (new) | `#36415e` | `#aeb9d1` |
+| `--ink` | `#e4e8f2` | `#121827` |
+| `--ink-muted` | `#a2abc2` | `#47506a` |
+| `--ink-faint` | `#8a93ab` | `#535c76` |
+| `--accent-text`, `--focus-ring` | `#9cadff` | `#2f4de0` |
+| `--accent-tint` | `rgba(71, 98, 245, 0.20)` | `rgba(47, 77, 224, 0.12)` |
+| `--code-bg` | `#171d2b` | `#f6f8fd` |
+
+`--ink-faint` is darker than the first mist proposal, which measured 4.4:1 on the sunken surface. Every text token still reaches 4.5:1 on every surface, and BB-SITE-23 checks this.
+
+### 12.2 Ink chrome
+
+The editor top bar and the site header are a dark ink bar in both themes:
+- `--chrome` is `#1a2238` in light and `#080b12` in dark.
+- The `ink-chrome` mixin in `_tokens.scss` maps the page tokens onto the bar's own set, so every control inside draws itself for the dark bar unchanged.
+
+| Token | Value | Use |
+| --- | --- | --- |
+| `--chrome-raised` | `#212a42` | Buttons on the bar |
+| `--chrome-hover` | `#252e48` | Hover, lighter than the bar |
+| `--chrome-line` | `#6b7591` | Button and toggle borders, at least 3:1 on the bar |
+| `--chrome-sep` | `#3a4563` | The separator in the editor bar |
+| `--chrome-lip` | `#34405f` | A 1px inset line along the bar's bottom edge. It separates the bar from the black canvas and disappears over the light columns |
+| `--chrome-ink` / `--chrome-muted` / `--chrome-faint` | `#e4e8f2` / `#a2abc2` / `#959eb5` | Text and icons, at least 4.5:1 on the bar and its hover |
+| `--chrome-accent` / `--chrome-accent-text` | `#4762f5` / `#9cadff` | The bar's accent in both themes, so "Open the app" is the same button in both |
+
+The site header is 56px tall (10px vertical padding), and the editor bar stays 44px. Menus that open from the bar inherit the bar's colours. The browser `theme-color` and the PWA theme colour follow the bar. BB-SITE-27 checks the bar's contrast and that both bars use the mixin.
+
+### 12.3 Other separations
+
+- The Scene title and the Math & data header are header strips on `--paper-sunken`.
+- The code panel sits on `--code-bg`, the brightest surface. The math panel below it sits on `--paper`, under a `--rule-strong` line.
+- The inspector groups are raised cards on the page.
+
+### 12.4 Wordmark on ink
+
+The wordmark is unchanged, and it always sits on ink:
+- On the bar, it carries a soft cyan glow (`--chrome-glow`) in both themes.
+- On light paper (the editor loading screen and the footer), `<Logo plate />` sets it on an ink plate in the bar's colour, with the same lip.
+- Dark pages need no plate.
+
+BB-SITE-28 checks this.

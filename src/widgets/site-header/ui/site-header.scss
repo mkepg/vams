@@ -1,3 +1,5 @@
+@use '../../../shared/styles/tokens' as *;
+
 .skip-link {
   position: absolute;
   left: var(--space-4);
@@ -19,9 +21,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-5);
-  padding: var(--space-4) var(--site-gutter, var(--space-6));
-  border-bottom: 1px solid var(--rule);
-  background-color: var(--paper);
+  padding: 10px var(--site-gutter, var(--space-6));
+  @include ink-chrome;
   font-family: var(--font-ui);
   font-size: var(--text-base);
 

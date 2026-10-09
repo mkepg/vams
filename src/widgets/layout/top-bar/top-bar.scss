@@ -7,8 +7,7 @@
   gap: 12px;
   height: 44px;
   padding: 0 10px 0 14px;
-  border-bottom: 1px solid var(--rule);
-  background: var(--paper);
+  @include ink-chrome;
 
   &__home {
     display: inline-flex;
@@ -32,7 +31,7 @@
     width: 1px;
     height: 20px;
     margin: 0 6px;
-    background: var(--rule);
+    background: var(--chrome-sep);
   }
 
   .vbtn__icon svg { width: 17px; height: 17px; }

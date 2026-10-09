@@ -19,7 +19,8 @@
   bottom: 0;
   display: flex;
   flex-direction: column;
-  background-color: $bg-dark;
+  /* The code sits on the brightest surface: it is the hero of the editor. */
+  background-color: var(--code-bg);
 
   &.lesson-mode {
     .code-content { user-select: none; }
