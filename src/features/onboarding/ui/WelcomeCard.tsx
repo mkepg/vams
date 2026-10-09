@@ -44,7 +44,7 @@ function WelcomeCardInner() {
             <Wrench size={18} aria-hidden />
             <div>
               <strong>Build</strong>
-              <span>The left column: pick a section, then create and edit scene objects.</span>
+              <span>The left column: add shapes to your scene and edit them in the inspector.</span>
             </div>
           </li>
           <li>

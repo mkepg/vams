@@ -13,6 +13,9 @@ import {
   searchHelpTopics,
 } from '@/features/help/model/help-content';
 import type { CurriculumSection } from '@/core/store/types';
+import { h, render } from 'preact';
+import { useVamsStore } from '@/core/store';
+import WelcomeCard from '@/features/onboarding/ui/WelcomeCard';
 import { getState } from '../helpers/store';
 
 const SECTIONS: CurriculumSection[] = ['Pipeline', 'Primitives', 'Buffers', 'Transforms', 'Textures'];
@@ -111,5 +114,38 @@ describe('BB-HELP-04: Help slice state machine', () => {
   it('marks the welcome state as seen', () => {
     getState().markWelcomeSeen();
     expect(getState().hasSeenWelcome).toBe(true);
+  });
+});
+
+describe('BB-HELP-05: Help describes the editor column, the Learn drawer and the lesson card', () => {
+  const text = (id: Parameters<typeof getHelpTopic>[0]) => JSON.stringify(getHelpTopic(id));
+
+  it('never mentions the removed section menu or Lessons menu, nor words student text avoids', () => {
+    const all = JSON.stringify(HELP_TOPICS);
+    expect(all).not.toMatch(/section menu|Lessons menu|pick a section|in the (Pipeline|Primitives|Buffers|Transforms|Textures) section/i);
+    expect(all).not.toMatch(/coming soon|not supported|future|deferred|\b3D\b|lighting/i);
+  });
+
+  it('tours the Scene list, the Add row, the inspector, scene settings, Learn and the lesson card', () => {
+    const tour = text('workspace-tour');
+    for (const phrase of ['Scene list', 'Add row', 'Create Text', 'inspector', 'Scene settings', 'Learn', 'lesson card']) {
+      expect(tour).toContain(phrase);
+    }
+    expect(text('modes')).toContain('Learn');
+  });
+
+  it('keeps the Welcome card to the editor that exists', () => {
+    useVamsStore.setState({ hasSeenWelcome: false, appMode: 'Author' });
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    try {
+      render(h(WelcomeCard, {}), host);
+      expect(document.body.textContent).toContain('Welcome to VAMS');
+      expect(document.body.textContent).not.toMatch(/pick a section/i);
+    } finally {
+      render(null, host);
+      host.remove();
+      useVamsStore.setState({ hasSeenWelcome: true });
+    }
   });
 });

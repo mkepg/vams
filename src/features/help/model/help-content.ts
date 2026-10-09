@@ -43,7 +43,7 @@ export const HELP_TOPICS: HelpTopic[] = [
         kind: 'list',
         ordered: true,
         items: [
-          'Open the Primitives section on the left and add a shape (or click “Add your first shape” on the empty canvas).',
+          'Add a shape from the Add row in the left column (or click “Add a shape” on the empty canvas).',
           'Watch the generated OpenGL code appear in the right panel.',
           'Select the shape and edit its color or position — notice the code and math update live.',
         ],
@@ -61,7 +61,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     category: 'workspace',
     title: 'Workspace Tour',
     summary: 'The three regions: build on the left, see in the center, read on the right.',
-    keywords: ['layout', 'panels', 'column', 'regions', 'tour', 'top bar', 'section menu', 'file menu'],
+    keywords: ['layout', 'panels', 'column', 'regions', 'tour', 'top bar', 'scene list', 'add row', 'inspector', 'scene settings', 'learn', 'lesson card', 'file menu'],
     blocks: [
       {
         kind: 'paragraph',
@@ -71,15 +71,26 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'list',
         items: [
-          'Left — Build. The section menu and the panels for creating and editing scene objects. During a lesson this column shows the lesson instead.',
+          'Left — Build. The scene and inspector column, the same in every section.',
           'Center — See. The canvas, where your scene is drawn and where you place vertices.',
-          'Right — Read. The generated OpenGL code (top) and the contextual math breakdown (bottom).',
+          'Right — Read. The generated OpenGL code (top) and the math panel (bottom), with one tab per section.',
         ],
       },
-      { kind: 'heading', text: 'The section menu' },
+      { kind: 'heading', text: 'The scene and inspector column' },
+      {
+        kind: 'definitions',
+        items: [
+          { term: 'Scene list', description: 'Every object in your scene. Rename, show or hide, group, duplicate, and delete objects here.' },
+          { term: 'Add row', description: 'The primitives by their OpenGL names: GL_POINTS, GL_LINES, GL_TRIANGLES, and GL_QUADS, with More for the rest.' },
+          { term: 'Create Text', description: 'Bitmap text, placed in the scene. Select a text object to edit it here.' },
+          { term: 'Inspector', description: 'The selected object’s groups in pipeline order: Vertices, Buffers, Transform, Appearance, Texture, and Animation. Each group header names its OpenGL call.' },
+          { term: 'Scene settings', description: 'With nothing selected, the inspector shows the scene’s settings: Background, Viewing volume, Texture library, and Callbacks.' },
+        ],
+      },
+      { kind: 'heading', text: 'Learn: the course map' },
       {
         kind: 'paragraph',
-        text: 'The name at the top of the left column is the current section. Click it to switch to any of the five sections; switching changes which build tools appear and what the math panel explains.',
+        text: 'The Learn button in the top bar opens the course map: the five sections in pipeline order, each section’s demos and exercises, and your progress, stored in this browser. Choosing a section only changes what the map shows; starting a lesson makes its section the current one.',
       },
       {
         kind: 'table',
@@ -92,11 +103,16 @@ export const HELP_TOPICS: HelpTopic[] = [
           ['Textures', 'Images, UV mapping, filtering, and wrapping'],
         ],
       },
+      { kind: 'heading', text: 'The lesson card' },
+      {
+        kind: 'paragraph',
+        text: 'While a lesson runs, the lesson card sits at the top of the left column with the narration and Back, Next, and Exit. The editor below it stays live: each step opens and outlines the control it uses.',
+      },
       { kind: 'heading', text: 'The top bar' },
       {
         kind: 'list',
         items: [
-          'Lessons — launch a guided, narrated lesson for the current section.',
+          'Learn — open the course map and start a demo or an exercise.',
           'File — start a new workspace, open My scenes, open or save a project file, or export the C++ code.',
           'Undo / Redo — step backward and forward through your edits.',
           'Theme — switch between dark and light.',
@@ -107,7 +123,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'callout',
         tone: 'info',
-        text: 'The layout stays put as you work. Panels that need a selected object show a short prompt instead of disappearing, so nothing “vanishes” unexpectedly.',
+        text: 'The editor’s tools are the same in every section. Select an object to see its groups; select nothing to see the scene settings.',
       },
     ],
     related: ['canvas-basics', 'scene-hierarchy', 'code-panel', 'math-panel', 'saving-loading'],
@@ -127,7 +143,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { kind: 'heading', text: 'Selecting objects' },
       {
         kind: 'paragraph',
-        text: 'Click an object to select it; click empty space to deselect. The selected object is highlighted and becomes the target of the edit panels on the left. You can also select from the Scene Hierarchy list.',
+        text: 'Click an object to select it; click empty space to deselect. The selected object is highlighted and the inspector on the left shows its groups. You can also select from the Scene Hierarchy list.',
       },
       { kind: 'heading', text: 'Placing vertices' },
       {
@@ -143,7 +159,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'callout',
         tone: 'tip',
-        text: 'Changing the orthographic window (the Transforms section’s glOrtho editor) zooms and pans what the canvas shows without moving your objects.',
+        text: 'Changing the orthographic window (the Viewing volume group in scene settings) zooms and pans what the canvas shows without moving your objects.',
       },
     ],
     related: ['section-primitives', 'section-transforms', 'shortcuts'],
@@ -177,9 +193,13 @@ export const HELP_TOPICS: HelpTopic[] = [
       { kind: 'heading', text: 'Running a lesson' },
       {
         kind: 'paragraph',
-        text: 'Launch a lesson from the Lessons menu in the top bar. Your sandbox scene is set aside while the lesson runs and restored automatically when you leave, so you never lose your own work.',
+        text: 'Open Learn in the top bar, choose a section, and start one of its demos or exercises. Your sandbox scene is set aside while the lesson runs and restored automatically when you leave, so you never lose your own work.',
       },
-      { kind: 'callout', tone: 'info', text: 'During a lesson the left column shows the lesson and the panel each step uses. To switch sections, exit the lesson first; your own scene comes back when you leave.' },
+      {
+        kind: 'paragraph',
+        text: 'The lesson card sits at the top of the left column, above the live editor, and each step opens and outlines the control it uses. Demos also dim the other groups, exercises only outline, and a section’s last exercise leaves you to find the controls yourself.',
+      },
+      { kind: 'callout', tone: 'info', text: 'Learn ticks the lessons you finish and marks a lesson you leave part way as in progress; starting it again begins at step 1. Starting another lesson from Learn asks before leaving the one that is running.' },
     ],
     related: ['welcome', 'workspace-tour'],
   },
@@ -193,14 +213,14 @@ export const HELP_TOPICS: HelpTopic[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: 'The Pipeline section explains how vertices travel from your code to pixels on screen. It has three views you can switch between.',
+        text: 'The Pipeline section explains how vertices travel from your code to pixels on screen. Its lessons show the canvas in three views, and while a Pipeline lesson runs the lesson card has a toggle to switch between them.',
       },
       {
         kind: 'definitions',
         items: [
-          { term: 'Diagram', description: 'The fixed-function pipeline stages laid out in order; click a stage to focus it.' },
-          { term: 'Playground', description: 'The live editing canvas, so you can experiment while thinking about the pipeline.' },
-          { term: 'Raster / Vector', description: 'Compares the ideal vector geometry against the rasterized (pixelated) result.' },
+          { term: 'Coordinate Playground', description: 'The live editing canvas, so you can experiment while thinking about the pipeline.' },
+          { term: 'Pipeline Diagram', description: 'The fixed-function pipeline stages laid out in order; click a stage to focus it.' },
+          { term: 'Raster vs. Vector', description: 'Compares the ideal vector geometry against the rasterized (pixelated) result.' },
         ],
       },
       { kind: 'heading', text: 'From vertex to pixel' },
@@ -227,7 +247,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'callout',
         tone: 'info',
-        text: 'VAMS only ever emits OpenGL 1.5 fixed-function calls — no shaders, lighting, or 3D projection — so the generated code always matches the curriculum.',
+        text: 'VAMS only ever emits OpenGL 1.5 fixed-function calls for a 2D scene, so the generated code always matches the curriculum.',
       },
     ],
     related: ['code-panel', 'math-panel', 'glossary'],
@@ -300,7 +320,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { kind: 'heading', text: 'GLUT callbacks' },
       {
         kind: 'paragraph',
-        text: 'This section also includes the Callbacks panel, where you register GLUT event handlers (keyboard, mouse, idle, and more) that appear in the generated program. See the GLUT Callbacks guide.',
+        text: 'The Callbacks group in scene settings is where you register GLUT event handlers (keyboard, mouse, idle, and more) that appear in the generated program. See the GLUT Callbacks guide.',
       },
     ],
     related: ['canvas-basics', 'math-panel', 'section-buffers', 'callbacks', 'glossary'],
@@ -454,13 +474,13 @@ export const HELP_TOPICS: HelpTopic[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: 'The Scene Hierarchy panel sits near the top of the left column in every section and lists every object in your scene. It is where you organize, name, and structure your work.',
+        text: 'The Scene list sits at the top of the left column and lists every object in your scene. It is where you organize, name, and structure your work.',
       },
       { kind: 'heading', text: 'What you can do' },
       {
         kind: 'list',
         items: [
-          'Select — click a row to select that object and target the edit panels (and the code highlight).',
+          'Select — click a row to select that object and show its groups in the inspector (and the code highlight).',
           'Rename — double-click a name, or press F2 with a row selected.',
           'Duplicate or Delete — from the row actions; a delete can be undone.',
           'Show or hide — toggle an object’s visibility without deleting it.',
@@ -490,7 +510,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: 'Animation in graphics is simply transformation over time. Select an object in the Transforms section to open the Animation panel, pick a motion, then preview it on the canvas or save it onto the object so it becomes part of your scene.',
+        text: 'Animation in graphics is simply transformation over time. Select an object and open its Animation group in the inspector, pick a motion, then preview it on the canvas or save it onto the object so it becomes part of your scene.',
       },
       { kind: 'heading', text: 'The four motions' },
       {
@@ -538,7 +558,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: 'GLUT programs respond to events through callbacks — functions you register so GLUT calls them when something happens. The Callbacks panel in the Primitives section lets you register the five callback kinds VAMS supports.',
+        text: 'GLUT programs respond to events through callbacks — functions you register so GLUT calls them when something happens. The Callbacks group in scene settings (select nothing to see it) lets you register the five callback kinds VAMS offers.',
       },
       {
         kind: 'table',
@@ -611,14 +631,14 @@ export const HELP_TOPICS: HelpTopic[] = [
     id: 'math-panel',
     category: 'panels',
     title: 'The Math Panel',
-    summary: 'Live mathematical breakdowns tied to the active section and selection.',
+    summary: 'Live mathematical breakdowns, one tab per section, that follow what you are doing.',
     keywords: ['math', 'formula', 'breakdown', 'barycentric', 'matrix', 'memory', 'interpolation'],
     blocks: [
       {
         kind: 'paragraph',
-        text: 'Below the code, the math panel shows the numbers behind what you see. Its content follows the active section and your current selection, so it always explains what you are working on right now.',
+        text: 'Below the code, the math panel shows the numbers behind what you see. It has one tab per section, and the tab follows what you are doing: the control a lesson step opens, otherwise the inspector group you opened last, otherwise the current section. Pick a tab yourself at any time; your pick holds until the next lesson step or the next group you open.',
       },
-      { kind: 'heading', text: 'What it shows, by section' },
+      { kind: 'heading', text: 'What the tabs show' },
       {
         kind: 'table',
         headers: ['Section', 'Math shown'],
@@ -736,7 +756,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       },
       {
         kind: 'paragraph',
-        text: 'It deliberately covers only OpenGL 1.5 fixed-function features — no shaders, lighting, or 3D projection — so the generated code stays focused on the fundamentals.',
+        text: 'It covers the OpenGL 1.5 fixed-function features a 2D scene uses, so the generated code stays focused on the fundamentals.',
       },
       {
         kind: 'callout',
