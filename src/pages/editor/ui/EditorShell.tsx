@@ -33,6 +33,14 @@ export default function EditorShell({ topBar, column, canvas, codeMath, overlays
     else if (lastStepKey) setDrawerOpen(false);
   }
 
+  // "Add a shape" on the empty canvas needs the Add row, which lives in the drawer.
+  const addRowCue = useVamsStore((s) => s.addRowCue);
+  const [seenCue, setSeenCue] = useState(addRowCue);
+  if (addRowCue !== seenCue) {
+    setSeenCue(addRowCue);
+    setDrawerOpen(true);
+  }
+
   // A closed drawer never keeps focus: move it to the Panels button (for example after Exit).
   const showDrawer = narrow && drawerOpen;
   useLayoutEffect(() => {

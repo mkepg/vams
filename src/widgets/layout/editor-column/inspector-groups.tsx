@@ -5,6 +5,7 @@ import VerticesPanel from '@/features/vertex-editor/ui/VerticesPanel';
 import BuffersPanel from '@/features/buffers/ui/BuffersPanel';
 import ObjectTransformPanel from '@/features/object-transform/ui/ObjectTransformPanel';
 import ObjectAppearancePanel from '@/features/object-appearance/ui/ObjectAppearancePanel';
+import BackgroundColorPanel from '@/features/object-appearance/ui/BackgroundColorPanel';
 import LineStylePanel, { LINE_TYPES } from '@/features/line-style/ui/LineStylePanel';
 import TextureAttachmentPanel, { TEXTUREABLE_TYPES } from '@/features/textures/ui/TextureAttachmentPanel';
 import UVEditorPanel from '@/features/textures/ui/UVEditorPanel';
@@ -66,7 +67,8 @@ export const OBJECT_GROUP_DEFS: GroupDef[] = [
 ];
 
 export const SETTINGS_GROUP_DEFS: GroupDef[] = [
-  { id: 'background', title: 'Background', hint: () => 'glClearColor', render: () => <ObjectAppearancePanel /> },
+  // The settings show with an object selected during a settings focus, so Background never reads the selection.
+  { id: 'background', title: 'Background', hint: () => 'glClearColor', render: () => <BackgroundColorPanel /> },
   { id: 'viewing-volume', title: 'Viewing volume', hint: () => 'glOrtho', render: () => <OrthoEditorPanel /> },
   { id: 'texture-library', title: 'Texture library', hint: () => 'glGenTextures', render: () => <TextureLibraryPanel /> },
   { id: 'callbacks', title: 'Callbacks', hint: () => 'glutKeyboardFunc …', render: () => <CallbacksPanel /> },

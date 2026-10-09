@@ -117,3 +117,22 @@ test('VIS-EDITOR-11: Learn drawer, dark, 1280', async ({ page }) => {
   await page.getByRole('button', { name: 'Learn' }).click();
   await expect(page).toHaveScreenshot('learn-dark-1280.png');
 });
+
+test('VIS-EDITOR-12: A selected object shows its inspector groups, light, 1280', async ({ page }) => {
+  await open(page, '/app?scene=transforms');
+  // A leaf row is a primitive, so the inspector shows the full set of object groups.
+  await page.locator('[data-panel-id="scene-hierarchy"] [role="treeitem"]:not([aria-expanded]) .tree-item').first().click();
+  await expect(page.locator('.inspector__meta')).toContainText('GL_');
+  await expect(page).toHaveScreenshot('selected-light-1280.png');
+});
+
+test('VIS-EDITOR-13: A demo step outlines its group and dims the rest, dark, 1280', async ({ page }) => {
+  // Tall enough that the dimmed groups below the open Transform group are in the capture.
+  await page.setViewportSize({ width: 1280, height: 1100 });
+  await open(page, '/app?lesson=transforms-demo-1', 'dark');
+  // Step 2 focuses the Transform group.
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(page.locator('[data-group="transform"].is-focus')).toBeVisible();
+  await expect(page.locator('.inspector-group.is-dimmed').first()).toBeVisible();
+  await expect(page).toHaveScreenshot('demo-dimmed-dark-1280.png');
+});

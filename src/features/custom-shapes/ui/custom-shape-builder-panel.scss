@@ -22,6 +22,24 @@
   }
   &__icon { display: inline-flex; color: var(--ink-muted); svg { width: 14px; height: 14px; } }
   .add-row__more { grid-column: 1 / -1; justify-content: center; }
+
+  // "Add a shape" on the empty canvas moves focus here after a mouse click, which draws no
+  // focus ring; the row shows the focus colour for a moment instead, then fades.
+  &.is-cued {
+    border-radius: var(--radius-s);
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 3px;
+    animation: add-row-cue 1.6s ease-out forwards;
+  }
+}
+
+@keyframes add-row-cue {
+  0%, 50% { outline-color: var(--focus-ring); }
+  100% { outline-color: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .add-row.is-cued { animation: none; }
 }
 
 .vertex-shape-builder {

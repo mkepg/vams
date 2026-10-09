@@ -569,3 +569,48 @@ describe('BB-LCOL-23: Leaving a lesson leaves the plain editor, and starting one
     expect(mathTabFor(useVamsStore.getState())).toBe('Transforms');
   });
 });
+
+describe('BB-LCOL-24: Focus on the Scene list scrolls it under the card, and a new lesson starts at the top', () => {
+  it('scrolls the Scene list under the card when Back returns to its step', async () => {
+    startLesson('transforms-demo-1');
+    const host = mount(h(EditorColumn, {}));
+    try {
+      await settle();
+      buttonNamed(host, 'Next')!.click();
+      await settle();
+      expect(useVamsStore.getState().lessonFocusPanel).toBe('object-transform');
+      const root = host.querySelector<HTMLElement>('[data-scroll-root]')!;
+      const list = host.querySelector<HTMLElement>('[data-panel-id="scene-hierarchy"]')!;
+      const head = host.querySelector<HTMLElement>('.editor-column__head')!;
+      // The column is scrolled 400px down, the list sits 200px above the column's top, and the card is 120px tall.
+      root.getBoundingClientRect = () => ({ top: 50 } as DOMRect);
+      list.getBoundingClientRect = () => ({ top: -150 } as DOMRect);
+      Object.defineProperty(head, 'offsetHeight', { configurable: true, get: () => 120 });
+      const writes: number[] = [];
+      Object.defineProperty(root, 'scrollTop', { configurable: true, get: () => 400, set: (v: number) => writes.push(v) });
+      buttonNamed(host, 'Back')!.click();
+      await settle();
+      expect(useVamsStore.getState().lessonFocusPanel).toBe('scene-hierarchy');
+      // The column comes to rest with the list just under the card.
+      expect(writes.at(-1)).toBe(400 - 200 - 120 - 8);
+    } finally {
+      unmount(host);
+    }
+  });
+
+  it('resets the column to the top when a lesson starts', async () => {
+    const host = mount(h(EditorColumn, {}));
+    try {
+      await settle();
+      const root = host.querySelector<HTMLElement>('[data-scroll-root]')!;
+      const writes: number[] = [];
+      Object.defineProperty(root, 'scrollTop', { configurable: true, get: () => 400, set: (v: number) => writes.push(v) });
+      // The section's last exercise has no focus, so nothing else scrolls the column.
+      startLesson('transforms-exercise-4');
+      await settle();
+      expect(writes).toEqual([0]);
+    } finally {
+      unmount(host);
+    }
+  });
+});

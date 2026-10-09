@@ -139,11 +139,14 @@ export interface RuntimeSlice {
   /** A math tab picked by hand; cleared by the next lesson step or opened group. Session only. */
   mathTabOverride: CurriculumSection | null;
   learnOpen: boolean;
+  /** Counts "Add a shape" requests; each one opens the column, scrolls to the Add row and marks it. Session only. */
+  addRowCue: number;
   toggleGroup: (id: InspectorGroupId) => void;
   openGroup: (id: InspectorGroupId) => void;
   setOpenGroups: (ids: readonly InspectorGroupId[]) => void;
   setMathTabOverride: (section: CurriculumSection | null) => void;
   setLearnOpen: (open: boolean) => void;
+  cueAddRow: () => void;
   setAppMode: (mode: AppMode) => void;
   setActiveSection: (section: CurriculumSection) => void;
   setPipelineMode: (mode: PipelineMode) => void;

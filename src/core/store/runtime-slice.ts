@@ -12,6 +12,7 @@ export const createRuntimeSlice: StateCreator<VamsState, [], [], RuntimeSlice> =
   lastOpenedGroup: null,
   mathTabOverride: null,
   learnOpen: false,
+  addRowCue: 0,
 
   setAppMode: (mode) => set({ appMode: mode }),
 
@@ -41,4 +42,5 @@ export const createRuntimeSlice: StateCreator<VamsState, [], [], RuntimeSlice> =
   setOpenGroups: (ids) => set({ openGroups: [...ids] }),
   setMathTabOverride: (section) => set({ mathTabOverride: section }),
   setLearnOpen: (open) => set({ learnOpen: open }),
+  cueAddRow: () => set((state) => ({ addRowCue: state.addRowCue + 1 })),
 });

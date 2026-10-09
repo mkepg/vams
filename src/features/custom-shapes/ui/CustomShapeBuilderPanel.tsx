@@ -1,4 +1,5 @@
 import './custom-shape-builder-panel.scss';
+import { useEffect, useRef, useState } from 'react';
 import type { ComponentChildren } from 'preact';
 import {
   Edit3, X, Plus, Minus, MousePointer, Trash2,
@@ -107,6 +108,9 @@ const SHAPE_DEFS: ShapeDefinition[] = [
 /** The four primitives most lessons start from; the rest sit in the More menu. */
 const PRIMARY: readonly PrimitiveType[] = ['POINTS', 'LINES', 'TRIANGLES', 'QUADS'];
 
+/** How long the Add row stays marked after "Add a shape" (matches the fade in the stylesheet). */
+const CUE_MS = 1600;
+
 const STRIDE_LABEL_SINGULAR: Partial<Record<PrimitiveType, string>> = {
   LINES: 'segment',
   TRIANGLES: 'triangle',
@@ -135,6 +139,25 @@ export default function CustomShapeBuilderPanel() {
   const updatePendingVertex     = useVamsStore((s) => s.updatePendingVertex);
   const addCustomObject         = useVamsStore((s) => s.addCustomObject);
   const pushToHistory           = useVamsStore((s) => s.pushToHistory);
+  const addRowCue               = useVamsStore((s) => s.addRowCue);
+
+  // "Add a shape" on the empty canvas: focus the first primitive and mark the row for a moment,
+  // since a focus moved after a mouse click draws no ring. The column scrolls the row into view.
+  // The row is marked from a new cue until its mark has faded; a cue from before mount is not new.
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [fadedCue, setFadedCue] = useState(addRowCue);
+  const cued = addRowCue !== fadedCue;
+  useEffect(() => {
+    if (!cued) return;
+    const frame = requestAnimationFrame(() =>
+      rowRef.current?.querySelector<HTMLElement>('.add-row__item')?.focus({ preventScroll: true }),
+    );
+    const timer = setTimeout(() => setFadedCue(addRowCue), CUE_MS);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+    };
+  }, [cued, addRowCue]);
 
   const isPlacing = interactionMode === 'VERTEX_PLACE';
   const activeDef = SHAPE_DEFS.find((d) => d.type === pendingShapeType);
@@ -228,7 +251,7 @@ export default function CustomShapeBuilderPanel() {
     const start = (def: ShapeDefinition) => startCustomShape(def.type, def.minVertices, def.stride);
     return (
       <CollapsibleSection panelId="primitive-palette" title="Create Primitive" icon={<Edit3 size={12} />} defaultOpen={true}>
-        <div className="add-row">
+        <div ref={rowRef} className={cued ? 'add-row is-cued' : 'add-row'}>
           {SHAPE_DEFS.filter((def) => PRIMARY.includes(def.type)).map((def) => (
             <button key={def.type} type="button" className="add-row__item" title={def.hint} onClick={() => start(def)}>
               <span className="add-row__icon" aria-hidden="true">{def.icon}</span>

@@ -527,6 +527,7 @@ const EDITOR_SCSS = execSync('git ls-files "src/**/*.scss"', { encoding: 'utf8' 
 
 describe('BB-SHELL-22: Editor text sizes come from the type scale', () => {
   it('uses only --text-* tokens or inherit for font-size', () => {
+    expect(EDITOR_SCSS.length).toBeGreaterThan(0);
     const offenders: string[] = [];
     for (const file of EDITOR_SCSS) {
       for (const m of readSource(file, 'utf8').matchAll(/font-size:\s*([^;]+);/g)) {
@@ -539,6 +540,7 @@ describe('BB-SHELL-22: Editor text sizes come from the type scale', () => {
 
 describe('BB-SHELL-23: Editor labels are sentence case', () => {
   it('has no uppercase text-transform in editor styles', () => {
+    expect(EDITOR_SCSS.length).toBeGreaterThan(0);
     const offenders = EDITOR_SCSS.filter((file) => /text-transform:\s*uppercase/.test(readSource(file, 'utf8')));
     expect(offenders).toEqual([]);
   });
@@ -546,6 +548,7 @@ describe('BB-SHELL-23: Editor labels are sentence case', () => {
 
 describe('BB-SHELL-24: Selected items share one selection style', () => {
   it('marks each selected-state rule with the selected-mark mixin', () => {
+    expect(EDITOR_SCSS.length).toBeGreaterThan(0);
     // Only the selected item's own rule; descendant rules such as `&.active .icon` style its parts.
     const SELECTED = /&\.(active|selected)\s*\{|&\[aria-checked='true'\]\s*\{|tr\.is-active td/;
     const offenders: string[] = [];
@@ -558,5 +561,58 @@ describe('BB-SHELL-24: Selected items share one selection style', () => {
       });
     }
     expect(offenders).toEqual([]);
+  });
+});
+
+describe('BB-SHELL-25: Add a shape opens the column, scrolls to the Add row and marks it', () => {
+  async function addAShape(narrow: boolean) {
+    const realMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: narrow, media: query, addEventListener: () => {}, removeEventListener: () => {},
+      addListener: () => {}, removeListener: () => {}, onchange: null, dispatchEvent: () => false,
+    }));
+    const { default: EditorShell } = await import('@/pages/editor/ui/EditorShell');
+    const host = mount(h(EditorShell, {
+      topBar: h('header', {}, 'top'),
+      column: h(EditorColumn, {}),
+      canvas: h(CanvasOverlays, {
+        viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
+        interactionMode: 'SELECT',
+        coordinates: { x: 0, y: 0 },
+        showCoordinateTracker: false,
+        showEmptyHint: true,
+      }),
+      codeMath: h('div', {}, 'code'),
+    }));
+    try {
+      await settle();
+      const root = host.querySelector<HTMLElement>('[data-scroll-root]')!;
+      const palette = host.querySelector<HTMLElement>('[data-panel-id="primitive-palette"]')!;
+      root.getBoundingClientRect = () => ({ top: 44 } as DOMRect);
+      palette.getBoundingClientRect = () => ({ top: 344 } as DOMRect);
+      const writes: number[] = [];
+      Object.defineProperty(root, 'scrollTop', { configurable: true, get: () => 0, set: (v: number) => writes.push(v) });
+      const add = [...host.querySelectorAll('.empty-canvas-hint button')].find((b) => b.textContent?.trim() === 'Add a shape') as HTMLButtonElement;
+      add.click();
+      await settle();
+      if (narrow) {
+        expect(host.querySelector('.editor')!.classList.contains('is-drawer-open')).toBe(true);
+        expect(host.querySelector('.editor__panels-toggle')!.getAttribute('aria-expanded')).toBe('true');
+      }
+      expect(writes).toEqual([300 - 8]);
+      expect(host.querySelector('.add-row')!.classList.contains('is-cued')).toBe(true);
+      expect(document.activeElement).toBe(host.querySelector('.add-row__item'));
+    } finally {
+      unmount(host);
+      window.matchMedia = realMatchMedia;
+    }
+  }
+
+  it('opens the closed drawer on a narrow screen', async () => {
+    await addAShape(true);
+  });
+
+  it('scrolls and marks the Add row in the wide layout', async () => {
+    await addAShape(false);
   });
 });

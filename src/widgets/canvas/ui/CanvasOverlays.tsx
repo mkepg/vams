@@ -18,6 +18,7 @@ export function CanvasOverlays({
   showEmptyHint = false,
 }: CanvasOverlaysProps) {
   const setLearnOpen = useVamsStore((s) => s.setLearnOpen);
+  const cueAddRow = useVamsStore((s) => s.cueAddRow);
   return (
     <>
       <AnimationCodeOverlay />
@@ -43,7 +44,7 @@ export function CanvasOverlays({
           <Shapes size={32} aria-hidden />
           <p>Your scene is empty.</p>
           <div className="empty-canvas-hint__actions">
-            <Button variant="primary" onClick={() => document.querySelector<HTMLElement>(".add-row__item")?.focus()}>
+            <Button variant="primary" onClick={cueAddRow}>
               Add a shape
             </Button>
             <Button onClick={() => setLearnOpen(true)}>Start a lesson</Button>

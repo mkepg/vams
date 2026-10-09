@@ -5,6 +5,7 @@ import { useVamsStore } from "@/core/store";
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
 import { Button, ColorField, SegmentedControl, type SegmentOption } from '@/shared/ui/controls';
 import type { ColorMode } from '@/core/types/scene';
+import BackgroundColorPanel from './BackgroundColorPanel';
 
 type EmissionOption = '3f' | '3ub';
 const EMISSION_OPTIONS: SegmentOption<EmissionOption>[] = [
@@ -61,8 +62,6 @@ export default function ObjectAppearancePanel() {
     pushToHistory,
     startBatch,
     endBatch,
-    canvasBackgroundColor,
-    setCanvasBackgroundColor,
     updateObjectColorMode,
   } = useVamsStore();
 
@@ -119,20 +118,7 @@ export default function ObjectAppearancePanel() {
     setActiveColorChange(null);
   };
 
-  if (!selectedObject) {
-    return (
-      <CollapsibleSection panelId="appearance-panel" title="Scene Color" icon={<Palette size={14} />} defaultOpen={true}>
-        <div className="canvas-color-control" title="Change Canvas Background">
-          <ColorField
-            label="Background"
-            glCall="glClearColor"
-            value={canvasBackgroundColor}
-            onChange={setCanvasBackgroundColor}
-          />
-        </div>
-      </CollapsibleSection>
-    );
-  }
+  if (!selectedObject) return <BackgroundColorPanel />;
 
   if (selectedObject.type === 'GROUP') return null;
 

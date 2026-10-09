@@ -7,6 +7,7 @@ import { focusStyleFor } from '@/features/lesson-engine/model/guidance';
 import { Button, PanelLayoutContext } from '@/shared/ui/controls';
 import InspectorGroup from './InspectorGroup';
 import { OBJECT_GROUP_DEFS, SETTINGS_GROUP_DEFS } from './inspector-groups';
+import { scrollUnderCard } from './scroll-under-card';
 
 function metaLine(object: SceneNode): string {
   if (object.type === 'TEXT') return 'Bitmap text';
@@ -15,14 +16,6 @@ function metaLine(object: SceneNode): string {
     return `Group · ${n === 1 ? '1 object' : `${n} objects`}`;
   }
   return `GL_${object.type} · ${object.vertices.length} vertices`;
-}
-
-/** Scrolls the column so the group sits just under the sticky lesson card. */
-function scrollUnderCard(el: HTMLElement | null) {
-  const root = el?.closest<HTMLElement>('[data-scroll-root]');
-  if (!el || !root) return;
-  const head = root.querySelector<HTMLElement>('.editor-column__head');
-  root.scrollTop = Math.max(0, el.offsetTop - (head?.offsetHeight ?? 0) - 8);
 }
 
 /** The selected object's groups in pipeline order, or the scene settings when nothing is selected. */
@@ -41,11 +34,14 @@ export default function Inspector() {
   const lesson = inLesson && lessonId ? getLessonById(lessonId) : undefined;
   const style = lesson ? focusStyleFor(lesson) : 'none';
   const place = resolveFocus(focusPanelId, selected !== null);
-  const target = place && (place.area === 'object' || place.area === 'settings') ? place.group : null;
 
   // A settings focus shows the settings even with an object selected.
   const showSettings = !selected || place?.area === 'settings';
   const defs = showSettings ? SETTINGS_GROUP_DEFS : OBJECT_GROUP_DEFS.filter((def) => !def.applies || def.applies(selected!));
+  // Only a group the inspector shows can be focused: a line has no Texture group to open, so a
+  // step aimed at one collapses and dims nothing.
+  const group = place && (place.area === 'object' || place.area === 'settings') ? place.group : null;
+  const target = group && defs.some((def) => def.id === group) ? group : null;
 
   // Each step opens its group. A demo also collapses the others; the student can reopen them.
   // The scroll waits a frame: the collapse and the card's new narration render after this

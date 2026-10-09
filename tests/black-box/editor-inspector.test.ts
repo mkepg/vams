@@ -196,3 +196,53 @@ describe('BB-INSP-08: An empty scene shows the annotated program in every sectio
     }
   });
 });
+
+describe('BB-INSP-09: The Background setting shows the background colour even with an object selected', () => {
+  it('renders the glClearColor control, not the object colour, under a settings focus', async () => {
+    const { addTriangle } = await import('../helpers/store');
+    const { default: Inspector } = await import('@/widgets/layout/editor-column/Inspector');
+    const triangle = addTriangle();
+    useVamsStore.setState({
+      appMode: 'Lesson',
+      selectedObjectId: triangle.id,
+      lessonFocusPanel: 'ortho-editor',
+      canvasBackgroundColor: '#123456',
+      openGroups: [...DEFAULT_OPEN_GROUPS],
+    });
+    const host = mountEl(h(Inspector, {}));
+    try {
+      await settle();
+      expect(host.querySelector('.inspector__name')!.textContent).toBe('Scene settings');
+      const background = host.querySelector('[data-group="background"]')!;
+      expect(background.querySelector('[data-panel-id="appearance-panel"] .vpanel__title')!.textContent).toBe('Scene Color');
+      expect(background.textContent).not.toContain('Fill');
+    } finally {
+      unmountEl(host);
+    }
+  });
+});
+
+describe('BB-INSP-10: A focus on a group the object does not have dims and collapses nothing', () => {
+  it('leaves the line’s groups as they were when a demo step focuses the Texture group', async () => {
+    const { addPrimitive } = await import('../helpers/store');
+    const { default: Inspector } = await import('@/widgets/layout/editor-column/Inspector');
+    const line = addPrimitive('LINES', [{ x: 0, y: 0 }, { x: 0.5, y: 0.5 }]);
+    useVamsStore.setState({
+      appMode: 'Lesson',
+      activeLessonId: 'textures-demo-1',
+      selectedObjectId: line.id,
+      lessonFocusPanel: 'texture-attach',
+      openGroups: [...DEFAULT_OPEN_GROUPS],
+    });
+    const host = mountEl(h(Inspector, {}));
+    try {
+      await settle();
+      expect(host.querySelector('[data-group="texture"]')).toBeNull();
+      expect(host.querySelectorAll('.inspector-group.is-dimmed')).toHaveLength(0);
+      expect(useVamsStore.getState().openGroups).toEqual([...DEFAULT_OPEN_GROUPS]);
+    } finally {
+      unmountEl(host);
+      useVamsStore.setState({ activeLessonId: null });
+    }
+  });
+});
