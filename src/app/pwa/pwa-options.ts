@@ -1,8 +1,8 @@
 import type { VitePWAOptions } from 'vite-plugin-pwa';
 
 /** The light paper from src/shared/styles/_tokens.scss; a manifest allows one colour. */
-export const PWA_THEME_COLOR = '#f7f8fa';
-export const PWA_BACKGROUND_COLOR = '#f7f8fa';
+export const PWA_THEME_COLOR = '#1a2238';
+export const PWA_BACKGROUND_COLOR = '#e9edf6';
 
 interface PrecacheEntry {
   url: string;

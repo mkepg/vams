@@ -8,7 +8,7 @@ export default function SiteFooter({ actions }: { actions?: ComponentChildren })
   return (
     <footer className="site-footer">
       <div className="site-footer__brand">
-        <Logo />
+        <Logo plate />
         <p>Visual Animation Modeling Simulator</p>
       </div>
       <p className="site-footer__credits">

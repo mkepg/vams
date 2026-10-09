@@ -25,15 +25,17 @@
 }
 
 .scene-area {
-  padding: 8px 0 10px;
+  padding: 0 0 10px;
   border-bottom: 1px solid var(--rule);
 
   &__title {
     display: flex;
     align-items: baseline;
     gap: 8px;
-    margin: 0;
-    padding: 0 12px 4px;
+    margin: 0 0 8px;
+    padding: 8px 12px 7px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper-sunken);
     font-size: var(--text-base);
     font-weight: 600;
   }
@@ -56,8 +58,12 @@
   &__meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-faint); }
 }
 
+/* Each group is a raised card on the page, so the inspector reads as separate tools. */
 .inspector-group {
-  border-bottom: 1px solid var(--rule);
+  margin: 6px 8px 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-m);
+  background: var(--paper-raised);
   transition: opacity 120ms ease;
 
   &__heading { margin: 0; font: inherit; }

@@ -380,11 +380,11 @@ function contrast(a: string, b: string) {
 }
 
 const PALETTE = {
-  dark: { '--paper': '#121419', '--paper-raised': '#191c22', '--paper-sunken': '#0e1014', '--rule': '#262a33', '--ink': '#e6e8ec', '--ink-muted': '#a3a9b5', '--ink-faint': '#8b92a0', '--accent': '#4762f5', '--on-accent': '#ffffff', '--accent-text': '#93a6ff', '--focus-ring': '#93a6ff' },
-  light: { '--paper': '#f7f8fa', '--paper-raised': '#fcfcfd', '--paper-sunken': '#eef0f3', '--rule': '#dadde3', '--ink': '#141821', '--ink-muted': '#4f5665', '--ink-faint': '#656c7b', '--accent': '#2f4de0', '--on-accent': '#ffffff', '--accent-text': '#2f4de0', '--focus-ring': '#2f4de0' },
+  dark: { '--paper': '#10141f', '--paper-raised': '#171d2b', '--paper-sunken': '#0b0e16', '--rule': '#29324a', '--ink': '#e4e8f2', '--ink-muted': '#a2abc2', '--ink-faint': '#8a93ab', '--accent': '#4762f5', '--on-accent': '#ffffff', '--accent-text': '#9cadff', '--focus-ring': '#9cadff' },
+  light: { '--paper': '#e9edf6', '--paper-raised': '#f6f8fd', '--paper-sunken': '#dde3f0', '--rule': '#c6cfe2', '--ink': '#121827', '--ink-muted': '#47506a', '--ink-faint': '#535c76', '--accent': '#2f4de0', '--on-accent': '#ffffff', '--accent-text': '#2f4de0', '--focus-ring': '#2f4de0' },
 };
 
-describe('BB-SITE-22: The tokens declare the Ink + Cobalt palette for both themes', () => {
+describe('BB-SITE-22: The tokens declare the Ink + Cobalt palette (Cobalt mist surfaces) for both themes', () => {
   it('matches the spec values and no longer names the old themes', () => {
     const light = block(':root');
     const dark = block("[data-theme='dark']");
@@ -447,5 +447,49 @@ describe('BB-SITE-26: Canvas overlays take their text colour from the plate, not
   it('uses --canvas-plate-text on the plate', () => {
     const canvas = readFileSync('src/widgets/canvas/vams-canvas.scss', 'utf8');
     expect(canvas).toMatch(/color: var\(--canvas-plate-text\);\s*background: var\(--canvas-plate\);/);
+  });
+});
+
+describe('BB-SITE-27: The ink chrome bar meets contrast in both themes and stands apart from the page', () => {
+  for (const [theme, selector] of [['light', ':root'], ['dark', "[data-theme='dark']"]] as const) {
+    it(`${theme} theme`, () => {
+      // The dark block inherits every chrome token it does not override.
+      const t = { ...block(':root'), ...block(selector) };
+      for (const bg of ['--chrome', '--chrome-raised', '--chrome-hover']) {
+        for (const fg of ['--chrome-ink', '--chrome-muted', '--chrome-faint', '--chrome-accent-text']) {
+          expect(contrast(t[fg], t[bg]), `${fg} on ${bg}`).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+      expect(contrast(t['--on-accent'], t['--chrome-accent']), 'button text on the bar accent').toBeGreaterThanOrEqual(4.5);
+      expect(contrast(t['--chrome-accent'], t['--chrome']), 'bar accent fill on the bar').toBeGreaterThanOrEqual(3);
+      expect(contrast(t['--chrome-line'], t['--chrome']), 'button borders on the bar').toBeGreaterThanOrEqual(3);
+      expect(contrast(t['--chrome-accent-text'], t['--chrome']), 'focus ring on the bar').toBeGreaterThanOrEqual(3);
+      expect(contrast(t['--chrome-lip'], '#000000'), 'lip against the black canvas').toBeGreaterThanOrEqual(1.5);
+      if (theme === 'light') expect(contrast(t['--chrome'], t['--paper']), 'bar against the page').toBeGreaterThanOrEqual(7);
+    });
+  }
+
+  it('is applied to the editor top bar and the site header through one mixin', () => {
+    expect(TOKENS).toMatch(/@mixin ink-chrome \{/);
+    for (const file of ['src/widgets/layout/top-bar/top-bar.scss', 'src/widgets/site-header/ui/site-header.scss']) {
+      expect(readFileSync(file, 'utf8'), file).toMatch(/@include ink-chrome;/);
+    }
+  });
+});
+
+describe('BB-SITE-28: On light paper the wordmark sits on an ink plate', () => {
+  it('renders the plate class when asked', () => {
+    const host = document.createElement('div');
+    render(h(Logo, { plate: true }), host);
+    expect(host.querySelector('.vams-logo')!.classList.contains('vams-logo--plate')).toBe(true);
+    render(null, host);
+  });
+
+  it('uses the plate on the loading screen and the footer, and draws it only in the light theme', () => {
+    for (const file of ['src/pages/editor/ui/EditorLoading.tsx', 'src/widgets/site-footer/ui/SiteFooter.tsx']) {
+      expect(readFileSync(file, 'utf8'), file).toMatch(/<Logo[^>]*\bplate\b/);
+    }
+    const logo = readFileSync('src/shared/ui/logo/logo.scss', 'utf8').replace(/\r\n/g, '\n');
+    expect(logo).toMatch(/:root:not\(\[data-theme='dark'\]\) \.vams-logo--plate \{[^}]*background: var\(--chrome\);/);
   });
 });

@@ -35,28 +35,45 @@ $header-height: 3.7rem;
   --radius-s: 3px;
   --radius-m: 3px;
 
-  --paper: #f7f8fa;
-  --paper-raised: #fcfcfd;
-  --paper-sunken: #eef0f3;
-  --ink: #141821;
-  --ink-muted: #4f5665;
-  --ink-faint: #656c7b;
-  --rule: #dadde3;
-  --grid-major: rgba(20, 24, 33, 0.08);
-  --grid-minor: rgba(20, 24, 33, 0.035);
+  --paper: #e9edf6;
+  --paper-raised: #f6f8fd;
+  --paper-sunken: #dde3f0;
+  --ink: #121827;
+  --ink-muted: #47506a;
+  --ink-faint: #535c76;
+  --rule: #c6cfe2;
+  --rule-strong: #aeb9d1;
+  --grid-major: rgba(18, 24, 39, 0.08);
+  --grid-minor: rgba(18, 24, 39, 0.035);
   --accent: #2f4de0;
   --accent-rgb: 47, 77, 224;
   --on-accent: #ffffff;
   --accent-text: #2f4de0;
-  --accent-tint: rgba(47, 77, 224, 0.10);
+  --accent-tint: rgba(47, 77, 224, 0.12);
   --focus-ring: #2f4de0;
-  --code-bg: #fcfcfd;
-  --code-ink: #141821;
+  --code-bg: #f6f8fd;
+  --code-ink: #121827;
   --code-fn: #2f4de0;
   --success: #166534;
   --danger: #b91c1c;
 
-  /* The pixel wordmark is the same in both themes, apart from the dark theme's glow. */
+  /* Ink chrome: the editor top bar and the site header are a dark ink bar in both themes.
+     Inside the bar, the ink-chrome mixin maps the page tokens onto this set. */
+  --chrome: #1a2238;
+  --chrome-raised: #212a42;
+  --chrome-hover: #252e48;
+  --chrome-line: #6b7591;
+  --chrome-sep: #3a4563;
+  --chrome-lip: #34405f;
+  --chrome-ink: #e4e8f2;
+  --chrome-muted: #a2abc2;
+  --chrome-faint: #959eb5;
+  --chrome-accent: #4762f5;
+  --chrome-accent-text: #9cadff;
+  --chrome-glow: 0 0 12px rgba(0, 240, 255, 0.30);
+
+  /* The pixel wordmark is the same everywhere. It always sits on ink: the bar, a dark page,
+     or (on light paper) an ink plate. */
   --logo-fill: #fcee0a;
   --logo-stroke: #000000;
   --logo-depth: #00f0ff;
@@ -64,31 +81,31 @@ $header-height: 3.7rem;
 
   /* Editor variables, reassigned onto the palette (names and RGB-triplet format unchanged).
      The accent-blue family maps to neutral ink so the accent stays rare. */
-  --bg-dark-rgb: 238, 240, 243;
-  --bg-panel-rgb: 247, 248, 250;
-  --bg-bar-rgb: 247, 248, 250;
-  --bg-input-rgb: 252, 252, 253;
-  --border-rgb: 218, 221, 227;
-  --text-main: #141821;
-  --text-muted: #4f5665;
-  --text-dim: #656c7b;
-  --accent-blue-rgb: 79, 86, 101;
+  --bg-dark-rgb: 221, 227, 240;
+  --bg-panel-rgb: 233, 237, 246;
+  --bg-bar-rgb: 233, 237, 246;
+  --bg-input-rgb: 246, 248, 253;
+  --border-rgb: 198, 207, 226;
+  --text-main: #121827;
+  --text-muted: #47506a;
+  --text-dim: #535c76;
+  --accent-blue-rgb: 71, 80, 106;
   --accent-green-rgb: 21, 128, 61;
   --accent-red-rgb: 185, 28, 28;
-  --bg-panel-hover: #eef0f3;
-  --accent-blue-light: #141821;
+  --bg-panel-hover: #dde3f0;
+  --accent-blue-light: #121827;
   --accent-red-light: #b91c1c;
   --accent-green-light: #15803d;
-  --accent-blue-text: #141821;
+  --accent-blue-text: #121827;
   --accent-red-text: #b91c1c;
   --accent-green-text: #166534;
-  --border-highlight: #656c7b;
-  --panel-tab: #eef0f3;
-  --keyword-fallback: #141821;
-  --code-content: #141821;
+  --border-highlight: #535c76;
+  --panel-tab: #dde3f0;
+  --keyword-fallback: #121827;
+  --code-content: #121827;
 
-  --well-rgb: 238, 240, 243;
-  --shadow-rgb: 20, 24, 33;
+  --well-rgb: 221, 227, 240;
+  --shadow-rgb: 18, 24, 39;
   --on-accent-blue: #ffffff;
   --on-accent-light: #ffffff;
   --warning: #b45309;
@@ -105,18 +122,18 @@ $header-height: 3.7rem;
   --hue-sky-rgb: 7, 89, 133;
   --hue-violet: #6d28d9;
   --hue-violet-rgb: 109, 40, 217;
-  --gl-fn: #4f5665;
-  --gl-fn-rgb: 79, 86, 101;
+  --gl-fn: #47506a;
+  --gl-fn-rgb: 71, 80, 106;
 
   /* Shared control set (editor). Field lines keep 3:1 against paper and field. */
   --control-h: 28px;
   --control-h-lg: 32px;
-  --field-bg: #fcfcfd;
-  --field-line: #7d8390;
-  --hairline: #dadde3;
+  --field-bg: #f6f8fd;
+  --field-line: #7b86a0;
+  --hairline: #c6cfe2;
   --live: var(--accent);
   --live-tint: var(--accent-tint);
-  --gl-hint: #4f5665;
+  --gl-hint: #47506a;
   --switch-thumb-on: #ffffff;
   /* Canvas overlay plate: the GL canvas is dark in both themes, so the plate
      and its axis colours are fixed and identical for both themes. */
@@ -130,56 +147,59 @@ $header-height: 3.7rem;
 [data-theme='dark'] {
   color-scheme: dark;
 
-  --paper: #121419;
-  --paper-raised: #191c22;
-  --paper-sunken: #0e1014;
-  --ink: #e6e8ec;
-  --ink-muted: #a3a9b5;
-  --ink-faint: #8b92a0;
-  --rule: #262a33;
-  --grid-major: rgba(230, 232, 236, 0.07);
-  --grid-minor: rgba(230, 232, 236, 0.03);
+  --paper: #10141f;
+  --paper-raised: #171d2b;
+  --paper-sunken: #0b0e16;
+  --ink: #e4e8f2;
+  --ink-muted: #a2abc2;
+  --ink-faint: #8a93ab;
+  --rule: #29324a;
+  --rule-strong: #36415e;
+  --grid-major: rgba(228, 232, 242, 0.07);
+  --grid-minor: rgba(228, 232, 242, 0.03);
   --accent: #4762f5;
   --accent-rgb: 71, 98, 245;
   --on-accent: #ffffff;
-  --accent-text: #93a6ff;
-  --accent-tint: rgba(71, 98, 245, 0.16);
-  --focus-ring: #93a6ff;
-  --code-bg: #0f1115;
-  --code-ink: #e6e8ec;
-  --code-fn: #93a6ff;
+  --accent-text: #9cadff;
+  --accent-tint: rgba(71, 98, 245, 0.20);
+  --focus-ring: #9cadff;
+  --code-bg: #171d2b;
+  --code-ink: #e4e8f2;
+  --code-fn: #9cadff;
   --success: #4ade80;
   --danger: #f87171;
 
+  --chrome: #080b12;
+
   --logo-glow: 0 0 15px rgba(0, 240, 255, 0.4);
 
-  --bg-dark-rgb: 14, 16, 20;
-  --bg-panel-rgb: 18, 20, 25;
-  --bg-bar-rgb: 18, 20, 25;
-  --bg-input-rgb: 15, 17, 21;
-  --border-rgb: 38, 42, 51;
-  --text-main: #e6e8ec;
-  --text-muted: #a3a9b5;
-  --text-dim: #8b92a0;
-  --accent-blue-rgb: 163, 169, 181;
+  --bg-dark-rgb: 11, 14, 22;
+  --bg-panel-rgb: 16, 20, 31;
+  --bg-bar-rgb: 16, 20, 31;
+  --bg-input-rgb: 14, 18, 27;
+  --border-rgb: 41, 50, 74;
+  --text-main: #e4e8f2;
+  --text-muted: #a2abc2;
+  --text-dim: #8a93ab;
+  --accent-blue-rgb: 162, 171, 194;
   --accent-green-rgb: 21, 128, 61;
   --accent-red-rgb: 185, 28, 28;
-  --bg-panel-hover: #0e1014;
-  --accent-blue-light: #e6e8ec;
+  --bg-panel-hover: #0b0e16;
+  --accent-blue-light: #e4e8f2;
   --accent-red-light: #f87171;
   --accent-green-light: #4ade80;
-  --accent-blue-text: #e6e8ec;
+  --accent-blue-text: #e4e8f2;
   --accent-red-text: #f87171;
   --accent-green-text: #4ade80;
-  --border-highlight: #8b92a0;
-  --panel-tab: #0e1014;
-  --keyword-fallback: #e6e8ec;
-  --code-content: #e6e8ec;
+  --border-highlight: #8a93ab;
+  --panel-tab: #0b0e16;
+  --keyword-fallback: #e4e8f2;
+  --code-content: #e4e8f2;
 
-  --well-rgb: 14, 16, 20;
+  --well-rgb: 11, 14, 22;
   --shadow-rgb: 0, 0, 0;
-  --on-accent-blue: #121419;
-  --on-accent-light: #121419;
+  --on-accent-blue: #10141f;
+  --on-accent-light: #10141f;
   --warning: #b45309;
   --warning-rgb: 180, 83, 9;
   --warning-strong: #92400e;
@@ -194,15 +214,15 @@ $header-height: 3.7rem;
   --hue-sky-rgb: 125, 211, 252;
   --hue-violet: #a78bfa;
   --hue-violet-rgb: 167, 139, 250;
-  --gl-fn: #a3a9b5;
-  --gl-fn-rgb: 163, 169, 181;
+  --gl-fn: #a2abc2;
+  --gl-fn-rgb: 162, 171, 194;
 
-  --field-bg: #0f1115;
-  --field-line: #6b7280;
-  --hairline: #262a33;
+  --field-bg: #0e121b;
+  --field-line: #5f6a86;
+  --hairline: #29324a;
   --live: var(--accent);
   --live-tint: var(--accent-tint);
-  --gl-hint: #a3a9b5;
+  --gl-hint: #a2abc2;
   --switch-thumb-on: #ffffff;
   /* Canvas overlay plate: the GL canvas is dark in both themes, so the plate
      and its axis colours are fixed and identical for both themes. */
@@ -248,6 +268,40 @@ $accent-red-text: var(--accent-red-text);
       background-color: var(--text-muted);
     }
   }
+}
+
+/* Ink chrome: map the page tokens onto the bar's set, so every control inside
+   (buttons, menus, icons, focus rings) draws itself for the dark bar unchanged. */
+@mixin ink-chrome {
+  color-scheme: dark;
+  --paper: var(--chrome);
+  --paper-raised: var(--chrome-raised);
+  --paper-sunken: var(--chrome-hover);
+  --rule: var(--chrome-line);
+  --hairline: var(--chrome-line);
+  --field-bg: var(--chrome-raised);
+  --field-line: var(--chrome-line);
+  --ink: var(--chrome-ink);
+  --ink-muted: var(--chrome-muted);
+  --ink-faint: var(--chrome-faint);
+  --text-main: var(--chrome-ink);
+  --text-muted: var(--chrome-muted);
+  --text-dim: var(--chrome-faint);
+  --gl-hint: var(--chrome-muted);
+  --accent: var(--chrome-accent);
+  --accent-rgb: 71, 98, 245;
+  --accent-text: var(--chrome-accent-text);
+  --accent-tint: rgba(71, 98, 245, 0.22);
+  --focus-ring: var(--chrome-accent-text);
+  --bg-input-rgb: 33, 42, 66;
+  --border-rgb: 107, 117, 145;
+  --bg-panel-hover: var(--chrome-hover);
+  --logo-glow: var(--chrome-glow);
+  background: var(--chrome);
+  color: var(--chrome-ink);
+  border-bottom: 0;
+  /* A lighter lip separates the bar from the black canvas; over the light columns it disappears. */
+  box-shadow: inset 0 -1px 0 var(--chrome-lip);
 }
 
 /* The one selection style: accent tint behind, accent-coloured text. */
