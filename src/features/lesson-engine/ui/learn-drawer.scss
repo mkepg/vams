@@ -88,7 +88,8 @@
   &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
   &__mark { color: var(--ink-faint); text-align: center; }
   &.is-complete &__mark { color: var(--success); }
-  &.is-progress { background: var(--accent-tint); color: var(--accent-text); }
-  &.is-progress &__mark { color: var(--accent-text); }
+  // In progress is a state, not a selection: the filled dot in ink and "Step n of m", no accent.
+  &.is-progress &__mark { color: var(--ink); }
+  &.is-progress &__meta { color: var(--ink-muted); }
   &__meta { font-size: var(--text-xs); color: var(--ink-faint); }
 }

@@ -76,6 +76,14 @@ describe('BB-INSP-03: The context section follows focus, then the opened group, 
     expect(contextSection({ ...base, appMode: 'Lesson', lessonFocusPanel: 'buffers-panel', selectedObjectId: 'x', lastOpenedGroup: 'texture' })).toBe('Buffers');
     expect(mathTabFor({ ...base, lastOpenedGroup: 'texture', mathTabOverride: 'Transforms' })).toBe('Transforms');
   });
+
+  it('ignores a group opened before the lesson: a lesson step without focus shows the current section', () => {
+    const lesson = { appMode: 'Lesson' as const, lessonFocusPanel: null, selectedObjectId: null, lastOpenedGroup: 'texture-library' as const, activeSection: 'Transforms' as const, mathTabOverride: null };
+    expect(contextSection(lesson)).toBe('Transforms');
+    expect(mathTabFor(lesson)).toBe('Transforms');
+    // A focus id with no place in the editor counts as no focus.
+    expect(contextSection({ ...lesson, lessonFocusPanel: 'nope' })).toBe('Transforms');
+  });
 });
 
 describe('BB-INSP-04: Groups toggle, remember the last opened one, and clear a manual tab', () => {

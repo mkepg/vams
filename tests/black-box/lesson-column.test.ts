@@ -9,7 +9,8 @@ import LessonCard from '@/features/lesson-engine/ui/LessonCard';
 import { SegmentedControl } from '@/shared/ui/controls';
 import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
 import { EditorColumn } from '@/widgets/layout/editor-column';
-import { FOCUS_PANEL_IDS } from '@/core/inspector';
+import { DEFAULT_OPEN_GROUPS, FOCUS_PANEL_IDS, mathTabFor } from '@/core/inspector';
+import { startLesson as startLessonFromLearn } from '@/features/lesson-engine/model/start-lesson';
 import { focusStyleFor } from '@/features/lesson-engine/model/guidance';
 import { showsIllustration } from '@/widgets/canvas/illustration';
 import EditorShell from '@/pages/editor/ui/EditorShell';
@@ -535,5 +536,36 @@ describe('BB-LCOL-22: A demo scrolls to the focused group on its final layout', 
     expect(narrationAtScroll.length).toBeGreaterThan(0);
     for (const text of narrationAtScroll) expect(text).toContain('Stippling');
     unmount(host);
+  });
+});
+
+describe('BB-LCOL-23: Leaving a lesson leaves the plain editor, and starting one forgets the opened group', () => {
+  it('restores the default open groups and clears the last opened group on exit', async () => {
+    startLesson('transforms-demo-4');
+    const host = mount(h(EditorColumn, {}));
+    try {
+      await settle();
+      // The glOrtho demo collapses everything but Viewing volume.
+      expect(useVamsStore.getState().openGroups).toEqual(['viewing-volume']);
+      useVamsStore.getState().toggleGroup('callbacks');
+      expect(useVamsStore.getState().lastOpenedGroup).toBe('callbacks');
+      buttonNamed(host, 'Exit')!.click();
+      await settle();
+      const s = useVamsStore.getState();
+      expect(s.appMode).toBe('Author');
+      expect(s.openGroups).toEqual([...DEFAULT_OPEN_GROUPS]);
+      expect(s.lastOpenedGroup).toBeNull();
+    } finally {
+      unmount(host);
+    }
+  });
+
+  it('forgets a group the student opened before the lesson, even in the same section', async () => {
+    useVamsStore.setState({ activeSection: 'Transforms' });
+    useVamsStore.getState().toggleGroup('texture-library');
+    expect(useVamsStore.getState().lastOpenedGroup).toBe('texture-library');
+    expect(await startLessonFromLearn('transforms-exercise-4')).toBe(true);
+    expect(useVamsStore.getState().lastOpenedGroup).toBeNull();
+    expect(mathTabFor(useVamsStore.getState())).toBe('Transforms');
   });
 });

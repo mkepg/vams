@@ -15,7 +15,7 @@ export async function startLesson(id: string): Promise<boolean> {
     if (running.activeLessonId === id) return true;
     const leave = await confirm({
       title: 'Leave this lesson?',
-      message: 'Your place in it is kept in Learn. Your own scene comes back when you finish the next one.',
+      message: 'Learn marks it in progress; starting it again begins at step 1. Your own scene comes back when you leave the next lesson.',
       confirmLabel: 'Leave lesson',
     });
     if (!leave) return false;

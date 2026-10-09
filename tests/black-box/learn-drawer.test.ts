@@ -196,3 +196,27 @@ describe('BB-LEARN-08: Escape closes the drawer', () => {
     unmount(host);
   });
 });
+
+describe('BB-LEARN-09: Leaving a lesson for another says what Learn keeps', () => {
+  it('says the lesson is marked in progress and starts again at step 1', async () => {
+    await startLesson('transforms-exercise-1');
+    const pending = startLesson('textures-exercise-1');
+    await settle();
+    const message = useConfirmStore.getState().options?.message ?? '';
+    useConfirmStore.getState().handleCancel();
+    await pending;
+    expect(message).toContain('in progress');
+    expect(message).toContain('step 1');
+    expect(message).not.toMatch(/place in it is kept/i);
+  });
+});
+
+describe('BB-LEARN-10: An in-progress lesson is not marked with the accent', () => {
+  it('keeps accent colours out of the in-progress rules', async () => {
+    const { readFileSync } = await import('node:fs');
+    const scss = readFileSync('src/features/lesson-engine/ui/learn-drawer.scss', 'utf8').replace(/\r\n/g, '\n');
+    const rules = scss.split('\n').filter((line) => line.includes('is-progress'));
+    expect(rules.length).toBeGreaterThan(0);
+    for (const rule of rules) expect(rule).not.toMatch(/--accent/);
+  });
+});

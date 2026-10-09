@@ -13,8 +13,9 @@ export default function LessonCard({ children }: { children?: ComponentChildren 
   const titleRef = useRef<HTMLHeadingElement>(null);
   const lessonId = runner.active ? runner.lesson?.id ?? null : null;
 
-  // Starting a lesson from the Lessons menu removes the menu's trigger, which drops focus to the
-  // page. Hand it to the lesson title so keyboard users start in the card; never take it from elsewhere.
+  // Starting a lesson from the Learn drawer closes the drawer, which drops focus to the page or
+  // back to the Learn button. Hand it to the lesson title so keyboard users start in the card;
+  // never take it from elsewhere.
   useEffect(() => {
     if (!lessonId) return;
     const active = document.activeElement;
