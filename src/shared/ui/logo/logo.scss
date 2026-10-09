@@ -33,7 +33,10 @@
 /* On light paper the wordmark sits on an ink plate, the bar's colour and lip, so it always
    appears on ink. Dark pages need no plate. */
 :root:not([data-theme='dark']) .vams-logo--plate {
-  padding: 0.35em 0.55em 0.3em;
+  /* The synthesized italic leans every glyph right and the cyan depth sits 3px right, so the ink
+     overflows the text box on the right and starts inside it on the left. Uneven padding
+     centres the visible mark, not the box. */
+  padding: 0.35em 0.8em 0.3em 0.3em;
   border-radius: var(--radius-m);
   background: var(--chrome);
   box-shadow: inset 0 -1px 0 var(--chrome-lip);
