@@ -477,3 +477,12 @@ describe('BB-HOME-21: The hero colours one word and the curriculum is a five-sto
     expect(names).toEqual(['Pipeline', 'Primitives', 'Buffers', 'Transforms', 'Textures']);
   });
 });
+
+describe('BB-HOME-22: The curriculum slide links to every lesson on /learn', () => {
+  it('renders one /learn link inside the curriculum section', async () => {
+    window.history.replaceState(null, '', '/');
+    const { html } = await prerender({ url: '/' });
+    const curriculum = html.slice(html.indexOf('id="curriculum"'), html.indexOf('id="under-the-hood"'));
+    expect(curriculum).toContain('<a href="/learn">See every lesson</a>');
+  });
+});

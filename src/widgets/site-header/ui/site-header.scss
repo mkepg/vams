@@ -79,7 +79,7 @@
 
 @media (max-width: 640px) {
   .site-header { padding: var(--space-3) var(--space-4); gap: var(--space-3); }
-  .site-header__nav { display: none; }
+  .site-header__nav { gap: var(--space-3); }
   .site-header__actions { margin-left: auto; }
 }
 

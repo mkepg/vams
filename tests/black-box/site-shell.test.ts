@@ -493,3 +493,24 @@ describe('BB-SITE-28: On light paper the wordmark sits on an ink plate', () => {
     expect(logo).toMatch(/:root:not\(\[data-theme='dark'\]\) \.vams-logo--plate \{[^}]*background: var\(--chrome\);/);
   });
 });
+
+describe('BB-SITE-29: /learn is a finished, linked, prerendered page', () => {
+  it('has indexable metadata, a header link, a sitemap entry and a prerender entry', async () => {
+    const meta = findRouteMeta('/learn');
+    expect(meta.path).toBe('/learn');
+    expect(meta.indexable).toBe(true);
+    expect(meta.title).toBe('Learn — VAMS');
+    expect(NAV_LINKS).toEqual([{ href: '/learn', label: 'Learn' }]);
+    expect(buildSitemap(SITE)).toContain('<loc>https://example.test/learn</loc>');
+    expect(readFileSync('vite.config.ts', 'utf8')).toMatch(/additionalPrerenderRoutes:\s*\[[^\]]*'\/learn'/);
+    const result = await prerenderAt('/learn');
+    expect(result.html).toContain('class="learn"');
+    expect(result.html).toMatch(/<a[^>]*aria-current="page"[^>]*>Learn<\/a>/);
+    expect(result.head.title).toBe('Learn — VAMS');
+  });
+
+  it('marks no header link as current on the home page', async () => {
+    const result = await prerenderAt('/');
+    expect(result.html).not.toContain('aria-current="page"');
+  });
+});

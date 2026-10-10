@@ -30,6 +30,9 @@ export default function CurriculumSection() {
           </div>
         ))}
       </dl>
+      <p className="curriculum-more">
+        <a href={CURRICULUM.more.href}>{CURRICULUM.more.label}</a>
+      </p>
     </section>
   );
 }

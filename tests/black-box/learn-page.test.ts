@@ -3,12 +3,16 @@
  * The /learn page: the store-free course catalog, progress on a prerendered page, and the page itself.
  */
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { h, render, type VNode } from 'preact';
+import { h, hydrate, render, type VNode } from 'preact';
+import { readFileSync, existsSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
 import { renderToString } from 'preact-render-to-string';
 import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
 import { COURSE, LESSON_CATALOG, catalogFor, isCatalogLesson, lessonHref } from '@/features/lesson-engine/model/catalog';
 import { PROGRESS_KEY, useLessonProgress, type LessonProgress } from '@/features/lesson-engine/model/progress';
 import { doneCount, lessonStatus, nextUp } from '@/pages/learn/model/learn-progress';
+import LearnPage from '@/pages/learn';
+import { LEARN_COPY } from '@/pages/learn/model/copy';
 
 const SECTIONS = ['Pipeline', 'Primitives', 'Buffers', 'Transforms', 'Textures'];
 
@@ -138,5 +142,136 @@ describe('BB-LPAGE-05: Done counts cover the course or one section', () => {
     expect(doneCount(p)).toBe(3);
     const { demos, exercises } = catalogFor('Transforms');
     expect(doneCount(p, [...demos, ...exercises])).toBe(2);
+  });
+});
+
+const BANNED = ['coming soon', 'not yet', 'future', 'deferred', 'unsupported', 'not supported', '3d', 'lighting'];
+const rowFor = (root: ParentNode, id: string) => root.querySelector<HTMLAnchorElement>(`a.learn-row[href="/app?lesson=${id}"]`)!;
+
+describe('BB-LPAGE-06: Every lesson appears once, in its section, linking into the editor', () => {
+  it('renders five sections in pipeline order with every catalog lesson', async () => {
+    const host = mount(h(LearnPage, {}));
+    await settle();
+    expect([...host.querySelectorAll('.learn-section__title')].map((e) => e.textContent)).toEqual(SECTIONS);
+    for (const lesson of LESSON_CATALOG) {
+      const section = host.querySelector(`section#${lesson.section.toLowerCase()}`)!;
+      expect(section.querySelectorAll(`a[href="/app?lesson=${lesson.id}"]`).length, lesson.id).toBe(1);
+    }
+    expect(host.querySelectorAll('section.learn-section a.learn-row').length).toBe(LESSON_CATALOG.length);
+    expect([...host.querySelectorAll('.learn-index__link')].map((a) => a.getAttribute('href'))).toEqual(
+      SECTIONS.map((s) => `#${s.toLowerCase()}`),
+    );
+  });
+});
+
+describe('BB-LPAGE-07: Progress shows on rows, counts, the index and Next up', () => {
+  it('marks done and in-progress lessons and names them for screen readers', async () => {
+    store({ completed: ['transforms-demo-1'], current: { lessonId: 'transforms-demo-2', step: 2 } });
+    const host = mount(h(LearnPage, {}));
+    await settle();
+    const transforms = host.querySelector('section#transforms')!;
+    expect(rowFor(transforms, 'transforms-demo-1').className).toContain('is-complete');
+    expect(rowFor(transforms, 'transforms-demo-1').getAttribute('aria-label')).toBe('Translate, Rotate, Scale, done');
+    expect(rowFor(transforms, 'transforms-demo-2').getAttribute('aria-label')).toBe(
+      'Matrix Representation, in progress, left at step 3 of 6',
+    );
+    expect(rowFor(transforms, 'transforms-demo-3').getAttribute('aria-label')).toBe('The Matrix Stack, not started, 4 steps');
+    expect(transforms.querySelector('.learn-section__count')!.textContent).toBe('1 of 9 done');
+    expect(host.querySelector('section#pipeline .learn-section__count')!.textContent).toBe('7 lessons');
+    expect(host.querySelector('.learn__status')!.textContent).toBe(`1 of ${LESSON_CATALOG.length} lessons done`);
+    expect(host.querySelector('.learn-next a.learn-row')!.getAttribute('href')).toBe('/app?lesson=transforms-demo-2');
+  });
+
+  it('says every lesson is done and marks every section in the index', async () => {
+    store({ completed: LESSON_CATALOG.map((l) => l.id) });
+    const host = mount(h(LearnPage, {}));
+    await settle();
+    expect(host.querySelector('.learn-next--done')!.textContent).toBe(LEARN_COPY.allDone);
+    expect(host.querySelector('.learn-next a')).toBeNull();
+    const index = [...host.querySelectorAll('.learn-index__link')];
+    expect(index.every((a) => a.classList.contains('is-done'))).toBe(true);
+    expect(index[0].getAttribute('aria-label')).toBe('Pipeline, complete');
+  });
+});
+
+describe('BB-LPAGE-08: The prerendered page is a first visit, and hydration then shows progress', () => {
+  it('ignores storage on the server and applies it after hydrating', async () => {
+    store({ completed: ['pipeline-demo-1'] });
+    const html = renderToString(h(LearnPage, {}));
+    expect(html).toContain(`${LESSON_CATALOG.length} lessons in five sections`);
+    expect(html).not.toContain('is-complete');
+    const host = document.createElement('div');
+    host.innerHTML = html;
+    document.body.appendChild(host);
+    hosts.push(host);
+    hydrate(h(LearnPage, {}), host);
+    await settle();
+    expect(host.querySelector('.learn__status')!.textContent).toBe(`1 of ${LESSON_CATALOG.length} lessons done`);
+    expect(rowFor(host.querySelector('section#pipeline')!, 'pipeline-demo-1').className).toContain('is-complete');
+    expect(host.querySelector('.learn-next a.learn-row')!.getAttribute('href')).toBe('/app?lesson=pipeline-demo-2');
+  });
+});
+
+describe('BB-LPAGE-09: The page text follows the student-facing language rules', () => {
+  it('contains none of the banned phrases', () => {
+    const text = `${renderToString(h(LearnPage, {}))} ${JSON.stringify(LEARN_COPY)}`.toLowerCase();
+    for (const phrase of BANNED) expect(text).not.toContain(phrase);
+  });
+});
+
+describe('BB-LPAGE-10: Blocked or unreadable storage shows the first-visit page', () => {
+  it('renders the first visit when reading throws', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    const host = mount(h(LearnPage, {}));
+    await settle();
+    expect(host.querySelector('.learn__status')!.textContent).toBe(`${LESSON_CATALOG.length} lessons in five sections`);
+    expect(host.querySelector('.learn-next a.learn-row')!.getAttribute('href')).toBe('/app?lesson=pipeline-demo-1');
+  });
+
+  it('renders the first visit when the stored JSON is unreadable', async () => {
+    localStorage.setItem(PROGRESS_KEY, '{');
+    const host = mount(h(LearnPage, {}));
+    await settle();
+    expect(host.querySelector('.learn__status')!.textContent).toBe(`${LESSON_CATALOG.length} lessons in five sections`);
+  });
+});
+
+/** Runtime imports of one source file: type-only imports and re-exports are skipped. */
+function runtimeImports(file: string): string[] {
+  const source = readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+  const pattern = /^\s*(?:import|export)\s+(?!type\b)(?:[^'";]*?\sfrom\s+)?['"]([^'"]+)['"]/gm;
+  return [...source.matchAll(pattern)].map((m) => m[1]);
+}
+/** A source file for an import, or null for packages, styles and assets. */
+function resolveImport(from: string, spec: string): string | null {
+  let base: string;
+  if (spec.startsWith('@/')) base = resolve('src', spec.slice(2));
+  else if (spec.startsWith('.')) base = resolve(dirname(from), spec);
+  else return null;
+  for (const candidate of [base, `${base}.ts`, `${base}.tsx`, resolve(base, 'index.ts'), resolve(base, 'index.tsx')]) {
+    if (/\.tsx?$/.test(candidate) && existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+describe('BB-LPAGE-11: The page never loads the editor store or the lesson files', () => {
+  it('reaches the catalog but not core/store, the registry or any lesson file', () => {
+    const seen = new Set<string>();
+    const queue = [resolve('src/pages/learn/index.ts')];
+    while (queue.length) {
+      const file = queue.pop()!;
+      if (seen.has(file)) continue;
+      seen.add(file);
+      for (const spec of runtimeImports(file)) {
+        const next = resolveImport(file, spec);
+        if (next) queue.push(next);
+      }
+    }
+    const files = [...seen].map((f) => f.replace(/\\/g, '/'));
+    expect(files.some((f) => f.endsWith('/src/features/lesson-engine/model/catalog.ts'))).toBe(true);
+    expect(files.filter((f) => f.includes('/src/core/store/'))).toEqual([]);
+    expect(files.filter((f) => /(-lessons|lesson-registry)\.ts$/.test(f))).toEqual([]);
   });
 });

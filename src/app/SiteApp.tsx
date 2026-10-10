@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { ErrorBoundary, LocationProvider, Route, Router } from 'preact-iso';
 import HomePage from '@/pages/home';
+import LearnPage from '@/pages/learn';
 import EditorPage from '@/pages/editor';
 import NotFoundPage from '@/pages/not-found';
 import { findRouteMeta } from '@/app/routes/route-meta';
@@ -24,6 +25,7 @@ export default function SiteApp() {
       <ErrorBoundary onError={logRenderError}>
         <Router onRouteChange={syncDocumentTitle}>
           <Route path="/" component={HomePage} />
+          <Route path="/learn" component={LearnPage} />
           <Route path="/app" component={EditorPage} />
           <Route default component={NotFoundPage} />
         </Router>

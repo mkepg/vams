@@ -142,6 +142,15 @@
   }
 }
 
+.curriculum-more {
+  margin: var(--space-5) 0 0;
+  a {
+    color: var(--accent-text);
+    font-weight: 600;
+    text-underline-offset: 3px;
+  }
+}
+
 .hood {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);

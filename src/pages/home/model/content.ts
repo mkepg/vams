@@ -48,6 +48,7 @@ export const CURRICULUM = {
     { name: 'Author', text: 'Build freely. The code follows every change.' },
     { name: 'Lesson', text: 'Guided steps and exercises that check your scene.' },
   ],
+  more: { href: '/learn', label: 'See every lesson' },
 };
 
 export const UNDER_THE_HOOD = {
