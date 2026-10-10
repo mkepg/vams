@@ -1,7 +1,5 @@
 # About Page Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Ship a prerendered `/about` page (story, student facts, thesis record with copyable APA and BibTeX citations) and link it from the header, footer and home Team slide.
 
 **Architecture:** A new FSD page slice `src/pages/about/` holds an import-free copy module, a band component, a citation-tabs component and the page. The page reads only the lesson count from the store-free catalog. Route metadata, the router and the prerender list gain `/about`. The header switcher, footer and home Team slide gain links.
