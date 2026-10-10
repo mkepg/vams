@@ -64,15 +64,22 @@ test('VIS-LEARN-04: An index link brings its section below the sticky header', a
   expect(top).toBeGreaterThanOrEqual(headerBottom);
 });
 
-test('VIS-LEARN-05: The header page switcher fits a 390 px phone on every site page', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  for (const path of ['/', '/learn', '/404']) {
-    await page.goto(path);
-    await page.waitForSelector('.site-header');
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    expect(overflow, path).toBeLessThanOrEqual(0);
-    await expect(page.locator('.site-header__link', { hasText: 'Home' }), path).toBeVisible();
-    await expect(page.locator('.site-header__link', { hasText: 'Learn' }), path).toBeVisible();
-    await expect(page.locator('.site-header__cta'), path).toBeVisible();
+test('VIS-LEARN-05: The header page switcher fits 360–390 px phones on every site page', async ({ page }) => {
+  for (const width of [360, 375, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    for (const path of ['/', '/learn', '/about', '/404']) {
+      const label = `${width} ${path}`;
+      await page.goto(path);
+      await page.waitForSelector('.site-header');
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow, label).toBeLessThanOrEqual(0);
+      const home = page.locator('.site-header__link', { hasText: 'Home' });
+      if (width >= 375) await expect(home, label).toBeVisible();
+      else await expect(home, label).toBeHidden();
+      await expect(page.locator('.site-header__link', { hasText: 'Learn' }), label).toBeVisible();
+      await expect(page.locator('.site-header__link', { hasText: 'About' }), label).toBeVisible();
+      await expect(page.locator('.site-header__cta'), label).toHaveText('Open app', { useInnerText: true });
+      await expect(page.locator('.site-header__cta'), label).toBeVisible();
+    }
   }
 });

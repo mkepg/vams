@@ -26,7 +26,9 @@ export default function SiteHeader({ current }: { current?: string } = {}) {
         </nav>
         <div className="site-header__actions">
           <ThemeToggleButton className="site-header__theme" />
-          <a className="site-header__cta" href="/app">Open the app</a>
+          <a className="site-header__cta" href="/app">
+            Open <span className="site-header__cta-the">the </span>app
+          </a>
         </div>
       </header>
     </>

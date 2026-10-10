@@ -32,6 +32,9 @@ tests/
 │   │                                        backups, dialog)
 │   ├── editor-links.test.ts              (BB-LINK-*: prepared scenes,
 │   │                                        /app links, slide 07)
+│   ├── about-page.test.ts                (BB-ABOUT-*: The /about page: copy,
+│   │                                        citation tabs, prerendered page,
+│   │                                        import boundary)
 │   ├── learn-page.test.ts                (BB-LPAGE-*: the course catalog,
 │   │                                        progress after hydration, /learn)
 │   ├── crash-recovery.test.ts            (BB-RECOVER-*: lesson reload,
@@ -62,7 +65,9 @@ tests/
 │   │                                        run with `npm run test:visual`;
 │   │                                        per-machine baselines that are
 │   │                                        not committed)
-│   └── learn.spec.ts                     (VIS-LEARN-*: the /learn course map)
+│   ├── learn.spec.ts                     (VIS-LEARN-*: the /learn course map)
+│   └── about.spec.ts                     (VIS-ABOUT-*: the /about page at
+│                                            1280 and 390, citation tabs)
 ├── algorithm/                    ← Maps to §3.10.3 Algorithm Validation.
 │   ├── algorithm-1-global-matrix.test.ts        (ALG-1-*)
 │   ├── algorithm-2-code-generation.test.ts      (ALG-2-*)
@@ -112,7 +117,7 @@ browsers) that the developer's CI machine cannot be assumed to have:
 * **Compilation of generated C++** — see `reports/manual-compile-procedure.md`.
 * **Cross-browser execution** — see `reports/manual-cross-browser-procedure.md`.
 * **Playwright UI scenarios** — out of scope for this iteration. The only
-  Playwright suite is the screenshot check set (VIS-EDITOR, VIS-LEARN), which needs a
+  Playwright suite is the screenshot check set (VIS-EDITOR, VIS-LEARN, VIS-ABOUT), which needs a
   locally created baseline and is not part of `npm test` or CI.
 
 Their results, once collected, are inserted into the corresponding

@@ -49,7 +49,7 @@ The product rules in `AGENTS.md` and [docs/product-plan.md](../product-plan.md) 
 | 4 | **SP5 Editor layout redesign:** a shared control set, then the top bar, left rail, canvas overlays, right sidebar, lesson bar and dialogs. Includes the lesson-narration and `focusPanel` updates the new layout forces. Due by Oct 28 | Complete (2026-10-06): [spec](2026-10-06-editor-redesign-design.md), [plan](../plans/2026-10-06-editor-redesign.md) |
 | 5 | **Visual identity: Ink + Cobalt.** Tokens, fonts, themes, the pixel wordmark and the landing page restyle | Complete (2026-10-07): [spec](2026-10-07-visual-identity-design.md), [plan](../plans/2026-10-07-visual-identity.md) |
 | 6 | **Editor refinement:** one editor with a pipeline-ordered inspector in every section, lessons as a guide card with fading focus, a Learn drawer with progress, and the editor review's layout findings. Due by Oct 28 | Complete (2026-10-09): [spec](2026-10-07-editor-refinement-design.md), [plan](../plans/2026-10-07-editor-refinement.md) |
-| 7 | **About page** | Not started |
+| 7 | **About page** | Complete (2026-10-10): [spec](2026-10-10-about-page-design.md), [plan](../plans/2026-10-10-about-page.md) |
 
 ### Should
 

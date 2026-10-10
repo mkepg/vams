@@ -1,4 +1,4 @@
-import { TEAM } from '@/pages/home/model/content';
+import { TEAM, TEAM_MORE } from '@/pages/home/model/content';
 import SectionHeading from './SectionHeading';
 
 export default function TeamSection() {
@@ -13,6 +13,9 @@ export default function TeamSection() {
           </div>
         ))}
       </dl>
+      <p className="team-more">
+        <a href={TEAM_MORE.href}>{TEAM_MORE.label}</a>
+      </p>
     </section>
   );
 }
