@@ -64,7 +64,7 @@ test('VIS-LEARN-04: An index link brings its section below the sticky header', a
   expect(top).toBeGreaterThanOrEqual(headerBottom);
 });
 
-test('VIS-LEARN-05: The header page switcher fits 360–390 px phones on every site page', async ({ page }) => {
+test('VIS-LEARN-05: The header page switcher fits 360â€“390 px phones on every site page', async ({ page }) => {
   for (const width of [360, 375, 390]) {
     await page.setViewportSize({ width, height: 844 });
     for (const path of ['/', '/learn', '/about', '/404']) {
