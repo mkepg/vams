@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { LESSON_REGISTRY } from './lesson-registry';
+import { isCatalogLesson as isLesson } from './catalog';
 
 /** Lesson progress lives under its own key, so the editor's saved store keeps version 7. */
 export const PROGRESS_KEY = 'vams-lesson-progress';
@@ -12,8 +12,6 @@ export interface LessonProgress {
 }
 
 const empty = (): LessonProgress => ({ version: 1, completed: [], current: null });
-const isLesson = (id: unknown): id is string =>
-  typeof id === 'string' && Object.prototype.hasOwnProperty.call(LESSON_REGISTRY, id);
 
 type Listener = (progress: LessonProgress) => void;
 const listeners = new Set<Listener>();
