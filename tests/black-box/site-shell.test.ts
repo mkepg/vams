@@ -574,3 +574,17 @@ describe('BB-SITE-33: On phones the header CTA reads Open app', () => {
     expect(phone).toMatch(/\.site-header__cta-the\s*\{\s*display:\s*none;\s*\}/);
   });
 });
+
+describe('BB-SITE-34: Below 375 px the switcher drops Home', () => {
+  it('hides the list item that holds the Home link in the 374 px rule', () => {
+    const scss = readFileSync('src/widgets/site-header/ui/site-header.scss', 'utf8').replace(/\r\n/g, '\n');
+    const start = scss.indexOf('@media (max-width: 374px)');
+    expect(start).toBeGreaterThanOrEqual(0);
+    const rest = scss.slice(start + 1);
+    const next = rest.indexOf('@media');
+    const block = scss.slice(start, next === -1 ? undefined : start + 1 + next);
+    expect(block).toMatch(
+      /li:has\(>\s*\.site-header__link\[href=['"]\/['"]\]\)\s*\{\s*display:\s*none;\s*\}/,
+    );
+  });
+});

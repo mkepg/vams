@@ -109,13 +109,19 @@
 
 /* On phones the header stays one row: the switcher drops its icons and everything tightens. */
 @media (max-width: 480px) {
-  .site-header { padding-inline: var(--space-3); gap: var(--space-2); }
-  .site-header__home { font-size: 0.8rem; }
+  .site-header { padding-inline: var(--space-3); gap: 6px; }
+  .site-header__home { font-size: 0.72rem; }
   .site-header__link { padding: 0 6px; font-size: var(--text-base); }
   .site-header__link svg { display: none; }
   .site-header__actions { gap: var(--space-2); }
+  .site-header__theme { width: 32px; height: 32px; }
   .site-header__cta { padding: 0 var(--space-3); }
   .site-header__cta-the { display: none; }
+}
+
+/* Below 375px the logo links home, so the switcher drops its Home segment. */
+@media (max-width: 374px) {
+  .site-header__pages li:has(> .site-header__link[href='/']) { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

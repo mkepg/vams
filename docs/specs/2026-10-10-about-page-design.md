@@ -29,6 +29,7 @@ Out of scope: an engineering deep dive (the home slide and the README cover it),
 | Layout | Option B: labeled bands, like /learn's sections |
 | Entry points | The header switcher (Home, Learn, About), the footer, and a link on the home Team slide |
 | Phone header | "Open the app" reads "Open app" at 480px and below |
+| Phones below 375px | The header hides the Home segment; the logo links home |
 | About nav icon | None. Learn keeps the only icon |
 
 ## Page
@@ -130,7 +131,7 @@ BibTeX:
 ## Entry points
 
 - **Header.** `NAV_LINKS` becomes Home, Learn, About. About has no icon. The About link is current on `/about`.
-- **Phone header.** At 480px and below, the CTA's word "the " is hidden: the CTA markup is `Open <span class="site-header__cta-the">the </span>app`. The hidden span leaves the accessibility tree, so the accessible name matches what is shown. The header must still fit a 390px phone with no horizontal scroll on `/`, `/learn`, `/about` and `/404`.
+- **Phone header.** At 480px and below, the CTA's word "the " is hidden: the CTA markup is `Open <span class="site-header__cta-the">the </span>app`. The hidden span leaves the accessibility tree, so the accessible name matches what is shown. Below 375px the Home segment is hidden; the logo links home. The header must still fit 360px, 375px and 390px phones with no horizontal scroll on `/`, `/learn`, `/about` and `/404`.
 - **Footer.** The links read Learn, About, Source on GitHub, MIT License.
 - **Home Team slide.** A paragraph after the team list holds a link "The full story" to `/about`, styled like the curriculum slide's "See every lesson" link. The text and href live in `content.ts` as `TEAM_MORE = { href: '/about', label: 'The full story' }`. The file keeps zero imports.
 
@@ -196,7 +197,7 @@ Visual (`tests/visual/about.spec.ts`, not part of `npm test`):
 - VIS-ABOUT-01: light, 1280, full page.
 - VIS-ABOUT-02: dark, 1280, full page.
 - VIS-ABOUT-03: light, 390, full page, no horizontal scroll.
-- VIS-LEARN-05 also checks `/about`, and that the About link and the CTA are visible at 390px.
+- VIS-LEARN-05 also checks `/about`, and that the About link and the CTA are visible at 360, 375 and 390px, and that Home is visible at 375 and 390px and hidden at 360px.
 
 Baselines for VIS-HOME and VIS-LEARN are refreshed, since the header and footer change.
 
