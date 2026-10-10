@@ -153,3 +153,11 @@ describe('BB-PWA-08: The /learn document is cached under its clean URL', () => {
     expect(manifest.map((entry) => entry.url)).toEqual(['learn/index.html', 'learn']);
   });
 });
+
+describe('BB-PWA-09: The /about document is cached under its clean URL', () => {
+  it('maps about/index.html to about', async () => {
+    expect(toRouteUrl('about/index.html')).toBe('about');
+    const { manifest } = await routeDocumentsTransform([{ url: 'about/index.html', revision: 'r', size: 1 }]);
+    expect(manifest.map((entry) => entry.url)).toEqual(['about/index.html', 'about']);
+  });
+});

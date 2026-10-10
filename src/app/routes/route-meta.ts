@@ -27,6 +27,13 @@ export const ROUTES: readonly RouteMeta[] = [
     indexable: true,
   },
   {
+    path: '/about',
+    title: 'About — VAMS',
+    description:
+      'Why VAMS exists, what it teaches, where your work is kept, and the undergraduate thesis behind it, with a citation to copy.',
+    indexable: true,
+  },
+  {
     path: '/app',
     title: 'VAMS Editor',
     description: 'Author 2D scenes and read the generated OpenGL 1.5 code and math side by side.',
