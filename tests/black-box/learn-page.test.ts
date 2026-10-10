@@ -96,6 +96,14 @@ describe('BB-LPAGE-02: A prerendered page reads progress after mount and follows
     expect(renderToString(h(Probe, {}))).toBe('<output>pipeline-demo-1</output>');
   });
 
+  it('reads stored progress before the first paint, so a returning student never sees the first-visit state', async () => {
+    store({ completed: ['pipeline-demo-1'] });
+    const host = mount(h(Probe, { afterMount: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(host.textContent).toBe('pipeline-demo-1');
+  });
+
   it('rereads on a storage event for its key, and when another tab clears storage', async () => {
     const host = mount(h(Probe, { afterMount: true }));
     await settle();

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { isCatalogLesson as isLesson } from './catalog';
 
 /** Lesson progress lives under its own key, so the editor's saved store keeps version 7. */
@@ -65,12 +65,13 @@ export function subscribeProgress(listener: Listener): () => void {
 
 /**
  * The student's progress, kept current. A prerendered page passes afterMount, so its first
- * render matches the build (which has no storage) and progress is read once the page runs.
+ * render matches the build (which has no storage) and progress is read once the page runs,
+ * before the browser paints, so a returning student never sees the first-visit state.
  * Progress written by another tab arrives through the storage event.
  */
 export function useLessonProgress({ afterMount = false }: { afterMount?: boolean } = {}): LessonProgress {
   const [progress, setProgress] = useState<LessonProgress>(() => (afterMount ? empty() : readProgress()));
-  useEffect(() => {
+  useLayoutEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (afterMount) setProgress(readProgress());
     const onStorage = (event: StorageEvent) => {
