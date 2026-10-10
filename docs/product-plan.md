@@ -584,6 +584,8 @@ Each step may include:
 
 Exercises additionally have a success check — a pure function that reads current scene state and returns whether the student has met the goal.
 
+Each lesson is also listed in a course catalog by id, title, kind, section and step count. The `/learn` page reads the catalog, so it shows the course without loading the editor. A test fails whenever the catalog and the lessons disagree.
+
 ### Exercise Answer Types
 
 Exercises record student answers as structured data. The supported answer types are: multiple choice (a selected option from a fixed set), ordered list (a ranked sequence of items), numeric (a number), and position (an x,y coordinate). New exercise formats add a new answer type rather than using an untyped catch-all.

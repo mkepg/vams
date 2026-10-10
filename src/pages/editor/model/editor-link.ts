@@ -2,6 +2,7 @@ import { toast } from 'sonner';
 import { useVamsStore } from '@/core/store';
 import { getPreset, isPresetSlug } from '@/entities/project/model/scene-presets';
 import { getLessonById } from '@/features/lesson-engine/model/lesson-registry';
+import { recordLessonLeft } from '@/features/lesson-engine/model/progress';
 import { backupLabel, replaceScene } from '@/features/scene-library';
 
 /** What a /app URL asks the editor to open: ?lesson=<id> or ?scene=<slug>. */
@@ -66,7 +67,12 @@ export async function applyEditorLink(link: EditorLink, deps: ApplyDeps): Promis
   if (link.kind === 'lesson') {
     const lesson = getLessonById(link.id);
     if (!lesson) return;
-    if (useVamsStore.getState().activeLessonId) useVamsStore.getState().clearLessonState();
+    const running = useVamsStore.getState();
+    if (running.activeLessonId) {
+      // As when starting a lesson from Learn, the lesson being replaced is recorded as left mid-way.
+      recordLessonLeft(running.activeLessonId, running.currentStepIndex);
+      running.clearLessonState();
+    }
     const state = useVamsStore.getState();
     state.setActiveSection(lesson.section);
     state.setActiveLesson(lesson.id);

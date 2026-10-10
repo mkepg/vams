@@ -145,3 +145,11 @@ describe('BB-PWA-07: The page and host headers support the installed app', () =>
     expect(headers).toMatch(/\/manifest\.webmanifest\s+Cache-Control: no-cache/);
   });
 });
+
+describe('BB-PWA-08: The /learn document is cached under its clean URL', () => {
+  it('maps learn/index.html to learn', async () => {
+    expect(toRouteUrl('learn/index.html')).toBe('learn');
+    const { manifest } = await routeDocumentsTransform([{ url: 'learn/index.html', revision: 'r', size: 1 }]);
+    expect(manifest.map((entry) => entry.url)).toEqual(['learn/index.html', 'learn']);
+  });
+});

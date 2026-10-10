@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { LESSON_REGISTRY } from './lesson-registry';
+import { useLayoutEffect, useState } from 'react';
+import { isCatalogLesson as isLesson } from './catalog';
 
 /** Lesson progress lives under its own key, so the editor's saved store keeps version 7. */
 export const PROGRESS_KEY = 'vams-lesson-progress';
@@ -12,8 +12,6 @@ export interface LessonProgress {
 }
 
 const empty = (): LessonProgress => ({ version: 1, completed: [], current: null });
-const isLesson = (id: unknown): id is string =>
-  typeof id === 'string' && Object.prototype.hasOwnProperty.call(LESSON_REGISTRY, id);
 
 type Listener = (progress: LessonProgress) => void;
 const listeners = new Set<Listener>();
@@ -65,8 +63,26 @@ export function subscribeProgress(listener: Listener): () => void {
   };
 }
 
-export function useLessonProgress(): LessonProgress {
-  const [progress, setProgress] = useState(readProgress);
-  useEffect(() => subscribeProgress(setProgress), []);
+/**
+ * The student's progress, kept current. A prerendered page passes afterMount, so its first
+ * render matches the build (which has no storage) and progress is read once the page runs,
+ * before the browser paints, so a returning student never sees the first-visit state.
+ * Progress written by another tab arrives through the storage event.
+ */
+export function useLessonProgress({ afterMount = false }: { afterMount?: boolean } = {}): LessonProgress {
+  const [progress, setProgress] = useState<LessonProgress>(() => (afterMount ? empty() : readProgress()));
+  useLayoutEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (afterMount) setProgress(readProgress());
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === PROGRESS_KEY || event.key === null) setProgress(readProgress());
+    };
+    window.addEventListener('storage', onStorage);
+    const unsubscribe = subscribeProgress(setProgress);
+    return () => {
+      unsubscribe();
+      window.removeEventListener('storage', onStorage);
+    };
+  }, [afterMount]);
   return progress;
 }

@@ -3,7 +3,7 @@ import ThemeToggleButton from '@/features/theme-toggle/ui/ThemeToggleButton';
 import { NAV_LINKS } from '../model/nav';
 import './site-header.scss';
 
-export default function SiteHeader() {
+export default function SiteHeader({ current }: { current?: string } = {}) {
   return (
     <>
       <a className="skip-link" href="#main">Skip to content</a>
@@ -13,7 +13,14 @@ export default function SiteHeader() {
         </a>
         <nav className="site-header__nav" aria-label="Site">
           {NAV_LINKS.map((link) => (
-            <a key={link.href} className="site-header__link" href={link.href}>{link.label}</a>
+            <a
+              key={link.href}
+              className="site-header__link"
+              href={link.href}
+              aria-current={link.href === current ? 'page' : undefined}
+            >
+              {link.label}
+            </a>
           ))}
         </nav>
         <div className="site-header__actions">

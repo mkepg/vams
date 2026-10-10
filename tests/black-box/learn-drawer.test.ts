@@ -17,6 +17,7 @@ import { COURSE, lessonsFor } from '@/features/lesson-engine/model/course';
 import { startLesson } from '@/features/lesson-engine/model/start-lesson';
 import LearnDrawer from '@/features/lesson-engine/ui/LearnDrawer';
 import LessonCard from '@/features/lesson-engine/ui/LessonCard';
+import { useRecordLessonOnLeave } from '@/features/lesson-engine/model/record-on-leave';
 
 async function settle() {
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
@@ -218,5 +219,32 @@ describe('BB-LEARN-10: An in-progress lesson is not marked with the accent', () 
     const rules = scss.split('\n').filter((line) => line.includes('is-progress'));
     expect(rules.length).toBeGreaterThan(0);
     for (const rule of rules) expect(rule).not.toMatch(/--accent/);
+  });
+});
+
+describe('BB-LEARN-11: Leaving the editor during a lesson records it as in progress', () => {
+  function Probe() {
+    useRecordLessonOnLeave();
+    return null;
+  }
+
+  it('records the lesson and its step when the tab closes and when the editor unmounts', async () => {
+    useVamsStore.setState({ appMode: 'Lesson', activeLessonId: 'buffers-demo-2', currentStepIndex: 3 });
+    const host = mount(h(Probe, {}));
+    await settle();
+    window.dispatchEvent(new Event('pagehide'));
+    expect(readProgress().current).toEqual({ lessonId: 'buffers-demo-2', step: 3 });
+    localStorage.removeItem(PROGRESS_KEY);
+    useVamsStore.setState({ currentStepIndex: 4 });
+    unmount(hosts.splice(hosts.indexOf(host), 1)[0]);
+    expect(readProgress().current).toEqual({ lessonId: 'buffers-demo-2', step: 4 });
+  });
+
+  it('records nothing when the editor leaves in Author mode', async () => {
+    const host = mount(h(Probe, {}));
+    await settle();
+    window.dispatchEvent(new Event('pagehide'));
+    unmount(hosts.splice(hosts.indexOf(host), 1)[0]);
+    expect(readProgress().current).toBeNull();
   });
 });

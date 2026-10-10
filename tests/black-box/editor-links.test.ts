@@ -7,6 +7,7 @@ import { afterEach, describe, it, expect } from 'vitest';
 import { h, render } from 'preact';
 import { renderToString } from 'preact-render-to-string';
 import { useVamsStore } from '@/core/store';
+import { PROGRESS_KEY, readProgress } from '@/features/lesson-engine/model/progress';
 import { createMemoryLibrary, setSceneLibraryForTests, type SceneLibrary } from '@/entities/project/model/scene-library';
 import { applyEditorLink, parseEditorLink, stripEditorLinkParams } from '@/pages/editor/model/editor-link';
 import { useEditorLink } from '@/pages/editor/model/useEditorLink';
@@ -235,5 +236,28 @@ describe('BB-LINK-13: Slide 07 offers the prepared scenes, and stage mode keeps 
     expect(withStageParam('?x=1', true)).toBe('?stage&x=1');
     expect(withStageParam('?stage&x=1', false)).toBe('?x=1');
     expect(withStageParam('?stage=&x=1', true)).toBe('?stage&x=1');
+  });
+});
+
+describe('BB-LINK-14: A lesson link records the lesson it replaces as left mid-way', () => {
+  afterEach(() => localStorage.removeItem(PROGRESS_KEY));
+  it('saves the running lesson and its step before opening the linked one', async () => {
+    await applyEditorLink({ kind: 'lesson', id: 'transforms-demo-1' }, noop);
+    useVamsStore.setState({ currentStepIndex: 2 });
+    await applyEditorLink({ kind: 'lesson', id: 'textures-demo-1' }, noop);
+    expect(readProgress().current).toEqual({ lessonId: 'transforms-demo-1', step: 2 });
+    const s = useVamsStore.getState();
+    expect(s.activeLessonId).toBe('textures-demo-1');
+    expect(s.activeSection).toBe('Textures');
+    s.clearLessonState();
+    s.setAppMode('Author');
+  });
+
+  it('records nothing when no lesson is running', async () => {
+    await applyEditorLink({ kind: 'lesson', id: 'textures-demo-1' }, noop);
+    expect(readProgress().current).toBeNull();
+    const s = useVamsStore.getState();
+    s.clearLessonState();
+    s.setAppMode('Author');
   });
 });

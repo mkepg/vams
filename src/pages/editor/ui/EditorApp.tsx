@@ -5,6 +5,7 @@ import CodeMathColumn from '@/widgets/layout/code-math-column';
 import ViewportRouter from '@/widgets/canvas/ViewportRouter';
 import { MyScenesDialog } from '@/features/scene-library';
 import LearnDrawer from '@/features/lesson-engine/ui/LearnDrawer';
+import { useRecordLessonOnLeave } from '@/features/lesson-engine/model/record-on-leave';
 import HelpCenter from '@/features/help/ui/HelpCenter';
 import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
 import WelcomeCard from '@/features/onboarding/ui/WelcomeCard';
@@ -19,6 +20,7 @@ export default function EditorApp() {
   useKeyboardShortcuts();
   useEditorLink();
   useCorruptSaveNotice();
+  useRecordLessonOnLeave();
   useLayoutEffect(() => {
     const root = document.documentElement;
     root.classList.add('route-editor');

@@ -44,37 +44,11 @@ export const VIEWS = {
 
 export const CURRICULUM = {
   title: 'Five sections, one pipeline.',
-  sections: [
-    {
-      name: 'Pipeline',
-      summary: 'The rendering pipeline, rasterization, normalized device coordinates and the GLUT program structure.',
-      calls: ['glutInit', 'glutDisplayFunc', 'glutMainLoop'],
-    },
-    {
-      name: 'Primitives',
-      summary: 'glBegin and glEnd primitives, colour, line styles, bitmap text and GLUT callbacks.',
-      calls: ['glBegin', 'glColor3f', 'glLineStipple'],
-    },
-    {
-      name: 'Buffers',
-      summary: 'Immediate mode, vertex arrays and VBOs, side by side.',
-      calls: ['glVertexPointer', 'glBufferData', 'glDrawElements'],
-    },
-    {
-      name: 'Transforms',
-      summary: 'Translate, rotate and scale, the matrix stack and glOrtho.',
-      calls: ['glTranslatef', 'glRotatef', 'glPushMatrix'],
-    },
-    {
-      name: 'Textures',
-      summary: 'Texture objects, UV coordinates, filtering and wrapping.',
-      calls: ['glBindTexture', 'glTexParameteri', 'glTexCoord2f'],
-    },
-  ],
   modes: [
     { name: 'Author', text: 'Build freely. The code follows every change.' },
     { name: 'Lesson', text: 'Guided steps and exercises that check your scene.' },
   ],
+  more: { href: '/learn', label: 'See every lesson' },
 };
 
 export const UNDER_THE_HOOD = {

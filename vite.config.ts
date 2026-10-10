@@ -27,7 +27,7 @@ export default defineConfig(({ mode }) => {
         prerender: {
           enabled: true,
           renderTarget: '#root',
-          additionalPrerenderRoutes: ['/404'],
+          additionalPrerenderRoutes: ['/404', '/learn'],
           previewMiddlewareEnabled: true,
           previewMiddlewareFallback: '/404',
         },

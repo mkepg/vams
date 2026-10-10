@@ -20,6 +20,13 @@ export const ROUTES: readonly RouteMeta[] = [
     indexable: true,
   },
   {
+    path: '/learn',
+    title: 'Learn — VAMS',
+    description:
+      'The VAMS course map: five sections of short OpenGL 1.5 lessons, from the rendering pipeline to textures. Open any lesson in the editor.',
+    indexable: true,
+  },
+  {
     path: '/app',
     title: 'VAMS Editor',
     description: 'Author 2D scenes and read the generated OpenGL 1.5 code and math side by side.',
