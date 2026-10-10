@@ -63,8 +63,25 @@ export function subscribeProgress(listener: Listener): () => void {
   };
 }
 
-export function useLessonProgress(): LessonProgress {
-  const [progress, setProgress] = useState(readProgress);
-  useEffect(() => subscribeProgress(setProgress), []);
+/**
+ * The student's progress, kept current. A prerendered page passes afterMount, so its first
+ * render matches the build (which has no storage) and progress is read once the page runs.
+ * Progress written by another tab arrives through the storage event.
+ */
+export function useLessonProgress({ afterMount = false }: { afterMount?: boolean } = {}): LessonProgress {
+  const [progress, setProgress] = useState<LessonProgress>(() => (afterMount ? empty() : readProgress()));
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (afterMount) setProgress(readProgress());
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === PROGRESS_KEY || event.key === null) setProgress(readProgress());
+    };
+    window.addEventListener('storage', onStorage);
+    const unsubscribe = subscribeProgress(setProgress);
+    return () => {
+      unsubscribe();
+      window.removeEventListener('storage', onStorage);
+    };
+  }, [afterMount]);
   return progress;
 }
