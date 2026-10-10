@@ -248,3 +248,17 @@ describe('BB-LEARN-11: Leaving the editor during a lesson records it as in progr
     expect(readProgress().current).toBeNull();
   });
 });
+
+describe('BB-LEARN-12: The drawer links to the full course map', () => {
+  it('offers /learn between its title and the section rail', async () => {
+    useVamsStore.setState({ learnOpen: true });
+    mount(h(LearnDrawer, {}));
+    await settle();
+    const link = document.querySelector<HTMLAnchorElement>('a.learn-drawer__map')!;
+    expect(link.getAttribute('href')).toBe('/learn');
+    expect(link.textContent).toBe('Full course map');
+    const head = document.querySelector('.learn-drawer__head')!;
+    expect(head.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(link.compareDocumentPosition(document.querySelector('.learn-rail')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});

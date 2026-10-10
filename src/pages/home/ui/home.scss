@@ -24,7 +24,7 @@
     line-height: var(--lh-lg);
     color: var(--ink-muted);
   }
-  &__actions { margin: var(--space-6) 0 0; }
+  &__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: var(--space-6) 0 0; }
 &__cta {
     display: inline-flex;
     align-items: center;
@@ -46,6 +46,17 @@
       transition: transform 120ms ease;
     }
     &:hover { filter: brightness(1.08); &::after { transform: translateX(3px); } }
+  }
+  /* The second door: the course, outlined in ink so the cobalt button stays the first choice. */
+  &__cta--secondary {
+    gap: var(--space-2);
+    background: transparent;
+    color: var(--ink);
+    box-shadow: inset 0 0 0 1.5px var(--ink);
+    transition: background-color 120ms ease;
+    svg { width: 18px; height: 18px; flex: none; }
+    &::after { content: none; }
+    &:hover { filter: none; background: var(--paper-raised); }
   }
 }
 
@@ -140,6 +151,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .home__cta--secondary { transition: none; }
   .home__cta { transition: none; &::after { transition: none; } &:hover::after { transform: none; } }
 }
 

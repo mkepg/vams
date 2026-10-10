@@ -1,3 +1,4 @@
+import { GraduationCap } from 'lucide-react';
 import HeroFigure from '../HeroFigure';
 
 export default function HeroSection() {
@@ -13,6 +14,10 @@ export default function HeroSection() {
         </p>
         <p className="home__actions">
           <a className="home__cta" href="/app">Open the app</a>
+          <a className="home__cta home__cta--secondary" href="/learn">
+            <GraduationCap aria-hidden="true" />
+            Browse the lessons
+          </a>
         </p>
       </div>
       <HeroFigure />

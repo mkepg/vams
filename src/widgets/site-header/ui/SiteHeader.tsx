@@ -12,16 +12,17 @@ export default function SiteHeader({ current }: { current?: string } = {}) {
           <Logo />
         </a>
         <nav className="site-header__nav" aria-label="Site">
-          {NAV_LINKS.map((link) => (
-            <a
-              key={link.href}
-              className="site-header__link"
-              href={link.href}
-              aria-current={link.href === current ? 'page' : undefined}
-            >
-              {link.label}
-            </a>
-          ))}
+          {/* The site's pages as one switcher; the current page is the raised segment. */}
+          <ul className="site-header__pages">
+            {NAV_LINKS.map(({ href, label, icon: Icon }) => (
+              <li key={href}>
+                <a className="site-header__link" href={href} aria-current={href === current ? 'page' : undefined}>
+                  {Icon && <Icon aria-hidden="true" />}
+                  {label}
+                </a>
+              </li>
+            ))}
+          </ul>
         </nav>
         <div className="site-header__actions">
           <ThemeToggleButton className="site-header__theme" />

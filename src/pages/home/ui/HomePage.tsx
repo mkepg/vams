@@ -22,7 +22,7 @@ export default function HomePage() {
   const stage = useStageMode(SECTION_IDS, () => route(presetHref('triangle')));
   return (
     <div className="site-page">
-      <SiteHeader />
+      <SiteHeader current="/" />
       <main id="main" className="home">
         <HeroSection />
         <ProblemSection />

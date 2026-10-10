@@ -65,6 +65,8 @@ $header-height: 3.7rem;
   --chrome-line: #6b7591;
   --chrome-sep: #3a4563;
   --chrome-lip: #34405f;
+  /* The recessed well the header's page switcher sits in. */
+  --chrome-well: #11172a;
   --chrome-ink: #e4e8f2;
   --chrome-muted: #a2abc2;
   --chrome-faint: #959eb5;
@@ -170,6 +172,7 @@ $header-height: 3.7rem;
   --danger: #f87171;
 
   --chrome: #080b12;
+  --chrome-well: #03050a;
 
   --logo-glow: 0 0 15px rgba(0, 240, 255, 0.4);
 
