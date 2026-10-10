@@ -51,8 +51,17 @@ test('VIS-ABOUT-03: Light, 390, no horizontal scroll', async ({ page }) => {
 test('VIS-ABOUT-04: BibTeX open, light, 390, scrolls inside its panel', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await open(page, 'light');
-  await page.click('#citation-tab-bibtex');
+  // The prerendered HTML is clickable before hydration, so retry until the tab takes.
+  await expect(async () => {
+    await page.click('#citation-tab-bibtex');
+    await expect(page.locator('#citation-tab-bibtex')).toHaveAttribute('aria-selected', 'true', { timeout: 500 });
+  }).toPass();
   await expect(page.locator('#citation-panel-bibtex')).toBeVisible();
+  const scrolls = await page.evaluate(() => {
+    const pre = document.querySelector('#citation-panel-bibtex pre')!;
+    return pre.scrollWidth > pre.clientWidth;
+  });
+  expect(scrolls).toBe(true);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
   await expect(page.locator('.about-record')).toHaveScreenshot('about-bibtex-light-390.png');
