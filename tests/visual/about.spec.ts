@@ -47,3 +47,13 @@ test('VIS-ABOUT-03: Light, 390, no horizontal scroll', async ({ page }) => {
   expect(overflow).toBeLessThanOrEqual(0);
   await expect(page).toHaveScreenshot('about-light-390.png', { fullPage: true });
 });
+
+test('VIS-ABOUT-04: BibTeX open, light, 390, scrolls inside its panel', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await open(page, 'light');
+  await page.click('#citation-tab-bibtex');
+  await expect(page.locator('#citation-panel-bibtex')).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  await expect(page.locator('.about-record')).toHaveScreenshot('about-bibtex-light-390.png');
+});

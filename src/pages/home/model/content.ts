@@ -87,6 +87,8 @@ export const TEAM: { name: string; program: string; members: readonly TeamMember
   ],
 };
 
+export const TEAM_MORE = { href: '/about', label: 'The full story' };
+
 export const TRY_IT = {
   title: 'Try it.',
   cta: 'Open the app',

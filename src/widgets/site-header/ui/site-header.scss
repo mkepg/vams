@@ -88,6 +88,7 @@
 &__cta {
     display: inline-flex;
     align-items: center;
+    gap: 0.25em; /* flex items drop edge spaces, so the words in "Open the app" are spaced here */
     min-height: 36px;
     padding: 0 var(--space-4);
     background: var(--accent);
@@ -110,10 +111,11 @@
 @media (max-width: 480px) {
   .site-header { padding-inline: var(--space-3); gap: var(--space-2); }
   .site-header__home { font-size: 0.8rem; }
-  .site-header__link { padding: 0 var(--space-2); font-size: var(--text-base); }
+  .site-header__link { padding: 0 6px; font-size: var(--text-base); }
   .site-header__link svg { display: none; }
   .site-header__actions { gap: var(--space-2); }
   .site-header__cta { padding: 0 var(--space-3); }
+  .site-header__cta-the { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

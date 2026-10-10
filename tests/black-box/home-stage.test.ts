@@ -499,3 +499,12 @@ describe('BB-HOME-23: The hero offers the lessons beside the app', () => {
     expect(actions[1].classList.contains('home__cta--secondary')).toBe(true);
   });
 });
+
+describe('BB-HOME-24: The Team slide links to the full story on /about', () => {
+  it('renders one /about link inside the team section', async () => {
+    window.history.replaceState(null, '', '/');
+    const { html } = await prerender({ url: '/' });
+    const team = html.slice(html.indexOf('id="team"'), html.indexOf('id="try"'));
+    expect(team).toContain('<p class="team-more"><a href="/about">The full story</a></p>');
+  });
+});

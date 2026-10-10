@@ -510,6 +510,7 @@ describe('BB-SITE-29: /learn is a finished, linked, prerendered page', () => {
     expect(NAV_LINKS.map(({ href, label }) => ({ href, label }))).toEqual([
       { href: '/', label: 'Home' },
       { href: '/learn', label: 'Learn' },
+      { href: '/about', label: 'About' },
     ]);
     expect(buildSitemap(SITE)).toContain('<loc>https://example.test/learn</loc>');
     expect(readFileSync('vite.config.ts', 'utf8')).toMatch(/additionalPrerenderRoutes:\s*\[[^\]]*'\/learn'/);
@@ -535,5 +536,41 @@ describe('BB-SITE-30: The footer links to /learn first', () => {
     expect(first.getAttribute('href')).toBe('/learn');
     expect(first.textContent).toBe('Learn');
     render(null, host);
+  });
+});
+
+describe('BB-SITE-31: About is current only on /about, and has no icon', () => {
+  it('marks /about current on the About page and leaves Learn plain', async () => {
+    window.history.replaceState(null, '', '/about');
+    expect(currentNavHref((await prerenderAt('/about')).html)).toEqual(['/about']);
+    expect(currentNavHref((await prerenderAt('/learn')).html)).toEqual(['/learn']);
+    expect(NAV_LINKS.find((link) => link.href === '/about')!.icon).toBeUndefined();
+  });
+});
+
+describe('BB-SITE-32: The footer links run Learn, About, then the source', () => {
+  it('lists Learn and About ahead of the source and license links', () => {
+    const host = document.createElement('div');
+    render(h(SiteFooter, {}), host);
+    const links = [...host.querySelectorAll('.site-footer__links a')];
+    expect(links.map((a) => [a.textContent, a.getAttribute('href')])).toEqual([
+      ['Learn', '/learn'],
+      ['About', '/about'],
+      ['Source on GitHub', 'https://github.com/mkepg/vams'],
+    ]);
+    render(null, host);
+  });
+});
+
+describe('BB-SITE-33: On phones the header CTA reads Open app', () => {
+  it('wraps "the " in a span that the 480 px rule hides', async () => {
+    const host = document.createElement('div');
+    host.innerHTML = (await prerenderAt('/')).html;
+    const cta = host.querySelector('.site-header__cta')!;
+    expect(cta.textContent).toBe('Open the app');
+    expect(cta.querySelector('.site-header__cta-the')!.textContent).toBe('the ');
+    const scss = readFileSync('src/widgets/site-header/ui/site-header.scss', 'utf8').replace(/\r\n/g, '\n');
+    const phone = scss.slice(scss.indexOf('@media (max-width: 480px)'));
+    expect(phone).toMatch(/\.site-header__cta-the\s*\{\s*display:\s*none;\s*\}/);
   });
 });
