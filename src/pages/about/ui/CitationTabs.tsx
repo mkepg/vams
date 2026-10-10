@@ -28,6 +28,7 @@ export default function CitationTabs() {
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   const texts = useRef<Partial<Record<CitationId, HTMLElement | null>>>({});
   const timer = useRef<number | undefined>(undefined);
+  const activeId = useRef<CitationId>('apa');
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
@@ -38,6 +39,7 @@ export default function CitationTabs() {
   };
 
   const select = (id: CitationId) => {
+    activeId.current = id;
     setActive(id);
     show('idle');
   };
@@ -46,14 +48,16 @@ export default function CitationTabs() {
     try {
       if (!navigator.clipboard?.writeText) throw new Error('No clipboard');
       await navigator.clipboard.writeText(CITATIONS[id]);
-      show('copied');
+      if (activeId.current === id) show('copied');
     } catch {
+      if (activeId.current !== id) return;
       selectText(texts.current[id] ?? null);
       show('fallback');
     }
   };
 
   const onKeyDown = (event: JSX.TargetedKeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
     const last = TABS.length - 1;
     const keys: Record<string, number> = {
       ArrowRight: index === last ? 0 : index + 1,
@@ -116,6 +120,8 @@ export default function CitationTabs() {
           ) : (
             <pre
               className="citation__text citation__text--code"
+              tabIndex={0}
+              aria-label="BibTeX citation"
               ref={(el) => {
                 texts.current.bibtex = el;
               }}

@@ -34,6 +34,9 @@ describe('BB-ABOUT-03: The story and the facts state the lesson count and the fi
       'Found a problem?',
     ]);
     expect(ABOUT_COPY.story(45)).toHaveLength(4);
+    expect(ABOUT_COPY.facts(45).find((fact) => fact.term === 'Offline')!.text).toBe(
+      'After your first visit VAMS works without internet, and in Chrome or Edge you can install it as an app.',
+    );
   });
 });
 
@@ -137,6 +140,9 @@ describe('BB-ABOUT-06: The citation tabs follow the tabs pattern', () => {
     expect(panel(host, 'apa').textContent).toContain(CITATIONS.apa);
     expect(panel(host, 'apa').querySelector('i')!.textContent).toBe(APA_PARTS.title);
     expect(panel(host, 'bibtex').querySelector('pre')!.textContent).toBe(CITATIONS.bibtex);
+    const pre = panel(host, 'bibtex').querySelector('pre')!;
+    expect(pre.getAttribute('tabindex')).toBe('0');
+    expect(pre.getAttribute('aria-label')).toBe('BibTeX citation');
     expect(host.querySelectorAll('button.citation__copy').length).toBe(2);
     expect(panel(host, 'apa').getAttribute('aria-labelledby')).toBe('citation-tab-apa');
     expect(tab(host, 'apa').getAttribute('aria-controls')).toBe('citation-panel-apa');
@@ -163,6 +169,18 @@ describe('BB-ABOUT-06: The citation tabs follow the tabs pattern', () => {
     tab(host, 'apa').click();
     await tick();
     expect(tab(host, 'apa').getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('ignores arrow keys held with Alt, Ctrl or Meta so browser shortcuts still work', async () => {
+    const host = mount(h(CitationTabs, {}));
+    tab(host, 'apa').focus();
+    for (const modifier of ['altKey', 'ctrlKey', 'metaKey']) {
+      const event = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true, [modifier]: true });
+      const notPrevented = tab(host, 'apa').dispatchEvent(event);
+      await tick();
+      expect(notPrevented, modifier).toBe(true);
+      expect(tab(host, 'apa').getAttribute('aria-selected'), modifier).toBe('true');
+    }
   });
 });
 
@@ -201,6 +219,23 @@ describe('BB-ABOUT-07: Copy puts the visible citation on the clipboard and says 
     panel(host, 'bibtex').querySelector<HTMLButtonElement>('.citation__copy')!.click();
     await flush();
     expect(writeText).toHaveBeenLastCalledWith(CITATIONS.bibtex);
+  });
+
+  it('does not show Copied on the other panel when the copy resolves after a tab switch', async () => {
+    vi.useFakeTimers();
+    let resolveWrite!: () => void;
+    const writeText = vi.fn().mockReturnValue(new Promise<void>((done) => (resolveWrite = done)));
+    setClipboard({ writeText });
+    const host = mount(h(CitationTabs, {}));
+    panel(host, 'apa').querySelector<HTMLButtonElement>('.citation__copy')!.click();
+    await flush();
+    tab(host, 'bibtex').click();
+    await flush();
+    resolveWrite();
+    await flush();
+    const bibtexCopy = panel(host, 'bibtex').querySelector<HTMLButtonElement>('.citation__copy')!;
+    expect(bibtexCopy.textContent).toBe(ABOUT_COPY.copy);
+    expect(status(host)).toBe('');
   });
 });
 

@@ -29,6 +29,7 @@ Out of scope: an engineering deep dive (the home slide and the README cover it),
 | Layout | Option B: labeled bands, like /learn's sections |
 | Entry points | The header switcher (Home, Learn, About), the footer, and a link on the home Team slide |
 | Phone header | "Open the app" reads "Open app" at 480px and below |
+| Offline wording | Name Chrome and Edge for installing; offline use holds in all three browsers |
 | Phones below 375px | The header hides the Home segment; the logo links home |
 | About nav icon | None. Learn keeps the only icon |
 
@@ -72,7 +73,7 @@ A definition list of six facts, in two columns on wide screens and one on narrow
 | What it teaches | OpenGL 1.5 in 2D, in five sections that follow the pipeline: Pipeline, Primitives, Buffers, Transforms, Textures. {N} lessons in all. |
 | Two modes | Author, where you build freely. Lesson, where guided steps play out and exercises check your scene. |
 | Where it runs | A desktop browser: Chrome, Edge or Firefox. Nothing to install. |
-| Offline | After your first visit VAMS works without internet, and you can install it as an app from your browser. |
+| Offline | After your first visit VAMS works without internet, and in Chrome or Edge you can install it as an app. |
 | Your work | Your scene and your lesson progress stay in this browser between visits. My scenes keeps named scenes and your last five backups. To move work to another computer, save a project file. |
 | Found a problem? | A link, "Open an issue on GitHub", to `https://github.com/mkepg/vams/issues`. |
 
