@@ -43,14 +43,14 @@ The page uses the site shell: the ink chrome header, then `main`, then the foote
 
 - `h1`: **Learn**.
 - Lede, one sentence: the course follows the OpenGL pipeline in five sections; demos walk through an idea step by step, and exercises ask the student to build it in the editor.
-- A status line that reads from progress (§5):
-  - before progress is read, and when nothing is done: "{N} lessons in five sections", where N comes from the catalog;
-  - otherwise: "{done} of {N} lessons done".
 - **Next up**, one lesson, as a link row (the same row as §3.3):
   - the lesson the student left mid-way, with "Left at step {s} of {n}";
   - otherwise, the first lesson in course order that is not done;
   - when every lesson is done, the line reads "Every lesson is done." and no row is shown.
   - Before progress is read, Next up shows the first lesson of the course. That is also the right answer for a first visit, so the prerendered page is correct for a new student.
+- Under it, a status line that reads from progress (§5):
+  - before progress is read, and when nothing is done: "{N} lessons in five sections", where N comes from the catalog;
+  - otherwise: "{done} of {N} lessons done".
 
 ### 3.2 Section index
 
@@ -141,7 +141,7 @@ This is the only editor change, and it lands before 2026-10-28.
 - `ROUTES` gains `/learn`, which is indexable:
   - title "Learn — VAMS";
   - description: "The VAMS course map: five sections of short OpenGL 1.5 lessons, from the rendering pipeline to textures. Open any lesson in the editor."
-- `NAV_LINKS` gains `{ href: '/learn', label: 'Learn' }`, in the same change.
+- `NAV_LINKS` gains `{ href: '/learn', label: 'Learn' }`, in the same change. The header hid its nav below 640px while it was empty; it now stays visible, so phones keep the Learn link.
 - `SiteApp` routes `/learn` to the Learn page. The page is small, so it is not lazy-loaded.
 - Prerender lists `/learn` in `additionalPrerenderRoutes`, so it does not depend on link crawling.
 - The sitemap picks the page up from `ROUTES`. The default Open Graph image is reused.
@@ -155,7 +155,7 @@ This is the only editor change, and it lands before 2026-10-28.
 
 ## 9. Testing
 
-New suite `tests/black-box/learn-page.test.ts` (`BB-LEARN-NN`):
+New suite `tests/black-box/learn-page.test.ts` (`BB-LPAGE-NN`; `BB-LEARN` already belongs to the Learn drawer suite):
 
 1. Every catalog lesson renders once, in its section and list, linking to `/app?lesson=<id>`.
 2. The status marks, meta and accessible names are right for not started, in progress and done.
