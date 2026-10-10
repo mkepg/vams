@@ -15,6 +15,7 @@ export default function SiteFooter({ actions }: { actions?: ComponentChildren })
         An undergraduate thesis project, FEU Institute of Technology. Gomez, Taguiam and Vizco.
       </p>
       <p className="site-footer__links">
+        <a href="/learn">Learn</a>
         <a href={REPO_URL} rel="noopener">Source on GitHub</a>
         <span>MIT License</span>
       </p>

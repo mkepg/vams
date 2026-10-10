@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, X } from 'lucide-react';
+import { ArrowUpRight, Check, Map as MapIcon, X } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import type { CurriculumSection } from '@/core/store/types';
 import type { Lesson } from '@/core/types/lesson';
@@ -82,6 +82,12 @@ export default function LearnDrawer() {
         <h2 id="learn-title" className="learn-drawer__title">Learn</h2>
         <Button variant="quiet" iconOnly label="Close" icon={<X />} onClick={close} />
       </div>
+      {/* Leaves the editor for the /learn page, which shows every section at once. */}
+      <a className="learn-drawer__map" href="/learn" onClick={close}>
+        <MapIcon aria-hidden="true" />
+        Full course map
+        <ArrowUpRight aria-hidden="true" />
+      </a>
       <div className="learn-rail" role="radiogroup" aria-label="Sections" onKeyDown={onRailKey}>
         {COURSE.map(({ section }) => {
           const checked = section === shown;

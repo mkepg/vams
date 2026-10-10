@@ -486,3 +486,16 @@ describe('BB-HOME-22: The curriculum slide links to every lesson on /learn', () 
     expect(curriculum).toContain('<a href="/learn">See every lesson</a>');
   });
 });
+
+describe('BB-HOME-23: The hero offers the lessons beside the app', () => {
+  it('renders an outlined /learn button after Open the app', async () => {
+    window.history.replaceState(null, '', '/');
+    const { html } = await prerender({ url: '/' });
+    const host = document.createElement('div');
+    host.innerHTML = html;
+    const actions = [...host.querySelectorAll('#top .home__actions a')];
+    expect(actions.map((a) => a.getAttribute('href'))).toEqual(['/app', '/learn']);
+    expect(actions[1].textContent).toBe('Browse the lessons');
+    expect(actions[1].classList.contains('home__cta--secondary')).toBe(true);
+  });
+});

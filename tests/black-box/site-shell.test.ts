@@ -494,23 +494,46 @@ describe('BB-SITE-28: On light paper the wordmark sits on an ink plate', () => {
   });
 });
 
+/** The header links marked as the current page in prerendered HTML. */
+function currentNavHref(html: string): string[] {
+  const host = document.createElement('div');
+  host.innerHTML = html;
+  return [...host.querySelectorAll('.site-header__link[aria-current="page"]')].map((a) => a.getAttribute('href')!);
+}
+
 describe('BB-SITE-29: /learn is a finished, linked, prerendered page', () => {
   it('has indexable metadata, a header link, a sitemap entry and a prerender entry', async () => {
     const meta = findRouteMeta('/learn');
     expect(meta.path).toBe('/learn');
     expect(meta.indexable).toBe(true);
     expect(meta.title).toBe('Learn — VAMS');
-    expect(NAV_LINKS).toEqual([{ href: '/learn', label: 'Learn' }]);
+    expect(NAV_LINKS.map(({ href, label }) => ({ href, label }))).toEqual([
+      { href: '/', label: 'Home' },
+      { href: '/learn', label: 'Learn' },
+    ]);
     expect(buildSitemap(SITE)).toContain('<loc>https://example.test/learn</loc>');
     expect(readFileSync('vite.config.ts', 'utf8')).toMatch(/additionalPrerenderRoutes:\s*\[[^\]]*'\/learn'/);
     const result = await prerenderAt('/learn');
     expect(result.html).toContain('class="learn"');
-    expect(result.html).toMatch(/<a[^>]*aria-current="page"[^>]*>Learn<\/a>/);
+    expect(currentNavHref(result.html)).toEqual(['/learn']);
     expect(result.head.title).toBe('Learn — VAMS');
   });
 
-  it('marks no header link as current on the home page', async () => {
-    const result = await prerenderAt('/');
-    expect(result.html).not.toContain('aria-current="page"');
+  it('marks Home current on the home page and nothing current on the not-found page', async () => {
+    expect(currentNavHref((await prerenderAt('/')).html)).toEqual(['/']);
+    expect(currentNavHref((await prerenderAt('/404')).html)).toEqual([]);
+  });
+});
+
+import SiteFooter from '@/widgets/site-footer';
+
+describe('BB-SITE-30: The footer links to /learn first', () => {
+  it('puts Learn ahead of the source and license links', () => {
+    const host = document.createElement('div');
+    render(h(SiteFooter, {}), host);
+    const first = host.querySelector('.site-footer__links a')!;
+    expect(first.getAttribute('href')).toBe('/learn');
+    expect(first.textContent).toBe('Learn');
+    render(null, host);
   });
 });
