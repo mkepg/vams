@@ -15,15 +15,14 @@ The page succeeds when:
 - a returning student sees, without scrolling, what they finished and what comes next;
 - the page is prerendered, indexable, works offline after one visit, and adds nothing to the shared bundle beyond its own data and styles.
 
-### Decisions taken in this spec
+### Owner decisions (2026-10-10)
 
-The owner gave the direction ("the course map outside the editor, reusing the Learn drawer's course data and progress"). The calls below fill in the rest and are open to change in review:
+1. **Scope:** a course map with a short introduction per section. Full study pages (a reading page per section with prose, diagrams and worked math) were considered and left to the Guide page, which follows this one; they would have absorbed it and put the Nov 2 date at risk. The help-center content stays in the editor for the same reason.
+2. **Top of the page:** a Next up lesson and the overall count (§3.1).
+3. **Entry points:** the site header's Learn link and a link on the home page's curriculum slide. The editor's Learn drawer does not link to `/learn`; it already lists every lesson.
+4. **Section layout:** the introduction on the left and the lessons on the right (§3.3). Two alternatives were considered: the lists side by side under a full-width introduction (narrow lists at laptop widths), and a sticky pipeline rail (costs width and needs a separate phone index).
 
-1. The page is a course map with a short introduction per section. It does not have reading pages per lesson or per section; explanatory content belongs to the Guide page, which follows this one.
-2. The help-center content stays in the editor. Moving it onto real pages is the Guide page's job.
-3. The section introductions reuse the summaries and key calls the home page's curriculum slide already shows, moved into shared course data so both pages read one source.
-4. Lessons open through the existing `/app?lesson=<id>` links.
-5. "Learn" is the header's first and only nav link.
+The section introductions reuse the summaries and key calls the home page's curriculum slide already shows, moved into shared course data so both pages read one source. Lessons open through the existing `/app?lesson=<id>` links.
 
 ## 2. Scope
 
