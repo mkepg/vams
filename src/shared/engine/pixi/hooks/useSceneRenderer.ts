@@ -110,6 +110,8 @@ export function useSceneRenderer({
       },
       getCanvasSize: () => ({ width: app.screen.width, height: app.screen.height }),
       resync: () => {
+        // Restore the editor scale first so rebuilt content uses editor line widths and hit areas.
+        applyViewportTransform();
         const objects = useVamsStore.getState().objects;
         objects.forEach((obj) => {
           const container = containersRef.current.get(obj.id);
@@ -122,7 +124,6 @@ export function useSceneRenderer({
           if (overriddenRef.current.has(obj.id)) rebuildContent(container, obj);
         });
         overriddenRef.current.clear();
-        applyViewportTransform();
       },
     });
     return unregister;

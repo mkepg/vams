@@ -189,9 +189,18 @@ class RunController {
       this.stop();
       return;
     }
-    // Stop and the window handle keep their own keys (Enter, Space, arrows); nothing is delivered.
+    // A focused button keeps only its activation keys, and the window handle its arrows.
+    // Nothing else reaches editor shortcuts or handlers.
     const target = event.target instanceof Element ? event.target : null;
-    if (target?.closest('button')) return;
+    if (target?.closest('button')) {
+      const modified = event.ctrlKey || event.metaKey || event.altKey;
+      const activation = event.key === 'Enter' || event.key === ' ';
+      const arrow = event.key in SPECIAL && !!target.closest('.run-handle');
+      if (!modified && (activation || arrow)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
     event.preventDefault();
     event.stopImmediatePropagation();
     if (event.ctrlKey || event.metaKey || event.altKey) return;

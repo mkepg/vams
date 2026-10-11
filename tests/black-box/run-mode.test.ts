@@ -160,3 +160,38 @@ describe('BB-RUN-9: A lesson step change stops Run', () => {
     expect(runController.getSnapshot().running).toBe(false);
   });
 });
+
+describe('BB-RUN-13: A focused button keeps only its own keys during Run', () => {
+  it('blocks editor shortcuts and passes activation and handle arrows', () => {
+    setup();
+    runController.start({ loop: false });
+    const button = document.createElement('button');
+    const handle = document.createElement('button');
+    handle.className = 'run-handle';
+    document.body.append(button, handle);
+    const spy = vi.fn();
+    window.addEventListener('keydown', spy);
+    const send = (el: HTMLElement, key: string, init: KeyboardEventInit = {}) =>
+      el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init }));
+    try {
+      button.focus();
+      send(button, 'Delete');
+      send(button, 'z', { ctrlKey: true });
+      send(button, 'd', { ctrlKey: true });
+      send(button, 'ArrowRight');
+      expect(spy).not.toHaveBeenCalled();
+      expect(runController.getSnapshot().running).toBe(true);
+      expect(runController.getSnapshot().lastCall).toBeNull();
+      send(button, 'Enter');
+      send(button, ' ');
+      expect(spy).toHaveBeenCalledTimes(2);
+      send(handle, 'ArrowLeft');
+      expect(spy).toHaveBeenCalledTimes(3);
+      expect(runController.getSnapshot().lastCall).toBeNull();
+    } finally {
+      window.removeEventListener('keydown', spy);
+      button.remove();
+      handle.remove();
+    }
+  });
+});
