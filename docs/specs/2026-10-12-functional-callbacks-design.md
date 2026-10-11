@@ -127,6 +127,8 @@ Targets:
 - Set colour lists only objects that draw vertices or text, so groups are left out.
 - Actions on a group move, hide or reset its children with it, because the children are drawn inside the group's matrix and visibility check.
 
+Objects hidden in the editor are left out of the generated program, so rules that target them are left out of the handler bodies and are skipped by Run.
+
 Rules run in list order. Rules sharing a trigger (two rules on the D key) are grouped into one branch, in the order they appear. Each callback holds up to **8 rules**.
 
 ### Store
@@ -142,6 +144,8 @@ The callbacks slice keeps its name and file. Its actions are as follows; every o
 - `getRegisteredCallbacks()`: returns the valid registered callbacks in the table order above.
 
 Rule ids use the same id helper the texture slice uses (`crypto.randomUUID` with a fallback).
+
+Undo history snapshots gain `callbacks`, so undo and redo restore the callbacks along with the objects. Today a snapshot holds the objects and the selection only.
 
 When an object is deleted, every rule that targets it, or targets one of its deleted descendants, is removed in the same history step. Undo restores both. Renaming an object changes nothing in the rules, since they hold the id. The generated code picks up the new name.
 
@@ -400,7 +404,7 @@ The rule line, form and list are new components in `features/callbacks/ui/`. The
 ### Starting and stopping
 
 - **The Run button.** It sits on the canvas, top-right: a primary small button with a Play icon labelled "Run".
-  - It is enabled when the scene has at least one object and at least one valid registered callback or saved animation. Otherwise it is `aria-disabled`, with the tooltip "Add a callback or an animation to run".
+  - It is enabled when the scene has at least one object and at least one valid registered callback or saved animation. Otherwise it is disabled, with the tooltip "Add a callback or an animation to run".
   - The animation preview's code overlay moves down to clear it.
 - **Starting.** Run starts from the button or from "Try it". Starting Run stops a playing animation preview.
 - **Stopping.** These stop Run:
@@ -493,10 +497,10 @@ Note what follows from this. A saved Slide or Orbit animation sets `x` every fra
 
 `features/callbacks/model/run-controller.ts` is a singleton modelled on the animation controller:
 
-- It is exposed through `useSyncExternalStore`, with the snapshot `{ running, lastCall, firedLines, window }`.
+- It is exposed through `useSyncExternalStore`, with the snapshot `{ running, lastCall, fired, window, canvas }`. `fired` is `{ kind, handlerName, trigger, seq }` for the last non-idle event that reached a handler (`trigger` is the matched rule's trigger, or `null` when no rule matched), or `null`.
 - It owns the frame loop, the event listeners and the store watch.
 - It never calls a scene-state setter. It pushes the run state to the canvas through the render bridge.
-- `firedLines` comes from `locateHandlerBranch` for each non-idle event that matched a rule or reached a handler. It clears 700ms after the last event.
+- `fired` clears 700ms after the last event.
 
 `shared/engine/render-bridge.ts` gains:
 
@@ -506,9 +510,9 @@ Note what follows from this. A saved Slide or Orbit animation sets `x` every fra
 
 ### Code panel feedback
 
-`SceneCodePanel` gains an optional `flashLines?: number[]` prop. When it is present, it is passed to `CodeViewer` as `changedLines`, which already highlights those lines and scrolls them into view. In Lesson mode the lesson's own changed lines win, unless Run is active.
+`SceneCodePanel` gains an optional `flashBranch?: { handlerName: string; trigger: RuleTrigger | null; seq: number } | null` prop. When it is present, the panel runs `locateHandlerBranch` on the code it shows and passes the lines to `CodeViewer` as `changedLines`, which already highlights those lines and scrolls them into view. While a branch flashes it wins over the lesson's own changed lines.
 
-The panel's parent in the page layer reads the run controller and passes `firedLines` down, so `code-generation` never imports `callbacks`.
+The panel's parent, the `code-math-column` widget, reads the run controller and passes `fired` down, so `code-generation` never imports `callbacks`.
 
 ### Placement
 
@@ -615,7 +619,7 @@ These join the roadmap's divergence list as items 13 and 14:
 
 1. Run is disabled with no object, or with neither a valid callback nor an animation.
 2. Starting Run calls Reshape once with the window size. The readout shows `onReshape(w, h)`.
-3. Pressing D during Run moves the target's display object, shows `onKey('d', x, y)`, and sets `firedLines` to the `case 'd'` branch.
+3. Pressing D during Run moves the target's display object, shows `onKey('d', x, y)`, and sets `fired` to the Keyboard handler with the `d` trigger. The code panel given that `flashBranch` highlights the `case 'd'` branch.
 4. Run never writes the store. The persisted `vams-storage` value and an exported `.vams` file are byte-identical before Run, during Run after events, and after Stop.
 5. Stop, Esc and an undo each end Run and restore every display object's saved transform, appearance and view.
 6. During Run the editor column and the top-bar actions are `inert`, and the Delete and Ctrl+Z shortcuts do nothing.
