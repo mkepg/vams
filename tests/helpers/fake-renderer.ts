@@ -11,6 +11,7 @@ export interface FakeDisplay {
   scale: { x: number; y: number; set(x: number, y: number): void };
   rotation: number;
   destroyed: boolean;
+  visible: boolean;
 }
 
 export function makeFakeDisplay(): FakeDisplay {
@@ -33,19 +34,30 @@ export function makeFakeDisplay(): FakeDisplay {
     },
     rotation: 0,
     destroyed: false,
+    visible: true,
   };
+}
+
+export interface FakeRendererExtras {
+  setAppearance?: (id: string, appearance: { color: string | null; visible: boolean }) => void;
+  setView?: (view: { minX: number; maxX: number; minY: number; maxY: number }, rect: { x: number; y: number; width: number; height: number }) => void;
+  getCanvasSize?: () => { width: number; height: number };
+  onResync?: () => void;
 }
 
 /**
  * Register a fake renderer that serves `displays` (keyed by object id) and
  * resyncs them from the store. Returns the unregister fn.
  */
-export function registerFakeRenderer(displays: Map<string, FakeDisplay>): () => void {
+export function registerFakeRenderer(displays: Map<string, FakeDisplay>, extras: FakeRendererExtras = {}): () => void {
   return renderBridge.register({
     // The controller only ever reads the transform surface; the Application is
     // never touched here, so an empty cast is safe for tests.
     app: {} as never,
     getDisplayObject: (id) => displays.get(id) as never,
+    setAppearance: extras.setAppearance,
+    setView: extras.setView,
+    getCanvasSize: extras.getCanvasSize,
     resync: () => {
       useVamsStore.getState().objects.forEach((obj) => {
         const d = displays.get(obj.id);
@@ -53,7 +65,9 @@ export function registerFakeRenderer(displays: Map<string, FakeDisplay>): () => 
         d.position.set(obj.transform.translateX, obj.transform.translateY);
         d.rotation = (obj.transform.rotate * Math.PI) / 180;
         d.scale.set(obj.transform.scaleX, obj.transform.scaleY);
+        d.visible = obj.visible;
       });
+      extras.onResync?.();
     },
   });
 }

@@ -12,8 +12,9 @@ import type { Application, Container } from 'pixi.js';
  * Two hard rules live in this file's contract:
  *   1. `getDisplayObject` is read-only. Callers may animate the returned
  *      Container, but the saved scene never learns about it.
- *   2. `resync()` re-applies the store transforms to the live containers,
- *      restoring the renderer to "state is the single source of truth" after
+ *   2. `resync()` re-applies the store transforms and visibility, clears Run's
+ *      appearance overrides and restores the editor's viewport transform,
+ *      returning the renderer to "state is the single source of truth" after
  *      a transient preview ends.
  */
 
@@ -24,6 +25,15 @@ interface RenderBridgeHandlers {
   resync: () => void;
   /** The active PixiJS application (used for its shared frame ticker). */
   app: Application;
+  /** Run: draw an object in one flat colour (or its own colours for null), shown or hidden. */
+  setAppearance?: (id: string, appearance: { color: string | null; visible: boolean }) => void;
+  /** Run: map `view` (world units) onto `rect` (canvas pixels, top-left origin). */
+  setView?: (
+    view: { minX: number; maxX: number; minY: number; maxY: number },
+    rect: { x: number; y: number; width: number; height: number },
+  ) => void;
+  /** The canvas size in CSS pixels. */
+  getCanvasSize?: () => { width: number; height: number };
 }
 
 let handlers: RenderBridgeHandlers | null = null;
@@ -56,5 +66,20 @@ export const renderBridge = {
   /** Restore every live container to its stored transform. No-op if unready. */
   resync(): void {
     handlers?.resync();
+  },
+
+  setAppearance(id: string, appearance: { color: string | null; visible: boolean }): void {
+    handlers?.setAppearance?.(id, appearance);
+  },
+
+  setView(
+    view: { minX: number; maxX: number; minY: number; maxY: number },
+    rect: { x: number; y: number; width: number; height: number },
+  ): void {
+    handlers?.setView?.(view, rect);
+  },
+
+  getCanvasSize(): { width: number; height: number } | null {
+    return handlers?.getCanvasSize?.() ?? null;
   },
 };
