@@ -26,7 +26,8 @@ const rule = (objectId: string, over: Partial<CallbackRule> = {}): CallbackRule 
 describe('BB-CB-13: Handler names that would not compile are flagged', () => {
   it('rejects non-identifiers, reserved names, reserved prefixes and C++ keywords', () => {
     for (const bad of ['', '1abc', 'on key', 'main', 'display', 'draw', 'init', 'update_buffers',
-      'windowToWorld', '_vams_idle', 'draw_Tri', 'animate_x', 'state_y', 'initial_z', 'switch', 'class']) {
+      'windowToWorld', '_vams_idle', 'draw_Tri', 'animate_x', 'state_y', 'initial_z', 'switch', 'class',
+      'viewMinX', 'viewMaxY', 'vbo_x', 'tex_y']) {
       expect(isValidHandlerName(bad)).toBe(false);
     }
     for (const good of ['onKey', '_handler', 'onMouse2']) expect(isValidHandlerName(good)).toBe(true);

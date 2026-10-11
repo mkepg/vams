@@ -35,8 +35,13 @@ export function newRuleId(): string {
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const RESERVED_NAMES: ReadonlySet<string> = new Set([
   'main', 'init', 'display', 'draw', 'update_buffers', 'windowToWorld', '_vams_idle',
+  'viewMinX', 'viewMaxX', 'viewMinY', 'viewMaxY',
 ]);
-const RESERVED_PREFIXES = ['draw_', 'animate_', 'state_', 'initial_'];
+const RESERVED_PREFIXES = [
+  'draw_', 'animate_', 'state_', 'initial_',
+  'vbo_', 'cbo_', 'ebo_', 'uvbo_', 'verts_', 'colors_', 'uvs_', 'indices_', 'tex_',
+  'baseX_', 'baseY_', 'baseSX_', 'baseSY_',
+];
 
 /** A C++ identifier that the generated program does not already use. */
 export function isValidHandlerName(name: string): boolean {
