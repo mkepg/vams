@@ -6,18 +6,20 @@ import ThemeToggleButton from '@/features/theme-toggle/ui/ThemeToggleButton';
 import EditorPreferencesMenu from '@/features/editor-preferences/ui/EditorPreferencesMenu';
 import LearnButton from '@/features/lesson-engine/ui/LearnButton';
 import HelpButton from '@/features/help/ui/HelpButton';
+import { useRunSnapshot } from '@/features/callbacks';
 import FileMenu from './FileMenu';
 import './top-bar.scss';
 
 export default function TopBar() {
   const theme = useSiteTheme();
+  const running = useRunSnapshot().running;
   return (
     <header className="top-bar">
       <Toaster position="bottom-center" theme={theme} />
       <a className="top-bar__home" href="/" aria-label="VAMS home">
         <Logo />
       </a>
-      <div className="top-bar__actions">
+      <div className="top-bar__actions" inert={running || undefined}>
         <LearnButton />
         <FileMenu />
         <span className="top-bar__sep" aria-hidden="true" />

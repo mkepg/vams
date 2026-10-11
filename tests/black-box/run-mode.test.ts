@@ -3,11 +3,15 @@
  * The canvas Run state: events reach handlers, the canvas moves, and scene state never changes.
  */
 import { describe, it, expect, afterEach, vi } from 'vitest';
+import { h, render, type VNode } from 'preact';
 import { useVamsStore, STORAGE_KEY } from '@/core/store';
 import { buildProjectFile } from '@/entities/project/model/project-io';
 import { canRun, runController, MIN_WINDOW } from '@/features/callbacks/model/run-controller';
 import { makeFakeDisplay, registerFakeRenderer, type FakeDisplay } from '../helpers/fake-renderer';
 import { addTriangle, getState } from '../helpers/store';
+import RunOverlay from '@/features/callbacks/ui/RunOverlay';
+import SceneCodePanel from '@/features/code-generation/ui/SceneCodePanel';
+import EditorShell from '@/pages/editor/ui/EditorShell';
 
 let unregister: (() => void) | null = null;
 afterEach(() => {
@@ -193,5 +197,113 @@ describe('BB-RUN-13: A focused button keeps only its own keys during Run', () =>
       button.remove();
       handle.remove();
     }
+  });
+});
+
+const settle = async () => { for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0)); };
+function mount(vnode: VNode) {
+  const host = document.createElement('div');
+  host.style.position = 'relative';
+  document.body.appendChild(host);
+  render(vnode, host);
+  return host;
+}
+const isInert = (el: Element | null) => !!el && ((el as HTMLElement & { inert?: boolean }).inert === true || el.hasAttribute('inert'));
+
+describe('BB-RUN-6: Editing pauses while running', () => {
+  it('makes the column inert, and Delete and Ctrl+Z never reach other listeners', async () => {
+    const { t } = setup();
+    useVamsStore.setState({ selectedObjectId: t.id });
+    const host = mount(h(EditorShell, {
+      topBar: h('header', { class: 'top-bar' }, h('div', { class: 'top-bar__actions' }, 'actions')),
+      column: h('div', {}, 'column'),
+      canvas: h('div', {}, 'canvas'),
+      codeMath: h('div', {}, 'code'),
+    }));
+    runController.start({ loop: false });
+    await settle();
+    expect(isInert(host.querySelector('#editor-column'))).toBe(true);
+    const later = vi.fn();
+    window.addEventListener('keydown', later);
+    press('Delete');
+    press('z', { ctrlKey: true });
+    window.removeEventListener('keydown', later);
+    expect(later).not.toHaveBeenCalled();
+    expect(runController.getSnapshot().running).toBe(true);
+    render(null, host);
+    host.remove();
+  });
+});
+
+describe('BB-RUN-10: Pointer events reach the Mouse handler, even released outside', () => {
+  it('delivers down and up with window coordinates', async () => {
+    const { t } = setup();
+    getState().setCallbackHandler('mouse', 'onMouse');
+    getState().addCallbackRule('mouse', {
+      id: 'm', objectId: t.id, trigger: { kind: 'mouse', button: 'left', state: 'up' }, action: { type: 'rotate', degrees: 15 },
+    });
+    const host = mount(h(RunOverlay, {}));
+    runController.start({ loop: false });
+    await settle();
+    const surface = host.querySelector('.run-surface') as HTMLElement;
+    surface.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, clientX: 30, clientY: 40, pointerId: 1 }));
+    surface.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, clientX: 5000, clientY: 40, pointerId: 1 }));
+    expect(runController.getSnapshot().lastCall).toMatch(/^onMouse\(GLUT_LEFT_BUTTON, GLUT_UP, \d+, 40\)$/);
+    expect(runController.getSnapshot().fired?.trigger).toEqual({ kind: 'mouse', button: 'left', state: 'up' });
+    render(null, host);
+    host.remove();
+  });
+});
+
+describe('BB-RUN-11: The overlay shows Run, then the strip, the readout and the handle', () => {
+  it('starts, shows "Waiting for an event", resizes by keys in 10px steps, and stops', async () => {
+    setup();
+    const host = mount(h(RunOverlay, {}));
+    await settle();
+    const run = host.querySelector('.run-button') as HTMLButtonElement;
+    expect(run.disabled).toBe(false);
+    run.click();
+    await settle();
+    expect(host.querySelector('.run-strip')?.textContent).toContain('Running');
+    expect(host.querySelector('.run-readout')?.textContent).toBe('Waiting for an event');
+    expect(document.activeElement).toBe(host.querySelector('.run-surface'));
+    const handle = host.querySelector('.run-handle') as HTMLButtonElement;
+    const bubbled = vi.fn();
+    window.addEventListener('keydown', bubbled);
+    handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true }));
+    window.removeEventListener('keydown', bubbled);
+    expect(bubbled).not.toHaveBeenCalled();
+    runController.stepFrame();
+    await settle();
+    expect(runController.getSnapshot().window).toEqual({ width: 790, height: 600 });
+    const stop = [...host.querySelectorAll('button')].find((b) => b.textContent?.includes('Stop'))!;
+    stop.click();
+    await settle();
+    expect(runController.getSnapshot().running).toBe(false);
+    expect(document.activeElement).toBe(host.querySelector('.run-button'));
+    render(null, host);
+    host.remove();
+  });
+
+  it('is disabled with a title when nothing can run', async () => {
+    const host = mount(h(RunOverlay, {}));
+    await settle();
+    const run = host.querySelector('.run-button') as HTMLButtonElement;
+    expect(run.disabled).toBe(true);
+    expect(run.title).toBe('Add a callback or an animation to run');
+    render(null, host);
+    host.remove();
+  });
+});
+
+describe('BB-RUN-12: The code panel flashes the branch that fired', () => {
+  it('highlights the case d lines', async () => {
+    setup();
+    const host = mount(h(SceneCodePanel, { flashBranch: { handlerName: 'onKey', trigger: { kind: 'keyboard', key: 'd' }, seq: 1 } }));
+    await settle();
+    const changed = [...host.querySelectorAll('.code-line.changed')].map((el) => el.textContent?.trim());
+    expect(changed).toEqual(expect.arrayContaining(["case 'd':", "case 'D':", 'break;']));
+    render(null, host);
+    host.remove();
   });
 });

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ComponentChildren } from 'preact';
 import { PanelLeft } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
+import { useRunSnapshot } from '@/features/callbacks';
 import { Button } from '@/shared/ui/controls';
 import { useNarrowLayout } from '../model/useNarrowLayout';
 import './editor-app.scss';
@@ -22,6 +23,14 @@ export default function EditorShell({ topBar, column, canvas, codeMath, overlays
   const toggleRef = useRef<HTMLButtonElement>(null);
 
   const columnRef = useRef<HTMLElement>(null);
+
+  // Editing pauses while Run is on; the drawer closes so it never covers the canvas.
+  const running = useRunSnapshot().running;
+  const [wasRunning, setWasRunning] = useState(running);
+  if (running !== wasRunning) {
+    setWasRunning(running);
+    if (running) setDrawerOpen(false);
+  }
 
   // Open the drawer whenever a lesson starts or moves to another step, so the narration is visible,
   // and close it when the lesson ends.
@@ -73,11 +82,11 @@ export default function EditorShell({ topBar, column, canvas, codeMath, overlays
   return (
     <div className={classes}>
       {topBar}
-      <aside ref={columnRef} id="editor-column" className="editor__column" aria-label="Scene and inspector">
+      <aside ref={columnRef} id="editor-column" className="editor__column" inert={running || undefined} aria-label="Scene and inspector">
         {column}
       </aside>
       <main className="editor__canvas canvas-area">
-        {narrow && (
+        {narrow && !running && (
           <Button
             ref={toggleRef}
             className="editor__panels-toggle"
