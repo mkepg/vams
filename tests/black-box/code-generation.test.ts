@@ -147,12 +147,13 @@ describe('BB-GEN-08: GROUP nodes emit draw calls for their children', () => {
   });
 });
 
-describe('BB-GEN-09: Registered GLUT callbacks emit stubs AND glutXxxFunc()', () => {
+describe('BB-GEN-09: Registered GLUT callbacks emit handlers AND glutXxxFunc()', () => {
   const KINDS: Array<{
     kind: GlutCallbackKind;
     funcCall: string;
   }> = [
     { kind: 'keyboard', funcCall: 'glutKeyboardFunc' },
+    { kind: 'special',  funcCall: 'glutSpecialFunc'  },
     { kind: 'mouse',    funcCall: 'glutMouseFunc'    },
     { kind: 'motion',   funcCall: 'glutMotionFunc'   },
     { kind: 'reshape',  funcCall: 'glutReshapeFunc'  },

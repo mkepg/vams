@@ -1,9 +1,7 @@
-import type { AnimationMotion, CallbacksState, GlutCallbackKind, SceneNode, ViewportLimits } from '@/core/types/scene';
+import type { AnimationMotion, CallbacksState, SceneNode, ViewportLimits } from '@/core/types/scene';
 import type { TextureAsset } from '@/core/types/textures';
-import {
-  generateAppOutput,
-  type RegisteredCallback,
-} from './code-generator';
+import { generateAppOutput } from './code-generator';
+import { planCallbacks } from './generator/handlers';
 
 interface GenerateInput {
   objects: SceneNode[];
@@ -36,25 +34,12 @@ function getEffectivelyVisibleObjects(objects: SceneNode[]): SceneNode[] {
   return objects.filter((o) => !isEffectivelyHidden(o, byId));
 }
 
-const LEGACY_KINDS: GlutCallbackKind[] = [
-  'keyboard', 'mouse', 'reshape', 'motion', 'idle',
-];
-
-function getRegisteredCallbacks(
-  callbacks: CallbacksState
-): RegisteredCallback[] {
-  return LEGACY_KINDS
-    .filter((k) => callbacks[k].handlerName.trim().length > 0)
-    .map((k) => ({ kind: k, handlerName: callbacks[k].handlerName.trim() }));
-}
-
 export function generateCodeFromState(
   input: GenerateInput,
   canvasSize: { width: number; height: number }
 ): string {
   const { objects, canvasBackgroundColor, callbacks, viewportLimits, previewAnimation } = input;
 
-  const cbs = getRegisteredCallbacks(callbacks);
   const texMap = new Map<string, TextureAsset>(
     (input.textures ?? []).map((t) => [t.id, t]),
   );
@@ -66,7 +51,7 @@ export function generateCodeFromState(
       canvasBackgroundColor,
       canvasSize,
       '    // Empty scene\n',
-      cbs,
+      planCallbacks(callbacks, []),
       viewportLimits,
       texMap,
       previewAnimation
@@ -75,6 +60,7 @@ export function generateCodeFromState(
 
   const visible = getEffectivelyVisibleObjects(objects);
   const roots = visible.filter((o) => !o.parentId);
+  const plan = planCallbacks(callbacks, visible);
 
   return generateAppOutput(
     roots,   // rootObjects
@@ -82,7 +68,7 @@ export function generateCodeFromState(
     canvasBackgroundColor,
     canvasSize,
     '    // Empty scene\n',
-    cbs,
+    plan,
     viewportLimits,
     texMap,
     previewAnimation
