@@ -432,6 +432,7 @@ export const createSceneSlice: StateCreator<VamsState, [], [], SceneSlice> = (se
 
       return {
         objects: updatedObjects,
+        callbacks: pruneCallbackRules(state.callbacks, new Set(updatedObjects.map((o) => o.id))),
         selectedObjectId: isSelectedDeleted ? null : state.selectedObjectId,
         ...(isSelectedDeleted ? { selectedVertexId: null, interactionMode: state.interactionMode === 'VERTEX_EDIT' ? 'SELECT' : state.interactionMode } : {}),
       };

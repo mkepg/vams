@@ -65,6 +65,21 @@ describe('BB-CB-14: Deleting an object removes its rules; undo restores both', (
     expect(getState().callbacks.keyboard.rules).toEqual([]);
   });
 
+  it('ungroup drops a rule on the group, keeps rules on the children, and undo restores the group rule', async () => {
+    const a = addTriangle();
+    const b = addQuad(0.4, 0, 0.1);
+    getState().createGroup([a.id, b.id]);
+    const group = getState().objects.find((o) => o.type === 'GROUP')!;
+    getState().setCallbackHandler('keyboard', 'onKey');
+    getState().addCallbackRule('keyboard', rule(a.id, { id: 'child' }));
+    getState().addCallbackRule('keyboard', rule(group.id, { id: 'grp', trigger: { kind: 'keyboard', key: 'a' } }));
+    await wait(60);
+    getState().ungroup(group.id);
+    expect(getState().callbacks.keyboard.rules.map((r) => r.id)).toEqual(['child']);
+    getState().undo();
+    expect(getState().callbacks.keyboard.rules.map((r) => r.id)).toEqual(['child', 'grp']);
+  });
+
   it('undo restores a cleared callback', async () => {
     getState().setCallbackHandler('mouse', 'onMouse');
     await wait(60);
