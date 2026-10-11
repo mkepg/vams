@@ -21,7 +21,8 @@ import TextureAttachmentPanel from '@/features/textures/ui/TextureAttachmentPane
 import UVEditorPanel from '@/features/textures/ui/UVEditorPanel';
 import { getPreset } from '@/entities/project/model/scene-presets';
 import { loadProjectData } from '@/features/scene-library';
-import { addPrimitive, addTriangle } from '../helpers/store';
+import { MAX_RULES } from '@/core/callbacks/callbacks-model';
+import { addPrimitive, addQuad, addTriangle } from '../helpers/store';
 
 async function settle() {
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
@@ -223,7 +224,7 @@ describe('BB-PANEL-10: Callbacks name their GLUT registration', () => {
     (host.querySelector('.vpanel__header') as HTMLButtonElement).click();
     await settle();
     expect(hints(host)).toEqual(expect.arrayContaining([
-      'glutKeyboardFunc(handler)', 'glutMouseFunc(handler)', 'glutReshapeFunc(handler)', 'glutMotionFunc(handler)', 'glutIdleFunc(handler)',
+      'glutKeyboardFunc(handler)', 'glutMouseFunc(handler)', 'glutReshapeFunc(handler)', 'glutMotionFunc(handler)', 'glutIdleFunc(handler)', 'glutSpecialFunc(handler)',
     ]));
     unmount(host);
   });
@@ -528,6 +529,146 @@ describe('BB-PANEL-22: The Vertices panel edits glVertex2f positions with one un
     const moved = useVamsStore.getState().objects.find((o) => o.id === tri.id)!;
     expect(moved.vertices[0].x).toBeCloseTo(0.25);
     expect(useVamsStore.getState().past.length).toBe(before + 1);
+    unmount(host);
+  });
+});
+
+function openCallbacks() {
+  const host = mount(h(CallbacksPanel, {}));
+  (host.querySelector('.vpanel__header') as HTMLButtonElement).click();
+  return host;
+}
+const row = (host: HTMLElement, label: string) =>
+  [...host.querySelectorAll('.cb-item')].find((el) => el.querySelector('.cb-label')?.textContent === label) as HTMLElement;
+const button = (root: HTMLElement, text: string) =>
+  [...root.querySelectorAll('button')].find((b) => b.textContent?.trim() === text) as HTMLButtonElement;
+
+describe('BB-PANEL-23: Add rule writes a summary line and opens its form', () => {
+  it('adds → then ← for Special keys', async () => {
+    const tri = addTriangle();
+    useVamsStore.getState().updateObjectName(tri.id, 'Tri');
+    useVamsStore.getState().setCallbackHandler('special', 'onSpecial');
+    const host = openCallbacks();
+    await settle();
+    const special = row(host, 'Special keys');
+    button(special, 'Add rule').click();
+    await settle();
+    expect(special.querySelector('.cb-rule__line')!.getAttribute('aria-label'))
+      .toBe('Rule: when → is pressed, translate Tri by 0.10, 0.00. Edit');
+    expect(special.querySelector('.cb-rule-form')).not.toBeNull();
+    button(special, 'Add rule').click();
+    await settle();
+    expect([...special.querySelectorAll('.cb-rule__chip')].map((c) => c.textContent)).toEqual(['→', '←']);
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-24: A rule line opens and closes its form', () => {
+  it('Esc closes the form and focuses the line; Delete removes the rule', async () => {
+    const tri = addTriangle();
+    useVamsStore.getState().setCallbackHandler('keyboard', 'onKey');
+    useVamsStore.getState().addCallbackRule('keyboard', {
+      id: 'r1', objectId: tri.id, trigger: { kind: 'keyboard', key: 'd' }, action: { type: 'rotate', degrees: 15 },
+    });
+    const host = openCallbacks();
+    await settle();
+    const line = host.querySelector('.cb-rule__line') as HTMLButtonElement;
+    line.click();
+    await settle();
+    const form = host.querySelector('.cb-rule-form') as HTMLElement;
+    key(form, 'Escape');
+    await settle();
+    expect(host.querySelector('.cb-rule-form')).toBeNull();
+    expect(document.activeElement).toBe(host.querySelector('.cb-rule__line'));
+    (host.querySelector('.cb-rule__line') as HTMLButtonElement).click();
+    await settle();
+    button(host.querySelector('.cb-rule-form') as HTMLElement, 'Delete').click();
+    await settle();
+    expect(useVamsStore.getState().callbacks.keyboard.rules).toEqual([]);
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-25: Add rule is disabled with no shapes or at the limit', () => {
+  it('reads "Add a shape first", then "8 rules is the limit"', async () => {
+    useVamsStore.getState().setCallbackHandler('keyboard', 'onKey');
+    let host = openCallbacks();
+    await settle();
+    const empty = row(host, 'Keyboard').querySelector('.cb-add-rule') as HTMLButtonElement;
+    expect(empty.disabled).toBe(true);
+    expect(empty.textContent).toContain('Add a shape first');
+    unmount(host);
+    const tri = addTriangle();
+    for (let i = 0; i < MAX_RULES; i++) {
+      useVamsStore.getState().addCallbackRule('keyboard', {
+        id: `r${i}`, objectId: tri.id, trigger: { kind: 'keyboard', key: 'd' }, action: { type: 'rotate', degrees: 1 },
+      });
+    }
+    host = openCallbacks();
+    await settle();
+    const full = row(host, 'Keyboard').querySelector('.cb-add-rule') as HTMLButtonElement;
+    expect(full.disabled).toBe(true);
+    expect(full.textContent).toContain('8 rules is the limit');
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-26: The Object menu follows the action', () => {
+  it('Move to pointer lists top-level objects; Set colour lists no groups', async () => {
+    const a = addTriangle();
+    const b = addQuad(0.5, 0.5, 0.1);
+    useVamsStore.getState().createGroup([a.id, b.id]);
+    const solo = addTriangle(-0.5, -0.5, 0.1);
+    useVamsStore.getState().setCallbackHandler('mouse', 'onMouse');
+    const host = openCallbacks();
+    await settle();
+    const mouse = row(host, 'Mouse');
+    button(mouse, 'Add rule').click();
+    await settle();
+    const selectNamed = (label: string) =>
+      [...mouse.querySelectorAll('.vselect')].find((d) => d.querySelector('label')?.textContent === label)!
+        .querySelector('select') as HTMLSelectElement;
+    const doSelect = selectNamed('Do');
+    doSelect.value = 'moveToPointer';
+    doSelect.dispatchEvent(new Event('change', { bubbles: true }));
+    doSelect.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    const objectSelect = selectNamed('Object');
+    const ids = [...objectSelect.options].map((o) => o.value);
+    expect(ids).toContain(solo.id);
+    expect(ids).not.toContain(a.id);
+    expect(ids).not.toContain(b.id);
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-27: Reshape choice and name errors', () => {
+  it('Keep proportions | Stretch sets the store; a duplicate name shows the error', async () => {
+    useVamsStore.getState().setCallbackHandler('reshape', 'onReshape');
+    useVamsStore.getState().setCallbackHandler('motion', 'onReshape');
+    const host = openCallbacks();
+    await settle();
+    const reshape = row(host, 'Reshape');
+    button(reshape, 'Stretch').click();
+    await settle();
+    expect(useVamsStore.getState().callbacks.reshape.resize).toBe('stretch');
+    expect(reshape.querySelector('.cb-error')?.textContent).toBe("Use a C++ name VAMS doesn't already use, like onReshape.");
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-28: Off removes the callback and its rules', () => {
+  it('clears rules', async () => {
+    const tri = addTriangle();
+    useVamsStore.getState().setCallbackHandler('idle', 'onIdle');
+    useVamsStore.getState().addCallbackRule('idle', {
+      id: 'r1', objectId: tri.id, trigger: { kind: 'idle' }, action: { type: 'rotate', degrees: 1 },
+    });
+    const host = openCallbacks();
+    await settle();
+    (row(host, 'Idle').querySelector('.cb-toggle') as HTMLButtonElement).click();
+    await settle();
+    expect(useVamsStore.getState().callbacks.idle).toEqual({ handlerName: '', rules: [] });
     unmount(host);
   });
 });
