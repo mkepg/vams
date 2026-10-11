@@ -134,3 +134,92 @@ describe('WB-CB-6: A Slide animation overrides a Translate rule on x, as the pro
     expect(state.objects[t.id].x).toBeCloseTo(baseX + 0.5 * Math.sin(2 * 0.03), 6);
   });
 });
+
+describe('WB-CB-7: dispatch gating and reshape', () => {
+  const WIN = { width: 800, height: 600 };
+  const key = (objectId: string) => ({ id: 'r', objectId, trigger: { kind: 'keyboard' as const, key: 'd' }, action: { type: 'translate' as const, dx: 0.1, dy: 0 } });
+
+  it.each(['main', 'draw_x'])('applies no rules for the invalid name %s', (name) => {
+    const t = addTriangle();
+    const cbs = emptyCallbacks();
+    cbs.keyboard = { handlerName: name, rules: [key(t.id)] };
+    const state = createRunState(getState().objects, getState().viewportLimits, WIN);
+    const result = dispatch(state, cbs, { type: 'key', key: 'd', x: 0, y: 0 });
+    expect(result.state).toBe(state);
+    expect(result.call).toBeNull();
+    expect(result.kind).toBeNull();
+    expect(result.handlerName).toBeNull();
+  });
+
+  it('applies no rules for a name an earlier callback already uses', () => {
+    const t = addTriangle();
+    const cbs = emptyCallbacks();
+    cbs.mouse = { handlerName: 'onInput', rules: [] };
+    cbs.motion = { handlerName: 'onInput', rules: [{ id: 'r', objectId: t.id, trigger: { kind: 'motion' }, action: { type: 'moveToPointer' } }] };
+    const state = createRunState(getState().objects, getState().viewportLimits, WIN);
+    const result = dispatch(state, cbs, { type: 'motion', x: 100, y: 100 });
+    expect(result.state).toBe(state);
+    expect(result.call).toBeNull();
+    expect(result.kind).toBeNull();
+    expect(result.handlerName).toBeNull();
+  });
+
+  it('skips an object hidden in the editor', () => {
+    const t = addTriangle();
+    getState().toggleObjectVisibility(t.id);
+    const cbs = emptyCallbacks();
+    cbs.keyboard = { handlerName: 'onKey', rules: [key(t.id)] };
+    const state = createRunState(getState().objects, getState().viewportLimits, WIN);
+    expect(state.objects[t.id]).toBeUndefined();
+    expect(dispatch(state, cbs, { type: 'key', key: 'd', x: 0, y: 0 }).state).toBe(state);
+  });
+
+  it('skips a child of a hidden group', () => {
+    const a = addTriangle();
+    const b = addTriangle(0.5, 0.5);
+    getState().createGroup([a.id, b.id]);
+    const group = getState().objects.find((o) => o.type === 'GROUP')!;
+    getState().toggleObjectVisibility(group.id);
+    const cbs = emptyCallbacks();
+    cbs.keyboard = { handlerName: 'onKey', rules: [key(a.id)] };
+    const state = createRunState(getState().objects, getState().viewportLimits, WIN);
+    expect(state.objects[a.id]).toBeUndefined();
+    expect(dispatch(state, cbs, { type: 'key', key: 'd', x: 0, y: 0 }).state).toBe(state);
+  });
+
+  describe('reshape', () => {
+    const limits = { minX: -2, maxX: 3, minY: -1, maxY: 1.5 };
+
+    it('Keep proportions sets window and view, and the pointer follows the new view', () => {
+      const t = addTriangle();
+      const cbs = emptyCallbacks();
+      cbs.reshape = { handlerName: 'onReshape', resize: 'keep' };
+      cbs.mouse = { handlerName: 'onMouse', rules: [{ id: 'r', objectId: t.id, trigger: { kind: 'mouse', button: 'left', state: 'down' }, action: { type: 'moveToPointer' } }] };
+      let state = createRunState(getState().objects, limits, WIN);
+      const result = dispatch(state, cbs, { type: 'reshape', width: 1200, height: 400 });
+      state = result.state;
+      expect(state.window).toEqual({ width: 1200, height: 400 });
+      expect(state.view).toEqual(keepProportionsView(limits, 1200, 400));
+      expect(result.call).toBe('onReshape(1200, 400)');
+      state = dispatch(state, cbs, { type: 'mouse', button: 'left', state: 'down', x: 1200, y: 0 }).state;
+      expect(state.objects[t.id].x).toBeCloseTo(state.view.maxX, 6);
+    });
+
+    it('Stretch keeps the saved limits', () => {
+      const cbs = emptyCallbacks();
+      cbs.reshape = { handlerName: 'onReshape', resize: 'stretch' };
+      const state = createRunState(getState().objects, limits, WIN);
+      const result = dispatch(state, cbs, { type: 'reshape', width: 1200, height: 400 });
+      expect(result.state.window).toEqual({ width: 1200, height: 400 });
+      expect(result.state.view).toEqual(limits);
+    });
+
+    it('with no reshape handler the window still updates and the call is null', () => {
+      const state = createRunState(getState().objects, limits, WIN);
+      const result = dispatch(state, emptyCallbacks(), { type: 'reshape', width: 1200, height: 400 });
+      expect(result.state.window).toEqual({ width: 1200, height: 400 });
+      expect(result.state.view).toEqual(limits);
+      expect(result.call).toBeNull();
+    });
+  });
+});
