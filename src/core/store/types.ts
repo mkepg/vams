@@ -13,6 +13,10 @@ import type {
   LineStipple,
   ObjectAnimation,
   CallbackRegistration,
+  CallbacksState,
+  CallbackRule,
+  ResizeMode,
+  RuleCallbackKind,
   GlutCallbackKind,
   RenderingMode,
   BufferUsage,
@@ -107,6 +111,7 @@ export interface HistorySnapshot {
   pendingVertices: PendingVertex[];
   pendingMinVertices: number;
   pendingVertexStride: number | null;
+  callbacks: CallbacksState;
   timestamp: number;
 }
 export interface HistorySlice {
@@ -159,7 +164,7 @@ export interface LessonSlice {
   exerciseAnswers: Record<string, unknown>;
   isSuccess: boolean;
   sceneBackup: SceneNode[] | null;
-  callbacksBackup: Record<GlutCallbackKind, string> | null;
+  callbacksBackup: CallbacksState | null;
   canvasBackgroundColorBackup: string | null;
   viewportLimitsBackup: ViewportLimits | null;
   uploadedTexturesBackup: import('@/core/types/textures').TextureAsset[] | null;
@@ -176,9 +181,18 @@ export interface LessonSlice {
   setChangedCodeLines: (lines: number[]) => void;
 }
 export interface CallbacksSlice {
-  callbacks: Record<GlutCallbackKind, string>;
+  callbacks: CallbacksState;
   setCallbackHandler: (kind: GlutCallbackKind, handlerName: string) => void;
   clearCallback: (kind: GlutCallbackKind) => void;
+  addCallbackRule: (kind: RuleCallbackKind, rule: CallbackRule) => void;
+  updateCallbackRule: (
+    kind: RuleCallbackKind,
+    ruleId: string,
+    patch: Partial<Pick<CallbackRule, 'objectId' | 'trigger' | 'action'>>,
+    recordHistory?: boolean,
+  ) => void;
+  removeCallbackRule: (kind: RuleCallbackKind, ruleId: string) => void;
+  setReshapeMode: (mode: ResizeMode) => void;
   getRegisteredCallbacks: () => CallbackRegistration[];
 }
 export interface HelpSlice {

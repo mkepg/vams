@@ -1,3 +1,4 @@
+import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 import { useVamsStore } from '@/core/store';
@@ -33,7 +34,7 @@ export function useNewWorkspace(beforeReset: () => Promise<unknown>): () => Prom
       pendingVertices: [],
       interactionMode: 'SELECT',
       selectedVertexId: null,
-      callbacks: { keyboard: '', mouse: '', reshape: '', motion: '', idle: '' },
+      callbacks: emptyCallbacks(),
       viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
       uploadedTextures: [],
     });

@@ -1,3 +1,4 @@
+import { hasCallbackContent } from '@/core/callbacks/callbacks-model';
 import type { VamsState } from '@/core/store/types';
 
 export type SceneFields = Pick<
@@ -13,7 +14,7 @@ export function isSceneEmpty(state: SceneFields): boolean {
     state.uploadedTextures.length === 0 &&
     state.canvasBackgroundColor === '#000000' &&
     state.pendingShapeType === null &&
-    Object.values(state.callbacks).every((body) => body.trim() === '') &&
+    !hasCallbackContent(state.callbacks) &&
     minX === -1 &&
     maxX === 1 &&
     minY === -1 &&

@@ -1,3 +1,4 @@
+import { migratePersistedState } from '@/core/store/persist-migrate';
 import { create } from 'zustand';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 import { enableMapSet } from 'immer';
@@ -58,7 +59,8 @@ export const useVamsStore = create<VamsState>()(
     }),
     {
       name: STORAGE_KEY,
-      version: 7,
+      version: 8,
+      migrate: (persisted, version) => migratePersistedState(persisted, version) as never,
       storage: createJSONStorage(() => safeStorage),
       onRehydrateStorage: () => {
         return (rehydratedState, error) => {

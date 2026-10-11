@@ -38,7 +38,7 @@ export default function CallbacksPanel() {
   };
 
   const handleQuickRegister = (def: CallbackDef) => {
-    const current = callbacks[def.kind];
+    const current = callbacks[def.kind].handlerName;
     if (current && current.trim().length > 0) {
       clearCallback(def.kind);
     } else {
@@ -62,7 +62,7 @@ export default function CallbacksPanel() {
         <ul className="cb-list">
           {CALLBACKS.map((def) => {
             const Icon = def.icon;
-            const value = callbacks[def.kind] ?? '';
+            const value = callbacks[def.kind].handlerName;
             const isActive = value.trim().length > 0;
             const isInvalid = isActive && !VALID_NAME.test(value.trim());
 

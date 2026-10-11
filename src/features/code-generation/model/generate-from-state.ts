@@ -1,4 +1,4 @@
-import type { AnimationMotion, GlutCallbackKind, SceneNode, ViewportLimits } from '@/core/types/scene';
+import type { AnimationMotion, CallbacksState, GlutCallbackKind, SceneNode, ViewportLimits } from '@/core/types/scene';
 import type { TextureAsset } from '@/core/types/textures';
 import {
   generateAppOutput,
@@ -8,7 +8,7 @@ import {
 interface GenerateInput {
   objects: SceneNode[];
   canvasBackgroundColor: string;
-  callbacks: Record<GlutCallbackKind, string>;
+  callbacks: CallbacksState;
   viewportLimits?: ViewportLimits;
   textures?: TextureAsset[];
   /**
@@ -36,16 +36,16 @@ function getEffectivelyVisibleObjects(objects: SceneNode[]): SceneNode[] {
   return objects.filter((o) => !isEffectivelyHidden(o, byId));
 }
 
-const CALLBACK_KINDS: GlutCallbackKind[] = [
+const LEGACY_KINDS: GlutCallbackKind[] = [
   'keyboard', 'mouse', 'reshape', 'motion', 'idle',
 ];
 
 function getRegisteredCallbacks(
-  callbacks: Record<GlutCallbackKind, string>
+  callbacks: CallbacksState
 ): RegisteredCallback[] {
-  return CALLBACK_KINDS
-    .filter((k) => callbacks[k] && callbacks[k].trim().length > 0)
-    .map((k) => ({ kind: k, handlerName: callbacks[k].trim() }));
+  return LEGACY_KINDS
+    .filter((k) => callbacks[k].handlerName.trim().length > 0)
+    .map((k) => ({ kind: k, handlerName: callbacks[k].handlerName.trim() }));
 }
 
 export function generateCodeFromState(

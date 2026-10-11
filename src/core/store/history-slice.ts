@@ -15,6 +15,7 @@ const createSnapshot = (state: VamsState): HistorySnapshot => ({
   pendingVertices: state.pendingVertices,
   pendingMinVertices: state.pendingMinVertices,
   pendingVertexStride: state.pendingVertexStride,
+  callbacks: state.callbacks,
   timestamp: Date.now(),
 });
 
@@ -27,6 +28,7 @@ const restoreSnapshot = (snapshot: HistorySnapshot): Partial<VamsState> => ({
   pendingVertices: snapshot.pendingVertices,
   pendingMinVertices: snapshot.pendingMinVertices,
   pendingVertexStride: snapshot.pendingVertexStride,
+  callbacks: snapshot.callbacks,
 });
 
 export const createHistorySlice: StateCreator<VamsState, [], [], HistorySlice> = (set, get) => ({
@@ -58,6 +60,7 @@ export const createHistorySlice: StateCreator<VamsState, [], [], HistorySlice> =
       pendingVertices: state.pendingVertices,
       pendingMinVertices: state.pendingMinVertices,
       pendingVertexStride: state.pendingVertexStride,
+      callbacks: state.callbacks,
       timestamp: snapshotTimestamp,
     };
 

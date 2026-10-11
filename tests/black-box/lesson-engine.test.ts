@@ -8,6 +8,7 @@
  *  - successCheck predicate / exercise widget evaluation
  *  - Complete state restoration when the lesson ends
  */
+import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { describe, it, expect } from 'vitest';
 import { useVamsStore } from '@/core/store';
 import { LESSON_REGISTRY, getLessonById } from '@/features/lesson-engine/model/lesson-registry';
@@ -100,7 +101,7 @@ describe('BB-LESSON-06: successCheck predicates classify pass/fail correctly', (
         useVamsStore.setState({
           objects: [], selectedObjectId: null, pendingVertices: [],
           pendingShapeType: null,
-          callbacks: { keyboard: '', mouse: '', reshape: '', motion: '', idle: '' },
+          callbacks: emptyCallbacks(),
         });
         try {
           const ok = step.successCheck(useVamsStore.getState());

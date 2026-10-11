@@ -119,7 +119,7 @@ describe('BB-INSP-04: Groups toggle, remember the last opened one, and clear a m
 describe('BB-INSP-05: The persisted shape is unchanged and transient state is never saved', () => {
   it('keeps version 7, the same partialize keys, and no inspector fields', () => {
     const options = (useVamsStore as unknown as { persist: { getOptions: () => { version: number; partialize: (s: unknown) => object } } }).persist.getOptions();
-    expect(options.version).toBe(7);
+    expect(options.version).toBe(8);
     const keys = Object.keys(options.partialize(useVamsStore.getState())).sort();
     expect(keys).toEqual([
       'activeSection', 'axisVisibility', 'callbacks', 'callbacksBackup', 'canvasBackgroundColor',

@@ -23,12 +23,12 @@ describe('WB-LESSON-01: Setting a lesson backs up scene + callbacks + viewport +
     const beforeObjs = getState().objects.length;
     getState().setActiveLesson('poc-demo-1');
     expect(getState().sceneBackup?.length).toBe(beforeObjs);
-    expect(getState().callbacksBackup?.keyboard).toBe('onKey');
+    expect(getState().callbacksBackup?.keyboard.handlerName).toBe('onKey');
     expect(getState().canvasBackgroundColorBackup).toBe('#abcdef');
     expect(getState().viewportLimitsBackup).toEqual({ minX: -2, maxX: 2, minY: -2, maxY: 2 });
 
     expect(getState().objects).toHaveLength(0);
-    expect(getState().callbacks.keyboard).toBe('');
+    expect(getState().callbacks.keyboard.handlerName).toBe('');
     expect(getState().canvasBackgroundColor).toBe('#000000');
   });
 });

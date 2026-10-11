@@ -93,10 +93,10 @@ function checkScenario(label: string): ScenarioResult {
   // Every registered callback must produce a corresponding glut*Func() call.
   const callbacks = getState().callbacks;
   const expected: Array<{ key: string; funcCall: string }> = [];
-  if (callbacks.keyboard) expected.push({ key: callbacks.keyboard, funcCall: 'glutKeyboardFunc' });
-  if (callbacks.mouse) expected.push({ key: callbacks.mouse, funcCall: 'glutMouseFunc' });
-  if (callbacks.motion) expected.push({ key: callbacks.motion, funcCall: 'glutMotionFunc' });
-  if (callbacks.reshape) expected.push({ key: callbacks.reshape, funcCall: 'glutReshapeFunc' });
+  if (callbacks.keyboard.handlerName) expected.push({ key: callbacks.keyboard.handlerName, funcCall: 'glutKeyboardFunc' });
+  if (callbacks.mouse.handlerName) expected.push({ key: callbacks.mouse.handlerName, funcCall: 'glutMouseFunc' });
+  if (callbacks.motion.handlerName) expected.push({ key: callbacks.motion.handlerName, funcCall: 'glutMotionFunc' });
+  if (callbacks.reshape.handlerName) expected.push({ key: callbacks.reshape.handlerName, funcCall: 'glutReshapeFunc' });
   const callbacksRegistered = expected.every(
     (e) => code1.includes(e.funcCall) && code1.includes(e.key),
   );

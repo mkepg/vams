@@ -1,3 +1,4 @@
+import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useVamsStore } from '@/core/store';
 import type { Lesson, LessonStep } from '@/core/types/lesson';
@@ -198,7 +199,7 @@ export function useLessonRunner(): LessonRunner {
       // mutate.
       useVamsStore.setState({
         objects: [],
-        callbacks: { keyboard: '', mouse: '', reshape: '', motion: '', idle: '' },
+        callbacks: emptyCallbacks(),
         canvasBackgroundColor: '#000000',
         viewportLimits: { ...DEFAULT_LESSON_VIEWPORT },
         selectedObjectId: null,

@@ -103,13 +103,57 @@ export interface PendingVertex {
 }
 export type GlutCallbackKind =
   | 'keyboard'
+  | 'special'
   | 'mouse'
-  | 'reshape'
   | 'motion'
+  | 'reshape'
   | 'idle';
+/** The callbacks that hold rules. Reshape holds a resize choice instead. */
+export type RuleCallbackKind = Exclude<GlutCallbackKind, 'reshape'>;
 export interface CallbackRegistration {
   kind: GlutCallbackKind;
   handlerName: string;
+}
+export type SpecialKey = 'up' | 'down' | 'left' | 'right';
+export type MouseButton = 'left' | 'middle' | 'right';
+export type MouseState = 'down' | 'up';
+export type RuleTrigger =
+  | { kind: 'keyboard'; key: string } // a–z, 0–9 or ' '; letters stored lower case
+  | { kind: 'special'; key: SpecialKey }
+  | { kind: 'mouse'; button: MouseButton; state: MouseState }
+  | { kind: 'motion' }
+  | { kind: 'idle' };
+export type RuleAction =
+  | { type: 'translate'; dx: number; dy: number }
+  | { type: 'rotate'; degrees: number }
+  | { type: 'scale'; sx: number; sy: number }
+  | { type: 'moveToPointer' }
+  | { type: 'reset' }
+  | { type: 'setColor'; color: string }
+  | { type: 'visibility'; mode: 'show' | 'hide' | 'toggle' };
+export type RuleActionType = RuleAction['type'];
+export interface CallbackRule {
+  id: string;
+  objectId: string;
+  trigger: RuleTrigger;
+  action: RuleAction;
+}
+export type ResizeMode = 'keep' | 'stretch';
+export interface RuleCallback {
+  handlerName: string;
+  rules: CallbackRule[];
+}
+export interface ReshapeCallback {
+  handlerName: string;
+  resize: ResizeMode;
+}
+export interface CallbacksState {
+  keyboard: RuleCallback;
+  special: RuleCallback;
+  mouse: RuleCallback;
+  motion: RuleCallback;
+  reshape: ReshapeCallback;
+  idle: RuleCallback;
 }
 export type RenderingMode = 'IMMEDIATE' | 'VERTEX_ARRAY' | 'VBO';
 export type BufferUsage = 'STATIC' | 'DYNAMIC' | 'STREAM';

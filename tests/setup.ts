@@ -1,3 +1,4 @@
+import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { beforeEach, vi } from 'vitest';
 import { useVamsStore } from '@/core/store';
 import * as sampleTextures from '@/features/textures/lib/sample-textures';
@@ -44,7 +45,7 @@ beforeEach(() => {
     canvasBackgroundColorBackup: null,
     viewportLimitsBackup: null,
     uploadedTexturesBackup: null,
-    callbacks: { keyboard: '', mouse: '', reshape: '', motion: '', idle: '' },
+    callbacks: emptyCallbacks(),
     canvasBackgroundColor: '#000000',
     viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
     uploadedTextures: s.uploadedTextures ?? [],

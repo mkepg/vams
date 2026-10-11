@@ -368,7 +368,7 @@ export const PRIMITIVES_LESSONS: Record<string, Lesson> = {
         narration: "Register a Mouse callback. You can name the function whatever you like.",
         waitForUser: true,
         successCheck: (state) => {
-          const name = (state.callbacks.mouse || '').trim();
+          const name = state.callbacks.mouse.handlerName.trim();
           return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name);
         },
       },

@@ -7,6 +7,7 @@
  *  - Success-detection accuracy: artificially constructed pass/fail scenarios
  *  - State-restoration fidelity: byte-for-byte snapshot equality before/after
  */
+import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { describe, it, expect, afterAll } from 'vitest';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { useVamsStore } from '@/core/store';
@@ -48,7 +49,7 @@ describe('ALG-3-01: Step-execution latency across the entire lesson library', ()
       // Reset store between lessons
       useVamsStore.setState({
         objects: [], selectedObjectId: null, pendingShapeType: null, pendingVertices: [],
-        callbacks: { keyboard: '', mouse: '', reshape: '', motion: '', idle: '' },
+        callbacks: emptyCallbacks(),
       });
       for (const step of lesson.steps) {
         if (!step.action) continue;
@@ -74,25 +75,25 @@ describe('ALG-3-02: Success-detection accuracy on artificial pass/fail scenarios
     // POSITIVE scenarios — engineered to match common predicates.
     const positives: Array<() => void> = [
       () => {
-        useVamsStore.setState({ objects: [], callbacks: { keyboard: '', mouse: '', reshape: '', motion: '', idle: '' } });
+        useVamsStore.setState({ objects: [], callbacks: emptyCallbacks() });
         getState().addCustomObject('QUADS', [
           { x: -0.3, y: -0.3 }, { x: 0.3, y: -0.3 },
           { x: 0.3, y: 0.3 }, { x: -0.3, y: 0.3 },
         ]);
       },
       () => {
-        useVamsStore.setState({ objects: [], callbacks: { keyboard: '', mouse: '', reshape: '', motion: '', idle: '' } });
+        useVamsStore.setState({ objects: [], callbacks: emptyCallbacks() });
         getState().addTextObject('hello world', 0, 0);
       },
       () => {
-        useVamsStore.setState({ objects: [], callbacks: { keyboard: '', mouse: '', reshape: '', motion: '', idle: '' } });
+        useVamsStore.setState({ objects: [], callbacks: emptyCallbacks() });
         getState().setCallbackHandler('mouse', 'onClick');
       },
     ];
     // NEGATIVE scenarios — empty scene; nothing should pass except trivial.
     const negatives: Array<() => void> = [
       () => useVamsStore.setState({
-        objects: [], selectedObjectId: null, callbacks: { keyboard: '', mouse: '', reshape: '', motion: '', idle: '' },
+        objects: [], selectedObjectId: null, callbacks: emptyCallbacks(),
       }),
     ];
 

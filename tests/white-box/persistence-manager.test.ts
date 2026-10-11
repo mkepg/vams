@@ -16,6 +16,8 @@ import {
 } from '@/entities/project/model/project-io';
 import { addTriangle, addQuad, getState } from '../helpers/store';
 import { useVamsStore } from '@/core/store';
+import { migratePersistedState } from '@/core/store/persist-migrate';
+import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 
 describe('WB-PERSIST-01: buildProjectFile produces a v7 envelope', () => {
   it('contains app, schemaVersion, exportedAt and data', () => {
@@ -34,7 +36,7 @@ describe('WB-PERSIST-02: sanitizeProjectData restores defaults for missing field
     expect(sanitized.objects).toEqual([]);
     expect(sanitized.theme).toBe('dark');
     expect(sanitized.canvasBackgroundColor).toBe('#000000');
-    expect(sanitized.callbacks).toEqual({ keyboard: '', mouse: '', reshape: '', motion: '', idle: '' });
+    expect(sanitized.callbacks).toEqual(emptyCallbacks());
     expect(sanitized.viewportLimits).toMatchObject({ minX: -1, maxX: 1, minY: -1, maxY: 1 });
   });
 });
@@ -133,5 +135,28 @@ describe('WB-PERSIST-07: toStorePatchFromProject is a Partial<VamsState>', () =>
     expect(Object.keys(sanitized)).not.toContain('past');
     expect(Object.keys(sanitized)).not.toContain('future');
     expect(Object.keys(sanitized)).not.toContain('isBatchMode');
+  });
+});
+
+describe('WB-PERSIST-06: Browser storage version 7 migrates to version 8', () => {
+  it('keeps handler names, adds empty rules, maps Reshape to Stretch, and migrates the lesson backup', () => {
+    const v7 = {
+      objects: [],
+      callbacks: { keyboard: 'onKey', mouse: '', reshape: 'onResize', motion: '', idle: 'tick' },
+      callbacksBackup: { keyboard: '', mouse: 'onClick', reshape: '', motion: '', idle: '' },
+      theme: 'light',
+    };
+    const out = migratePersistedState(v7, 7) as Record<string, Record<string, unknown>> & { theme: string };
+    expect(out.theme).toBe('light');
+    expect(out.callbacks.keyboard).toEqual({ handlerName: 'onKey', rules: [] });
+    expect(out.callbacks.special).toEqual({ handlerName: '', rules: [] });
+    expect(out.callbacks.reshape).toEqual({ handlerName: 'onResize', resize: 'stretch' });
+    expect(out.callbacks.idle).toEqual({ handlerName: 'tick', rules: [] });
+    expect(out.callbacksBackup.mouse).toEqual({ handlerName: 'onClick', rules: [] });
+  });
+
+  it('keeps a null lesson backup null, and starts fresh from versions before 7', () => {
+    expect((migratePersistedState({ callbacks: {}, callbacksBackup: null }, 7) as { callbacksBackup: unknown }).callbacksBackup).toBeNull();
+    expect(migratePersistedState({ objects: [{ id: 'x' }] }, 6)).toEqual({});
   });
 });
