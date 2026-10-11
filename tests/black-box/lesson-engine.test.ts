@@ -12,6 +12,7 @@ import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { describe, it, expect } from 'vitest';
 import { useVamsStore } from '@/core/store';
 import { LESSON_REGISTRY, getLessonById } from '@/features/lesson-engine/model/lesson-registry';
+import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { addTriangle, getState } from '../helpers/store';
 
 const FIRST_DEMO_ID = Object.values(LESSON_REGISTRY).find((l) => l.type === 'demo')?.id;
@@ -155,5 +156,49 @@ describe('BB-LESSON-06: successCheck predicates classify pass/fail correctly', (
       if (evaluatedFail >= 1) break;
     }
     expect(evaluatedFail).toBeGreaterThanOrEqual(1);
+  });
+});
+
+const lessonStep = (id: string, i: number) => LESSON_REGISTRY[id].steps[i];
+
+describe('BB-LESSON-07: The callbacks demo builds onKey with a D case', () => {
+  it('step 2 registers onKey and a D rule on Triangle', () => {
+    lessonStep('primitives-demo-5', 1).action!(useVamsStore.getState());
+    const s = getState();
+    const code = generateCodeFromState(
+      { objects: s.objects, canvasBackgroundColor: s.canvasBackgroundColor, callbacks: s.callbacks, viewportLimits: s.viewportLimits },
+      { width: 800, height: 600 },
+    );
+    expect(code).toContain("void onKey(unsigned char key, int x, int y)");
+    expect(code).toContain("    case 'd':\n    case 'D':\n        state_Triangle.x += 0.10f;");
+    expect(code).toContain('glutKeyboardFunc(onKey);');
+  });
+});
+
+describe('BB-LESSON-08: The mouse exercise needs a left-down Move to pointer rule', () => {
+  it('fails without the rule and passes with it', () => {
+    const check = lessonStep('primitives-exercise-5', 1).successCheck!;
+    const t = addTriangle();
+    getState().setCallbackHandler('mouse', 'onMouse');
+    expect(check(useVamsStore.getState())).toBe(false);
+    getState().addCallbackRule('mouse', { id: 'a', objectId: t.id, trigger: { kind: 'mouse', button: 'left', state: 'up' }, action: { type: 'moveToPointer' } });
+    expect(check(useVamsStore.getState())).toBe(false);
+    getState().addCallbackRule('mouse', { id: 'b', objectId: t.id, trigger: { kind: 'mouse', button: 'left', state: 'down' }, action: { type: 'moveToPointer' } });
+    expect(check(useVamsStore.getState())).toBe(true);
+  });
+});
+
+describe('BB-LESSON-09: Drive with the Arrow Keys', () => {
+  it('needs Special keys, then → and ← translates on one object', () => {
+    const first = lessonStep('primitives-exercise-6', 0).successCheck!;
+    const second = lessonStep('primitives-exercise-6', 1).successCheck!;
+    getState().setCallbackHandler('special', 'onSpecial');
+    expect(first(useVamsStore.getState())).toBe(false);
+    const t = addTriangle();
+    expect(first(useVamsStore.getState())).toBe(true);
+    getState().addCallbackRule('special', { id: 'r', objectId: t.id, trigger: { kind: 'special', key: 'right' }, action: { type: 'translate', dx: 0.1, dy: 0 } });
+    expect(second(useVamsStore.getState())).toBe(false);
+    getState().addCallbackRule('special', { id: 'l', objectId: t.id, trigger: { kind: 'special', key: 'left' }, action: { type: 'translate', dx: -0.1, dy: 0 } });
+    expect(second(useVamsStore.getState())).toBe(true);
   });
 });

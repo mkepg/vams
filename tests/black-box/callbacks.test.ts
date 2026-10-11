@@ -12,6 +12,10 @@ import {
   emptyCallbacks, isCallbackValid, isValidHandlerName, MAX_RULES,
 } from '@/core/callbacks/callbacks-model';
 import type { CallbackRule } from '@/core/types/scene';
+import { CALLBACK_DEFS, CALLBACKS_NOTE, actionSentence, triggerChip, triggerPhrase, invalidNameMessage } from '@/features/callbacks/model/rule-copy';
+import { RUN_HINT, RUN_SURFACE_LABEL, RUN_DISABLED_TITLE } from '@/features/callbacks/ui/RunOverlay';
+import { HELP_TOPICS } from '@/features/help/model/help-content';
+import { PRIMITIVES_LESSONS } from '@/features/lesson-engine/model/primitives-lessons';
 import { addTriangle, addQuad, addPrimitive, getState } from '../helpers/store';
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -394,5 +398,26 @@ describe('BB-CB-16: locateHandlerBranch finds the lines that ran', () => {
     expect(motion.at(-1)).toBe('}');
     expect(pick(locateHandlerBranch(code, 'onReshape', null))[0]).toBe('void onReshape(int width, int height)');
     expect(locateHandlerBranch(code, 'nothing', null)).toEqual([]);
+  });
+});
+
+describe('BB-CB-17: No banned word in callbacks copy, help, narration or generated comments', () => {
+  it('scans every string', () => {
+    const banned = /coming soon|not yet|not supported|unsupported|future|deferred|\b3d\b|lighting/i;
+    const t = addTriangle();
+    const copy = [
+      JSON.stringify(CALLBACK_DEFS), CALLBACKS_NOTE, RUN_HINT, RUN_SURFACE_LABEL, RUN_DISABLED_TITLE, invalidNameMessage('onKey'),
+      triggerChip({ kind: 'idle' }), triggerPhrase({ kind: 'motion' }), actionSentence({ type: 'reset' }, 'T'),
+      JSON.stringify(HELP_TOPICS.filter((topic) => topic.id === 'callbacks' || topic.id === 'canvas-basics')),
+      JSON.stringify(['primitives-demo-5', 'primitives-exercise-5', 'primitives-exercise-6'].map((id) => PRIMITIVES_LESSONS[id].steps.map((s) => s.narration))),
+    ];
+    (['keyboard', 'special', 'mouse', 'motion', 'idle'] as const).forEach((k) => getState().setCallbackHandler(k, `h_${k}`));
+    getState().setCallbackHandler('reshape', 'onReshape');
+    const comments = (code: string) => code.split('\n').filter((l) => l.trim().startsWith('//')).join('\n');
+    copy.push(comments(gen()));
+    getState().setReshapeMode('stretch');
+    getState().addCallbackRule('mouse', { id: 'p', objectId: t.id, trigger: { kind: 'mouse', button: 'left', state: 'down' }, action: { type: 'moveToPointer' } });
+    copy.push(comments(gen()));
+    for (const text of copy) expect(text).not.toMatch(banned);
   });
 });
