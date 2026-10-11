@@ -58,7 +58,7 @@ The product rules in `AGENTS.md` and [docs/product-plan.md](../product-plan.md) 
 10. `/learn` page (replaces the SP4 Learn hub): the course map outside the editor, reusing the Learn drawer's course data and progress. By Nov 2. The Guide page follows it. Complete (2026-10-10): [spec](2026-10-10-learn-page-design.md), [plan](../plans/2026-10-10-learn-page.md)
 11. Polish the demo lesson(s)
 12. Screenshot regression checks, a safety net for SP5. Done with SP5 (`npm run test:visual`)
-13. Functional callbacks: keyboard, mouse, motion, reshape and idle behaviours defined in the GUI, with generated handler bodies and a canvas Run mode that never writes scene state. Needs its own spec and a product plan amendment, since the plan specifies empty stubs. Touches the editor
+13. Functional callbacks: keyboard, mouse, motion, reshape and idle behaviours defined in the GUI, with generated handler bodies and a canvas Run mode that never writes scene state. Needs its own spec and a product plan amendment, since the plan specifies empty stubs. Touches the editor. Complete (2026-10-12): [spec](2026-10-12-functional-callbacks-design.md), [plan](../plans/2026-10-12-functional-callbacks.md)
 
 ### Could
 
@@ -112,6 +112,8 @@ The thesis manuscript is final and describes the evaluated build. The overhauled
 10. §3.4.2's five layout regions and its top-bar actions. The lesson bar becomes a lesson card at the top of the section column, the section tabs become a menu at the top of that column, and the file actions move into a File menu in the top bar (SP5).
 11. The manuscript describes a tools rail whose panels change with the selected curriculum section, with the Pipeline section's canvas modes as section tools. The editor is now the same in every section: a scene list and a pipeline-ordered inspector. Sections become the course map in a Learn drawer, and the Pipeline views appear during Pipeline lessons (editor refinement).
 12. The use-case and activity diagrams show lessons reached only inside the editor. The site now has a /learn course map, with progress, that opens any lesson in the editor.
+13. §3.4.1 says "there is no concept of playback or event-driven behavior engine in the implementation, nor is there any retained state of the simulation". The editor now has Run: a transient, event-driven state that keeps a temporary copy of each object's state while it runs. It never writes scene state, and the code and math panels still draw from the store. During Run the canvas shows the running program, not the saved scene.
+14. Algorithm 2 ends the program with "callback function skeletons", and §3.4.2's callbacks panel registers names only. Handlers now have generated bodies built from rules, a sixth callback (`glutSpecialFunc`) exists, and Reshape offers two behaviours.
 
 The following manuscript descriptions may also be crossed by later sub-projects. When one is, it is added to the list above:
 - The default canvas background `#000000`. Changing it changes generated code and the replay baseline.

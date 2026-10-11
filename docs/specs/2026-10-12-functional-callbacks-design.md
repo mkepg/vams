@@ -96,7 +96,7 @@ export interface CallbacksState {
 }
 ```
 
-A callback is **registered** when its trimmed handler name is non-empty. It is **valid** when the name is a C++ identifier (`/^[A-Za-z_][A-Za-z0-9_]*$/`) and not reserved. Reserved names are `main`, `init`, `display`, `draw`, `update_buffers`, `windowToWorld`, `_vams_idle`, any name starting with `draw_`, `animate_`, `state_` or `initial_`, and C++ keywords (the list lives beside the regex). An invalid name is flagged in the panel, and that callback is left out of the generated code and of Run until it is fixed.
+A callback is **registered** when its trimmed handler name is non-empty. It is **valid** when the name is a C++ identifier (`/^[A-Za-z_][A-Za-z0-9_]*$/`) and not reserved. Reserved names are `main`, `init`, `display`, `draw`, `update_buffers`, `windowToWorld`, `_vams_idle`, the view globals `viewMinX`, `viewMaxX`, `viewMinY` and `viewMaxY`, any name starting with `draw_`, `animate_`, `state_` or `initial_`, any per-object generated prefix (`vbo_`, `cbo_`, `ebo_`, `uvbo_`, `verts_`, `colors_`, `uvs_`, `indices_`, `tex_`, `baseX_` and the like), and C++ keywords (the list lives beside the regex). An invalid name is flagged in the panel, and that callback is left out of the generated code and of Run until it is fixed.
 
 ### Triggers and actions
 
@@ -462,7 +462,7 @@ Run listens on the run surface and the window (keys) while it is active, and rep
 During Run the canvas acts as the program window:
 
 - It starts at the canvas's full size, matching `glutInitWindowSize`.
-- A drag handle in its bottom-right corner (a 16px grip, `aria-label="Resize the program window"`) resizes it from 200×150 up to the full canvas. Arrow keys on the focused handle resize it in 10px steps. Those keys are not delivered to handlers, since focus is on the handle and not on the run surface.
+- A drag handle in its bottom-right corner (a 24px handle, `aria-label="Resize the program window"`) resizes it from 200×150 up to the full canvas. Arrow keys on the focused handle resize it in 10px steps. Those keys are not delivered to handlers, since focus is on the handle and not on the run surface.
 - Outside the window, the canvas shows `--paper-sunken` and draws nothing.
 - Inside, the scene is drawn with the run view:
   - **Keep proportions:** the bounds the generated reshape handler computes.
