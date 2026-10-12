@@ -625,3 +625,12 @@ describe('BB-SITE-36: Page URLs use the address the host serves', () => {
     expect(buildSitemap('https://example.test')).not.toMatch(/<loc>https:\/\/example\.test\/[a-z]+<\/loc>/);
   });
 });
+
+describe('BB-SITE-37: Netlify publishes only the forwarding site, and only when it changes', () => {
+  it('publishes deploy/netlify-forward without a build and skips unrelated pushes', () => {
+    const toml = readFileSync('netlify.toml', 'utf8');
+    expect(toml).toMatch(/publish\s*=\s*"deploy\/netlify-forward"/);
+    expect(toml).not.toMatch(/npm run build/);
+    expect(toml).toMatch(/ignore\s*=\s*"git diff --quiet \$CACHED_COMMIT_REF \$COMMIT_REF -- netlify\.toml deploy\/netlify-forward"/);
+  });
+});
