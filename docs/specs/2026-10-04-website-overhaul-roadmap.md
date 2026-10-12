@@ -7,7 +7,7 @@ This is the umbrella document for the overhaul. Each sub-project has its own des
 
 ## Goals
 
-The live site (<https://panic-vams.netlify.app/>) used to open straight into the editor. No page presented the project, and help content was spread across the README, the help center and the welcome card.
+The live site (then <https://panic-vams.netlify.app/>, now <https://vams.pages.dev/>) used to open straight into the editor. No page presented the project, and help content was spread across the README, the help center and the welcome card.
 
 The overhaul has three goals:
 
@@ -84,7 +84,7 @@ These issues already exist on the `main` from before the overhaul. They are wort
 
 - PixiJS logs a shader warning when a texture is attached.
 
-One deployment check is outstanding: the real 404 status on Netlify.
+The site is hosted on Cloudflare Pages at <https://vams.pages.dev/> since 2026-10-12, built from `main` on every push. The old address <https://panic-vams.netlify.app/> forwards there with a 301 from the static site in `deploy/netlify-forward/`, deployed once with Netlify builds stopped. One deployment check is outstanding: the real 404 status on Cloudflare (`curl -I https://vams.pages.dev/nope`).
 
 Rehearsal checklist (Nov 3):
 

@@ -95,5 +95,5 @@ export const TRY_IT = {
   note: 'Runs in your desktop browser. Nothing to install.',
   startFrom: 'Start from:',
   /** Must match DEFAULT_SITE_URL in src/app/routes/route-meta.ts (checked by BB-HOME-12). */
-  displayUrl: 'panic-vams.netlify.app',
+  displayUrl: 'vams.pages.dev',
 };

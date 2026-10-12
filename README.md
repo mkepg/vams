@@ -10,7 +10,7 @@ write itself, line by line.
 ![Tests](https://img.shields.io/badge/tests-250%20passing-brightgreen)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
 
-**[Try it live →](https://panic-vams.netlify.app/)**
+**[Try it live →](https://vams.pages.dev/)**
 
 ![VAMS authoring primitives, with generated OpenGL code and the math panel](docs/images/01-primitives.png)
 

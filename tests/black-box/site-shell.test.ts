@@ -173,7 +173,7 @@ describe('BB-SITE-11: Sitemap and robots list only indexable routes', () => {
     expect(sitemap).not.toContain('/app');
     expect(sitemap).not.toContain('/404');
     expect(buildRobots(SITE)).toContain('Sitemap: https://example.test/sitemap.xml');
-    expect(DEFAULT_SITE_URL).toBe('https://panic-vams.netlify.app');
+    expect(DEFAULT_SITE_URL).toBe('https://vams.pages.dev');
   });
 });
 
@@ -586,5 +586,31 @@ describe('BB-SITE-34: Below 375 px the switcher drops Home', () => {
     expect(block).toMatch(
       /li:has\(>\s*\.site-header__link\[href=['"]\/['"]\]\)\s*\{\s*display:\s*none;\s*\}/,
     );
+  });
+});
+
+describe('BB-SITE-35: The old Netlify address forwards to the live site', () => {
+  const forwardRules = () =>
+    readFileSync('deploy/netlify-forward/_redirects', 'utf8')
+      .split(/\r?\n/)
+      .filter((line) => line.trim() && !line.trim().startsWith('#'));
+
+  it('serves the retiring service worker first, then forwards every path to the site URL', () => {
+    const rules = forwardRules();
+    expect(rules[0].split(/\s+/)).toEqual(['/sw.js', '/sw.js', '200']);
+    expect(rules[1].split(/\s+/)).toEqual(['/*', `${DEFAULT_SITE_URL}/:splat`, '301!']);
+    expect(rules).toHaveLength(2);
+  });
+
+  it('retires the old offline copy and reloads its open pages', () => {
+    const worker = readFileSync('deploy/netlify-forward/sw.js', 'utf8');
+    expect(worker).toContain('skipWaiting');
+    expect(worker).toContain('registration.unregister');
+    expect(worker).toContain('caches.delete');
+    expect(worker).toContain('.navigate(');
+  });
+
+  it('leaves the Netlify-only 404 rule out of the live site', () => {
+    expect(() => readFileSync('public/_redirects', 'utf8')).toThrow();
   });
 });
