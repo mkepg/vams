@@ -1,0 +1,11 @@
+# The site moved to Cloudflare Pages (2026-10-12), which builds `main` and
+# ignores this file. Netlify now only keeps the old address working: it
+# publishes deploy/netlify-forward, whose _redirects sends every path and query
+# on panic-vams.netlify.app to the same place on vams.pages.dev, and whose
+# sw.js retires the offline copy browsers installed from the old address.
+[build]
+  publish = "deploy/netlify-forward"
+  command = "echo 'Forwarding only: the site is built on Cloudflare Pages.'"
+  # Exit 0 skips the deploy, so pushes that leave the forwarding files alone
+  # cost nothing.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- netlify.toml deploy/netlify-forward"

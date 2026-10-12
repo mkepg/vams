@@ -84,7 +84,7 @@ These issues already exist on the `main` from before the overhaul. They are wort
 
 - PixiJS logs a shader warning when a texture is attached.
 
-The site is hosted on Cloudflare Pages at <https://vams.pages.dev/> since 2026-10-12, built from `main` on every push. The old address <https://panic-vams.netlify.app/> forwards there with a 301 from the static site in `deploy/netlify-forward/`, deployed once with Netlify builds stopped. One deployment check is outstanding: the real 404 status on Cloudflare (`curl -I https://vams.pages.dev/nope`).
+The site is hosted on Cloudflare Pages at <https://vams.pages.dev/> since 2026-10-12, built from `main` on every push. The old address <https://panic-vams.netlify.app/> forwards there with a 301 from the static site in `deploy/netlify-forward/`, which `netlify.toml` publishes only when those files change. One deployment check is outstanding: the real 404 status on Cloudflare (`curl -I https://vams.pages.dev/nope`).
 
 Rehearsal checklist (Nov 3):
 

@@ -98,7 +98,7 @@ tests/
 ## Running
 
 ```bash
-npm test                # run all 642 tests
+npm test                # run all 643 tests
 npm run test:watch      # watch mode for development
 npm run test:coverage   # also produce tests/reports/coverage/
 npm run test:visual     # editor screenshot checks (Playwright, installed Chrome)
