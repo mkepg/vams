@@ -1,5 +1,6 @@
 import type { Lesson } from '@/core/types/lesson';
 import { useVamsStore } from '@/core/store';
+import { isCallbackValid, newRuleId } from '@/core/callbacks/callbacks-model';
 
 export const PRIMITIVES_LESSONS: Record<string, Lesson> = {
   'poc-demo-1': {
@@ -213,23 +214,45 @@ export const PRIMITIVES_LESSONS: Record<string, Lesson> = {
     section: 'Primitives',
     steps: [
       {
-        narration: "A graphics window isn't much fun if you can't interact with it. GLUT uses 'Callbacks' to listen for your mouse and keyboard.",
+        narration: "A graphics window isn't much fun if it can't react. GLUT uses callbacks: functions it calls when a key is pressed, the mouse moves or the window changes size.",
         waitForUser: true,
         focusPanel: 'callbacks-panel',
       },
       {
-        narration: "Let's register a function to handle window resizing, and we'll name it 'onWindowResize'.",
+        narration: "Let's register a keyboard handler, onKey, with one rule: when D is pressed, move the triangle 0.10 to the right.",
         waitForUser: true,
-        action: (state) => state.setCallbackHandler('reshape', 'onWindowResize'),
+        focusPanel: 'callbacks-panel',
+        action: (state) => {
+          state.addCustomObject('TRIANGLES', [
+            { x: 0, y: 0.5 },
+            { x: -0.5, y: -0.5 },
+            { x: 0.5, y: -0.5 },
+          ]);
+          const store = useVamsStore.getState();
+          const triangle = store.objects[0];
+          store.updateObjectName(triangle.id, 'Triangle');
+          store.selectObject(null);
+          store.setCallbackHandler('keyboard', 'onKey');
+          store.addCallbackRule('keyboard', {
+            id: newRuleId(),
+            objectId: triangle.id,
+            trigger: { kind: 'keyboard', key: 'd' },
+            action: { type: 'translate', dx: 0.1, dy: 0 },
+          });
+        },
       },
       {
-        narration: "Scroll down to main() in the Code Panel. See glutReshapeFunc(onWindowResize)? That tells GLUT to call our function whenever the window changes size.",
+        narration: 'Find onKey in the Code Panel. The rule became a case in a switch on key, and it changes state_Triangle.x. glutPostRedisplay asks GLUT to draw the next frame.',
         waitForUser: true,
       },
       {
-        narration: "VAMS generates the empty function stub for you right above main(). When you export your code, you'll put your logic inside that stub.",
+        narration: 'Now find glutKeyboardFunc(onKey) in main(). That line tells GLUT which function to call when a key is pressed.',
         waitForUser: true,
-      }
+      },
+      {
+        narration: 'Press Run on the canvas, then press D. The triangle moves and its case lights up in the Code Panel. Press Esc to stop: your scene is just as you built it.',
+        waitForUser: true,
+      },
     ],
   },
   'primitives-exercise-1': {
@@ -360,20 +383,56 @@ export const PRIMITIVES_LESSONS: Record<string, Lesson> = {
     section: 'Primitives',
     steps: [
       {
-        narration: "Final exercise! We need to make our program respond to mouse clicks. Open the Callbacks panel.",
+        narration: 'We need the program to respond to mouse clicks. Open the Callbacks group.',
         waitForUser: true,
         focusPanel: 'callbacks-panel',
       },
       {
-        narration: "Register a Mouse callback. You can name the function whatever you like.",
+        narration: 'Add any shape, then click an empty part of the canvas to see the Callbacks group. Register a Mouse callback and give it a rule: when the left button goes down, move the shape to the pointer.',
         waitForUser: true,
+        focusPanel: 'callbacks-panel',
+        successCheck: (state) =>
+          isCallbackValid(state.callbacks, 'mouse') &&
+          state.callbacks.mouse.rules.some(
+            (r) =>
+              r.trigger.kind === 'mouse' && r.trigger.button === 'left' && r.trigger.state === 'down' &&
+              r.action.type === 'moveToPointer' && state.objects.some((o) => o.id === r.objectId),
+          ),
+      },
+      {
+        narration: 'Press Run and click around the canvas. Each click calls your handler, which converts the pixel to world coordinates with windowToWorld.',
+        waitForUser: true,
+      },
+    ],
+  },
+  'primitives-exercise-6': {
+    id: 'primitives-exercise-6',
+    title: 'Drive with the Arrow Keys',
+    type: 'exercise',
+    section: 'Primitives',
+    steps: [
+      {
+        narration: 'Arrow keys have no ASCII code, so GLUT sends them to a separate callback, glutSpecialFunc. Add any shape, click an empty part of the canvas to see the Callbacks group, then switch on Special keys.',
+        waitForUser: true,
+        focusPanel: 'callbacks-panel',
+        successCheck: (state) => state.objects.length > 0 && isCallbackValid(state.callbacks, 'special'),
+      },
+      {
+        narration: 'Add two rules: → translates a shape right (a positive dx) and ← translates it left (a negative dx).',
+        waitForUser: true,
+        focusPanel: 'callbacks-panel',
         successCheck: (state) => {
-          const name = (state.callbacks.mouse || '').trim();
-          return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name);
+          const rules = state.callbacks.special.rules;
+          const moves = (key: 'left' | 'right', sign: number) =>
+            rules.filter((r) => r.trigger.kind === 'special' && r.trigger.key === key && r.action.type === 'translate' && Math.sign(r.action.dx) === sign);
+          const lefts = moves('left', -1);
+          return moves('right', 1).some(
+            (r) => lefts.some((l) => l.objectId === r.objectId) && state.objects.some((o) => o.id === r.objectId),
+          );
         },
       },
       {
-        narration: "Perfect. Your program is now wired up with glutMouseFunc. You've mastered the Primitives section!",
+        narration: "Press Run and drive it with the arrow keys. You've mastered the Primitives section!",
         waitForUser: true,
       },
     ],

@@ -136,3 +136,35 @@ test('VIS-EDITOR-13: A demo step outlines its group and dims the rest, dark, 128
   await expect(page.locator('.inspector-group.is-dimmed').first()).toBeVisible();
   await expect(page).toHaveScreenshot('demo-dimmed-dark-1280.png');
 });
+
+async function callbacksWithRules(page: Page) {
+  // An empty spot selects nothing, which shows scene settings.
+  await page.locator('.canvas-wrapper').click({ position: { x: 20, y: 300 } });
+  await page.getByRole('button', { name: 'Callbacks' }).click();
+  const special = page.locator('.cb-item', { has: page.locator('.cb-label', { hasText: 'Special keys' }) });
+  await special.locator('.cb-toggle').click();
+  await special.getByRole('button', { name: 'Add rule' }).click();
+  await special.getByRole('button', { name: 'Done' }).click();
+  await special.getByRole('button', { name: 'Add rule' }).click();
+  return special;
+}
+
+test('VIS-EDITOR-14: Callbacks group with rules and an open form, light, 1280', async ({ page }) => {
+  await open(page, '/app?scene=primitives');
+  const special = await callbacksWithRules(page);
+  await expect(special.locator('.cb-rule-form')).toBeVisible();
+  await expect(page).toHaveScreenshot('callbacks-rules-light-1280.png');
+});
+
+for (const theme of ['light', 'dark'] as const) {
+  test(`VIS-EDITOR-${theme === 'light' ? '15' : '16'}: Run after pressing →, ${theme}, 1280`, async ({ page }) => {
+    await open(page, '/app?scene=primitives', theme);
+    const special = await callbacksWithRules(page);
+    await special.getByRole('button', { name: 'Done' }).click();
+    await page.locator('.run-button').click();
+    await expect(page.locator('.run-strip')).toBeVisible();
+    await page.keyboard.press('ArrowRight');
+    await expect(page.locator('.run-readout')).toContainText('GLUT_KEY_RIGHT');
+    await expect(page).toHaveScreenshot(`run-${theme}-1280.png`, { animations: 'disabled' });
+  });
+}

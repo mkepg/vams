@@ -2,7 +2,7 @@ import { useVamsStore } from '@/core/store';
 import VamsCanvas from './VamsCanvas';
 import PipelineDiagram from './views/PipelineDiagram';
 import RasterVectorView from './views/RasterVectorView';
-import { showsIllustration } from './illustration';
+import { showsIllustration } from '@/core/store/illustration';
 
 /** The editor always shows the scene; the Pipeline illustrations belong to Pipeline lessons. */
 export default function ViewportRouter() {

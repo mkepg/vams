@@ -1,8 +1,15 @@
-import type { SceneNode, ViewportLimits, GlutCallbackKind, AnimationMotion, ObjectAnimation } from '@/core/types/scene';
+import type { SceneNode, ViewportLimits, AnimationMotion, ObjectAnimation } from '@/core/types/scene';
 import type { TextureAsset } from '@/core/types/textures';
 import { sanitizeName } from './generator/utils';
 import { generateState } from './generator/state';
-import { generateObjectDrawBody } from './generator/render';
+import { generateObjectDrawBody, type DrawEffects } from './generator/render';
+import {
+  generateHandlers,
+  generateRegistrations,
+  generateViewGlobals,
+  generateWindowToWorld,
+  type CallbackPlan,
+} from './generator/handlers';
 import { generateAnimateFunction } from './generator/idle';
 import {
   generateBufferGlobals,
@@ -15,17 +22,13 @@ import {
   generateTextureInitBody,
   sceneNeedsTextures
 } from './generator/textures';
-export interface RegisteredCallback {
-  kind: GlutCallbackKind;
-  handlerName: string;
-}
 export function generateAppOutput(
   rootObjects: SceneNode[],
   allObjects: SceneNode[],
   canvasBackgroundColor: string,
   canvasSize: { width: number; height: number },
   emptySceneComment: string,
-  callbacks: RegisteredCallback[],
+  plan: CallbackPlan,
   viewportLimits?: ViewportLimits,
   textures: Map<string, TextureAsset> = new Map(),
   /**
@@ -37,6 +40,8 @@ export function generateAppOutput(
    */
   previewAnimation?: { objectId: string; motion: AnimationMotion; speed: number }
 ): string {
+  const limits = viewportLimits ?? { minX: -1, maxX: 1, minY: -1, maxY: 1 };
+  const effects: DrawEffects = { colorIds: plan.colorIds, visibilityIds: plan.visibilityIds };
   // The effective animation for an object: the live preview override if it
   // targets this object, otherwise the object's saved animation.
   const effectiveAnim = (obj: SceneNode): ObjectAnimation | null => {
@@ -62,7 +67,8 @@ export function generateAppOutput(
     code += `#include "stb_image.h"\n`;
   }
   code += `\n`;
-  code += generateState(allObjects);
+  code += generateState(allObjects, { extended: plan.extendedState, resetIds: plan.resetIds });
+  code += generateViewGlobals(plan, limits);
   code += generateBufferGlobals(allObjects);
   if (hasTextures) {
     code += generateTextureGlobals(allObjects);
@@ -82,7 +88,7 @@ export function generateAppOutput(
   allObjects.forEach((obj) => {
     if (obj.type !== 'GROUP' && obj.type !== 'TEXT') {
       code += `void draw_${sanitizeName(obj.name)}()\n{\n`;
-      code += generateObjectDrawBody(obj, allObjects);
+      code += generateObjectDrawBody(obj, allObjects, effects);
       code += `}\n\n`;
     }
   });
@@ -97,10 +103,23 @@ export function generateAppOutput(
     code += emptySceneComment;
   } else {
     [...rootObjects].reverse().forEach((obj) => {
+      const name = sanitizeName(obj.name);
+      const guarded = plan.visibilityIds.has(obj.id);
       if (obj.type === 'GROUP' || obj.type === 'TEXT') {
-        code += generateObjectDrawBody(obj, allObjects);
+        const block = generateObjectDrawBody(obj, allObjects, effects);
+        if (guarded) {
+          const indented = block
+            .split('\n')
+            .map((line) => (line ? `    ${line}` : line))
+            .join('\n');
+          code += `    if (state_${name}.visible) {\n${indented}    }\n`;
+        } else {
+          code += block;
+        }
       } else {
-        code += `    draw_${sanitizeName(obj.name)}();\n`;
+        code += guarded
+          ? `    if (state_${name}.visible) draw_${name}();\n`
+          : `    draw_${name}();\n`;
       }
     });
   }
@@ -115,7 +134,9 @@ export function generateAppOutput(
   code += `    // 2D orthographic projection — see glOrtho editor in VAMS\n`;
   code += `    glMatrixMode(GL_PROJECTION);\n`;
   code += `    glLoadIdentity();\n`;
-  if (viewportLimits) {
+  if (plan.needsView) {
+    code += `    glOrtho(viewMinX, viewMaxX, viewMinY, viewMaxY, -1.0, 1.0);\n\n`;
+  } else if (viewportLimits) {
     const { minX, maxX, minY, maxY } = viewportLimits;
     code += `    glOrtho(${minX.toFixed(4)}, ${maxX.toFixed(4)}, ${minY.toFixed(4)}, ${maxY.toFixed(4)}, -1.0, 1.0);\n\n`;
   } else {
@@ -127,20 +148,8 @@ export function generateAppOutput(
   code += `    draw();\n`;
   code += `    glutSwapBuffers();\n`;
   code += `}\n\n`;
-  callbacks.forEach((cb) => {
-    code += `// Callback stub for ${cb.kind} events\n`;
-    if (cb.kind === 'keyboard') {
-      code += `void ${cb.handlerName}(unsigned char key, int x, int y)\n{\n    // Add your keyboard logic here\n    glutPostRedisplay();\n}\n\n`;
-    } else if (cb.kind === 'mouse') {
-      code += `void ${cb.handlerName}(int button, int state, int x, int y)\n{\n    // Add your mouse click logic here\n    glutPostRedisplay();\n}\n\n`;
-    } else if (cb.kind === 'motion') {
-      code += `void ${cb.handlerName}(int x, int y)\n{\n    // Add your mouse drag logic here\n    glutPostRedisplay();\n}\n\n`;
-    } else if (cb.kind === 'reshape') {
-      code += `void ${cb.handlerName}(int width, int height)\n{\n    // Add your window resize logic here\n    glViewport(0, 0, width, height);\n    glutPostRedisplay();\n}\n\n`;
-    } else if (cb.kind === 'idle') {
-      code += `void ${cb.handlerName}()\n{\n    // Add your per-frame logic here\n    glutPostRedisplay();\n}\n\n`;
-    }
-  });
+  code += generateWindowToWorld(plan);
+  code += generateHandlers(plan, limits);
   code += `// One-time setup, called once before the main loop\n`;
   code += `void init()\n{\n`;
   const initBuffers = generateInitBody(allObjects);
@@ -153,7 +162,7 @@ export function generateAppOutput(
     code += generateTextureInitBody(allObjects, textures);
   }
   code += `}\n\n`;
-  const idleCb = callbacks.find(cb => cb.kind === 'idle');
+  const idleCb = plan.registered.find((cb) => cb.kind === 'idle');
   const needsIdle = needsBufferUpdate || idleCb || hasAnimations;
   if (needsIdle) {
     code += `// Internal VAMS wrapper: run per-frame animation and updates\n`;
@@ -186,12 +195,7 @@ export function generateAppOutput(
   code += `    glClearColor(${r}f, ${g}f, ${b}f, 1.0f);\n\n`;
   code += `    init();\n\n`;
   code += `    glutDisplayFunc(display);\n`;
-  callbacks.forEach((cb) => {
-    if (cb.kind === 'keyboard') code += `    glutKeyboardFunc(${cb.handlerName});\n`;
-    if (cb.kind === 'mouse') code += `    glutMouseFunc(${cb.handlerName});\n`;
-    if (cb.kind === 'motion') code += `    glutMotionFunc(${cb.handlerName});\n`;
-    if (cb.kind === 'reshape') code += `    glutReshapeFunc(${cb.handlerName});\n`;
-  });
+  code += generateRegistrations(plan);
   if (needsIdle) {
     code += `    glutIdleFunc(_vams_idle);\n`;
   }

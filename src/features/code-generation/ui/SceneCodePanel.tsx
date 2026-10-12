@@ -6,9 +6,16 @@ import { generateCodeFromState } from '@/features/code-generation/model/generate
 import { resolveChangedLines } from '@/features/code-generation/model/code-diff';
 import { sanitizeName } from '@/features/code-generation/model/generator/utils';
 import { GLUT_BOILERPLATE_ANNOTATIONS } from '@/features/code-generation/model/glut-annotations';
+import { locateHandlerBranch } from '@/features/code-generation/model/locate-branch';
+import type { RuleTrigger } from '@/core/types/scene';
 import { useAnimationPreview } from '@/features/animation-preview/model/useAnimationPreview';
 
-export default function SceneCodePanel() {
+interface SceneCodePanelProps {
+  /** The handler branch Run just fired; its lines flash in the code. */
+  flashBranch?: { handlerName: string; trigger: RuleTrigger | null; seq: number } | null;
+}
+
+export default function SceneCodePanel({ flashBranch }: SceneCodePanelProps = {}) {
   const objects = useVamsStore(s => s.objects);
   const selectedObjectId = useVamsStore(s => s.selectedObjectId);
   const canvasBackgroundColor = useVamsStore(s => s.canvasBackgroundColor);
@@ -87,7 +94,11 @@ export default function SceneCodePanel() {
 
   const showAnnotations = objects.length === 0;
   const isLessonMode = appMode === 'Lesson';
-  const changedLines = isLessonMode ? changedCodeLines : previewChanged;
+  const flashLines = useMemo(
+    () => (flashBranch ? locateHandlerBranch(generatedCode, flashBranch.handlerName, flashBranch.trigger) : []),
+    [flashBranch, generatedCode],
+  );
+  const changedLines = flashLines.length > 0 ? flashLines : isLessonMode ? changedCodeLines : previewChanged;
   return (
     <CodeViewer
       code={generatedCode}

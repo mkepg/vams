@@ -3,6 +3,7 @@
  * Links into the editor: prepared scenes, lesson and scene links, the slide 07 starting points
  * and the stage URL.
  */
+import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { afterEach, describe, it, expect } from 'vitest';
 import { h, render } from 'preact';
 import { renderToString } from 'preact-render-to-string';
@@ -21,7 +22,7 @@ import { getPreset, isPresetSlug } from '@/entities/project/model/scene-presets'
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { extractDrawBlock, generateDemoCode, INITIAL_TRIANGLE } from '@/pages/home/model/demo-code';
 
-const NO_CALLBACKS = { keyboard: '', mouse: '', reshape: '', motion: '', idle: '' };
+const NO_CALLBACKS = emptyCallbacks();
 /** Stands in for the canvas-drawn sample texture, which happy-dom cannot paint. */
 const BRICKS = { id: 'sample-bricks', name: 'Tiling Bricks', dataUrl: 'data:image/png;base64,AA', width: 256, height: 256, isSample: true };
 

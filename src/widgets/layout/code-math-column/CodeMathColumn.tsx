@@ -1,15 +1,18 @@
 import SceneCodePanel from '@/features/code-generation/ui/SceneCodePanel';
 import MathPanel from '@/features/math-panel/ui/MathPanel';
+import { useRunSnapshot } from '@/features/callbacks';
 import './code-math-column.scss';
 
 /** The right column: generated code above, the math behind it below, each scrolling on its own. */
 export default function CodeMathColumn() {
+  const { running, fired } = useRunSnapshot();
+  const flashBranch = fired ? { handlerName: fired.handlerName, trigger: fired.trigger, seq: fired.seq } : null;
   return (
     <div className="code-math-column">
       <div className="code-math-column__code">
-        <SceneCodePanel />
+        <SceneCodePanel flashBranch={flashBranch} />
       </div>
-      <div className="code-math-column__math">
+      <div className="code-math-column__math" inert={running || undefined}>
         <MathPanel />
       </div>
     </div>

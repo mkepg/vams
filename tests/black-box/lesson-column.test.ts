@@ -12,7 +12,7 @@ import { EditorColumn } from '@/widgets/layout/editor-column';
 import { DEFAULT_OPEN_GROUPS, FOCUS_PANEL_IDS, mathTabFor } from '@/core/inspector';
 import { startLesson as startLessonFromLearn } from '@/features/lesson-engine/model/start-lesson';
 import { focusStyleFor } from '@/features/lesson-engine/model/guidance';
-import { showsIllustration } from '@/widgets/canvas/illustration';
+import { showsIllustration } from '@/core/store/illustration';
 import EditorShell from '@/pages/editor/ui/EditorShell';
 import ObjectTransformPanel from '@/features/object-transform/ui/ObjectTransformPanel';
 import TextNodePanel from '@/features/text-nodes/ui/TextNodePanel';

@@ -1,14 +1,8 @@
 import type { StateCreator } from 'zustand';
 import type { VamsState, LessonSlice } from '@/core/store/types';
-import type { GlutCallbackKind, ViewportLimits } from '@/core/types/scene';
+import type { ViewportLimits } from '@/core/types/scene';
 import { DEFAULT_OPEN_GROUPS } from '@/core/inspector/groups';
-const EMPTY_CALLBACKS: Record<GlutCallbackKind, string> = {
-  keyboard: '',
-  mouse: '',
-  reshape: '',
-  motion: '',
-  idle: '',
-};
+import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 const DEFAULT_VIEWPORT: ViewportLimits = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
 export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (set, get) => ({
   activeLessonId: null,
@@ -37,7 +31,7 @@ export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (
         viewportLimitsBackup: state.viewportLimits,
         uploadedTexturesBackup: state.uploadedTextures,
         objects: [],
-        callbacks: { ...EMPTY_CALLBACKS },
+        callbacks: emptyCallbacks(),
         canvasBackgroundColor: '#000000',
         viewportLimits: { ...DEFAULT_VIEWPORT },
         selectedObjectId: null,
@@ -82,7 +76,7 @@ export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (
       exerciseAnswers: {},
       isSuccess: false,
       objects: state.sceneBackup || [],
-      callbacks: state.callbacksBackup || { ...EMPTY_CALLBACKS },
+      callbacks: state.callbacksBackup || emptyCallbacks(),
       canvasBackgroundColor: state.canvasBackgroundColorBackup || '#000000',
       viewportLimits: state.viewportLimitsBackup || { ...DEFAULT_VIEWPORT },
       uploadedTextures: state.uploadedTexturesBackup ?? state.uploadedTextures,

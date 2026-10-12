@@ -17,7 +17,12 @@ tests/
 │   ├── matrix.ts                 ← Independent reference impl. of the
 │   │                                affine-matrix engine, used as the
 │   │                                gold standard for ALG-1.
-│   └── store.ts                  ← Test helpers around useVamsStore.
+│   ├── store.ts                  ← Test helpers around useVamsStore.
+│   └── mini-cpp.ts               ← A small interpreter for generated handler
+│                                    bodies, used to check the Run runtime.
+├── fixtures/
+│   └── no-callbacks-program.cpp  ← The program generated for a scene with
+│                                    no callbacks, pinned by BB-CB-12.
 ├── black-box/                    ← Maps to Table 12.
 │   ├── primitive-creation.test.ts        (BB-PRIM-*)
 │   ├── transformation-operations.test.ts (BB-XFORM-*)
@@ -49,8 +54,11 @@ tests/
 │   │                                        overlays)
 │   ├── lesson-column.test.ts             (BB-LCOL-*: the lesson card,
 │   │                                        the runner and panel focus)
-│   └── editor-panels.test.ts             (BB-PANEL-*: the panels on the
-│                                            shared controls)
+│   ├── editor-panels.test.ts             (BB-PANEL-*: the panels on the
+│   │                                        shared controls)
+│   ├── callbacks.test.ts                 (BB-CB-*: callback rules, handler
+│   │                                        code, names)
+│   └── run-mode.test.ts                  (BB-RUN-*: the canvas Run state)
 ├── white-box/                    ← Maps to Table 13.
 │   ├── state-management.test.ts          (WB-STATE-*)
 │   ├── matrix-engine.test.ts             (WB-MATRIX-*)
@@ -59,9 +67,13 @@ tests/
 │   ├── code-generation-service.test.ts   (WB-GEN-*)
 │   ├── code-generation-buffers.test.ts   (WB-GEN-BUF-*)
 │   ├── persistence-manager.test.ts       (WB-PERSIST-*)
-│   └── error-handling.test.ts            (WB-ERR-*)
+│   ├── error-handling.test.ts            (WB-ERR-*)
+│   └── callbacks-runtime.test.ts         (WB-CB-*: the Run runtime against
+│                                            the generated C++)
 ├── visual/                       ← Not part of `npm test`.
 │   ├── editor.spec.ts                    (VIS-EDITOR-*: screenshot checks,
+│   │                                        including the Callbacks group
+│   │                                        and Run, VIS-EDITOR-14 to 16,
 │   │                                        run with `npm run test:visual`;
 │   │                                        per-machine baselines that are
 │   │                                        not committed)
@@ -86,7 +98,7 @@ tests/
 ## Running
 
 ```bash
-npm test                # run all 415 tests
+npm test                # run all 634 tests
 npm run test:watch      # watch mode for development
 npm run test:coverage   # also produce tests/reports/coverage/
 npm run test:visual     # editor screenshot checks (Playwright, installed Chrome)

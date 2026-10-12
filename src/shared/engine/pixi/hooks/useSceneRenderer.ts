@@ -42,6 +42,7 @@ export function useSceneRenderer({
   const builtForAppRef = useRef<PIXI.Application | null>(null);
   const vertexOverlayRef = useRef<Container | null>(null);
   const handleGraphicsRef = useRef<HandleGraphics[]>([]);
+  const overriddenRef = useRef<Set<string>>(new Set());
   const objects = useVamsStore((s) => s.objects);
   const selectedObjectId = useVamsStore((s) => s.selectedObjectId);
   // Selection outlines read --accent; redraw them when the theme changes.
@@ -64,7 +65,16 @@ export function useSceneRenderer({
   useEffect(() => {
     objectsRef.current = objects;
   }, [objects]);
-  // Expose a read-only window into the live renderer for the Animation Preview.
+  const rebuildContent = (container: Container, node: SceneNode) => {
+    const world = worldRef.current;
+    if (!world || container.destroyed) return;
+    container.removeChildren();
+    const content = createDrawable(node, world.scale.x, { worldScaleY: world.scale.y });
+    while (content.children.length > 0) container.addChild(content.children[0]);
+    container.hitArea = content.hitArea;
+    content.destroy();
+  };
+  // Expose a window into the live renderer for the Animation Preview and Run.
   // Containers are keyed by scene-object id; `resync` re-applies the stored
   // transforms so the scene state stays the single source of truth.
   useEffect(() => {
@@ -73,19 +83,52 @@ export function useSceneRenderer({
     const unregister = renderBridge.register({
       app,
       getDisplayObject: (id) => containersRef.current.get(id),
+      setAppearance: (id, { color, visible }) => {
+        const container = containersRef.current.get(id);
+        if (!container || container.destroyed) return;
+        container.visible = visible;
+        const obj = useVamsStore.getState().objects.find((o) => o.id === id);
+        if (!obj || obj.type === 'GROUP') return;
+        if (color) {
+          rebuildContent(container, { ...obj, vertices: obj.vertices.map((v) => ({ ...v, color })) });
+          overriddenRef.current.add(id);
+        } else if (overriddenRef.current.has(id)) {
+          rebuildContent(container, obj);
+          overriddenRef.current.delete(id);
+        }
+      },
+      setView: (view, rect) => {
+        const world = worldRef.current;
+        if (!world) return;
+        const vw = view.maxX - view.minX;
+        const vh = view.maxY - view.minY;
+        if (vw === 0 || vh === 0) return;
+        const sx = rect.width / vw;
+        const sy = rect.height / vh;
+        world.scale.set(sx, -sy);
+        world.position.set(rect.x - view.minX * sx, rect.y + rect.height + view.minY * sy);
+      },
+      getCanvasSize: () => ({ width: app.screen.width, height: app.screen.height }),
       resync: () => {
-        useVamsStore.getState().objects.forEach((obj) => {
+        // Restore the editor scale first so rebuilt content uses editor line widths and hit areas.
+        applyViewportTransform();
+        const objects = useVamsStore.getState().objects;
+        objects.forEach((obj) => {
           const container = containersRef.current.get(obj.id);
           if (!container || container.destroyed) return;
           const t = obj.transform;
           container.position.set(t.translateX, t.translateY);
           container.rotation = (t.rotate * Math.PI) / 180;
           container.scale.set(t.scaleX, t.scaleY);
+          container.visible = obj.visible;
+          if (overriddenRef.current.has(obj.id)) rebuildContent(container, obj);
         });
+        overriddenRef.current.clear();
       },
     });
     return unregister;
-  }, [pixiReady, appRef]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pixiReady, appRef, worldRef, applyViewportTransform]);
   useEffect(() => {
     const app = appRef.current;
     const overlay = overlayRef.current;

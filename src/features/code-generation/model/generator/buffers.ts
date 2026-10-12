@@ -197,7 +197,7 @@ function transformPrelude(o: SceneNode): string {
 function shadingLine(o: SceneNode): string {
   return `    glShadeModel(${o.shading === 'FLAT' ? 'GL_FLAT' : 'GL_SMOOTH'});\n`;
 }
-export function generateVertexArrayDrawBody(o: SceneNode): string {
+export function generateVertexArrayDrawBody(o: SceneNode, recolor = false): string {
   const safe = sanitizeName(o.name);
   const verts = effectiveVerts(o);
   const dedup = deduplicate(o);
@@ -207,7 +207,9 @@ export function generateVertexArrayDrawBody(o: SceneNode): string {
   out += shadingLine(o);
   out += `\n    // Bind client-side arrays\n`;
   out += `    glEnableClientState(GL_VERTEX_ARRAY);\n`;
-  out += `    glEnableClientState(GL_COLOR_ARRAY);\n`;
+  out += recolor
+    ? `    if (state_${safe}.useColor) glColor3f(state_${safe}.r, state_${safe}.g, state_${safe}.b);\n    else glEnableClientState(GL_COLOR_ARRAY);\n`
+    : `    glEnableClientState(GL_COLOR_ARRAY);\n`;
   if (textured) {
     out += `    glEnableClientState(GL_TEXTURE_COORD_ARRAY);\n`;
     out += `    glBindTexture(GL_TEXTURE_2D, tex_${safe});\n`;
@@ -233,7 +235,7 @@ export function generateVertexArrayDrawBody(o: SceneNode): string {
   out += `    glPopMatrix();\n`;
   return out;
 }
-export function generateVBODrawBody(o: SceneNode): string {
+export function generateVBODrawBody(o: SceneNode, recolor = false): string {
   const safe = sanitizeName(o.name);
   const verts = effectiveVerts(o);
   const dedup = deduplicate(o);
@@ -243,7 +245,9 @@ export function generateVBODrawBody(o: SceneNode): string {
   out += shadingLine(o);
   out += `\n    // Bind GPU buffers\n`;
   out += `    glEnableClientState(GL_VERTEX_ARRAY);\n`;
-  out += `    glEnableClientState(GL_COLOR_ARRAY);\n`;
+  out += recolor
+    ? `    if (state_${safe}.useColor) glColor3f(state_${safe}.r, state_${safe}.g, state_${safe}.b);\n    else glEnableClientState(GL_COLOR_ARRAY);\n`
+    : `    glEnableClientState(GL_COLOR_ARRAY);\n`;
   if (textured) {
     out += `    glEnableClientState(GL_TEXTURE_COORD_ARRAY);\n`;
     out += `    glBindTexture(GL_TEXTURE_2D, tex_${safe});\n`;

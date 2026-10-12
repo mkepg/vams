@@ -1,3 +1,4 @@
+import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import type { SceneNode } from '@/core/types/scene';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 
@@ -41,7 +42,7 @@ export const FALLBACK_CODE: DemoCode = {
 };
 
 const CANVAS_SIZE = { width: 800, height: 600 };
-const NO_CALLBACKS = { keyboard: '', mouse: '', reshape: '', motion: '', idle: '' };
+const NO_CALLBACKS = emptyCallbacks();
 
 /** Clamp to the default glOrtho range and snap to the demo grid, without float noise or -0. */
 export function snapToGrid(value: number): number {

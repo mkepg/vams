@@ -30,7 +30,8 @@
   &:disabled { opacity: 0.45; }
 }
 
-.vtext {
+.vtext,
+.vselect {
   display: grid;
   grid-template-columns: 62px minmax(0, 1fr);
   align-items: center;

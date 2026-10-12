@@ -3,30 +3,45 @@ import { sanitizeName, hexToGlColor, hexToGlByteColor, getGlPrimitive } from './
 import { generateVertexArrayDrawBody, generateVBODrawBody } from './buffers';
 const isLine = (t: SceneNode['type']): boolean =>
   t === 'LINES' || t === 'LINE_STRIP' || t === 'LINE_LOOP';
-function emitColor(v: Vertex, colorMode: 'FLOAT' | 'BYTE' | undefined, indent = '        '): string {
+function emitColor(
+  v: Vertex,
+  colorMode: 'FLOAT' | 'BYTE' | undefined,
+  indent = '        ',
+  guard: string | null = null,
+): string {
+  const prefix = guard ? `if (!${guard}.useColor) ` : '';
   if (colorMode === 'BYTE') {
-    return `${indent}glColor3ub(${hexToGlByteColor(v.color)});\n`;
+    return `${indent}${prefix}glColor3ub(${hexToGlByteColor(v.color)});\n`;
   }
-  return `${indent}glColor3f(${hexToGlColor(v.color)});\n`;
+  return `${indent}${prefix}glColor3f(${hexToGlColor(v.color)});\n`;
 }
+export interface DrawEffects {
+  colorIds: ReadonlySet<string>;
+  visibilityIds: ReadonlySet<string>;
+}
+export const NO_EFFECTS: DrawEffects = { colorIds: new Set(), visibilityIds: new Set() };
 export const generateObjectDrawBody = (
   object: SceneNode,
-  allObjects: SceneNode[]
+  allObjects: SceneNode[],
+  effects: DrawEffects = NO_EFFECTS
 ): string => {
   if (object.type === 'GROUP' || object.type === 'TEXT') {
-    return generateImmediateDrawBody(object, allObjects);
+    return generateImmediateDrawBody(object, allObjects, effects);
   }
   const mode = object.renderingMode ?? 'IMMEDIATE';
-  if (mode === 'VERTEX_ARRAY') return generateVertexArrayDrawBody(object);
-  if (mode === 'VBO')          return generateVBODrawBody(object);
-  return generateImmediateDrawBody(object, allObjects);
+  if (mode === 'VERTEX_ARRAY') return generateVertexArrayDrawBody(object, effects.colorIds.has(object.id));
+  if (mode === 'VBO')          return generateVBODrawBody(object, effects.colorIds.has(object.id));
+  return generateImmediateDrawBody(object, allObjects, effects);
 };
 const generateImmediateDrawBody = (
   object: SceneNode,
-  allObjects: SceneNode[]
+  allObjects: SceneNode[],
+  effects: DrawEffects
 ): string => {
   let drawBody = '';
   const safeName = sanitizeName(object.name);
+  const S = `state_${safeName}`;
+  const recolor = effects.colorIds.has(object.id);
   drawBody += `    // ${object.name}\n`;
   drawBody += `    glPushMatrix();\n`;
   drawBody += `    // Transform\n`;
@@ -37,7 +52,10 @@ const generateImmediateDrawBody = (
     drawBody += `    // Children\n`;
     const children = allObjects.filter(o => o.parentId === object.id);
     [...children].reverse().forEach(child => {
-      drawBody += `    draw_${sanitizeName(child.name)}();\n`;
+      const childName = sanitizeName(child.name);
+      drawBody += effects.visibilityIds.has(child.id)
+        ? `    if (state_${childName}.visible) draw_${childName}();\n`
+        : `    draw_${childName}();\n`;
     });
   } else if (object.type === 'TEXT') {
     const textContent = object.textContent || '';
@@ -45,9 +63,11 @@ const generateImmediateDrawBody = (
     const colorHex = object.vertices[0]?.color || '#ffffff';
     const useByte = object.colorMode === 'BYTE';
     drawBody += `    // Text: "${safeTextComment}"\n`;
+    const guardText = recolor ? `if (!${S}.useColor) ` : '';
     drawBody += useByte
-      ? `    glColor3ub(${hexToGlByteColor(colorHex)});\n`
-      : `    glColor3f(${hexToGlColor(colorHex)});\n`;
+      ? `    ${guardText}glColor3ub(${hexToGlByteColor(colorHex)});\n`
+      : `    ${guardText}glColor3f(${hexToGlColor(colorHex)});\n`;
+    if (recolor) drawBody += `    if (${S}.useColor) glColor3f(${S}.r, ${S}.g, ${S}.b);\n`;
     const lines = textContent.split('\n');
     const lineHeight = 0.07;
     lines.forEach((line, index) => {
@@ -99,9 +119,11 @@ const generateImmediateDrawBody = (
       drawBody += `    glBindTexture(GL_TEXTURE_2D, tex_${safeName});\n`;
     }
 
-    drawBody += `\n    glBegin(${getGlPrimitive(object.type)});\n`;
+    drawBody += `\n`;
+    if (recolor) drawBody += `    if (${S}.useColor) glColor3f(${S}.r, ${S}.g, ${S}.b);\n`;
+    drawBody += `    glBegin(${getGlPrimitive(object.type)});\n`;
     object.vertices.forEach((v, i) => {
-      drawBody += emitColor(v, object.colorMode);
+      drawBody += emitColor(v, object.colorMode, '        ', recolor ? S : null);
       if (hasTexture) {
         const uv = object.uvs![i];
         drawBody += `        glTexCoord2f(${uv.u.toFixed(4)}f, ${uv.v.toFixed(4)}f);\n`;

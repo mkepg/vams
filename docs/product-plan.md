@@ -228,7 +228,7 @@ Covers: pipeline stages (vertex specification → vertex processing → primitiv
 
 **Curriculum:** Geometric primitives, color, line styling, bitmap text, GLUT callbacks.
 
-Covers: `glBegin`/`glEnd` with `GL_POINTS`, `GL_LINES`, `GL_LINE_STRIP`, `GL_LINE_LOOP`, `GL_TRIANGLES`, `GL_TRIANGLE_STRIP`, `GL_TRIANGLE_FAN`, `GL_QUADS`, `GL_QUAD_STRIP`, `GL_POLYGON`; `glColor3f` and `glColor3ub`; `glLineWidth` and `glLineStipple`; `glRasterPos2f` + `glutBitmapCharacter`; GLUT callback registrations (`glutKeyboardFunc`, `glutMouseFunc`, `glutReshapeFunc`).
+Covers: `glBegin`/`glEnd` with `GL_POINTS`, `GL_LINES`, `GL_LINE_STRIP`, `GL_LINE_LOOP`, `GL_TRIANGLES`, `GL_TRIANGLE_STRIP`, `GL_TRIANGLE_FAN`, `GL_QUADS`, `GL_QUAD_STRIP`, `GL_POLYGON`; `glColor3f` and `glColor3ub`; `glLineWidth` and `glLineStipple`; `glRasterPos2f` + `glutBitmapCharacter`; GLUT callback registrations (`glutKeyboardFunc`, `glutMouseFunc`, `glutReshapeFunc`, `glutSpecialFunc`).
 
 ### Goals
 
@@ -236,7 +236,7 @@ Covers: `glBegin`/`glEnd` with `GL_POINTS`, `GL_LINES`, `GL_LINE_STRIP`, `GL_LIN
 2. Students can choose between float and byte color representations per object, and see both forms in the code and math panel.
 3. Students can style line primitives with width and stipple patterns, with visual feedback in both the canvas and the code panel.
 4. Text objects generate correct `glRasterPos2f` + `glutBitmapCharacter` code (not stroke text).
-5. Students can register GLUT callback handler names via a dedicated panel and see the corresponding registration calls and empty handler bodies appear in the generated code. The panel clearly communicates that callback execution requires compiling and running the program externally.
+5. Students can register GLUT callbacks, give them rules built from menus, see the handler bodies those rules produce in the generated code, and play the handlers on the canvas with Run.
 
 ### Workspace Configuration
 
@@ -254,9 +254,11 @@ Covers: `glBegin`/`glEnd` with `GL_POINTS`, `GL_LINES`, `GL_LINE_STRIP`, `GL_LIN
 
 ### Callback Panel Behavior
 
-The callbacks panel allows the student to register handler names for keyboard, mouse, reshape, and related events. Each registration causes the code generator to emit the corresponding `glutXxxFunc(handlerName)` call and an empty handler body stub. The panel sits in the inspector's scene settings.
+The callbacks panel sits in the inspector's scene settings and lists six callbacks: Keyboard (`glutKeyboardFunc`), Special keys (`glutSpecialFunc`), Mouse (`glutMouseFunc`), Motion (`glutMotionFunc`), Reshape (`glutReshapeFunc`) and Idle (`glutIdleFunc`). Each has a handler name. Every callback except Reshape holds up to eight rules built from menus: a trigger (a key, an arrow key, a mouse button and state, each drag movement, or each frame), an action (translate, rotate, scale, move to pointer, reset, set colour, show, hide or toggle), and a target object. Reshape offers a choice instead: Keep proportions or Stretch. The code generator turns each rule into lines in the handler's body that change the target's `state_<name>`.
 
-The panel includes a persistent informational note explaining that handler execution requires compiling and running the exported code. This is accurate framing, not a feature disclaimer. The note does not use the words "coming soon", "deferred", "3D", "future", or "not supported".
+The panel includes a persistent note: "Each callback's rules become the body of its handler in the generated code. Press Run on the canvas to try them: keys, clicks and drags go to your handlers, and your scene is unchanged when you stop." This is accurate framing, not a feature disclaimer.
+
+Run is a transient canvas state, not a mode. While it runs, keys, clicks, drags, window resizes and idle frames reach the handlers, editing pauses, the last GLUT call is shown, and the code that ran flashes in the code panel. Run never writes scene state: stopping returns the canvas to the scene as built.
 
 ### Demos (minimum 4)
 
@@ -264,7 +266,7 @@ The panel includes a persistent informational note explaining that handler execu
 2. **"Float vs Byte Colors"** — toggles an object's color mode and narrates the conversion shown in the math panel.
 3. **"Barycentric Color Across a Triangle"** — sets per-vertex colors, demonstrates interpolation, narrates the formula in the math panel.
 4. **"Line Stippling"** — applies stipple to a line, demonstrates different patterns.
-5. **"Keyboard Callback"** — registers a keyboard handler name in the callbacks panel and narrates the emitted code.
+5. **"Hooking Up Callbacks"**: registers a keyboard handler with a rule, narrates the generated switch case and its registration, and runs it.
 
 ### Exercises (minimum 4)
 
@@ -272,7 +274,8 @@ The panel includes a persistent informational note explaining that handler execu
 2. **"Match the Color"** — match a target color swatch using the color picker, within a defined tolerance.
 3. **"Toggle to Byte Color"** — switch a given object from float to byte color mode and match a target byte value.
 4. **"Enable Stippling"** — apply a stipple with specified factor and pattern to a given line.
-5. **"Register a Mouse Handler"** — register a named mouse handler via the callbacks panel. Success when the correct `glutMouseFunc` call appears in generated code.
+5. **"Hooking up the Mouse"**: register a Mouse callback with a rule that moves a shape to the pointer on a left-button press. Success when that rule exists on a valid handler.
+6. **"Drive with the Arrow Keys"**: register Special keys with a → rule that translates a shape right and a ← rule that translates the same shape left.
 
 ### Acceptance Criteria
 
@@ -280,8 +283,9 @@ The panel includes a persistent informational note explaining that handler execu
 - [ ] Color mode toggle switches generated code between `glColor3f` and `glColor3ub`.
 - [ ] Line style panel appears only for line primitives; stipple shows in both canvas rendering and generated code.
 - [ ] Text objects generate `glRasterPos2f` + `glutBitmapCharacter`.
-- [ ] Registering a callback inserts the `glut*Func` call and empty handler body into generated code.
+- [ ] Registering a callback inserts the `glut*Func` call and a handler whose body is generated from its rules.
 - [ ] Callbacks panel includes the required informational framing note.
+- [ ] Run plays keyboard, special key, mouse, motion, reshape and idle handlers on the canvas and restores the saved scene when it stops.
 - [ ] Math panel updates live for color, barycentric, and stipple content.
 - [ ] All demos play end-to-end. All exercises have working success detection.
 - [ ] Code panel diff-highlight animates on every scene mutation.
@@ -550,7 +554,7 @@ Each scene object has:
 | Area | What it owns |
 |---|---|
 | Scene | All objects, selection, vertex data, hierarchy, and mutations thereof |
-| View | Viewport configuration, theme, grid settings, background color, interaction mode, section-specific view settings, registered callback names |
+| View | Viewport configuration, theme, grid settings, background color, interaction mode, section-specific view settings, callbacks: handler names, rules and the reshape mode |
 | History | Undo/redo stack and checkpoint boundaries |
 | Runtime | Current mode (Author/Lesson) and active curriculum section |
 | Lesson | Active lesson, current step, exercise answers, success state |

@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand';
 import type { VamsState, SceneSlice } from '@/core/store/types';
 import type { SceneNode, TransformState } from '@/core/types/scene';
 import type { UV } from '@/core/types/textures';
+import { pruneCallbackRules } from '@/core/callbacks/callbacks-model';
 
 const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -181,6 +182,7 @@ export const createSceneSlice: StateCreator<VamsState, [], [], SceneSlice> = (se
 
       return {
         objects: updatedObjects,
+        callbacks: pruneCallbackRules(state.callbacks, new Set(updatedObjects.map((o) => o.id))),
         selectedObjectId: isSelectedDeleted ? null : state.selectedObjectId,
         ...(isSelectedDeleted ? { selectedVertexId: null, interactionMode: state.interactionMode === 'VERTEX_EDIT' ? 'SELECT' : state.interactionMode } : {}),
       };
@@ -430,6 +432,7 @@ export const createSceneSlice: StateCreator<VamsState, [], [], SceneSlice> = (se
 
       return {
         objects: updatedObjects,
+        callbacks: pruneCallbackRules(state.callbacks, new Set(updatedObjects.map((o) => o.id))),
         selectedObjectId: isSelectedDeleted ? null : state.selectedObjectId,
         ...(isSelectedDeleted ? { selectedVertexId: null, interactionMode: state.interactionMode === 'VERTEX_EDIT' ? 'SELECT' : state.interactionMode } : {}),
       };
@@ -450,6 +453,7 @@ export const createSceneSlice: StateCreator<VamsState, [], [], SceneSlice> = (se
 
       return {
         objects: updatedObjects,
+        callbacks: pruneCallbackRules(state.callbacks, new Set(updatedObjects.map((o) => o.id))),
         selectedObjectId: isSelectedDeleted ? null : state.selectedObjectId,
         ...(isSelectedDeleted ? { selectedVertexId: null, interactionMode: state.interactionMode === 'VERTEX_EDIT' ? 'SELECT' : state.interactionMode } : {}),
       };

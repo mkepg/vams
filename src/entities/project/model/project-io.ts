@@ -1,10 +1,11 @@
 import type { VamsState } from '@/core/store/types';
+import { emptyCallbacks, sanitizeCallbacks } from '@/core/callbacks/callbacks-model';
 import type {
   AxisVisibility,
   BufferUpdateMethod,
   BufferUsage,
   ColorMode,
-  GlutCallbackKind,
+  CallbacksState,
   InteractionMode,
   LearningSettings,
   LineStipple,
@@ -28,9 +29,9 @@ import type {
   UV,
 } from '@/core/types/textures';
 
-// v8 adds the optional per-object `animation` descriptor. Additive and
-// backward-compatible: v7 files simply have no animation (sanitized to null).
-export const VAMS_PROJECT_SCHEMA_VERSION = 8;
+// v9 replaces the handler name per callback kind with callbacks that hold rules, adds the Special
+// keys callback and the reshape choice. v8 files load with their names kept and no rules.
+export const VAMS_PROJECT_SCHEMA_VERSION = 9;
 export type VamsProjectData = {
   objects: SceneNode[];
   viewportLimits: ViewportLimits;
@@ -46,7 +47,7 @@ export type VamsProjectData = {
   pendingVertices: PendingVertex[];
   pendingMinVertices: number;
   pendingVertexStride: number | null;
-  callbacks: Record<GlutCallbackKind, string>;
+  callbacks: CallbacksState;
   uploadedTextures: TextureAsset[];
 };
 export type VamsProjectFile = {
@@ -61,16 +62,10 @@ const ALLOWED_OBJECT_TYPES: ReadonlySet<SceneNodeType> = new Set([
   'QUADS', 'QUAD_STRIP', 'POLYGON',
   'TEXT', 'GROUP',
 ]);
-const CALLBACK_KINDS: GlutCallbackKind[] = [
-  'keyboard', 'mouse', 'reshape', 'motion', 'idle',
-];
 const DEFAULT_VIEWPORT: ViewportLimits = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
 const DEFAULT_AXIS: AxisVisibility = { showGlobalAxes: true, showLocalAxes: true, showOriginMarker: true, showGridlines: true };
 const DEFAULT_LEARNING: LearningSettings = { gridSnapping: false, snapIncrement: 0.1 };
 const DEFAULT_TRANSFORM: TransformState = { translateX: 0, translateY: 0, rotate: 0, scaleX: 1, scaleY: 1 };
-const DEFAULT_CALLBACKS: Record<GlutCallbackKind, string> = {
-  keyboard: '', mouse: '', reshape: '', motion: '', idle: '',
-};
 const DEFAULT_DATA: VamsProjectData = {
   objects: [],
   viewportLimits: DEFAULT_VIEWPORT,
@@ -86,7 +81,7 @@ const DEFAULT_DATA: VamsProjectData = {
   pendingVertices: [],
   pendingMinVertices: 1,
   pendingVertexStride: null,
-  callbacks: { ...DEFAULT_CALLBACKS },
+  callbacks: emptyCallbacks(),
   uploadedTextures: [],
 };
 function isRecord(v: unknown): v is Record<string, unknown> { return typeof v === 'object' && v !== null; }
@@ -244,15 +239,6 @@ function fixHierarchy(objects: SceneNode[]): SceneNode[] {
   });
   return normalized;
 }
-function sanitizeCallbacks(v: unknown): Record<GlutCallbackKind, string> {
-  const out: Record<GlutCallbackKind, string> = { ...DEFAULT_CALLBACKS };
-  if (!isRecord(v)) return out;
-  CALLBACK_KINDS.forEach((k) => {
-    const raw = v[k];
-    out[k] = typeof raw === 'string' ? raw : '';
-  });
-  return out;
-}
 export function buildProjectFile(state: VamsState & { uploadedTextures: TextureAsset[] }): VamsProjectFile {
   const data: VamsProjectData = {
     objects: state.objects,
@@ -384,7 +370,7 @@ export function sanitizeProjectData(raw: unknown): VamsProjectData {
     pendingVertices,
     pendingMinVertices: Math.max(1, Math.floor(toNumber(raw.pendingMinVertices, DEFAULT_DATA.pendingMinVertices))),
     pendingVertexStride,
-    callbacks: sanitizeCallbacks(raw.callbacks),
+    callbacks: sanitizeCallbacks(raw.callbacks, new Set(objects.map((o) => o.id))),
     uploadedTextures,
   };
 }
