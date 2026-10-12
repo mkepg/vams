@@ -512,7 +512,7 @@ describe('BB-SITE-29: /learn is a finished, linked, prerendered page', () => {
       { href: '/learn', label: 'Learn' },
       { href: '/about', label: 'About' },
     ]);
-    expect(buildSitemap(SITE)).toContain('<loc>https://example.test/learn</loc>');
+    expect(buildSitemap(SITE)).toContain('<loc>https://example.test/learn/</loc>');
     expect(readFileSync('vite.config.ts', 'utf8')).toMatch(/additionalPrerenderRoutes:\s*\[[^\]]*'\/learn'/);
     const result = await prerenderAt('/learn');
     expect(result.html).toContain('class="learn"');
@@ -612,5 +612,16 @@ describe('BB-SITE-35: The old Netlify address forwards to the live site', () => 
 
   it('leaves the Netlify-only 404 rule out of the live site', () => {
     expect(() => readFileSync('public/_redirects', 'utf8')).toThrow();
+  });
+});
+
+describe('BB-SITE-36: Page URLs use the address the host serves', () => {
+  it('ends every page but home with a slash, as Cloudflare Pages redirects /learn to /learn/', () => {
+    const elements = [...buildHead(findRouteMeta('/learn'), 'https://example.test').elements];
+    expect(elements.some((e) => e.props.rel === 'canonical' && e.props.href === 'https://example.test/learn/')).toBe(true);
+    expect(elements.some((e) => e.props.property === 'og:url' && e.props.content === 'https://example.test/learn/')).toBe(true);
+    const home = [...buildHead(findRouteMeta('/'), 'https://example.test').elements];
+    expect(home.some((e) => e.props.rel === 'canonical' && e.props.href === 'https://example.test/')).toBe(true);
+    expect(buildSitemap('https://example.test')).not.toMatch(/<loc>https:\/\/example\.test\/[a-z]+<\/loc>/);
   });
 });

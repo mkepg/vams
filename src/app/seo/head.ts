@@ -19,6 +19,11 @@ export function absoluteUrl(siteUrl: string, path: string): string {
   return new URL(path.replace(/^\//, ''), base).toString();
 }
 
+/** A page's public URL. The host serves each prerendered page at its folder, so /learn lives at /learn/. */
+export function pageUrl(siteUrl: string, path: string): string {
+  return absoluteUrl(siteUrl, path === '/' ? path : `${path.replace(/\/$/, '')}/`);
+}
+
 export function softwareApplicationJsonLd(siteUrl: string) {
   const person = (name: string) => ({ '@type': 'Person', name });
   const adviser = TEAM.members.find((member) => member.role === 'adviser');
@@ -40,7 +45,7 @@ export function softwareApplicationJsonLd(siteUrl: string) {
 }
 
 export function buildHead(meta: RouteMeta, siteUrl: string): PageHead {
-  const pageUrl = absoluteUrl(siteUrl, meta.path);
+  const url = pageUrl(siteUrl, meta.path);
   const elements = new Set<HeadElement>([
     { type: 'meta', props: { name: 'description', content: meta.description } },
     { type: 'meta', props: { property: 'og:type', content: 'website' } },
@@ -52,8 +57,8 @@ export function buildHead(meta: RouteMeta, siteUrl: string): PageHead {
   ]);
 
   if (meta.indexable) {
-    elements.add({ type: 'link', props: { rel: 'canonical', href: pageUrl } });
-    elements.add({ type: 'meta', props: { property: 'og:url', content: pageUrl } });
+    elements.add({ type: 'link', props: { rel: 'canonical', href: url } });
+    elements.add({ type: 'meta', props: { property: 'og:url', content: url } });
   } else {
     elements.add({ type: 'meta', props: { name: 'robots', content: 'noindex' } });
   }
