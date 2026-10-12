@@ -96,6 +96,60 @@ Rehearsal checklist (Nov 3):
 - Pick the browser zoom on the projector; the editor holds together from 1280 down to 960 CSS px wide.
 - Run `npm run test:visual` on the demo machine after the last change, against a baseline taken right after SP5.
 
+### Functional callbacks (2026-10-12)
+
+Small issues left open when item 13 shipped. None loses student work or makes the generated C++ fail through the editor's own controls. Items 1 and 2 are the most likely to show in the live demo.
+
+Run mode:
+
+1. The Running strip covers the top ~30px of the program window and takes clicks there, so a shape near the top edge is hidden during Run. Fix by starting the window below the strip.
+2. A selected object's outline and handles stay at the saved pose while a rule moves the object.
+3. The Math panel's cursor readout shows editor coordinates during Run, not `windowToWorld`'s.
+4. The code panel can re-scroll within the 700 ms branch flash, and a repeat of the same call does not restart the flash.
+5. Motion is delivered on the next frame, so it can arrive after an immediate Mouse Up. GLUT keeps the order, and the two differ for a pair such as Mouse Up → Reset with Motion → Move to pointer.
+6. A second mouse button pressed while one is held never reaches the Mouse handler (Pointer Events report only the first down and the last up).
+7. When Run stops because the store changed, focus moves to the Run button even if it was elsewhere.
+8. A File menu open when Run starts stays open, inert, until Stop.
+9. A theme change after a window resize during Run can clear Run's colour overrides. The top bar is inert during Run, so this is hard to reach.
+10. The window handle ignores `pointercancel` and lacks `touch-action: none`.
+11. The handle is 24px; the design spec says a 16px grip. The readout's inset hardcodes the 24px.
+12. "Try it" keeps the tooltip "Add a callback or an animation to run" when a Pipeline illustration is the reason it is disabled.
+
+Callbacks panel and generated code:
+
+13. When a rule's target stops being eligible (for example, a Move to pointer target that is later grouped), the Object menu shows the first option while the rule keeps its target. The summary line and the code stay correct.
+14. The Do menu offers Set colour when the only objects are groups, and choosing it does nothing.
+15. After rules for D, A, W and S, a new rule defaults to D again. The generator merges the two into one `case`.
+16. Delete in a rule form drops focus to the page, and undo or redo can reopen a rule's form.
+17. Rule summary lines lack `font: inherit`.
+18. The handler comment "No rules yet" appears when every rule targets a hidden object.
+19. Handler names such as `rand`, `abort`, `clock`, `near`, `far`, or names starting with `GL_` or `GLUT_` are accepted but clash with library declarations or macros when compiled.
+20. The store's add and update actions do not lower-case keys or reject NaN. An upper-case key beside its lower-case twin would emit a duplicate `case`, and NaN would emit `NaNf`. Only direct store writes can do this; the editor's fields and the file loader already normalise.
+21. Fallback rule ids from the sanitizer are not de-duplicated.
+
+Lessons:
+
+22. Exercise 6 step 2 passes if the handler name is cleared after the rules are added, and it accepts any tiny move.
+
+Tests:
+
+23. BB-CB-12 rewrites `tests/fixtures/no-callbacks-program.cpp` when the file is missing, so deleting the fixture makes the no-callbacks guarantee pass vacuously. Write it only behind an environment flag.
+24. Missing tests: editing and removing a rule in the store; the v7 → v8 upgrade through a real rehydrate (only the pure function is tested); text, vertex-array and group-child recolour and visibility paths; Set colour excluding groups and Done returning focus; lesson checks on rules whose object was deleted; top-bar and Math panel inertness, the pre-start hook, and flash-over-lesson precedence during Run; the real renderer's `setAppearance`, `setView` and `resync`.
+25. WB-PERSIST-07's undo-history fixture predates the `callbacks` field.
+26. WB-CB-1 cannot tell show from hide, and its values never exercise rounding. Pointer-mapping parity is checked against hand-worked numbers, and the test C++ interpreter skips every `gl*` call.
+27. The Run visual baselines include the Math panel's cursor readout and do not wait for the code panel to finish scrolling.
+
+Code tidiness:
+
+28. The recolour line is repeated four times in `buffers.ts` and `render.ts`.
+29. The animator's `baseX_`-style prefixes are reserved although those statics are function-local.
+30. Replaced drawables are never destroyed (an older leak the Run code repeats), and the renderer's register effect disables `exhaustive-deps`.
+31. `CallbackRow` subscribes to the whole `callbacks` object, which it needs for duplicate-name checks.
+32. `keepProportionsView` returns Infinity at width 0, as the C++ does; the window cannot go below 200px.
+33. The call readout embeds the key unescaped; only a–z, 0–9 and space reach it.
+34. `const window` shadows the global inside two run-controller methods, and some new imports sit above existing ones.
+35. The product plan mixes list punctuation, and roadmap item 13 still says it needs its own spec beside Complete.
+
 ## Divergences from the thesis manuscript
 
 The thesis manuscript is final and describes the evaluated build. The overhauled build differs from it in the ways below. These differences are accepted and recorded here; they are not reasons to avoid a design. The evaluation study's results are not used as evidence for any design decision.
