@@ -1,5 +1,6 @@
 import { useVamsStore } from '@/core/store';
 import type { VamsState } from '@/core/store/types';
+import { showsIllustration } from '@/core/store/illustration';
 import type { GlutCallbackKind, MouseButton, RuleTrigger, SpecialKey } from '@/core/types/scene';
 import { CALLBACK_KINDS, isCallbackValid, programObjects } from '@/core/callbacks/callbacks-model';
 import { renderBridge } from '@/shared/engine/render-bridge';
@@ -36,7 +37,11 @@ const KEYBOARD = /^[a-zA-Z0-9 ]$/;
 const BUTTONS: MouseButton[] = ['left', 'middle', 'right'];
 const STOPPED: RunSnapshot = { running: false, lastCall: null, fired: null, window: null, canvas: null };
 
-export function canRun(state: Pick<VamsState, 'objects' | 'callbacks'>): boolean {
+export function canRun(
+  state: Pick<VamsState, 'objects' | 'callbacks' | 'appMode' | 'activeSection' | 'pipelineMode'>,
+): boolean {
+  // A Pipeline illustration hides the canvas, so there is nothing to run on.
+  if (showsIllustration(state)) return false;
   if (state.objects.length === 0) return false;
   if (CALLBACK_KINDS.some((k) => isCallbackValid(state.callbacks, k))) return true;
   return programObjects(state.objects).some((o) => o.type !== 'GROUP' && o.type !== 'TEXT' && !!o.animation);
@@ -259,6 +264,7 @@ class RunController {
         state.selectedObjectId !== prev.selectedObjectId ||
         state.appMode !== prev.appMode ||
         state.activeSection !== prev.activeSection ||
+        state.pipelineMode !== prev.pipelineMode ||
         state.activeLessonId !== prev.activeLessonId ||
         state.currentStepIndex !== prev.currentStepIndex ||
         state.past !== prev.past ||

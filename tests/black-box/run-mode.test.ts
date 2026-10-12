@@ -10,6 +10,7 @@ import { canRun, runController, MIN_WINDOW } from '@/features/callbacks/model/ru
 import { makeFakeDisplay, registerFakeRenderer, type FakeDisplay } from '../helpers/fake-renderer';
 import { addTriangle, getState } from '../helpers/store';
 import RunOverlay from '@/features/callbacks/ui/RunOverlay';
+import CallbacksPanel from '@/features/callbacks/ui/CallbacksPanel';
 import SceneCodePanel from '@/features/code-generation/ui/SceneCodePanel';
 import EditorShell from '@/pages/editor/ui/EditorShell';
 
@@ -303,6 +304,53 @@ describe('BB-RUN-12: The code panel flashes the branch that fired', () => {
     await settle();
     const changed = [...host.querySelectorAll('.code-line.changed')].map((el) => el.textContent?.trim());
     expect(changed).toEqual(expect.arrayContaining(["case 'd':", "case 'D':", 'break;']));
+    render(null, host);
+    host.remove();
+  });
+});
+
+describe('BB-RUN-14: Run is unavailable while a Pipeline illustration replaces the canvas', () => {
+  const showIllustration = () =>
+    useVamsStore.setState({ appMode: 'Lesson', activeSection: 'Pipeline', pipelineMode: 'Diagram' });
+
+  it('canRun is false for an illustration mode and true again in Playground', () => {
+    setup();
+    useVamsStore.setState({ appMode: 'Lesson', activeSection: 'Pipeline', pipelineMode: 'Playground' });
+    expect(canRun(getState())).toBe(true);
+    showIllustration();
+    expect(canRun(getState())).toBe(false);
+    useVamsStore.setState({ pipelineMode: 'RasterVector' });
+    expect(canRun(getState())).toBe(false);
+    useVamsStore.setState({ pipelineMode: 'Playground' });
+    expect(canRun(getState())).toBe(true);
+  });
+
+  it('a running Run stops when the Pipeline mode changes to an illustration', () => {
+    setup();
+    useVamsStore.setState({ appMode: 'Lesson', activeSection: 'Pipeline', pipelineMode: 'Playground' });
+    expect(runController.start({ loop: false })).toBe(true);
+    expect(runController.getSnapshot().running).toBe(true);
+    useVamsStore.setState({ pipelineMode: 'Diagram' });
+    expect(runController.getSnapshot().running).toBe(false);
+  });
+
+  it('start refuses while an illustration is showing', () => {
+    setup();
+    showIllustration();
+    expect(runController.start({ loop: false })).toBe(false);
+  });
+
+  it('the Try it button is disabled in the illustration state', async () => {
+    setup();
+    showIllustration();
+    const host = mount(h(CallbacksPanel, {}));
+    (host.querySelector('.vpanel__header') as HTMLButtonElement).click();
+    await settle();
+    const tryIt = host.querySelector('.cb-try') as HTMLButtonElement;
+    expect(tryIt.disabled).toBe(true);
+    useVamsStore.setState({ pipelineMode: 'Playground' });
+    await settle();
+    expect(tryIt.disabled).toBe(false);
     render(null, host);
     host.remove();
   });
