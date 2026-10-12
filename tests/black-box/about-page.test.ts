@@ -283,7 +283,7 @@ describe('BB-ABOUT-01: /about is a finished, indexable, prerendered route', () =
     expect(meta.description).toBe(
       'Why VAMS exists, what it teaches, where your work is kept, and the undergraduate thesis behind it, with a citation to copy.',
     );
-    expect(buildSitemap('https://example.test')).toContain('<loc>https://example.test/about</loc>');
+    expect(buildSitemap('https://example.test')).toContain('<loc>https://example.test/about/</loc>');
     expect(readFileSync('vite.config.ts', 'utf8')).toMatch(/additionalPrerenderRoutes:\s*\[[^\]]*'\/about'/);
     const { result } = await prerenderAbout();
     expect(result.head.title).toBe('About — VAMS');
