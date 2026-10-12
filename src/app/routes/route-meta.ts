@@ -8,7 +8,7 @@ export interface RouteMeta {
 }
 
 export const SITE_NAME = 'VAMS';
-export const DEFAULT_SITE_URL = 'https://panic-vams.netlify.app';
+export const DEFAULT_SITE_URL = 'https://vams.pages.dev';
 
 /** Add a route here only when its page is finished. */
 export const ROUTES: readonly RouteMeta[] = [

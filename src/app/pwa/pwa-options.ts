@@ -52,7 +52,7 @@ export function buildPwaOptions(): Partial<VitePWAOptions> {
     workbox: {
       // The plugin adds manifest.webmanifest itself.
       globPatterns: ['**/*.{html,js,css,woff,woff2,ttf,svg,png,ico}'],
-      globIgnores: ['og/**'],
+      globIgnores: ['og/**', '404.html'],
       // /app?scene=triangle and /?stage resolve to their cached pages.
       ignoreURLParametersMatching: [/.*/],
       manifestTransforms: [routeDocumentsTransform],

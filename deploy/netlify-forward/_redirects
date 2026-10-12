@@ -1,0 +1,8 @@
+# VAMS moved to https://vams.pages.dev. This folder is the whole Netlify site:
+# deploy it once and leave builds stopped.
+
+# Browsers that installed the old offline app fetch this file to update it.
+/sw.js  /sw.js  200
+
+# Every other path, with its query string, goes to the same place on the new site.
+/*  https://vams.pages.dev/:splat  301!
