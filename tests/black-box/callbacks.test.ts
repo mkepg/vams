@@ -30,11 +30,11 @@ const rule = (objectId: string, over: Partial<CallbackRule> = {}): CallbackRule 
 describe('BB-CB-13: Handler names that would not compile are flagged', () => {
   it('rejects non-identifiers, reserved names, reserved prefixes and C++ keywords', () => {
     for (const bad of ['', '1abc', 'on key', 'main', 'display', 'draw', 'init', 'update_buffers',
-      'windowToWorld', '_vams_idle', 'draw_Tri', 'animate_x', 'state_y', 'initial_z', 'switch', 'class',
+      'windowToWorld', '_vams_idle', 'draw_Tri', 'state_y', 'initial_z', 'switch', 'class',
       'viewMinX', 'viewMaxY', 'vbo_x', 'tex_y']) {
       expect(isValidHandlerName(bad)).toBe(false);
     }
-    for (const good of ['onKey', '_handler', 'onMouse2']) expect(isValidHandlerName(good)).toBe(true);
+    for (const good of ['onKey', '_handler', 'onMouse2', 'animate_x']) expect(isValidHandlerName(good)).toBe(true);
   });
 
   it('flags a name already used by an earlier callback, and leaves it out of getRegisteredCallbacks', () => {
@@ -137,7 +137,7 @@ const gen = () => {
 };
 const FIXTURE = resolve(__dirname, '../fixtures/no-callbacks-program.cpp');
 
-/** Immediate, vertex-array and VBO objects, a stippled line, text, a group and an animation. */
+/** Immediate, vertex-array and VBO objects, a stippled line, text and a group. */
 function buildRichScene() {
   const tri = addTriangle(0.1, 0.0, 0.2);
   const quad = addQuad(-0.4, 0.2, 0.15);
@@ -148,7 +148,6 @@ function buildRichScene() {
   getState().updateLineStipple(line.id, { factor: 2, pattern: 0x00ff });
   getState().addTextObject('Hi', -0.2, -0.5);
   getState().createGroup([tri.id, fan.id]);
-  getState().setObjectAnimation(quad.id, { motion: 'pulse', speed: 1 });
   return { tri, quad, fan, line };
 }
 

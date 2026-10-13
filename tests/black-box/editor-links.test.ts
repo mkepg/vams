@@ -3,7 +3,6 @@
  * Links into the editor: prepared scenes, lesson and scene links, the slide 07 starting points
  * and the stage URL.
  */
-import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { afterEach, describe, it, expect } from 'vitest';
 import { h, render } from 'preact';
 import { renderToString } from 'preact-render-to-string';
@@ -22,7 +21,6 @@ import { getPreset, isPresetSlug } from '@/entities/project/model/scene-presets'
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { extractDrawBlock, generateDemoCode, INITIAL_TRIANGLE } from '@/pages/home/model/demo-code';
 
-const NO_CALLBACKS = emptyCallbacks();
 /** Stands in for the canvas-drawn sample texture, which happy-dom cannot paint. */
 const BRICKS = { id: 'sample-bricks', name: 'Tiling Bricks', dataUrl: 'data:image/png;base64,AA', width: 256, height: 256, isSample: true };
 
@@ -32,7 +30,7 @@ function program(slug: string): string {
     {
       objects: preset.data.objects,
       canvasBackgroundColor: preset.data.canvasBackgroundColor,
-      callbacks: NO_CALLBACKS,
+      callbacks: preset.data.callbacks,
       viewportLimits: preset.data.viewportLimits,
       textures: [BRICKS],
     },
@@ -73,7 +71,8 @@ describe('BB-LINK-03: Prepared scenes generate the OpenGL they are meant to show
     expect(transforms).toContain('ObjectState state_House = { 0.2000f, 0.1000f, 15.0000f, 0.8000f, 0.8000f };');
     expect(transforms).toContain('glTranslatef(state_House.x, state_House.y, 0.0f);');
     expect(transforms).toContain('glBegin(GL_TRIANGLE_FAN);');
-    expect(transforms).toContain('void animate_Sun()');
+    expect(transforms).toContain('void onIdle()\n{\n    state_Sun.rotation += 2.00f;\n    glutPostRedisplay();\n}');
+    expect(transforms).not.toContain('animate_');
     expect(transforms).toContain('glutIdleFunc(_vams_idle);');
 
     const primitives = program('primitives');

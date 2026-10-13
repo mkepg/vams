@@ -17,7 +17,6 @@ const FIXED: Record<string, FocusPlace> = {
   'line-style-panel': { area: 'object', group: 'appearance' },
   'texture-attach': { area: 'object', group: 'texture' },
   'uv-editor': { area: 'object', group: 'texture' },
-  'animation-preview': { area: 'object', group: 'animation' },
   'ortho-editor': { area: 'settings', group: 'viewing-volume' },
   'texture-library': { area: 'settings', group: 'texture-library' },
   'callbacks-panel': { area: 'settings', group: 'callbacks' },

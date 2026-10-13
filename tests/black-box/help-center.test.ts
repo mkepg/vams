@@ -149,3 +149,14 @@ describe('BB-HELP-05: Help describes the editor column, the Learn drawer and the
     }
   });
 });
+
+describe('BB-HELP-06: Help teaches motion through the idle callback only', () => {
+  it('has no Animation guide and no saved-animation wording', () => {
+    expect(HELP_TOPICS.some((t) => (t.id as string) === 'animation')).toBe(false);
+    const text = JSON.stringify(HELP_TOPICS);
+    for (const phrase of ['Animation panel', 'Animation group', 'animate_', 'pulse', 'orbit', 'saved animation', 'and animations']) {
+      expect(text).not.toContain(phrase);
+    }
+    for (const topic of HELP_TOPICS) expect(topic.related ?? []).not.toContain('animation');
+  });
+});

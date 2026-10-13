@@ -2,16 +2,16 @@ import { useVamsStore } from '@/core/store';
 import type { VamsState } from '@/core/store/types';
 import { showsIllustration } from '@/core/store/illustration';
 import type { GlutCallbackKind, MouseButton, RuleTrigger, SpecialKey } from '@/core/types/scene';
-import { CALLBACK_KINDS, isCallbackValid, programObjects } from '@/core/callbacks/callbacks-model';
+import { CALLBACK_KINDS, isCallbackValid } from '@/core/callbacks/callbacks-model';
 import { renderBridge } from '@/shared/engine/render-bridge';
 import {
-  createRunState, dispatch, runStateColor, stepAnimations, type RunEvent, type RunState,
+  createRunState, dispatch, runStateColor, type RunEvent, type RunState,
 } from './runtime';
 
 /**
  * The canvas Run state. It owns the event listeners and the frame loop, keeps a temporary
- * run state, and draws it through the render bridge. Like the animation preview, it never
- * calls a scene-state setter: stopping resyncs the canvas from the store, which never changed.
+ * run state, and draws it through the render bridge. It never calls a scene-state setter:
+ * stopping resyncs the canvas from the store, which never changed.
  */
 export interface RunFired {
   kind: GlutCallbackKind;
@@ -43,8 +43,7 @@ export function canRun(
   // A Pipeline illustration hides the canvas, so there is nothing to run on.
   if (showsIllustration(state)) return false;
   if (state.objects.length === 0) return false;
-  if (CALLBACK_KINDS.some((k) => isCallbackValid(state.callbacks, k))) return true;
-  return programObjects(state.objects).some((o) => o.type !== 'GROUP' && o.type !== 'TEXT' && !!o.animation);
+  return CALLBACK_KINDS.some((k) => isCallbackValid(state.callbacks, k));
 }
 
 const clampSize = (size: { width: number; height: number }, canvas: { width: number; height: number }) => ({
@@ -148,7 +147,6 @@ class RunController {
     if (motion) this.handle({ type: 'motion', x: motion.x, y: motion.y });
     if (!this.run) return;
     const state = useVamsStore.getState();
-    this.run = stepAnimations(this.run, state.objects);
     this.run = dispatch(this.run, state.callbacks, { type: 'idle' }).state;
     this.draw();
   }

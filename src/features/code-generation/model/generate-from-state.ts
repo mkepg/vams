@@ -1,4 +1,4 @@
-import type { AnimationMotion, CallbacksState, SceneNode, ViewportLimits } from '@/core/types/scene';
+import type { CallbacksState, SceneNode, ViewportLimits } from '@/core/types/scene';
 import type { TextureAsset } from '@/core/types/textures';
 import { generateAppOutput } from './code-generator';
 import { planCallbacks } from './generator/handlers';
@@ -9,12 +9,6 @@ interface GenerateInput {
   callbacks: CallbacksState;
   viewportLimits?: ViewportLimits;
   textures?: TextureAsset[];
-  /**
-   * Transient Animation-Preview override. While the UI previews a motion, this
-   * makes the generated code reflect it for that one object. Saved animations
-   * come from each object's own `animation` field; this is never persisted.
-   */
-  previewAnimation?: { objectId: string; motion: AnimationMotion; speed: number };
 }
 
 function isEffectivelyHidden(
@@ -38,7 +32,7 @@ export function generateCodeFromState(
   input: GenerateInput,
   canvasSize: { width: number; height: number }
 ): string {
-  const { objects, canvasBackgroundColor, callbacks, viewportLimits, previewAnimation } = input;
+  const { objects, canvasBackgroundColor, callbacks, viewportLimits } = input;
 
   const texMap = new Map<string, TextureAsset>(
     (input.textures ?? []).map((t) => [t.id, t]),
@@ -54,7 +48,6 @@ export function generateCodeFromState(
       planCallbacks(callbacks, []),
       viewportLimits,
       texMap,
-      previewAnimation
     );
   }
 
@@ -71,6 +64,5 @@ export function generateCodeFromState(
     plan,
     viewportLimits,
     texMap,
-    previewAnimation
   );
 }

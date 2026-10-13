@@ -9,8 +9,6 @@ import type {
   InteractionMode,
   LearningSettings,
   LineStipple,
-  AnimationMotion,
-  ObjectAnimation,
   PendingVertex,
   PrimitiveType,
   RenderingMode,
@@ -31,6 +29,8 @@ import type {
 
 // v9 replaces the handler name per callback kind with callbacks that hold rules, adds the Special
 // keys callback and the reshape choice. v8 files load with their names kept and no rules.
+// Objects in older files may carry a saved `animation`; motion now lives in idle rules, so the
+// loader leaves it behind.
 export const VAMS_PROJECT_SCHEMA_VERSION = 9;
 export type VamsProjectData = {
   objects: SceneNode[];
@@ -150,14 +150,6 @@ function sanitizeStipple(v: unknown): LineStipple | null {
   const pattern = Math.floor(toNumber(v.pattern, 0xFFFF)) & 0xFFFF;
   return { factor, pattern };
 }
-const ALLOWED_MOTIONS = new Set<AnimationMotion>(['rotate', 'pulse', 'slide', 'orbit']);
-function sanitizeAnimation(v: unknown): ObjectAnimation | null {
-  if (!isRecord(v)) return null;
-  const motion = v.motion as AnimationMotion;
-  if (!ALLOWED_MOTIONS.has(motion)) return null;
-  const speed = Math.max(0.1, Math.min(10, toNumber(v.speed, 1)));
-  return { motion, speed };
-}
 function toFilter(v: unknown): TextureFilter {
   return v === 'NEAREST' ? 'NEAREST' : 'LINEAR';
 }
@@ -226,7 +218,6 @@ function sanitizeObject(v: unknown, idx: number): SceneNode | null {
     updateMethod: toUpdateMethod(v.updateMethod),
     texture: sanitizeTextureAttachment(v.texture),
     uvs:     sanitizeUVs(v.uvs),
-    animation: sanitizeAnimation(v.animation),
   };
 }
 function fixHierarchy(objects: SceneNode[]): SceneNode[] {

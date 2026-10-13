@@ -3,8 +3,8 @@ import { useVamsStore } from '@/core/store';
 
 /**
  * A minimal stand-in for a PixiJS display Container — just the transform
- * surface the animation controller touches. Lets the white/black-box tests
- * exercise the controller without a live renderer.
+ * surface the Run controller touches. Lets the black-box tests
+ * exercise Run without a live renderer.
  */
 export interface FakeDisplay {
   position: { x: number; y: number; set(x: number, y: number): void };

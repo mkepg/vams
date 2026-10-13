@@ -202,3 +202,39 @@ describe('BB-LESSON-09: Drive with the Arrow Keys', () => {
     expect(second(useVamsStore.getState())).toBe(true);
   });
 });
+
+describe('BB-LESSON-10: The animation demo spins a triangle with an idle rule', () => {
+  const lesson = LESSON_REGISTRY['transforms-anim-1'];
+  const code = () => {
+    const s = getState();
+    return generateCodeFromState(
+      { objects: s.objects, canvasBackgroundColor: s.canvasBackgroundColor, callbacks: s.callbacks, viewportLimits: s.viewportLimits },
+      { width: 800, height: 600 },
+    );
+  };
+
+  it('registers onIdle with a rotate rule on Triangle', () => {
+    for (const step of lesson.steps) step.action?.(useVamsStore.getState());
+    const s = getState();
+    expect(s.objects.map((o) => o.name)).toEqual(['Triangle']);
+    expect(s.callbacks.idle.handlerName).toBe('onIdle');
+    expect(s.callbacks.idle.rules.map((r) => ({ objectId: r.objectId, trigger: r.trigger, action: r.action }))).toEqual([
+      { objectId: s.objects[0].id, trigger: { kind: 'idle' }, action: { type: 'rotate', degrees: 2 } },
+    ]);
+    expect(code()).toContain('void onIdle()\n{\n    state_Triangle.rotation += 2.00f;\n    glutPostRedisplay();\n}');
+    expect(code()).toContain('glutIdleFunc(_vams_idle);');
+  });
+
+  it('asks about lines the Code Panel really shows, and the right answer is the rotate line', () => {
+    for (const step of lesson.steps) step.action?.(useVamsStore.getState());
+    const quiz = lesson.steps.find((s) => s.exercise)!.exercise!;
+    if (quiz.kind !== 'multiple-choice') throw new Error('expected a multiple-choice step');
+    for (const option of quiz.options) expect(code()).toContain(option.label);
+    expect(quiz.options.find((o) => o.id === quiz.correctId)!.label).toBe('state_Triangle.rotation += 2.00f;');
+  });
+
+  it('points at the panels that still exist', () => {
+    expect(lesson.steps.map((s) => s.focusPanel).filter(Boolean)).not.toContain('animation-preview');
+    expect(lesson.steps.some((s) => s.focusPanel === 'callbacks-panel')).toBe(true);
+  });
+});

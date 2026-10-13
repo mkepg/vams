@@ -38,9 +38,8 @@ const RESERVED_NAMES: ReadonlySet<string> = new Set([
   'viewMinX', 'viewMaxX', 'viewMinY', 'viewMaxY',
 ]);
 const RESERVED_PREFIXES = [
-  'draw_', 'animate_', 'state_', 'initial_',
+  'draw_', 'state_', 'initial_',
   'vbo_', 'cbo_', 'ebo_', 'uvbo_', 'verts_', 'colors_', 'uvs_', 'indices_', 'tex_',
-  'baseX_', 'baseY_', 'baseSX_', 'baseSY_',
 ];
 
 /** A C++ identifier that the generated program does not already use. */

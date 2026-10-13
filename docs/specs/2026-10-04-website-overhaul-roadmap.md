@@ -113,7 +113,7 @@ Run mode:
 9. A theme change after a window resize during Run can clear Run's colour overrides. The top bar is inert during Run, so this is hard to reach.
 10. The window handle ignores `pointercancel` and lacks `touch-action: none`.
 11. The handle is 24px; the design spec says a 16px grip. The readout's inset hardcodes the 24px.
-12. "Try it" keeps the tooltip "Add a callback or an animation to run" when a Pipeline illustration is the reason it is disabled.
+12. "Try it" keeps the tooltip "Add a callback to run" when a Pipeline illustration is the reason it is disabled.
 
 Callbacks panel and generated code:
 
@@ -134,7 +134,7 @@ Lessons:
 Tests:
 
 23. BB-CB-12 rewrites `tests/fixtures/no-callbacks-program.cpp` when the file is missing, so deleting the fixture makes the no-callbacks guarantee pass vacuously. Write it only behind an environment flag.
-24. Missing tests: editing and removing a rule in the store; the v7 → v8 upgrade through a real rehydrate (only the pure function is tested); text, vertex-array and group-child recolour and visibility paths; Set colour excluding groups and Done returning focus; lesson checks on rules whose object was deleted; top-bar and Math panel inertness, the pre-start hook, and flash-over-lesson precedence during Run; the real renderer's `setAppearance`, `setView` and `resync`.
+24. Missing tests: editing and removing a rule in the store; the v7 → v8 upgrade through a real rehydrate (only the pure function is tested); text, vertex-array and group-child recolour and visibility paths; Set colour excluding groups and Done returning focus; lesson checks on rules whose object was deleted; top-bar and Math panel inertness and flash-over-lesson precedence during Run; the real renderer's `setAppearance`, `setView` and `resync`.
 25. WB-PERSIST-07's undo-history fixture predates the `callbacks` field.
 26. WB-CB-1 cannot tell show from hide, and its values never exercise rounding. Pointer-mapping parity is checked against hand-worked numbers, and the test C++ interpreter skips every `gl*` call.
 27. The Run visual baselines include the Math panel's cursor readout and do not wait for the code panel to finish scrolling.
@@ -142,13 +142,22 @@ Tests:
 Code tidiness:
 
 28. The recolour line is repeated four times in `buffers.ts` and `render.ts`.
-29. The animator's `baseX_`-style prefixes are reserved although those statics are function-local.
+29. Fixed 2026-10-13: the animator's `baseX_`-style reserved prefixes went with the Animation section.
 30. Replaced drawables are never destroyed (an older leak the Run code repeats), and the renderer's register effect disables `exhaustive-deps`.
 31. `CallbackRow` subscribes to the whole `callbacks` object, which it needs for duplicate-name checks.
 32. `keepProportionsView` returns Infinity at width 0, as the C++ does; the window cannot go below 200px.
 33. The call readout embeds the key unescaped; only a–z, 0–9 and space reach it.
 34. `const window` shadows the global inside two run-controller methods, and some new imports sit above existing ones.
 35. The product plan mixes list punctuation, and roadmap item 13 still says it needs its own spec beside Complete.
+
+### Animation section removed (2026-10-13)
+
+The inspector's Animation group is gone, together with saved per-object animations (rotate, pulse, slide, orbit), their `animate_<name>()` functions and their playback in Run. Idle rules in Callbacks now carry all motion, so the two features no longer overlap. Pulse, slide and orbit have no idle-rule equivalent and were dropped.
+
+- Saves in the browser migrate from store version 8 to 9, which strips the `animation` field. Older `.vams` files still open; the loader ignores the field.
+- The Transforms sample scene spins its sun with an `onIdle` rule, "rotate Sun by 2°", so it moves only during Run.
+- The lesson "Animation: Transformation Over Time" now registers that kind of idle rule and has the student press Run.
+- The Animation section was added after the evaluation study, so removing it creates no manuscript divergence. The "Animation" in the title is still covered by the idle callback.
 
 ## Divergences from the thesis manuscript
 

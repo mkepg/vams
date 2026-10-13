@@ -160,3 +160,17 @@ describe('WB-PERSIST-06: Browser storage version 7 migrates to version 8', () =>
     expect(migratePersistedState({ objects: [{ id: 'x' }] }, 6)).toEqual({});
   });
 });
+
+describe('WB-PERSIST-08: Browser storage version 8 migrates to version 9', () => {
+  it('drops the saved animation from every object and from the lesson backup', () => {
+    const v8 = {
+      objects: [{ id: 'a', name: 'Sun', animation: { motion: 'pulse', speed: 1 } }, { id: 'b', name: 'Box' }],
+      sceneBackup: [{ id: 'c', name: 'Old', animation: { motion: 'rotate', speed: 2 } }],
+      callbacks: emptyCallbacks(),
+    };
+    const out = migratePersistedState(v8, 8) as { objects: Record<string, unknown>[]; sceneBackup: Record<string, unknown>[] };
+    expect(out.objects).toEqual([{ id: 'a', name: 'Sun' }, { id: 'b', name: 'Box' }]);
+    expect(out.sceneBackup).toEqual([{ id: 'c', name: 'Old' }]);
+    expect((migratePersistedState({ objects: [], sceneBackup: null }, 8) as { sceneBackup: unknown }).sceneBackup).toBeNull();
+  });
+});

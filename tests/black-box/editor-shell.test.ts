@@ -362,7 +362,7 @@ describe('BB-SHELL-15: The inspector shows the object in pipeline order, or the 
     useVamsStore.setState({ appMode: 'Author', selectedObjectId: tri.id });
     const host = mount(h(Inspector, {}));
     await settle();
-    expect(groupTitles(host)).toEqual(['Vertices', 'Buffers', 'Transform', 'Appearance', 'Texture', 'Animation']);
+    expect(groupTitles(host)).toEqual(['Vertices', 'Buffers', 'Transform', 'Appearance', 'Texture']);
     expect(host.querySelector('[data-group="transform"] .inspector-group__header')!.getAttribute('aria-expanded')).toBe('true');
     expect(host.querySelector('[data-group="vertices"] .inspector-group__header')!.getAttribute('aria-expanded')).toBe('false');
     expect(host.querySelector('[data-group="transform"] .inspector-group__hint')!.textContent).toContain('glTranslatef');
@@ -392,7 +392,7 @@ describe('BB-SHELL-15: The inspector shows the object in pipeline order, or the 
     useVamsStore.setState({ objects: [], selectedObjectId: null, openGroups: ['transform', 'background'] });
   });
 
-  it('shows only Transform and Animation for a group, with its child count', async () => {
+  it('shows only Transform for a group, with its child count', async () => {
     const groupTitles = (host: HTMLElement) => [...host.querySelectorAll('.inspector-group__title')].map((t) => t.textContent);
     const tri = addTriangle();
     const line = addPrimitive('LINES', [{ x: -0.5, y: 0 }, { x: 0.5, y: 0 }]);
@@ -402,7 +402,7 @@ describe('BB-SHELL-15: The inspector shows the object in pipeline order, or the 
     expect(useVamsStore.getState().selectedObjectId).toBe(group.id);
     const host = mount(h(Inspector, {}));
     await settle();
-    expect(groupTitles(host)).toEqual(['Transform', 'Animation']);
+    expect(groupTitles(host)).toEqual(['Transform']);
     expect(host.querySelector('.inspector__meta')!.textContent).toBe('Group · 2 objects');
     unmount(host);
     useVamsStore.setState({ objects: [], selectedObjectId: null });

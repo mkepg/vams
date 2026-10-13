@@ -30,7 +30,6 @@ void draw_LINE_STRIP_1();
 void draw_TRIANGLE_FAN_1();
 void draw_QUADS_1();
 void draw_TRIANGLES_1();
-void animate_QUADS_1();
 void init();
 
 void draw_LINE_STRIP_1()
@@ -131,17 +130,6 @@ void draw_TRIANGLES_1()
     glPopMatrix();
 }
 
-void animate_QUADS_1()
-{
-    static float baseSX_QUADS_1 = state_QUADS_1.scaleX;
-    static float baseSY_QUADS_1 = state_QUADS_1.scaleY;
-    static float t = 0.0f;
-    t += 0.030f;
-    float s = 1.0f + 0.30f * sinf(t);
-    state_QUADS_1.scaleX = baseSX_QUADS_1 * s;
-    state_QUADS_1.scaleY = baseSY_QUADS_1 * s;
-}
-
 void draw()
 {
     draw_QUADS_1();
@@ -206,13 +194,6 @@ void init()
 
 }
 
-// Internal VAMS wrapper: run per-frame animation and updates
-void _vams_idle()
-{
-    animate_QUADS_1();
-    glutPostRedisplay();
-}
-
 int main(int argc, char** argv)
 {
     glutInit(&argc, argv);
@@ -230,7 +211,6 @@ int main(int argc, char** argv)
     init();
 
     glutDisplayFunc(display);
-    glutIdleFunc(_vams_idle);
 
     glutMainLoop();
     return 0;
