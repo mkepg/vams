@@ -41,18 +41,17 @@ const press = (key: string, init: KeyboardEventInit = {}) => {
   return e;
 };
 
-describe('BB-RUN-1: Run needs an object and a callback or an animation', () => {
+describe('BB-RUN-1: Run needs an object and a callback', () => {
   it('is off for an empty scene, a scene with nothing to run, or an invalid name', () => {
     expect(canRun(getState())).toBe(false);
-    const t = addTriangle();
+    addTriangle();
     expect(canRun(getState())).toBe(false);
     getState().setCallbackHandler('keyboard', 'main');
     expect(canRun(getState())).toBe(false);
     getState().setCallbackHandler('keyboard', 'onKey');
     expect(canRun(getState())).toBe(true);
     getState().clearCallback('keyboard');
-    getState().setObjectAnimation(t.id, { motion: 'rotate', speed: 1 });
-    expect(canRun(getState())).toBe(true);
+    expect(canRun(getState())).toBe(false);
   });
 });
 
@@ -291,7 +290,7 @@ describe('BB-RUN-11: The overlay shows Run, then the strip, the readout and the 
     await settle();
     const run = host.querySelector('.run-button') as HTMLButtonElement;
     expect(run.disabled).toBe(true);
-    expect(run.title).toBe('Add a callback or an animation to run');
+    expect(run.title).toBe('Add a callback to run');
     render(null, host);
     host.remove();
   });

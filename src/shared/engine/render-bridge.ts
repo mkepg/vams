@@ -4,10 +4,10 @@ import type { Application, Container } from 'pixi.js';
  * Render bridge — a tiny read-only window into the live PixiJS renderer.
  *
  * The scene renderer (`useSceneRenderer`) already keeps a private map of
- * scene-object id → on-screen display Container. The Animation Preview needs
- * to nudge a single display object directly, frame by frame, WITHOUT touching
- * the Zustand scene state. Rather than spin up a second source of truth, the
- * renderer registers a couple of accessors here and the preview reads them.
+ * scene-object id → on-screen display Container. Run needs to move display
+ * objects directly, frame by frame, WITHOUT touching the Zustand scene state.
+ * Rather than spin up a second source of truth, the renderer registers a
+ * couple of accessors here and Run reads them.
  *
  * Two hard rules live in this file's contract:
  *   1. `getDisplayObject` is read-only. Callers may animate the returned
@@ -15,7 +15,7 @@ import type { Application, Container } from 'pixi.js';
  *   2. `resync()` re-applies the store transforms and visibility, clears Run's
  *      appearance overrides and restores the editor's viewport transform,
  *      returning the renderer to "state is the single source of truth" after
- *      a transient preview ends.
+ *      a run ends.
  */
 
 interface RenderBridgeHandlers {

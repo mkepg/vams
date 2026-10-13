@@ -3,9 +3,6 @@ import type {
   RuleTrigger, SceneNode, SpecialKey, ViewportLimits,
 } from '@/core/types/scene';
 import { isCallbackValid, programObjects } from '@/core/callbacks/callbacks-model';
-import {
-  ORBIT_RADIUS, PULSE_AMPLITUDE, ROTATE_STEP_PER_FRAME, SLIDE_AMPLITUDE, TIME_STEP_PER_FRAME,
-} from '@/core/animation/motion-config';
 
 /**
  * The Run runtime: pure functions over a temporary copy of each object's program state. Every
@@ -23,8 +20,6 @@ export interface RunState {
   limits: RunView;
   view: RunView;
   window: { width: number; height: number };
-  /** The animators' `static` locals, per object. */
-  statics: Record<string, { baseX?: number; baseY?: number; baseSX?: number; baseSY?: number; t: number }>;
 }
 export type RunEvent =
   | { type: 'key'; key: string; x: number; y: number }
@@ -65,7 +60,7 @@ export function createRunState(objects: SceneNode[], limits: ViewportLimits, win
     states[o.id] = s;
     initial[o.id] = { ...s };
   }
-  return { objects: states, initial, limits: { ...limits }, view: { ...limits }, window: { ...window }, statics: {} };
+  return { objects: states, initial, limits: { ...limits }, view: { ...limits }, window: { ...window } };
 }
 
 export function applyAction(
@@ -151,53 +146,6 @@ export function dispatch(state: RunState, callbacks: CallbacksState, event: RunE
     next = { ...state, objects };
   }
   return { state: next, kind, handlerName: name, call: callText(name, event), matched: rules[0]?.trigger ?? null };
-}
-
-/** One `_vams_idle` animator pass, mirroring generateIdleBody, statics included. */
-export function stepAnimations(state: RunState, sceneObjects: SceneNode[]): RunState {
-  const animated = programObjects(sceneObjects).filter((o) => o.type !== 'GROUP' && o.type !== 'TEXT' && o.animation);
-  if (animated.length === 0) return state;
-  const objects = { ...state.objects };
-  const statics = { ...state.statics };
-  for (const o of animated) {
-    const current = objects[o.id];
-    if (!current) continue;
-    const { motion, speed } = o.animation!;
-    const s = { ...current };
-    const st = { ...(statics[o.id] ?? { t: 0 }) };
-    const rotStep = q(ROTATE_STEP_PER_FRAME * speed, 2);
-    const dt = q(TIME_STEP_PER_FRAME * speed, 3);
-    switch (motion) {
-      case 'rotate':
-        s.rotation += rotStep;
-        if (s.rotation >= 360) s.rotation -= 360;
-        break;
-      case 'pulse': {
-        if (st.baseSX === undefined) st.baseSX = s.scaleX;
-        if (st.baseSY === undefined) st.baseSY = s.scaleY;
-        st.t += dt;
-        const k = 1 + q(PULSE_AMPLITUDE, 2) * Math.sin(st.t);
-        s.scaleX = st.baseSX * k;
-        s.scaleY = st.baseSY * k;
-        break;
-      }
-      case 'slide':
-        if (st.baseX === undefined) st.baseX = s.x;
-        st.t += dt;
-        s.x = st.baseX + q(SLIDE_AMPLITUDE, 2) * Math.sin(st.t);
-        break;
-      case 'orbit':
-        if (st.baseX === undefined) st.baseX = s.x;
-        if (st.baseY === undefined) st.baseY = s.y;
-        st.t += dt;
-        s.x = st.baseX + q(ORBIT_RADIUS, 2) * Math.sin(st.t);
-        s.y = st.baseY + q(ORBIT_RADIUS, 2) * (1 - Math.cos(st.t));
-        break;
-    }
-    objects[o.id] = s;
-    statics[o.id] = st;
-  }
-  return { ...state, objects, statics };
 }
 
 export function runStateColor(o: RunObjectState): string {

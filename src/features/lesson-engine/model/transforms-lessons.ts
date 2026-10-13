@@ -1,7 +1,7 @@
 import type { Lesson } from '@/core/types/lesson';
 import { useVamsStore } from '@/core/store';
 import type { VamsState } from '@/core/store/types';
-import { animationController } from '@/features/animation-preview/model/animation-controller';
+import { newRuleId } from '@/core/callbacks/callbacks-model';
 
 const DEFAULT_VIEWPORT = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
 
@@ -236,36 +236,43 @@ export const TRANSFORMS_LESSONS: Record<string, Lesson> = {
         focusPanel: 'scene-hierarchy',
         action: (state) => {
           state.addCustomObject('TRIANGLES', [{ x: 0, y: 0.5 }, { x: -0.5, y: -0.5 }, { x: 0.5, y: -0.5 }]);
+          const store = useVamsStore.getState();
+          store.updateObjectName(store.objects[0].id, 'Triangle');
         },
       },
       {
         narration:
-          'Watch the canvas: the triangle now spins. This is a transient preview — a visual-only overlay. The saved scene never changes, so stopping snaps it straight back to its saved pose. A panel beside the canvas shows the GLUT idle callback that would produce the very same motion in a compiled program.',
-        focusPanel: 'animation-preview',
-        action: (state) => {
-          if (state.selectedObjectId) {
-            animationController.play(state.selectedObjectId, 'rotate', 1);
-          }
+          'GLUT calls an idle function whenever it has nothing else to do, which is every frame. We registered onIdle with one rule: rotate the triangle by 2 degrees. Find onIdle in the Code Panel.',
+        focusPanel: 'callbacks-panel',
+        action: () => {
+          const store = useVamsStore.getState();
+          store.setCallbackHandler('idle', 'onIdle');
+          store.addCallbackRule('idle', {
+            id: newRuleId(),
+            objectId: store.objects[0].id,
+            trigger: { kind: 'idle' },
+            action: { type: 'rotate', degrees: 2 },
+          });
         },
       },
       {
         narration:
-          'Each frame, the idle callback adds a small angle to the rotation and asks GLUT to redraw — glutPostRedisplay. The highlighted line in the snippet is the one transform call that drives the spin. Same idea as glRotatef, repeated over time.',
-        focusPanel: 'animation-preview',
+          'Press Run on the canvas. Every frame, onIdle adds 2 degrees to the rotation and glutPostRedisplay asks GLUT to draw the next frame: the same idea as glRotatef, repeated over time. Press Esc to stop: your scene is just as you built it.',
+        focusPanel: 'callbacks-panel',
       },
       {
         narration:
-          'One quick check: in the idle callback below, which line is the one that actually makes the triangle move?',
-        focusPanel: 'animation-preview',
+          'One quick check: in onIdle, which line is the one that actually makes the triangle move?',
+        focusPanel: 'callbacks-panel',
         waitForUser: true,
         exercise: {
           kind: 'multiple-choice',
           prompt: 'Which line makes the object move each frame?',
           options: [
-            { id: 'a', label: 'state.rotation += 1.50f;' },
-            { id: 'b', label: 'void idle() {' },
+            { id: 'a', label: 'state_Triangle.rotation += 2.00f;' },
+            { id: 'b', label: 'void onIdle()' },
             { id: 'c', label: 'glutPostRedisplay();' },
-            { id: 'd', label: 'if (state.rotation >= 360.0f) state.rotation -= 360.0f;' },
+            { id: 'd', label: 'glutIdleFunc(_vams_idle);' },
           ],
           correctId: 'a',
         },

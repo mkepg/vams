@@ -1,4 +1,4 @@
-import type { SceneNode, ViewportLimits, AnimationMotion, ObjectAnimation } from '@/core/types/scene';
+import type { SceneNode, ViewportLimits } from '@/core/types/scene';
 import type { TextureAsset } from '@/core/types/textures';
 import { sanitizeName } from './generator/utils';
 import { generateState } from './generator/state';
@@ -10,7 +10,6 @@ import {
   generateWindowToWorld,
   type CallbackPlan,
 } from './generator/handlers';
-import { generateAnimateFunction } from './generator/idle';
 import {
   generateBufferGlobals,
   generateInitBody,
@@ -31,29 +30,9 @@ export function generateAppOutput(
   plan: CallbackPlan,
   viewportLimits?: ViewportLimits,
   textures: Map<string, TextureAsset> = new Map(),
-  /**
-   * Transient Animation-Preview override. While the user previews a motion that
-   * differs from (or precedes) what is saved, the caller passes the live
-   * motion for that object so the panel reflects it. It overrides only that one
-   * object's effective animation; it is never persisted. Saved animations on
-   * other objects are emitted from their own `animation` field.
-   */
-  previewAnimation?: { objectId: string; motion: AnimationMotion; speed: number }
 ): string {
   const limits = viewportLimits ?? { minX: -1, maxX: 1, minY: -1, maxY: 1 };
   const effects: DrawEffects = { colorIds: plan.colorIds, visibilityIds: plan.visibilityIds };
-  // The effective animation for an object: the live preview override if it
-  // targets this object, otherwise the object's saved animation.
-  const effectiveAnim = (obj: SceneNode): ObjectAnimation | null => {
-    if (previewAnimation && previewAnimation.objectId === obj.id) {
-      return { motion: previewAnimation.motion, speed: previewAnimation.speed };
-    }
-    return obj.animation ?? null;
-  };
-  const animatedObjects = allObjects.filter(
-    (o) => o.type !== 'GROUP' && o.type !== 'TEXT' && effectiveAnim(o),
-  );
-  const hasAnimations = animatedObjects.length > 0;
   const hasTextures = sceneNeedsTextures(allObjects);
   const needsBufferUpdate = sceneNeedsBufferUpdates(allObjects);
   // GLEW must be included BEFORE freeglut.h so that VBO entry points
@@ -78,9 +57,6 @@ export function generateAppOutput(
       code += `void draw_${sanitizeName(obj.name)}();\n`;
     }
   });
-  animatedObjects.forEach((obj) => {
-    code += `void animate_${sanitizeName(obj.name)}();\n`;
-  });
   if (needsBufferUpdate) {
     code += `void update_buffers();\n`;
   }
@@ -91,12 +67,6 @@ export function generateAppOutput(
       code += generateObjectDrawBody(obj, allObjects, effects);
       code += `}\n\n`;
     }
-  });
-  // Per-object animators: each advances its object's transform a little each
-  // frame. Saved with the project and called from _vams_idle below.
-  animatedObjects.forEach((obj) => {
-    const anim = effectiveAnim(obj)!;
-    code += generateAnimateFunction(obj.name, anim.motion, anim.speed);
   });
   code += `void draw()\n{\n`;
   if (rootObjects.length === 0) {
@@ -163,14 +133,11 @@ export function generateAppOutput(
   }
   code += `}\n\n`;
   const idleCb = plan.registered.find((cb) => cb.kind === 'idle');
-  const needsIdle = needsBufferUpdate || idleCb || hasAnimations;
+  const needsIdle = needsBufferUpdate || idleCb;
   if (needsIdle) {
     code += `// Internal VAMS wrapper: run per-frame animation and updates\n`;
     code += `void _vams_idle()\n{\n`;
-    // Animators first, then real per-frame work, then a redraw request.
-    animatedObjects.forEach((obj) => {
-      code += `    animate_${sanitizeName(obj.name)}();\n`;
-    });
+    // Per-frame buffer work, then the student's idle handler, then a redraw request.
     if (needsBufferUpdate) code += `    update_buffers();\n`;
     if (idleCb) code += `    ${idleCb.handlerName}();\n`;
     // A registered handler's stub already calls glutPostRedisplay; otherwise

@@ -2,8 +2,6 @@ import { Shapes } from "lucide-react";
 import type { InteractionMode, ViewportLimits } from "@/core/types/scene";
 import { useVamsStore } from "@/core/store";
 import { Button } from "@/shared/ui/controls";
-import AnimationCodeOverlay from "@/features/animation-preview/ui/AnimationCodeOverlay";
-import { animationController } from "@/features/animation-preview/model/animation-controller";
 import RunOverlay from "@/features/callbacks/ui/RunOverlay";
 interface CanvasOverlaysProps {
   viewportLimits: ViewportLimits;
@@ -23,8 +21,7 @@ export function CanvasOverlays({
   const cueAddRow = useVamsStore((s) => s.cueAddRow);
   return (
     <>
-      <AnimationCodeOverlay />
-      <RunOverlay onBeforeStart={() => animationController.stop()} />
+      <RunOverlay />
       <div className="viewport-info">
         Viewport: ({viewportLimits.minX}, {viewportLimits.maxX})
       </div>

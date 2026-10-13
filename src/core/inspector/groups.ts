@@ -1,11 +1,11 @@
 import type { CurriculumSection } from '@/core/store/types';
 
-export type ObjectGroupId = 'vertices' | 'buffers' | 'transform' | 'appearance' | 'texture' | 'animation';
+export type ObjectGroupId = 'vertices' | 'buffers' | 'transform' | 'appearance' | 'texture';
 export type SettingsGroupId = 'background' | 'viewing-volume' | 'texture-library' | 'callbacks';
 export type InspectorGroupId = ObjectGroupId | SettingsGroupId;
 
 /** Pipeline order: the order the inspector shows them. */
-export const OBJECT_GROUPS: readonly ObjectGroupId[] = ['vertices', 'buffers', 'transform', 'appearance', 'texture', 'animation'];
+export const OBJECT_GROUPS: readonly ObjectGroupId[] = ['vertices', 'buffers', 'transform', 'appearance', 'texture'];
 export const SETTINGS_GROUPS: readonly SettingsGroupId[] = ['background', 'viewing-volume', 'texture-library', 'callbacks'];
 
 /** Open by default: Transform for an object, Background for the scene. */
@@ -18,7 +18,6 @@ export const GROUP_SECTION: Record<InspectorGroupId, CurriculumSection> = {
   transform: 'Transforms',
   appearance: 'Primitives',
   texture: 'Textures',
-  animation: 'Transforms',
   background: 'Pipeline',
   'viewing-volume': 'Transforms',
   'texture-library': 'Textures',

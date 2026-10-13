@@ -39,7 +39,7 @@ describe('BB-INSP-01: Every lesson focus target has a place in the editor', () =
     expect(resolveFocus('line-style-panel', true)).toEqual({ area: 'object', group: 'appearance' });
     expect(resolveFocus('texture-attach', true)).toEqual({ area: 'object', group: 'texture' });
     expect(resolveFocus('uv-editor', true)).toEqual({ area: 'object', group: 'texture' });
-    expect(resolveFocus('animation-preview', true)).toEqual({ area: 'object', group: 'animation' });
+    expect(resolveFocus('animation-preview', true)).toBeNull();
     expect(resolveFocus('ortho-editor', true)).toEqual({ area: 'settings', group: 'viewing-volume' });
     expect(resolveFocus('texture-library', true)).toEqual({ area: 'settings', group: 'texture-library' });
     expect(resolveFocus('callbacks-panel', true)).toEqual({ area: 'settings', group: 'callbacks' });
@@ -60,7 +60,7 @@ describe('BB-INSP-02: Each place belongs to a curriculum section', () => {
     expect(sectionForPlace({ area: 'scene', target: 'add' })).toBe('Primitives');
     expect(sectionForPlace({ area: 'object', group: 'vertices' })).toBe('Primitives');
     expect(sectionForPlace({ area: 'object', group: 'buffers' })).toBe('Buffers');
-    expect(sectionForPlace({ area: 'object', group: 'animation' })).toBe('Transforms');
+    expect(sectionForPlace({ area: 'object', group: 'transform' })).toBe('Transforms');
     expect(sectionForPlace({ area: 'settings', group: 'viewing-volume' })).toBe('Transforms');
     expect(sectionForPlace({ area: 'settings', group: 'texture-library' })).toBe('Textures');
     expect(sectionForPlace({ area: 'settings', group: 'callbacks' })).toBe('Pipeline');
@@ -119,7 +119,7 @@ describe('BB-INSP-04: Groups toggle, remember the last opened one, and clear a m
 describe('BB-INSP-05: The persisted shape is unchanged and transient state is never saved', () => {
   it('keeps version 7, the same partialize keys, and no inspector fields', () => {
     const options = (useVamsStore as unknown as { persist: { getOptions: () => { version: number; partialize: (s: unknown) => object } } }).persist.getOptions();
-    expect(options.version).toBe(8);
+    expect(options.version).toBe(9);
     const keys = Object.keys(options.partialize(useVamsStore.getState())).sort();
     expect(keys).toEqual([
       'activeSection', 'axisVisibility', 'callbacks', 'callbacksBackup', 'canvasBackgroundColor',

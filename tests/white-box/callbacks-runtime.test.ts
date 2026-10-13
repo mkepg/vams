@@ -6,11 +6,10 @@ import { describe, it, expect } from 'vitest';
 import type { RuleAction } from '@/core/types/scene';
 import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { actionLines } from '@/features/code-generation/model/generator/handlers';
-import { generateIdleBody } from '@/features/code-generation/model/generator/idle';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { locateHandlerBranch } from '@/features/code-generation/model/locate-branch';
 import {
-  applyAction, createRunState, dispatch, keepProportionsView, stepAnimations, type RunObjectState,
+  applyAction, createRunState, dispatch, keepProportionsView, type RunObjectState,
 } from '@/features/callbacks/model/runtime';
 import { MiniCpp } from '../helpers/mini-cpp';
 import { addTriangle, getState } from '../helpers/store';
@@ -98,42 +97,6 @@ function useVamsStateForReshape() {
   getState().setViewportLimits({ minX: -2, maxX: 3, minY: -1, maxY: 1.5 });
   getState().setCallbackHandler('reshape', 'onReshape');
 }
-
-describe('WB-CB-5: stepAnimations matches the generated animator over 120 frames', () => {
-  it.each(['rotate', 'pulse', 'slide', 'orbit'] as const)('%s', (motion) => {
-    const t = addTriangle(0.2, 0.1, 0.1);
-    getState().updateObjectName(t.id, 'T');
-    getState().setObjectAnimation(t.id, { motion, speed: 1.5 });
-    const obj = getState().objects.find((o) => o.id === t.id)!;
-    const cpp = new MiniCpp();
-    cpp.vars.set('state_T', { x: obj.transform.translateX, y: obj.transform.translateY, rotation: obj.transform.rotate, scaleX: obj.transform.scaleX, scaleY: obj.transform.scaleY });
-    let state = createRunState(getState().objects, getState().viewportLimits, { width: 800, height: 600 });
-    const lines = generateIdleBody(motion, 'T', 1.5).lines;
-    for (let frame = 0; frame < 120; frame++) {
-      cpp.run(lines);
-      state = stepAnimations(state, getState().objects);
-    }
-    const expected = cpp.vars.get('state_T') as Record<string, number>;
-    for (const field of ['x', 'y', 'rotation', 'scaleX', 'scaleY'] as const) {
-      expect(state.objects[t.id][field]).toBeCloseTo(expected[field], 5);
-    }
-  });
-});
-
-describe('WB-CB-6: A Slide animation overrides a Translate rule on x, as the program does', () => {
-  it('loses the key translation on the next frame', () => {
-    const t = addTriangle(0.2, 0, 0.1);
-    getState().setObjectAnimation(t.id, { motion: 'slide', speed: 1 });
-    const cbs = emptyCallbacks();
-    cbs.keyboard = { handlerName: 'onKey', rules: [{ id: 'r', objectId: t.id, trigger: { kind: 'keyboard', key: 'd' }, action: { type: 'translate', dx: 0.5, dy: 0 } }] };
-    let state = createRunState(getState().objects, getState().viewportLimits, { width: 800, height: 600 });
-    state = stepAnimations(state, getState().objects);
-    const baseX = state.statics[t.id].baseX!;
-    state = dispatch(state, cbs, { type: 'key', key: 'd', x: 0, y: 0 }).state;
-    state = stepAnimations(state, getState().objects);
-    expect(state.objects[t.id].x).toBeCloseTo(baseX + 0.5 * Math.sin(2 * 0.03), 6);
-  });
-});
 
 describe('WB-CB-7: dispatch gating and reshape', () => {
   const WIN = { width: 800, height: 600 };

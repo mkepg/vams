@@ -1,5 +1,6 @@
 import type { CurriculumSection } from '@/core/store/types';
-import type { SceneNode, TransformState, Vertex } from '@/core/types/scene';
+import type { CallbacksState, SceneNode, TransformState, Vertex } from '@/core/types/scene';
+import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { sanitizeProjectData, type VamsProjectData } from './project-io';
 import { PRESET_LINKS, type PresetSlug } from './preset-links';
 
@@ -30,7 +31,6 @@ function node(fields: Pick<SceneNode, 'id' | 'name' | 'type' | 'vertices'> & Par
     updateMethod: 'BUFFER_SUB_DATA',
     texture: null,
     uvs: null,
-    animation: null,
     ...fields,
   };
 }
@@ -89,7 +89,6 @@ function transforms(): SceneNode[] {
       name: 'Sun',
       type: 'TRIANGLE_FAN',
       transform: at(-0.6, 0.6),
-      animation: { motion: 'rotate', speed: 1 },
       vertices: vertices(
         'sun',
         [[0, 0], [0.15, 0], [0, 0.15], [-0.15, 0], [0, -0.15], [0.15, 0]],
@@ -97,6 +96,16 @@ function transforms(): SceneNode[] {
       ),
     }),
   ];
+}
+
+/** The sun spins while the scene runs: an idle rule turns it a little every frame. */
+function spinningSun(): CallbacksState {
+  const callbacks = emptyCallbacks();
+  callbacks.idle = {
+    handlerName: 'onIdle',
+    rules: [{ id: 'sun-spin', objectId: 'sun', trigger: { kind: 'idle' }, action: { type: 'rotate', degrees: 2 } }],
+  };
+  return callbacks;
 }
 
 function primitives(): SceneNode[] {
@@ -151,9 +160,9 @@ function texturedQuad(): SceneNode[] {
   ];
 }
 
-const BUILDERS: Record<PresetSlug, { section: CurriculumSection; build: () => SceneNode[] }> = {
+const BUILDERS: Record<PresetSlug, { section: CurriculumSection; build: () => SceneNode[]; callbacks?: () => CallbacksState }> = {
   triangle: { section: 'Primitives', build: triangle },
-  transforms: { section: 'Transforms', build: transforms },
+  transforms: { section: 'Transforms', build: transforms, callbacks: spinningSun },
   primitives: { section: 'Primitives', build: primitives },
   'textured-quad': { section: 'Textures', build: texturedQuad },
 };
@@ -166,6 +175,6 @@ export function isPresetSlug(slug: string): slug is PresetSlug {
 export function getPreset(slug: string): ScenePreset | undefined {
   const link = PRESET_LINKS.find((l) => l.slug === slug);
   if (!link) return undefined;
-  const { section, build } = BUILDERS[link.slug];
-  return { slug: link.slug, title: link.title, section, data: sanitizeProjectData({ objects: build() }) };
+  const { section, build, callbacks } = BUILDERS[link.slug];
+  return { slug: link.slug, title: link.title, section, data: sanitizeProjectData({ objects: build(), callbacks: callbacks?.() }) };
 }

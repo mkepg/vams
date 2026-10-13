@@ -33,7 +33,7 @@ export const HELP_TOPICS: HelpTopic[] = [
           'Create every OpenGL 1.5 primitive and edit its vertices, color, and line style.',
           'Switch geometry between immediate mode, vertex arrays, and VBOs — and see the code change.',
           'Translate, rotate, scale, and group objects, and set the orthographic view.',
-          'Give an object a looping animation and see the idle-callback code that drives it.',
+          'Give GLUT callbacks rules and press Run to play them, including idle rules that animate a shape every frame.',
           'Upload textures and map them onto shapes with a UV editor.',
           'Follow guided, narrated lessons with built-in exercises.',
         ],
@@ -83,7 +83,7 @@ export const HELP_TOPICS: HelpTopic[] = [
           { term: 'Scene list', description: 'Every object in your scene. Rename, show or hide, group, duplicate, and delete objects here.' },
           { term: 'Add row', description: 'The primitives by their OpenGL names: GL_POINTS, GL_LINES, GL_TRIANGLES, and GL_QUADS, with More for the rest.' },
           { term: 'Create Text', description: 'Bitmap text, placed in the scene. Select a text object to edit it here.' },
-          { term: 'Inspector', description: 'The selected object’s groups in pipeline order: Vertices, Buffers, Transform, Appearance, Texture, and Animation. Each group header names its OpenGL call.' },
+          { term: 'Inspector', description: 'The selected object’s groups in pipeline order: Vertices, Buffers, Transform, Appearance, and Texture. Each group header names its OpenGL call.' },
           { term: 'Scene settings', description: 'With nothing selected, the inspector shows the scene’s settings: Background, Viewing volume, Texture library, and Callbacks.' },
         ],
       },
@@ -153,7 +153,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { kind: 'heading', text: 'Running your program' },
       {
         kind: 'paragraph',
-        text: 'Press Run in the top-right corner of the canvas to play your callbacks and animations. Keys, clicks and drags go to your handlers, and the bar at the bottom shows the last call GLUT made. Drag the handle in the bottom-right corner to resize the program window. Press Esc or Stop to end the run: your scene is just as you built it.',
+        text: 'Press Run in the top-right corner of the canvas to play your callbacks. Keys, clicks and drags go to your handlers, and the bar at the bottom shows the last call GLUT made. Drag the handle in the bottom-right corner to resize the program window. Press Esc or Stop to end the run: your scene is just as you built it.',
       },
       { kind: 'shortcuts' },
       { kind: 'heading', text: 'Grid snapping & coordinates' },
@@ -425,10 +425,10 @@ export const HELP_TOPICS: HelpTopic[] = [
       { kind: 'heading', text: 'Animating a transform' },
       {
         kind: 'paragraph',
-        text: 'With an object selected, the Animation panel lets you turn any of these transforms into a looping motion — rotate, pulse, slide, or orbit — preview it on the canvas, and save it onto the object. See the Animation guide for details.',
+        text: 'To animate a transform, switch on the Idle callback (select nothing to see the Callbacks group) and give it a rule such as "rotate Triangle by 2°". GLUT calls it every frame, so the transform changes a little each frame. Press Run to watch it. See the GLUT Callbacks guide for details.',
       },
     ],
-    related: ['code-panel', 'math-panel', 'animation', 'glossary'],
+    related: ['code-panel', 'math-panel', 'callbacks', 'glossary'],
   },
   {
     id: 'section-textures',
@@ -507,54 +507,6 @@ export const HELP_TOPICS: HelpTopic[] = [
     related: ['section-transforms', 'canvas-basics', 'code-panel'],
   },
   {
-    id: 'animation',
-    category: 'panels',
-    title: 'Animation',
-    summary: 'Give an object a looping motion, preview it, and save it into your scene and code.',
-    keywords: ['animation', 'animate', 'motion', 'rotate', 'pulse', 'slide', 'orbit', 'idle', 'glutidlefunc', 'preview', 'play', 'move', 'speed'],
-    blocks: [
-      {
-        kind: 'paragraph',
-        text: 'Animation in graphics is simply transformation over time. Select an object and open its Animation group in the inspector, pick a motion, then preview it on the canvas or save it onto the object so it becomes part of your scene.',
-      },
-      { kind: 'heading', text: 'The four motions' },
-      {
-        kind: 'table',
-        headers: ['Motion', 'What it does', 'Transform call'],
-        rows: [
-          ['Rotate', 'Spins the object around its pivot', 'glRotatef'],
-          ['Pulse', 'Scales the object up and down', 'glScalef'],
-          ['Slide', 'Moves the object back and forth on X', 'glTranslatef'],
-          ['Orbit', 'Moves the object on a small circle', 'glTranslatef'],
-        ],
-      },
-      { kind: 'heading', text: 'Preview, Save, and Speed' },
-      {
-        kind: 'definitions',
-        items: [
-          { term: 'Preview', description: 'Plays the motion on the canvas as a temporary view. The object snaps back to its saved pose when you stop.' },
-          { term: 'Save', description: 'Stores the motion on the object. It is written into the generated code and saved with your project file.' },
-          { term: 'Speed', description: '0.5×, 1×, or 2× sets how far the transform advances each frame — the same factor appears in the generated callback.' },
-        ],
-      },
-      { kind: 'heading', text: 'How it appears in the code' },
-      {
-        kind: 'paragraph',
-        text: 'A saved animation generates a per-object animate_<name>() function that nudges the object’s transform a little each frame. It is called from an idle callback registered with glutIdleFunc — the standard way a GLUT program animates.',
-      },
-      {
-        kind: 'code',
-        code: 'void animate_Triangle() {\n    state_Triangle.rotation += 1.50f;\n    if (state_Triangle.rotation >= 360.0f) state_Triangle.rotation -= 360.0f;\n}\n\nvoid _vams_idle() {\n    animate_Triangle();\n    glutPostRedisplay();\n}\n\n// in main():\nglutIdleFunc(_vams_idle);',
-      },
-      {
-        kind: 'callout',
-        tone: 'info',
-        text: 'The canvas moves only while you Preview. A saved animation loops for real when you compile and run the exported program — exactly the idle-callback code shown above.',
-      },
-    ],
-    related: ['section-transforms', 'callbacks', 'code-panel', 'glossary'],
-  },
-  {
     id: 'callbacks',
     category: 'panels',
     title: 'GLUT Callbacks',
@@ -596,10 +548,10 @@ export const HELP_TOPICS: HelpTopic[] = [
       { kind: 'heading', text: 'Idle and animation' },
       {
         kind: 'paragraph',
-        text: 'The idle callback fires every frame and is how motion is driven. Saved object animations use the same idle mechanism, and your idle rules run right after them.',
+        text: 'The idle callback fires every frame and is how motion is driven. An idle rule such as "rotate Sun by 2°" turns the object a little on every call, so it spins while the program runs.',
       },
     ],
-    related: ['section-primitives', 'animation', 'code-panel', 'glossary'],
+    related: ['section-primitives', 'section-transforms', 'code-panel', 'glossary'],
   },
   {
     id: 'code-panel',
@@ -618,7 +570,7 @@ export const HELP_TOPICS: HelpTopic[] = [
         items: [
           { term: 'init()', description: 'One-time setup: VBO uploads and texture loading are hoisted here.' },
           { term: 'display()', description: 'The draw callback, re-run every frame; this is where your geometry is rendered.' },
-          { term: 'animate_<name>() / _vams_idle()', description: 'Per-object animation steps and the idle callback that runs them each frame (added when an object has a saved animation).' },
+          { term: '_vams_idle()', description: 'The function GLUT calls every frame. It updates buffers that change and calls your idle handler (added when either is needed).' },
           { term: 'main()', description: 'GLUT setup: create the window, register callbacks, enter the main loop.' },
         ],
       },
@@ -637,7 +589,7 @@ export const HELP_TOPICS: HelpTopic[] = [
         code: 'void display() {\n    glClear(GL_COLOR_BUFFER_BIT);\n    glBegin(GL_TRIANGLES);\n        glColor3f(1.0f, 0.0f, 0.0f);\n        glVertex2f(-0.5f, -0.5f);\n        glVertex2f( 0.5f, -0.5f);\n        glVertex2f( 0.0f,  0.5f);\n    glEnd();\n    glutSwapBuffers();\n}',
       },
     ],
-    related: ['math-panel', 'section-pipeline', 'animation', 'saving-loading'],
+    related: ['math-panel', 'section-pipeline', 'callbacks', 'saving-loading'],
   },
   {
     id: 'math-panel',
@@ -682,7 +634,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'definitions',
         items: [
-          { term: 'Save project file', description: 'Writes the entire scene — objects, colors, transforms, animations, buffers, callbacks, and textures — to a project file you can keep or share.' },
+          { term: 'Save project file', description: 'Writes the entire scene — objects, colors, transforms, buffers, callbacks, and textures — to a project file you can keep or share.' },
           { term: 'Open project file', description: 'Reads a project file back into the workspace, replacing the current scene.' },
           { term: 'New workspace', description: 'Clears the scene to a blank slate (with a confirmation first).' },
         ],
@@ -748,7 +700,7 @@ export const HELP_TOPICS: HelpTopic[] = [
           { term: 'UV coordinates', description: 'Per-vertex (u, v) values from 0 to 1 that map a texture image onto geometry.' },
           { term: 'Callback', description: 'A function you register so GLUT calls it on an event — a key press, mouse click, window resize, or idle frame.' },
           { term: 'Idle callback', description: 'A callback registered with glutIdleFunc that fires every frame when idle; it is how animation advances a transform over time.' },
-          { term: 'Animation', description: 'A looping transform-over-time (rotate, pulse, slide, or orbit) saved on an object and compiled into an idle callback.' },
+          { term: 'Animation', description: 'A transform that changes a little each frame, driven by a rule on the idle callback.' },
           { term: 'Group / hierarchy', description: 'A parent object whose transform is inherited by its children, generated as nested glPushMatrix / glPopMatrix pairs.' },
         ],
       },

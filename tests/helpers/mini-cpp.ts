@@ -1,6 +1,6 @@
 /**
- * A tiny interpreter for the statement subset VAMS generates inside handler, reshape and
- * animator bodies. It shares no code with src: the runtime parity tests run the generated
+ * A tiny interpreter for the statement subset VAMS generates inside handler and reshape
+ * bodies. It shares no code with src: the runtime parity tests run the generated
  * C++ through it and compare the result with the Run runtime.
  */
 export type Value = number | boolean | { [field: string]: number | boolean };
@@ -35,7 +35,6 @@ function matchParen(line: string, open: number): number {
 
 export class MiniCpp {
   vars = new Map<string, Value>();
-  private statics = new Set<string>();
   private lastIf: boolean | null = null;
 
   run(lines: string[]): void {
@@ -59,15 +58,7 @@ export class MiniCpp {
     }
     this.lastIf = null;
     if (/^gl\w*\(/.test(line)) return; // glViewport, glutPostRedisplay: no state to model
-    let m = /^static float (\w+) = (.+);$/.exec(line);
-    if (m) {
-      if (!this.statics.has(m[1])) {
-        this.statics.add(m[1]);
-        this.vars.set(m[1], this.eval(m[2]));
-      }
-      return;
-    }
-    m = /^float (.+);$/.exec(line);
+    let m = /^float (.+);$/.exec(line);
     if (m) {
       for (const part of m[1].split(',')) {
         const [name, expr] = part.split('=').map((s) => s.trim());
@@ -124,12 +115,6 @@ export class MiniCpp {
       if (/^\d/.test(t)) return parseFloat(t);
       if (t === 'true') return true;
       if (t === 'false') return false;
-      if (t === 'sinf' || t === 'cosf') {
-        expect('(');
-        const v = expr(0) as number;
-        expect(')');
-        return t === 'sinf' ? Math.sin(v) : Math.cos(v);
-      }
       let v = this.vars.get(t);
       if (v === undefined) throw new Error(`mini-cpp: unknown name ${t}`);
       while (peek() === '.') {

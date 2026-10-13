@@ -118,7 +118,7 @@ VAMS maintains several distinct areas of state, each with a single clear owner. 
 The workspace has four regions:
 
 - **Top bar** — application-level controls: project actions (new, open, save), undo/redo, mode indicator.
-- **Scene and inspector column**: left sidebar, the same in every section. On top, the scene: the object hierarchy, an Add row of primitives by OpenGL name, and Create Text. Below, an inspector for the selected object with groups in pipeline order (Vertices, Buffers, Transform, Appearance, Texture, Animation), each naming its OpenGL call; with nothing selected, the scene's settings (Background, Viewing volume, Texture library, Callbacks).
+- **Scene and inspector column**: left sidebar, the same in every section. On top, the scene: the object hierarchy, an Add row of primitives by OpenGL name, and Create Text. Below, an inspector for the selected object with groups in pipeline order (Vertices, Buffers, Transform, Appearance, Texture), each naming its OpenGL call; with nothing selected, the scene's settings (Background, Viewing volume, Texture library, Callbacks).
 - **Canvas** — central 2D viewport. Displays the scene. Supports mouse interaction for object placement, selection, vertex editing, and navigation.
 - **Code + Math column** — right sidebar split vertically. Top portion: the code panel. Bottom portion: the math panel.
 
@@ -391,7 +391,7 @@ Covers: `glTranslatef`, `glRotatef`, `glScalef`, `glPushMatrix`/`glPopMatrix`, `
 
 ### Workspace Configuration
 
-- **Inspector:** all prior tools + the Transform group (transform gizmo mode toggle (translate / rotate / scale) + numeric transform inputs for the selected object), Animation, and the glOrtho editor (left, right, bottom, top) under Viewing volume in scene settings.
+- **Inspector:** all prior tools + the Transform group (transform gizmo mode toggle (translate / rotate / scale) + numeric transform inputs for the selected object), and the glOrtho editor (left, right, bottom, top) under Viewing volume in scene settings.
 - **Viewport:** selected object shows a transform gizmo appropriate to the current mode (translate arrows, rotate ring, scale handles). A matrix stack panel appears as a compact overlay when in the Transforms section.
 - **Code Panel:** generated code includes `glMatrixMode`, `glLoadIdentity`, and per-object `glPushMatrix`/transform calls/`glPopMatrix` sequences. The `glOrtho` call appears at the top of `display()`.
 - **Math Panel:** 4×4 matrix display of the selected object's transform, matrix composition trace, and the glOrtho mapping equation.

@@ -155,3 +155,14 @@ describe('BB-PERSIST-07: Loading drops broken rules and clamps values', () => {
     expect(rules[0].action).toEqual({ type: 'translate', dx: 10, dy: -10 });
   });
 });
+
+describe('BB-PERSIST-08: A file saved with an object animation still opens', () => {
+  it('keeps the object and leaves the animation behind', () => {
+    const t = addTriangle();
+    const file = buildProjectFile(getState() as never);
+    const saved = { ...file.data, objects: file.data.objects.map((o) => ({ ...o, animation: { motion: 'orbit', speed: 1 } })) };
+    const data = sanitizeProjectData(saved);
+    expect(data.objects.map((o) => o.id)).toEqual([t.id]);
+    expect('animation' in data.objects[0]).toBe(false);
+  });
+});

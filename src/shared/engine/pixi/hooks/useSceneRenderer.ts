@@ -74,7 +74,7 @@ export function useSceneRenderer({
     container.hitArea = content.hitArea;
     content.destroy();
   };
-  // Expose a window into the live renderer for the Animation Preview and Run.
+  // Expose a window into the live renderer for Run.
   // Containers are keyed by scene-object id; `resync` re-applies the stored
   // transforms so the scene state stays the single source of truth.
   useEffect(() => {

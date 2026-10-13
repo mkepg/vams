@@ -8,18 +8,13 @@ import { useRunSnapshot } from '../model/useRunSnapshot';
 
 export const RUN_HINT = 'Keys, clicks and drags go to your handlers · Esc stops';
 export const RUN_SURFACE_LABEL = 'Running program. Keys, clicks and drags go to your handlers. Press Escape to stop.';
-export const RUN_DISABLED_TITLE = 'Add a callback or an animation to run';
+export const RUN_DISABLED_TITLE = 'Add a callback to run';
 
 const HANDLE_KEYS: Record<string, [number, number]> = {
   ArrowLeft: [-RESIZE_STEP, 0], ArrowRight: [RESIZE_STEP, 0], ArrowUp: [0, -RESIZE_STEP], ArrowDown: [0, RESIZE_STEP],
 };
 
-interface RunOverlayProps {
-  /** Called before Run starts, for example to stop the animation preview. */
-  onBeforeStart?: () => void;
-}
-
-export default function RunOverlay({ onBeforeStart }: RunOverlayProps) {
+export default function RunOverlay() {
   const snap = useRunSnapshot();
   const runnable = useVamsStore((s) => canRun(s));
   const runButtonRef = useRef<HTMLButtonElement>(null);
@@ -41,10 +36,7 @@ export default function RunOverlay({ onBeforeStart }: RunOverlayProps) {
         icon={<Play />}
         disabled={!runnable}
         title={runnable ? undefined : RUN_DISABLED_TITLE}
-        onClick={() => {
-          onBeforeStart?.();
-          runController.start();
-        }}
+        onClick={() => runController.start()}
       >
         Run
       </Button>

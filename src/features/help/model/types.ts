@@ -17,7 +17,6 @@ export type HelpTopicId =
   | 'section-transforms'
   | 'section-textures'
   | 'scene-hierarchy'
-  | 'animation'
   | 'callbacks'
   | 'code-panel'
   | 'math-panel'

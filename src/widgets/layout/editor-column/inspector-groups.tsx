@@ -9,7 +9,6 @@ import BackgroundColorPanel from '@/features/object-appearance/ui/BackgroundColo
 import LineStylePanel, { LINE_TYPES } from '@/features/line-style/ui/LineStylePanel';
 import TextureAttachmentPanel, { TEXTUREABLE_TYPES } from '@/features/textures/ui/TextureAttachmentPanel';
 import UVEditorPanel from '@/features/textures/ui/UVEditorPanel';
-import AnimationPreviewPanel from '@/features/animation-preview/ui/AnimationPreviewPanel';
 import OrthoEditorPanel from '@/features/ortho-editor/ui/OrthoEditorPanel';
 import TextureLibraryPanel from '@/features/textures/ui/TextureLibraryPanel';
 import CallbacksPanel from '@/features/callbacks/ui/CallbacksPanel';
@@ -63,7 +62,6 @@ export const OBJECT_GROUP_DEFS: GroupDef[] = [
       </>
     ),
   },
-  { id: 'animation', title: 'Animation', hint: () => 'glutIdleFunc', render: () => <AnimationPreviewPanel /> },
 ];
 
 export const SETTINGS_GROUP_DEFS: GroupDef[] = [
