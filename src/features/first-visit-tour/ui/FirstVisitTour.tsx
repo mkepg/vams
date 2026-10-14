@@ -102,7 +102,8 @@ function TourLayer({ run, codeName, startLearning, index }: FirstVisitTourProps 
 
   const learn = () => {
     startLearning();
-    // Starting a lesson ends the tour already; this covers a lesson that did not start.
+    // startLearning is async: a lesson waits on its own checks before it starts. End the tour now, so it
+    // never lingers over the course while that happens.
     if (useVamsStore.getState().tourStep !== null) useVamsStore.getState().endTour();
   };
 
@@ -127,7 +128,12 @@ function TourLayer({ run, codeName, startLearning, index }: FirstVisitTourProps 
     measure();
     const stops = els.map((el) => observeResize(el, measure));
     window.addEventListener('resize', measure);
+    // A region that slides into place (the narrow drawer) moves without resizing, so follow its transitions.
+    document.addEventListener('transitionend', measure, true);
+    document.addEventListener('animationend', measure, true);
     return () => {
+      document.removeEventListener('transitionend', measure, true);
+      document.removeEventListener('animationend', measure, true);
       stops.forEach((stop) => stop());
       window.removeEventListener('resize', measure);
     };

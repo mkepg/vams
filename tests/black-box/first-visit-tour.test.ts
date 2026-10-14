@@ -770,3 +770,34 @@ describe('BB-TOUR-14: The callout sits beside the regions, never on them', () =>
     expect(placeCallout([], viewport, size)).toEqual({ left: 480, top: 588 });
   });
 });
+
+describe('BB-TOUR-15: The spotlight follows a region that moves without resizing', () => {
+  it('re-measures when a region’s transition ends', async () => {
+    const editor = fakeEditor();
+    const panel = editor.querySelector<HTMLElement>('[data-tour-anchor="panel"]')!;
+    const rect = (left: number) => ({ left, top: 44, width: 272, height: 700, right: left + 272, bottom: 744, x: left, y: 44, toJSON: () => ({}) }) as DOMRect;
+    panel.getBoundingClientRect = () => rect(-208);
+    getState().startTour();
+    const { host } = mountTour();
+    await settle();
+    const outline = () => document.querySelectorAll<HTMLElement>('.tour__outline')[1];
+    expect(outline().style.left).toBe('-208px');
+    panel.getBoundingClientRect = () => rect(64);
+    panel.dispatchEvent(new Event('transitionend', { bubbles: true }));
+    await settle();
+    expect(outline().style.left).toBe('64px');
+    getState().endTour();
+    unmount(host);
+    editor.remove();
+  });
+});
+
+describe('BB-TOUR-16: Moving on cancels a shape the lesson or page left pending', () => {
+  it('clears pendingShapeType on the next step even when the mode is already SELECT', () => {
+    getState().startTour();
+    useVamsStore.setState({ pendingShapeType: 'TRIANGLES', interactionMode: 'SELECT' });
+    getState().nextTourStep();
+    expect(getState().pendingShapeType).toBeNull();
+    getState().endTour();
+  });
+});
