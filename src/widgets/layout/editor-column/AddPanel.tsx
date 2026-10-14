@@ -19,6 +19,7 @@ export default function AddPanel() {
         <div className="rail-panel__body" data-scroll-root>
           <CustomShapeBuilderPanel />
           <TextNodePanel />
+          {!inLesson && (
           <section className="add-samples" aria-labelledby="add-samples-title">
             <h3 id="add-samples-title" className="add-samples__title">Or start from a sample</h3>
             <div className="add-samples__list">
@@ -29,6 +30,7 @@ export default function AddPanel() {
               ))}
             </div>
           </section>
+          )}
         </div>
       </section>
     </PanelLayoutContext.Provider>

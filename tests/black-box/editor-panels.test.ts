@@ -797,4 +797,17 @@ describe('BB-PANEL-33: A sample replaces the scene after backing it up, and show
       setSceneLibraryForTests(null);
     }
   });
+
+  it('leaves the samples out of the Add panel during a lesson', async () => {
+    useVamsStore.setState({ appMode: 'Lesson' });
+    try {
+      const host = mount(h(AddPanel, {}));
+      await settle();
+      expect(host.querySelector('.add-samples')).toBeNull();
+      expect(host.querySelector('.primitive-tile')).not.toBeNull();
+      unmount(host);
+    } finally {
+      useVamsStore.setState({ appMode: 'Author' });
+    }
+  });
 });
