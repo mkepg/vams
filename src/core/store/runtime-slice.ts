@@ -13,6 +13,11 @@ export const createRuntimeSlice: StateCreator<VamsState, [], [], RuntimeSlice> =
   mathTabOverride: null,
   learnOpen: false,
   addRowCue: 0,
+  railPanel: 'add',
+  railHidden: false,
+  codePane: 'code',
+  codeHidden: false,
+  codeChangedUnseen: false,
 
   setAppMode: (mode) => set({ appMode: mode }),
 
@@ -43,4 +48,10 @@ export const createRuntimeSlice: StateCreator<VamsState, [], [], RuntimeSlice> =
   setMathTabOverride: (section) => set({ mathTabOverride: section }),
   setLearnOpen: (open) => set({ learnOpen: open }),
   cueAddRow: () => set((state) => ({ addRowCue: state.addRowCue + 1 })),
+  setRailPanel: (panel) => set({ railPanel: panel, railHidden: false }),
+  setRailHidden: (hidden) => set({ railHidden: hidden }),
+  pickOpeningPanel: () => set((state) => ({ railPanel: state.objects.length > 0 ? 'scene' : 'add', railHidden: false })),
+  setCodePane: (pane) => set(pane === 'code' ? { codePane: pane, codeChangedUnseen: false } : { codePane: pane }),
+  setCodeHidden: (hidden) => set({ codeHidden: hidden }),
+  markCodeChanged: () => set((state) => (state.codePane === 'math' && !state.codeChangedUnseen ? { codeChangedUnseen: true } : {})),
 });

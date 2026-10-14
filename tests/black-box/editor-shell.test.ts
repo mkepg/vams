@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { Dialog, MenuButton, type MenuEntry } from '@/shared/ui/controls';
 import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
 import { confirm, useConfirmStore } from '@/shared/ui/confirm-dialog/confirm-store';
-import { useVamsStore } from '@/core/store';
+import { STORAGE_KEY, useVamsStore } from '@/core/store';
 import { isSceneEmpty } from '@/entities/project/model/scene-empty';
 import HistoryControls from '@/features/history-controls/ui/HistoryControls';
 import NewWorkspaceButton from '@/features/workspace-reset/ui/NewWorkspaceButton';
@@ -614,5 +614,137 @@ describe('BB-SHELL-25: Add a shape opens the column, scrolls to the Add row and 
 
   it('scrolls and marks the Add row in the wide layout', async () => {
     await addAShape(false);
+  });
+});
+
+describe('BB-SHELL-26: The rail and the code column keep their state in the store', () => {
+  it('unhides on a panel change and clears the code dot only when Code shows', () => {
+    const s = () => useVamsStore.getState();
+    useVamsStore.setState({ railPanel: 'add', railHidden: false, codePane: 'code', codeHidden: false, codeChangedUnseen: false });
+    s().setRailHidden(true);
+    s().setRailPanel('settings');
+    expect(s().railPanel).toBe('settings');
+    expect(s().railHidden).toBe(false);
+    s().markCodeChanged();
+    expect(s().codeChangedUnseen).toBe(false);
+    s().setCodePane('math');
+    s().markCodeChanged();
+    expect(s().codeChangedUnseen).toBe(true);
+    s().setCodePane('code');
+    expect(s().codeChangedUnseen).toBe(false);
+    s().setCodeHidden(true);
+    expect(s().codeHidden).toBe(true);
+    s().setCodeHidden(false);
+  });
+});
+
+describe('BB-SHELL-27: The editor opens on Add for an empty scene and on Scene otherwise', () => {
+  it('picks the opening panel from the scene', () => {
+    const s = () => useVamsStore.getState();
+    useVamsStore.setState({ railPanel: 'settings', railHidden: true });
+    s().pickOpeningPanel();
+    expect(s().railPanel).toBe('add');
+    expect(s().railHidden).toBe(false);
+    addTriangle();
+    useVamsStore.setState({ railPanel: 'add' });
+    s().pickOpeningPanel();
+    expect(s().railPanel).toBe('scene');
+  });
+
+  it('picks it when the saved scene loads', async () => {
+    const tri = addTriangle();
+    useVamsStore.setState({ objects: [], selectedObjectId: null, railPanel: 'add' });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: { objects: [tri] }, version: 9 }));
+    await useVamsStore.persist.rehydrate();
+    expect(useVamsStore.getState().objects).toHaveLength(1);
+    expect(useVamsStore.getState().railPanel).toBe('scene');
+  });
+});
+
+describe('BB-SHELL-28: Every way an object becomes selected switches the rail to Scene and opens it', () => {
+  const away = () => useVamsStore.setState({ railPanel: 'settings', railHidden: true });
+  const expectScene = () => {
+    expect(useVamsStore.getState().railPanel).toBe('scene');
+    expect(useVamsStore.getState().railHidden).toBe(false);
+  };
+
+  it('follows selection, creation, duplication, text, grouping and undo', async () => {
+    const s = () => useVamsStore.getState();
+    away();
+    const tri = addTriangle();
+    expectScene();
+    s().selectObject(null);
+    away();
+    s().selectObject(tri.id);
+    expectScene();
+    away();
+    s().duplicateObject(tri.id);
+    expectScene();
+    away();
+    s().addTextObject('Hi', 0, 0);
+    expectScene();
+    const shapes = s().objects.filter((o) => o.type !== 'TEXT').map((o) => o.id);
+    away();
+    s().createGroup(shapes);
+    expectScene();
+    // History snapshots closer than 50 ms apart are merged, so let the earlier ones age out first.
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    s().pushToHistory();
+    s().selectObject(null);
+    away();
+    s().undo();
+    expect(s().selectedObjectId).not.toBeNull();
+    expectScene();
+  });
+
+  it('leaves the rail alone when the selection is cleared', () => {
+    addTriangle();
+    useVamsStore.setState({ railPanel: 'settings', railHidden: false });
+    useVamsStore.getState().selectObject(null);
+    expect(useVamsStore.getState().railPanel).toBe('settings');
+  });
+});
+
+describe('BB-SHELL-29: A lesson step switches the rail to its panel and opens it', () => {
+  it('maps each focus to its panel and leaves the rail for the lesson bar’s own controls', () => {
+    const s = () => useVamsStore.getState();
+    const cases: [string, string][] = [
+      ['ortho-editor', 'settings'],
+      ['texture-library', 'settings'],
+      ['callbacks-panel', 'callbacks'],
+      ['primitive-palette', 'add'],
+      ['text-node-panel', 'add'],
+      ['scene-hierarchy', 'scene'],
+      ['object-transform', 'scene'],
+      ['appearance-panel', 'settings'],
+    ];
+    for (const [panelId, panel] of cases) {
+      useVamsStore.setState({ railPanel: panel === 'add' ? 'scene' : 'add', railHidden: true });
+      s().setLessonFocusPanel(panelId);
+      expect(s().railPanel).toBe(panel);
+      expect(s().railHidden).toBe(false);
+    }
+    useVamsStore.setState({ railPanel: 'scene', railHidden: true });
+    s().setLessonFocusPanel('pipeline-mode-controls');
+    expect(s().railPanel).toBe('scene');
+    expect(s().railHidden).toBe(true);
+    s().setLessonFocusPanel(null);
+    expect(s().railPanel).toBe('scene');
+    useVamsStore.setState({ railHidden: false });
+  });
+});
+
+describe('BB-SHELL-30: The rail and the code column are never saved', () => {
+  it('keeps them out of the saved editor data, which stays at version 9', () => {
+    const s = () => useVamsStore.getState();
+    s().setRailPanel('callbacks');
+    s().setCodePane('math');
+    s().setCodeHidden(true);
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
+    expect(saved.version).toBe(9);
+    for (const key of ['railPanel', 'railHidden', 'codePane', 'codeHidden', 'codeChangedUnseen']) {
+      expect(saved.state).not.toHaveProperty(key);
+    }
+    useVamsStore.setState({ codePane: 'code', codeHidden: false });
   });
 });

@@ -562,6 +562,8 @@ describe('BB-LCOL-23: Leaving a lesson leaves the plain editor, and starting one
 
   it('forgets a group the student opened before the lesson, even in the same section', async () => {
     useVamsStore.setState({ activeSection: 'Transforms' });
+    // Texture library starts open, so the first toggle closes it and the second opens it again.
+    useVamsStore.getState().toggleGroup('texture-library');
     useVamsStore.getState().toggleGroup('texture-library');
     expect(useVamsStore.getState().lastOpenedGroup).toBe('texture-library');
     expect(await startLessonFromLearn('transforms-exercise-4')).toBe(true);

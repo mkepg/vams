@@ -9,7 +9,10 @@ import {
   DEFAULT_OPEN_GROUPS,
   FOCUS_PANEL_IDS,
   contextSection,
+  OBJECT_GROUPS,
+  SETTINGS_GROUPS,
   mathTabFor,
+  railPanelFor,
   resolveFocus,
   sectionForPlace,
 } from '@/core/inspector';
@@ -89,7 +92,7 @@ describe('BB-INSP-03: The context section follows focus, then the opened group, 
 describe('BB-INSP-04: Groups toggle, remember the last opened one, and clear a manual tab', () => {
   it('updates the transient state through store actions', () => {
     const s = () => useVamsStore.getState();
-    expect(s().openGroups).toEqual(['transform', 'background']);
+    expect(s().openGroups).toEqual(['transform', 'background', 'viewing-volume', 'texture-library']);
     s().setMathTabOverride('Textures');
     s().toggleGroup('buffers');
     expect(s().openGroups).toContain('buffers');
@@ -104,7 +107,7 @@ describe('BB-INSP-04: Groups toggle, remember the last opened one, and clear a m
     s().setLessonFocusPanel('object-transform');
     expect(s().mathTabOverride).toBeNull();
     s().setActiveSection('Textures');
-    expect(s().openGroups).toEqual(['transform', 'background']);
+    expect(s().openGroups).toEqual(['transform', 'background', 'viewing-volume', 'texture-library']);
     expect(s().lastOpenedGroup).toBeNull();
   });
 
@@ -244,5 +247,18 @@ describe('BB-INSP-10: A focus on a group the object does not have dims and colla
       unmountEl(host);
       useVamsStore.setState({ activeLessonId: null });
     }
+  });
+});
+
+describe('BB-INSP-11: Every focus place belongs to one rail panel', () => {
+  it('maps the list and objects to Scene, the Add row and text to Add, settings to Settings and callbacks to Callbacks', () => {
+    expect(railPanelFor({ area: 'scene', target: 'list' })).toBe('scene');
+    expect(railPanelFor({ area: 'scene', target: 'add' })).toBe('add');
+    expect(railPanelFor({ area: 'scene', target: 'create-text' })).toBe('add');
+    for (const group of OBJECT_GROUPS) expect(railPanelFor({ area: 'object', group })).toBe('scene');
+    for (const group of SETTINGS_GROUPS) expect(railPanelFor({ area: 'settings', group })).toBe('settings');
+    expect(railPanelFor({ area: 'settings', group: 'callbacks' })).toBe('callbacks');
+    expect(railPanelFor({ area: 'lesson-card' })).toBeNull();
+    expect(SETTINGS_GROUPS).toEqual(['background', 'viewing-volume', 'texture-library']);
   });
 });

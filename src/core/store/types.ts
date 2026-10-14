@@ -129,6 +129,11 @@ export interface HistorySlice {
 export type AppMode = 'Author' | 'Lesson';
 export type CurriculumSection = 'Pipeline' | 'Primitives' | 'Buffers' | 'Transforms' | 'Textures';
 export type PipelineMode = 'Diagram' | 'Playground' | 'RasterVector';
+/** The panels the editor rail switches between. */
+export type RailPanel = 'add' | 'scene' | 'settings' | 'callbacks';
+/** What the right column shows. */
+export type CodePane = 'code' | 'math';
+
 export interface RuntimeSlice {
   appMode: AppMode;
   activeSection: CurriculumSection;
@@ -144,12 +149,32 @@ export interface RuntimeSlice {
   learnOpen: boolean;
   /** Counts "Add a shape" requests; each one opens the column, scrolls to the Add row and marks it. Session only. */
   addRowCue: number;
+  /** The panel the rail shows. Session only. */
+  railPanel: RailPanel;
+  /** The panel is tucked away (wide screens) or the drawer is closed (narrow screens). Session only. */
+  railHidden: boolean;
+  /** Code or Math in the right column. Session only. */
+  codePane: CodePane;
+  /** The right column is tucked away to its edge tab. Session only. */
+  codeHidden: boolean;
+  /** The generated code changed while Math was showing. Session only. */
+  codeChangedUnseen: boolean;
   toggleGroup: (id: InspectorGroupId) => void;
   openGroup: (id: InspectorGroupId) => void;
   setOpenGroups: (ids: readonly InspectorGroupId[]) => void;
   setMathTabOverride: (section: CurriculumSection | null) => void;
   setLearnOpen: (open: boolean) => void;
   cueAddRow: () => void;
+  /** Shows a panel; also opens the panel if it was hidden. */
+  setRailPanel: (panel: RailPanel) => void;
+  setRailHidden: (hidden: boolean) => void;
+  /** Add for an empty scene, otherwise Scene. Runs once the saved scene has loaded. */
+  pickOpeningPanel: () => void;
+  /** Shows Code or Math; showing Code clears the change dot. */
+  setCodePane: (pane: CodePane) => void;
+  setCodeHidden: (hidden: boolean) => void;
+  /** Marks the code as changed while Math shows; does nothing while Code shows. */
+  markCodeChanged: () => void;
   setAppMode: (mode: AppMode) => void;
   setActiveSection: (section: CurriculumSection) => void;
   setPipelineMode: (mode: PipelineMode) => void;

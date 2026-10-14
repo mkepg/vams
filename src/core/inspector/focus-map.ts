@@ -1,4 +1,4 @@
-import type { CurriculumSection } from '@/core/store/types';
+import type { CurriculumSection, RailPanel } from '@/core/store/types';
 import { GROUP_SECTION, type ObjectGroupId, type SettingsGroupId } from './groups';
 
 export type FocusPlace =
@@ -42,5 +42,19 @@ export function sectionForPlace(place: FocusPlace): CurriculumSection {
       return 'Pipeline';
     default:
       return GROUP_SECTION[place.group];
+  }
+}
+
+/** The rail panel that holds a focus place; none for the lesson bar's own controls. */
+export function railPanelFor(place: FocusPlace): RailPanel | null {
+  switch (place.area) {
+    case 'scene':
+      return place.target === 'list' ? 'scene' : 'add';
+    case 'object':
+      return 'scene';
+    case 'settings':
+      return place.group === 'callbacks' ? 'callbacks' : 'settings';
+    case 'lesson-card':
+      return null;
   }
 }
