@@ -862,3 +862,16 @@ describe('BB-PANEL-35: The scene list stops at about six rows and scrolls on its
     expect(rule).toMatch(/overflow-y:\s*auto/);
   });
 });
+
+describe('BB-PANEL-36: Add tile GL names break only after an underscore', () => {
+  it('puts a break opportunity after each underscore of GL_TRIANGLE_STRIP and none inside a word', async () => {
+    const host = mount(h(CustomShapeBuilderPanel, {}));
+    await settle();
+    const tiles = [...host.querySelectorAll<HTMLElement>('.primitive-tile__gl')];
+    const label = tiles.find((t) => t.textContent === 'GL_TRIANGLE_STRIP')!;
+    expect(label).toBeDefined();
+    expect(label.innerHTML).toBe('GL_<wbr>TRIANGLE_<wbr>STRIP');
+    expect(label.querySelectorAll('wbr')).toHaveLength(2);
+    unmount(host);
+  });
+});

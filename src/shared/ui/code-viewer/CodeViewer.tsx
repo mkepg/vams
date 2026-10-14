@@ -243,6 +243,10 @@ const CodeViewer = memo(function CodeViewer({
   }, [code, lineCount]);
 
   const changeBadgeCount = changedSet.size;
+  // The header has room for one chip: the lesson's change count, else the focus target, else the hover hint.
+  const showBadge = isLessonMode && changeBadgeCount > 0;
+  const showFocus = !showBadge && !!highlightTarget;
+  const showHint = !showBadge && !highlightTarget && annotationByLine.size > 0;
 
   return (
     <div className={`code-viewer-container ${isLessonMode ? 'lesson-mode' : ''}`}>
@@ -255,14 +259,14 @@ const CodeViewer = memo(function CodeViewer({
             </>
           )}
 
-          {annotationByLine.size > 0 && !highlightTarget && (
+          {showHint && (
             <span className="code-annot-hint" title="Hover an underlined line for an explanation">
               <Info size={11} />
               <span>hover lines for notes</span>
             </span>
           )}
 
-          {isLessonMode && changeBadgeCount > 0 && (
+          {showBadge && (
             <span
               className="code-change-badge"
               title="Lines updated in this step"
@@ -273,7 +277,7 @@ const CodeViewer = memo(function CodeViewer({
             </span>
           )}
 
-          {highlightTarget && (
+          {showFocus && (
             <span className="code-focus" title={`Highlighting: ${highlightTarget}`}>
               focus: <code>{highlightTarget}</code>
             </span>

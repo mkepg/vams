@@ -8,7 +8,7 @@
 /* Scale pad and rotate dial, side by side. */
 .gizmo-row {
   display: grid;
-  grid-template-columns: repeat(2, 128px);
+  grid-template-columns: repeat(2, minmax(0, 128px));
   justify-content: space-between;
   gap: var(--space-3);
   min-width: 0;
@@ -21,8 +21,10 @@
 .scale-pad,
 .rotate-dial {
   position: relative;
-  width: 128px;
-  height: 128px;
+  width: 100%;
+  max-width: 128px;
+  aspect-ratio: 1;
+  height: auto;
   background: var(--paper-sunken);
   border: 1px solid var(--field-line);
   user-select: none;
@@ -124,9 +126,9 @@
     top: 0;
     left: 50%;
     width: 1px;
-    height: 8px;
-    background: var(--ink-faint);
-    transform-origin: 50% 64px;
+    height: 50%;
+    background: linear-gradient(var(--ink-faint) 0 8px, transparent 8px);
+    transform-origin: 50% 100%;
     pointer-events: none;
   }
   .dial-needle {
