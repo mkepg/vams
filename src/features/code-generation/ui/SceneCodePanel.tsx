@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import type { ComponentChildren } from 'preact';
 import { useVamsStore } from "@/core/store";
 import CodeViewer from '@/shared/ui/code-viewer/CodeViewer';
 import { useCanvasSize } from '@/features/code-generation/model/useCanvasSize';
@@ -11,9 +12,11 @@ import type { RuleTrigger } from '@/core/types/scene';
 interface SceneCodePanelProps {
   /** The handler branch Run just fired; its lines flash in the code. */
   flashBranch?: { handlerName: string; trigger: RuleTrigger | null; seq: number } | null;
+  headerLead?: ComponentChildren;
+  headerTrail?: ComponentChildren;
 }
 
-export default function SceneCodePanel({ flashBranch }: SceneCodePanelProps = {}) {
+export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }: SceneCodePanelProps = {}) {
   const objects = useVamsStore(s => s.objects);
   const selectedObjectId = useVamsStore(s => s.selectedObjectId);
   const canvasBackgroundColor = useVamsStore(s => s.canvasBackgroundColor);
@@ -59,6 +62,8 @@ export default function SceneCodePanel({ flashBranch }: SceneCodePanelProps = {}
       isLessonMode={isLessonMode}
       annotations={showAnnotations ? GLUT_BOILERPLATE_ANNOTATIONS : undefined}
       changedLines={changedLines}
+      headerLead={headerLead}
+      headerTrail={headerTrail}
     />
   );
 }

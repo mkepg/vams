@@ -1,5 +1,6 @@
 import './code-viewer.scss';
 import { memo, useMemo, useState, useEffect, useRef } from 'react';
+import type { ComponentChildren } from 'preact';
 import { TbCopy, TbCheck } from 'react-icons/tb';
 import { Search, X, Info } from 'lucide-react';
 import { Button } from '@/shared/ui/controls';
@@ -11,6 +12,10 @@ interface CodeViewerProps {
   isLessonMode?: boolean;
   annotations?: CodeAnnotation[];
   changedLines?: number[];
+  /** Replaces the language and line count at the start of the header, such as the column's switch. */
+  headerLead?: ComponentChildren;
+  /** Rendered at the end of the header, after Copy. */
+  headerTrail?: ComponentChildren;
 }
 
 const KEYWORDS = new Set([
@@ -90,7 +95,7 @@ const TokenizedLine = memo(function TokenizedLine({ line }: { line: string }) {
 });
 
 const CodeViewer = memo(function CodeViewer({
-  code, highlightTarget, isLessonMode, annotations, changedLines,
+  code, highlightTarget, isLessonMode, annotations, changedLines, headerLead, headerTrail,
 }: CodeViewerProps) {
   const [copied, setCopied] = useState(false);
   const [search, setSearch] = useState('');
@@ -243,8 +248,12 @@ const CodeViewer = memo(function CodeViewer({
     <div className={`code-viewer-container ${isLessonMode ? 'lesson-mode' : ''}`}>
       <div className="code-header">
         <div className="code-header-left">
-          <span className="code-lang">C++</span>
-          <span className="code-stat">· OpenGL 1.5 · {stats.lines} lines</span>
+          {headerLead ?? (
+            <>
+              <span className="code-lang">C++</span>
+              <span className="code-stat">· OpenGL 1.5 · {stats.lines} lines</span>
+            </>
+          )}
 
           {annotationByLine.size > 0 && !highlightTarget && (
             <span className="code-annot-hint" title="Hover an underlined line for an explanation">
@@ -311,6 +320,7 @@ const CodeViewer = memo(function CodeViewer({
           >
             {copied ? 'Copied' : 'Copy'}
           </Button>
+          {headerTrail}
         </div>
       </div>
 

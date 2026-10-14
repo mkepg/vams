@@ -20,6 +20,7 @@ import { runController } from '@/features/callbacks';
 import { registerFakeRenderer } from '../helpers/fake-renderer';
 import { DEFAULT_OPEN_GROUPS } from '@/core/inspector';
 import Rail from '@/widgets/layout/rail';
+import CodeMathColumn from '@/widgets/layout/code-math-column';
 import { useMyScenesDialog } from '@/features/scene-library';
 import { CanvasOverlays } from '@/widgets/canvas/ui/CanvasOverlays';
 import { addPrimitive, addTriangle } from '../helpers/store';
@@ -1043,5 +1044,55 @@ describe('BB-SHELL-39: Crossing 1100 px closes the drawer or shows the panel, an
       unmount(host);
       media.restore();
     }
+  });
+});
+
+describe('BB-SHELL-40: The right column switches between Code and Math and marks code that changed out of sight', () => {
+  it('starts on Code, shows Math, and shows the dot until Code is shown again', async () => {
+    useVamsStore.setState({ codePane: 'code', codeHidden: false, codeChangedUnseen: false });
+    const host = mount(h(CodeMathColumn, {}));
+    await settle();
+    const radios = () => [...host.querySelectorAll<HTMLButtonElement>('[data-tour-anchor="code-switch"] [role="radio"]')];
+    expect(host.querySelector('[data-tour-anchor="code-switch"] [role="radiogroup"]')!.getAttribute('aria-label')).toBe('Code or math');
+    expect(radios().map((r) => r.textContent)).toEqual(['Code', 'Math']);
+    expect(host.querySelector('.code-viewer-container')).not.toBeNull();
+    expect(host.querySelector('.math-panel-container')).toBeNull();
+    radios()[1].click();
+    await settle();
+    expect(host.querySelector('.math-panel-container')).not.toBeNull();
+    expect(host.querySelector('.code-viewer-container')).toBeNull();
+    expect(host.querySelector('.code-math-switch__dot')).toBeNull();
+    addTriangle();
+    await settle();
+    expect(host.querySelector('.code-math-switch__dot')!.textContent).toBe('Code changed');
+    radios()[0].click();
+    await settle();
+    expect(host.querySelector('.code-math-switch__dot')).toBeNull();
+    expect(useVamsStore.getState().codeChangedUnseen).toBe(false);
+    unmount(host);
+  });
+});
+
+describe('BB-SHELL-41: Hide tucks the code column to an edge tab that brings it back', () => {
+  it('hides from Code or Math and shows again from the edge tab', async () => {
+    useVamsStore.setState({ codePane: 'code', codeHidden: false });
+    const host = mount(h(CodeMathColumn, {}));
+    await settle();
+    (host.querySelector('button[aria-label="Hide code and math"]') as HTMLButtonElement).click();
+    await settle();
+    expect(useVamsStore.getState().codeHidden).toBe(true);
+    const edge = host.querySelector('.code-math-edge') as HTMLButtonElement;
+    expect(edge.getAttribute('aria-label')).toBe('Show code and math');
+    expect(edge.textContent).toContain('Code & math');
+    expect(host.querySelector('.code-viewer-container')).toBeNull();
+    edge.click();
+    await settle();
+    expect(useVamsStore.getState().codeHidden).toBe(false);
+    expect(host.querySelector('.code-viewer-container')).not.toBeNull();
+    useVamsStore.getState().setCodePane('math');
+    await settle();
+    expect(host.querySelector('button[aria-label="Hide code and math"]')).not.toBeNull();
+    useVamsStore.getState().setCodePane('code');
+    unmount(host);
   });
 });

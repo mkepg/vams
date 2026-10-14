@@ -1,19 +1,53 @@
 .code-math-column {
-  display: grid;
-  grid-template-rows: minmax(0, 58fr) minmax(0, 42fr);
-  grid-template-columns: minmax(0, 1fr);
+  position: relative;
   height: 100%;
   min-height: 0;
+  min-width: 0;
+  overflow: hidden;
   border-left: 1px solid var(--rule);
   background: var(--paper);
+}
 
-  // The code viewer and the math panel fill their cell absolutely and scroll inside it;
-  // the math panel draws its own top rule.
-  &__code,
-  &__math {
-    position: relative;
-    min-height: 0;
-    min-width: 0;
-    overflow: hidden;
+.code-math-switch {
+  position: relative;
+  flex: none;
+
+  &__dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-left: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    vertical-align: middle;
+  }
+}
+
+// The hidden column's 30 px edge tab, with its label running down the edge.
+.code-math-edge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  height: 100%;
+  padding: var(--space-3) 0;
+  border: 0;
+  border-left: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink-muted);
+  font: inherit;
+  cursor: pointer;
+
+  &:hover { color: var(--ink); background: var(--paper-sunken); }
+
+  &:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+  }
+
+  &__label {
+    writing-mode: vertical-rl;
+    font-size: var(--text-xs);
   }
 }

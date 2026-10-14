@@ -18,6 +18,7 @@ export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (
   lessonFocusPanel: null,
   dmaDriverStep: null,
   changedCodeLines: [],
+  codeViewBeforeLesson: null,
   setActiveLesson: (lessonId) => {
     const state = get();
     if (lessonId && !state.activeLessonId) {
@@ -31,6 +32,7 @@ export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (
         canvasBackgroundColorBackup: state.canvasBackgroundColor,
         viewportLimitsBackup: state.viewportLimits,
         uploadedTexturesBackup: state.uploadedTextures,
+        codeViewBeforeLesson: { pane: state.codePane, hidden: state.codeHidden },
         objects: [],
         callbacks: emptyCallbacks(),
         canvasBackgroundColor: '#000000',
@@ -97,6 +99,11 @@ export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (
       lessonFocusPanel: null,
       dmaDriverStep: null,
       changedCodeLines: [],
+      // The lesson may have switched the right column; give the student back their own view.
+      ...(state.codeViewBeforeLesson
+        ? { codePane: state.codeViewBeforeLesson.pane, codeHidden: state.codeViewBeforeLesson.hidden, codeChangedUnseen: false }
+        : {}),
+      codeViewBeforeLesson: null,
     });
   },
 });

@@ -5,6 +5,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
 import { useVamsStore } from '@/core/store';
+import type { Lesson } from '@/core/types/lesson';
 import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import { SegmentedControl } from '@/shared/ui/controls';
 import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
@@ -735,6 +736,70 @@ describe('BB-LCOL-31: Next on the folded strip keeps keyboard focus when the bar
     await settle();
     expect(host.querySelector('.lesson-bar')!.classList.contains('is-folded')).toBe(false);
     expect(document.activeElement).toBe(buttonNamed(host, 'Next'));
+    unmount(host);
+  });
+});
+
+describe('BB-LCOL-29: A lesson step picks the side of the code column it is about', () => {
+  const ID = 'test-pane-lesson';
+  it('shows Math for pane math, Code for pane code or a code change, and leaves the column otherwise', async () => {
+    const lesson: Lesson = {
+      id: ID,
+      title: 'Panes',
+      type: 'demo',
+      section: 'Transforms',
+      steps: [
+        { narration: 'Nothing changes.' },
+        { narration: 'The math.', pane: 'math' },
+        { narration: 'A triangle.', action: (s) => s.addCustomObject('TRIANGLES', [{ x: 0, y: 0 }, { x: 0.5, y: 0 }, { x: 0, y: 0.5 }]) },
+        { narration: 'Quiet.' },
+        { narration: 'The code.', pane: 'code' },
+      ],
+    };
+    LESSON_REGISTRY[ID] = lesson;
+    try {
+      useVamsStore.setState({ codePane: 'code', codeHidden: true });
+      startLesson(ID);
+      const host = mount(h(LessonBar, {}));
+      await settle();
+      const s = () => useVamsStore.getState();
+      expect([s().codePane, s().codeHidden]).toEqual(['code', true]);
+      buttonNamed(host, 'Next')!.click();
+      await settle();
+      expect([s().codePane, s().codeHidden]).toEqual(['math', false]);
+      buttonNamed(host, 'Next')!.click();
+      await settle();
+      expect(s().codePane).toBe('code');
+      s().setCodePane('math');
+      buttonNamed(host, 'Next')!.click();
+      await settle();
+      expect(s().codePane).toBe('math');
+      buttonNamed(host, 'Next')!.click();
+      await settle();
+      expect(s().codePane).toBe('code');
+      unmount(host);
+    } finally {
+      useVamsStore.getState().clearLessonState();
+      useVamsStore.setState({ appMode: 'Author', codePane: 'code', codeHidden: false });
+      delete LESSON_REGISTRY[ID];
+    }
+  });
+});
+
+describe('BB-LCOL-30: Leaving a lesson gives the student back their Code / Math view', () => {
+  it('restores the switch and Hide from before the lesson', async () => {
+    useVamsStore.setState({ codePane: 'math', codeHidden: true });
+    startLesson('transforms-demo-1');
+    const host = mount(h(LessonBar, {}));
+    await settle();
+    useVamsStore.getState().setCodePane('code');
+    useVamsStore.getState().setCodeHidden(false);
+    exitButton(host).click();
+    await settle();
+    expect(useVamsStore.getState().codePane).toBe('math');
+    expect(useVamsStore.getState().codeHidden).toBe(true);
+    expect(useVamsStore.getState().codeViewBeforeLesson).toBeNull();
+    useVamsStore.setState({ codePane: 'code', codeHidden: false });
     unmount(host);
   });
 });

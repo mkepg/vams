@@ -191,6 +191,8 @@ export interface LessonSlice {
   lessonFocusPanel: string | null;
   dmaDriverStep: number | null;
   changedCodeLines: number[]
+  /** The student's Code / Math switch and Hide from before the lesson; restored when it ends. */
+  codeViewBeforeLesson: { pane: CodePane; hidden: boolean } | null;
   setActiveLesson: (lessonId: string | null) => void;
   setCurrentStep: (index: number) => void;
   setExerciseAnswer: (stepId: string, answer: unknown) => void;

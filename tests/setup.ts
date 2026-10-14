@@ -45,6 +45,7 @@ beforeEach(() => {
     canvasBackgroundColorBackup: null,
     viewportLimitsBackup: null,
     uploadedTexturesBackup: null,
+    codeViewBeforeLesson: null,
     callbacks: emptyCallbacks(),
     canvasBackgroundColor: '#000000',
     viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
