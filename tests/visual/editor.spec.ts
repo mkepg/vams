@@ -78,7 +78,7 @@ test('VIS-EDITOR-07: Narrow layout, drawer closed and open', async ({ page }) =>
   await page.setViewportSize({ width: 960, height: 720 });
   await open(page, '/app?scene=transforms');
   await expect(page).toHaveScreenshot('narrow-closed-960.png');
-  await page.getByRole('button', { name: 'Panels' }).click();
+  await page.getByRole('tab', { name: 'Scene' }).click();
   await expect(page).toHaveScreenshot('narrow-open-960.png');
 });
 
@@ -104,12 +104,12 @@ test('VIS-EDITOR-09: No horizontal page overflow at 960 px', async ({ page }) =>
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
-test('VIS-EDITOR-10: Scene settings with nothing selected, light, 1280', async ({ page }) => {
+test('VIS-EDITOR-10: An empty scene opens the Add panel, light, 1280', async ({ page }) => {
   await open(page, '/app');
-  // A first visit opens the welcome card over the editor; dismiss it so the capture shows the column.
+  // A first visit opens the welcome card over the editor; dismiss it so the capture shows the Add panel.
   await page.getByRole('button', { name: 'Start building' }).click();
   await expect(page.getByRole('dialog')).toBeHidden();
-  await expect(page).toHaveScreenshot('settings-light-1280.png');
+  await expect(page).toHaveScreenshot('add-empty-light-1280.png');
 });
 
 test('VIS-EDITOR-11: Learn drawer, dark, 1280', async ({ page }) => {
@@ -138,9 +138,7 @@ test('VIS-EDITOR-13: A demo step outlines its group and dims the rest, dark, 128
 });
 
 async function callbacksWithRules(page: Page) {
-  // An empty spot selects nothing, which shows scene settings.
-  await page.locator('.canvas-wrapper').click({ position: { x: 20, y: 300 } });
-  await page.getByRole('button', { name: 'Callbacks' }).click();
+  await page.getByRole('tab', { name: /^Callbacks/ }).click();
   const special = page.locator('.cb-item', { has: page.locator('.cb-label', { hasText: 'Special keys' }) });
   await special.locator('.cb-toggle').click();
   await special.getByRole('button', { name: 'Add rule' }).click();
@@ -149,7 +147,7 @@ async function callbacksWithRules(page: Page) {
   return special;
 }
 
-test('VIS-EDITOR-14: Callbacks group with rules and an open form, light, 1280', async ({ page }) => {
+test('VIS-EDITOR-14: Callbacks panel with rules and an open form, light, 1280', async ({ page }) => {
   await open(page, '/app?scene=primitives');
   const special = await callbacksWithRules(page);
   await expect(special.locator('.cb-rule-form')).toBeVisible();
@@ -166,5 +164,112 @@ for (const theme of ['light', 'dark'] as const) {
     await page.keyboard.press('ArrowRight');
     await expect(page.locator('.run-readout')).toContainText('GLUT_KEY_RIGHT');
     await expect(page).toHaveScreenshot(`run-${theme}-1280.png`, { animations: 'disabled' });
+  });
+}
+
+const THEMES = ['light', 'dark'] as const;
+
+/** Opens an empty editor and closes the first-visit welcome card. */
+async function openEmpty(page: Page, theme: Theme) {
+  await open(page, '/app', theme);
+  await page.getByRole('button', { name: 'Start building' }).click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+}
+
+/** Opens the Transforms scene with its first leaf object selected. */
+async function openSelected(page: Page, theme: Theme) {
+  await open(page, '/app?scene=transforms', theme);
+  await page.locator('[data-panel-id="scene-hierarchy"] [role="treeitem"]:not([aria-expanded]) .tree-item').first().click();
+  await expect(page.locator('.inspector__meta')).toContainText('GL_');
+}
+
+/** Quiz order is drawn at random; fix the generator so the bar is the same on every run. */
+async function seedRandom(page: Page) {
+  await page.addInitScript(() => {
+    let seed = 1;
+    Math.random = () => {
+      seed = (seed * 16807) % 2147483647;
+      return (seed - 1) / 2147483646;
+    };
+  });
+}
+
+for (const theme of THEMES) {
+  test(`VIS-EDITOR-17: Add panel, ${theme}, 1280`, async ({ page }) => {
+    await openEmpty(page, theme);
+    await expect(page.getByRole('tab', { name: 'Add' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page).toHaveScreenshot(`panel-add-${theme}-1280.png`);
+  });
+
+  test(`VIS-EDITOR-18: Scene panel with a selection, ${theme}, 1280`, async ({ page }) => {
+    await openSelected(page, theme);
+    await expect(page).toHaveScreenshot(`panel-scene-${theme}-1280.png`);
+  });
+
+  test(`VIS-EDITOR-19: Settings panel, ${theme}, 1280`, async ({ page }) => {
+    await open(page, '/app?scene=transforms', theme);
+    await page.getByRole('tab', { name: 'Settings' }).click();
+    await expect(page).toHaveScreenshot(`panel-settings-${theme}-1280.png`);
+  });
+
+  test(`VIS-EDITOR-20: Callbacks panel, ${theme}, 1280`, async ({ page }) => {
+    await open(page, '/app?scene=primitives', theme);
+    await page.getByRole('tab', { name: /^Callbacks/ }).click();
+    await expect(page).toHaveScreenshot(`panel-callbacks-${theme}-1280.png`);
+  });
+
+  test(`VIS-EDITOR-21: Lesson bar on a demo step, ${theme}, 1280`, async ({ page }) => {
+    await open(page, '/app?lesson=transforms-demo-1', theme);
+    await page.getByRole('button', { name: 'Next', exact: true }).click();
+    await expect(page.locator('.lesson-bar__step')).toContainText('Step 2');
+    await expect(page).toHaveScreenshot(`lesson-bar-demo-${theme}-1280.png`);
+  });
+
+  test(`VIS-EDITOR-22: Lesson bar waiting on an exercise, ${theme}, 1280`, async ({ page }) => {
+    await open(page, '/app?lesson=transforms-exercise-1', theme);
+    await expect(page.locator('.lesson-bar__task')).toContainText('Waiting for you');
+    await expect(page).toHaveScreenshot(`lesson-bar-exercise-${theme}-1280.png`);
+  });
+
+  test(`VIS-EDITOR-23: Lesson bar quiz, ${theme}, 1280`, async ({ page }) => {
+    await seedRandom(page);
+    await open(page, '/app?lesson=pipeline-exercise-2', theme);
+    await page.getByRole('button', { name: 'Next', exact: true }).click();
+    await expect(page).toHaveScreenshot(`lesson-bar-quiz-${theme}-1280.png`);
+  });
+
+  test(`VIS-EDITOR-24: Lesson bar folded, ${theme}, 1280`, async ({ page }) => {
+    await open(page, '/app?lesson=transforms-demo-1', theme);
+    await page.getByRole('button', { name: 'Fold lesson' }).click();
+    await expect(page.getByRole('button', { name: 'Unfold lesson' })).toBeVisible();
+    await expect(page).toHaveScreenshot(`lesson-bar-folded-${theme}-1280.png`);
+  });
+
+  test(`VIS-EDITOR-25: Math pane, ${theme}, 1280`, async ({ page }) => {
+    await openSelected(page, theme);
+    await page.getByRole('radio', { name: 'Math' }).click();
+    await expect(page.getByRole('radio', { name: 'Math' })).toHaveAttribute('aria-checked', 'true');
+    await expect(page).toHaveScreenshot(`math-pane-${theme}-1280.png`);
+  });
+
+  test(`VIS-EDITOR-26: Panel hidden, ${theme}, 1280`, async ({ page }) => {
+    await open(page, '/app?scene=transforms', theme);
+    await page.getByRole('button', { name: 'Hide', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Show', exact: true })).toBeVisible();
+    await expect(page).toHaveScreenshot(`panel-hidden-${theme}-1280.png`);
+  });
+
+  test(`VIS-EDITOR-27: Code and math hidden, ${theme}, 1280`, async ({ page }) => {
+    await open(page, '/app?scene=transforms', theme);
+    await page.getByRole('button', { name: 'Hide code and math' }).click();
+    await expect(page.getByRole('button', { name: 'Show code and math' })).toBeVisible();
+    await expect(page).toHaveScreenshot(`code-hidden-${theme}-1280.png`);
+  });
+
+  test(`VIS-EDITOR-28: First-visit tour, Build step, ${theme}, 1280`, async ({ page }) => {
+    await open(page, '/app', theme);
+    await page.getByRole('button', { name: 'Take the tour' }).click();
+    await expect(page.locator('.tour-callout')).toContainText('Step 1 of 6');
+    await expect(page).toHaveScreenshot(`tour-build-${theme}-1280.png`, { animations: 'disabled' });
   });
 }
