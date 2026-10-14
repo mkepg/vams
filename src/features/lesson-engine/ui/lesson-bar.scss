@@ -1,0 +1,135 @@
+// The lesson bar: a reading line along the bottom of the canvas. The narration is the loudest
+// thing in it, and Next is its only coloured control.
+.lesson-bar {
+  position: relative;
+  display: grid;
+  gap: var(--space-2);
+  padding: 14px var(--space-4) var(--space-3);
+  border-top: 1px solid var(--rule);
+  background: var(--paper-raised);
+
+  &.is-folded {
+    gap: 0;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    min-height: 34px;
+  }
+
+  &__progress {
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+
+    i {
+      display: block;
+      height: 100%;
+      background: var(--accent);
+    }
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font-size: var(--text-sm);
+    line-height: var(--lh-sm);
+  }
+
+  &__title {
+    margin: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font: inherit;
+    font-weight: 600;
+    color: var(--ink-muted);
+
+    // Focus lands here by script when a lesson starts; the heading is not a control.
+    &:focus { outline: none; }
+  }
+
+  &__sep,
+  &__step {
+    color: var(--ink-faint);
+    white-space: nowrap;
+  }
+
+  &__tools {
+    display: inline-flex;
+    gap: 2px;
+    margin-left: auto;
+  }
+
+  &__tool.vbtn {
+    width: 22px;
+    height: 22px;
+    min-height: 22px;
+    padding: 0;
+    color: var(--ink-faint);
+
+    &:hover,
+    &:focus-visible { color: var(--ink); }
+  }
+
+  &.is-folded .lesson-bar__next { margin-left: var(--space-2); }
+
+  &__narration {
+    margin: 0;
+    max-width: 72ch;
+    font-size: var(--text-md);
+    line-height: 1.6;
+    color: var(--ink);
+
+    code {
+      font-family: var(--font-mono);
+      font-size: inherit;
+      color: var(--accent-text);
+    }
+  }
+
+  &__modes {
+    justify-self: start;
+
+    &.is-lesson-focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+      border-radius: var(--radius-m);
+    }
+  }
+
+  &__task {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--ink-muted);
+  }
+
+  &__dot {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--warning);
+  }
+
+  &__task.is-done &__dot { background: var(--success); }
+
+  &__nav {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+
+  &__back.vbtn {
+    color: var(--ink-faint);
+
+    &:hover:not(:disabled) { color: var(--ink); }
+  }
+}

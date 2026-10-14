@@ -32,6 +32,10 @@ export interface LessonStep {
   codeHighlightTarget?: string;
   exercise?: ExerciseWidget;
   focusPanel?: string; // Targets a specific CollapsibleSection panelId
+  /** What an exercise step is waiting for, shown in the lesson bar's task line. */
+  task?: string;
+  /** Which side of the code column the step is about. Without it, a step that highlights code shows Code. */
+  pane?: 'code' | 'math';
 
   /**
    * Drives the Direct Memory Access pointer diagram in the Buffers math panel.

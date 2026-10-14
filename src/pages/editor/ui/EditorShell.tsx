@@ -11,13 +11,15 @@ export interface EditorShellProps {
   topBar: ComponentChildren;
   column: ComponentChildren;
   canvas: ComponentChildren;
+  /** The lesson bar, under the canvas. */
+  lessonBar?: ComponentChildren;
   codeMath: ComponentChildren;
   /** Dialogs and other overlays rendered after the grid. */
   overlays?: ComponentChildren;
 }
 
 /** The editor grid. Below 1100 px the editor column becomes a drawer over the canvas. */
-export default function EditorShell({ topBar, column, canvas, codeMath, overlays }: EditorShellProps) {
+export default function EditorShell({ topBar, column, canvas, lessonBar, codeMath, overlays }: EditorShellProps) {
   const narrow = useNarrowLayout();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
@@ -86,19 +88,22 @@ export default function EditorShell({ topBar, column, canvas, codeMath, overlays
         {column}
       </aside>
       <main className="editor__canvas canvas-area">
-        {narrow && !running && (
-          <Button
-            ref={toggleRef}
-            className="editor__panels-toggle"
-            icon={<PanelLeft />}
-            aria-expanded={drawerOpen}
-            aria-controls="editor-column"
-            onClick={() => setDrawerOpen((open) => !open)}
-          >
-            Panels
-          </Button>
-        )}
-        {canvas}
+        <div className="editor__stage">
+          {narrow && !running && (
+            <Button
+              ref={toggleRef}
+              className="editor__panels-toggle"
+              icon={<PanelLeft />}
+              aria-expanded={drawerOpen}
+              aria-controls="editor-column"
+              onClick={() => setDrawerOpen((open) => !open)}
+            >
+              Panels
+            </Button>
+          )}
+          {canvas}
+        </div>
+        {lessonBar}
       </main>
       <aside className="editor__code" aria-label="Code and math">{codeMath}</aside>
       {overlays}

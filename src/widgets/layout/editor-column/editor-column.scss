@@ -11,17 +11,6 @@
   background: var(--paper);
   @include scrollbar;
 
-  &__head {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: var(--paper-raised);
-    border-bottom: 1px solid var(--rule);
-  }
-  // On short screens a tall lesson card (a quiz) would hide its own buttons if pinned.
-  @media (max-height: 640px) {
-    &__head { position: static; }
-  }
 }
 
 .scene-area {

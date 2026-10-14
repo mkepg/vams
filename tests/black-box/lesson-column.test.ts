@@ -1,11 +1,11 @@
 /**
  * BLACK-BOX TEST SUITE — BB-LCOL
- * The lesson column: the runner hook, the lesson card and the editor column in Lesson mode.
+ * The lesson column: the runner hook, the lesson bar and the editor column in Lesson mode.
  */
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
 import { useVamsStore } from '@/core/store';
-import LessonCard from '@/features/lesson-engine/ui/LessonCard';
+import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import { SegmentedControl } from '@/shared/ui/controls';
 import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
 import { EditorColumn } from '@/widgets/layout/editor-column';
@@ -46,34 +46,39 @@ function startLesson(id: string, section: 'Transforms' | 'Pipeline' | 'Textures'
 function buttonNamed(host: HTMLElement, text: string) {
   return [...host.querySelectorAll('button')].find((b) => b.textContent?.trim() === text) as HTMLButtonElement | undefined;
 }
+const exitButton = (host: HTMLElement) => host.querySelector('button[aria-label="Exit lesson (Esc)"]') as HTMLButtonElement;
+/** The lesson bar with the editor column, as the editor lays them out. */
+const lessonEditor = () => h('div', {}, h(LessonBar, {}), h(EditorColumn, {}));
 
 afterEach(() => {
   useVamsStore.getState().clearLessonState();
   useVamsStore.setState({ appMode: 'Author' });
 });
 
-describe('BB-LCOL-01: The lesson card renders nothing outside a lesson', () => {
+describe('BB-LCOL-01: The lesson bar renders nothing outside a lesson', () => {
   it('is empty in Author mode', () => {
-    const host = mount(h(LessonCard, {}));
+    const host = mount(h(LessonBar, {}));
     expect(host.innerHTML).toBe('');
     unmount(host);
   });
 });
 
-describe('BB-LCOL-02: The card shows type, title, progress and narration', () => {
+describe('BB-LCOL-02: The bar shows the title, the step, a progress hairline and the narration', () => {
   it('waits for the student on an exercise step', async () => {
     startLesson('transforms-exercise-1');
-    const host = mount(h(LessonCard, {}));
+    const host = mount(h(LessonBar, {}));
     await settle();
-    expect(host.querySelector('.lesson-card__chip')!.textContent).toBe('Exercise');
-    expect(host.querySelector('.lesson-card__title')!.textContent).toBe('Translate to Position');
-    const progress = host.querySelector('[role="progressbar"]')!;
+    expect(host.querySelector('.lesson-bar__title')!.textContent).toBe('Translate to Position');
+    expect(host.querySelector('.lesson-bar__step')!.textContent).toBe('Step 1 of 2');
+    expect(host.querySelector('.lesson-card__chip, .lesson-bar__chip')).toBeNull();
+    const progress = host.querySelector('[role="progressbar"]') as HTMLElement;
     expect(progress.getAttribute('aria-valuenow')).toBe('1');
     expect(progress.getAttribute('aria-valuemax')).toBe('2');
-    expect(host.querySelector('.lesson-card__narration')!.textContent).toContain('Move the triangle to (0.5,');
+    expect((progress.firstElementChild as HTMLElement).style.width).toBe('50%');
+    expect(host.querySelector('.lesson-bar__narration')!.textContent).toContain('Move the triangle to (0.5,');
     expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
     expect(buttonNamed(host, 'Back')!.disabled).toBe(true);
-    expect(host.textContent).toContain('Waiting for you');
+    expect(host.querySelector('.lesson-bar__task')!.textContent).toContain('Waiting for you');
     unmount(host);
   });
 });
@@ -81,7 +86,7 @@ describe('BB-LCOL-02: The card shows type, title, progress and narration', () =>
 describe('BB-LCOL-03: Meeting the success check enables Next; the last step says Finish', () => {
   it('advances when the triangle is moved to the target', async () => {
     startLesson('transforms-exercise-1');
-    const host = mount(h(LessonCard, {}));
+    const host = mount(h(LessonBar, {}));
     await settle();
     const state = useVamsStore.getState();
     const id = state.objects[0].id;
@@ -92,7 +97,7 @@ describe('BB-LCOL-03: Meeting the success check enables Next; the last step says
     expect(next.disabled).toBe(false);
     next.click();
     await settle();
-    expect(host.querySelector('.lesson-card__narration')!.textContent).toContain('Spot on!');
+    expect(host.querySelector('.lesson-bar__narration')!.textContent).toContain('Spot on!');
     expect(buttonNamed(host, 'Finish')).toBeDefined();
     unmount(host);
   });
@@ -102,7 +107,7 @@ describe('BB-LCOL-04: Finish and Exit return to Author mode', () => {
   it('Finish on the last step ends the lesson', async () => {
     startLesson('transforms-exercise-1');
     useVamsStore.getState().setCurrentStep(1);
-    const host = mount(h(LessonCard, {}));
+    const host = mount(h(LessonBar, {}));
     await settle();
     buttonNamed(host, 'Finish')!.click();
     await settle();
@@ -115,7 +120,7 @@ describe('BB-LCOL-04: Finish and Exit return to Author mode', () => {
 describe('BB-LCOL-05: Esc on the window exits the lesson', () => {
   it('keeps the global lesson keys', async () => {
     startLesson('transforms-exercise-1');
-    const host = mount(h(LessonCard, {}));
+    const host = mount(h(LessonBar, {}));
     await settle();
     key(window, 'Escape');
     await settle();
@@ -124,16 +129,15 @@ describe('BB-LCOL-05: Esc on the window exits the lesson', () => {
   });
 });
 
-describe('BB-LCOL-06: In Lesson mode the lesson card sits above the live editor', () => {
-  it('shows the card, the scene area and the inspector together', async () => {
+describe('BB-LCOL-06: In Lesson mode the editor column has no lesson card', () => {
+  it('shows the scene area and the inspector, with the lesson in the bar', async () => {
     startLesson('transforms-exercise-1');
-    const host = mount(h(EditorColumn, {}));
+    const host = mount(lessonEditor());
     await settle();
-    expect(host.querySelector('.lesson-card')).not.toBeNull();
+    expect(host.querySelector('.lesson-bar')).not.toBeNull();
+    expect(host.querySelector('.editor-column .lesson-bar, .lesson-card')).toBeNull();
     expect(host.querySelector('.scene-area')).not.toBeNull();
     expect(host.querySelector('.inspector')).not.toBeNull();
-    const card = host.querySelector('.lesson-card')!;
-    expect(card.compareDocumentPosition(host.querySelector('.inspector')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     unmount(host);
   });
 });
@@ -141,7 +145,7 @@ describe('BB-LCOL-06: In Lesson mode the lesson card sits above the live editor'
 describe('BB-LCOL-07: A demo opens and outlines the step’s group and dims the rest', () => {
   it('focuses Transform in a Transforms demo step', async () => {
     startLesson('transforms-demo-1');
-    const host = mount(h(EditorColumn, {}));
+    const host = mount(lessonEditor());
     await settle();
     // Step 2 targets object-transform; the demo created and selected its object.
     buttonNamed(host, 'Next')!.click();
@@ -212,7 +216,7 @@ describe('BB-LCOL-10: On narrow screens Esc in the open drawer closes only the d
     const restore = mockNarrow();
     try {
       startLesson('transforms-exercise-1');
-      const host = narrowShell(h('div', {}, h(LessonCard, {}), h('button', { id: 'inside' }, 'inside')));
+      const host = narrowShell(h('div', {}, h(LessonBar, {}), h('button', { id: 'inside' }, 'inside')));
       await settle();
       const toggle = panelsToggle(host);
       expect(toggle.getAttribute('aria-expanded')).toBe('true');
@@ -282,9 +286,9 @@ describe('BB-LCOL-13: Exit hands focus to the Learn button', () => {
     learn.className = 'learn-trigger';
     document.body.appendChild(learn);
     startLesson('transforms-exercise-1');
-    const host = mount(h(EditorColumn, {}));
+    const host = mount(lessonEditor());
     await settle();
-    const exit = buttonNamed(host, 'Exit')!;
+    const exit = exitButton(host);
     exit.focus();
     exit.click();
     await settle();
@@ -298,7 +302,7 @@ describe('BB-LCOL-13: Exit hands focus to the Learn button', () => {
     const outside = document.createElement('button');
     document.body.appendChild(outside);
     startLesson('transforms-exercise-1');
-    const host = mount(h(EditorColumn, {}));
+    const host = mount(lessonEditor());
     await settle();
     outside.focus();
     useVamsStore.getState().clearLessonState();
@@ -316,7 +320,7 @@ describe('BB-LCOL-14: Arrow keys inside a radiogroup do not move the lesson', ()
     useVamsStore.getState().setCurrentStep(1);
     const onChange = vi.fn();
     const host = mount(h('div', {},
-      h(LessonCard, {}),
+      h(LessonBar, {}),
       h(SegmentedControl, {
         label: 'Mode',
         options: [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }, { value: 'c', label: 'C' }],
@@ -347,7 +351,7 @@ describe('BB-LCOL-15: On narrow screens Esc outside the open drawer closes the d
     const restore = mockNarrow();
     try {
       startLesson('transforms-exercise-1');
-      const host = narrowShell(h('div', {}, h(LessonCard, {})));
+      const host = narrowShell(h('div', {}, h(LessonBar, {})));
       await settle();
       const toggle = panelsToggle(host);
       expect(toggle.getAttribute('aria-expanded')).toBe('true');
@@ -372,9 +376,9 @@ describe('BB-LCOL-16: Starting a lesson moves focus to the lesson title', () => 
   it('focuses the title when focus fell to the page, and leaves it alone otherwise', async () => {
     (document.activeElement as HTMLElement | null)?.blur?.();
     startLesson('transforms-exercise-1');
-    let host = mount(h(LessonCard, {}));
+    let host = mount(h(LessonBar, {}));
     await settle();
-    expect(document.activeElement).toBe(host.querySelector('.lesson-card__title'));
+    expect(document.activeElement).toBe(host.querySelector('.lesson-bar__title'));
     unmount(host);
     useVamsStore.getState().clearLessonState();
     useVamsStore.setState({ appMode: 'Author' });
@@ -383,7 +387,7 @@ describe('BB-LCOL-16: Starting a lesson moves focus to the lesson title', () => 
     document.body.appendChild(outside);
     outside.focus();
     startLesson('transforms-exercise-1');
-    host = mount(h(LessonCard, {}));
+    host = mount(h(LessonBar, {}));
     await settle();
     expect(document.activeElement).toBe(outside);
     unmount(host);
@@ -394,7 +398,7 @@ describe('BB-LCOL-16: Starting a lesson moves focus to the lesson title', () => 
 describe('BB-LCOL-17: The narration is one live region across steps', () => {
   it('keeps the same aria-live element and changes its text', async () => {
     startLesson('transforms-demo-1');
-    const host = mount(h(LessonCard, {}));
+    const host = mount(h(LessonBar, {}));
     await settle();
     const region = host.querySelector('[aria-live="polite"]')!;
     expect(region.textContent).toContain('Welcome to Transforms');
@@ -423,7 +427,7 @@ describe('BB-LCOL-18: Guidance fades through a section', () => {
 describe('BB-LCOL-19: An exercise outlines its group and dims nothing; the last exercise focuses nothing', () => {
   it('outlines Transform in transforms-exercise-1 and sets no focus in transforms-exercise-4', async () => {
     startLesson('transforms-exercise-1');
-    let host = mount(h(EditorColumn, {}));
+    let host = mount(lessonEditor());
     await settle();
     expect(host.querySelector('[data-group="transform"]')!.classList.contains('is-focus')).toBe(true);
     expect(host.querySelectorAll('.inspector-group.is-dimmed')).toHaveLength(0);
@@ -432,7 +436,7 @@ describe('BB-LCOL-19: An exercise outlines its group and dims nothing; the last 
     useVamsStore.setState({ appMode: 'Author' });
 
     startLesson('transforms-exercise-4');
-    host = mount(h(EditorColumn, {}));
+    host = mount(lessonEditor());
     await settle();
     expect(useVamsStore.getState().lessonFocusPanel).toBeNull();
     expect(host.querySelectorAll('.is-focus, .is-lesson-focus')).toHaveLength(0);
@@ -443,7 +447,7 @@ describe('BB-LCOL-19: An exercise outlines its group and dims nothing; the last 
 describe('BB-LCOL-20: A per-object focus selects the newest object, and never crashes on an empty scene', () => {
   it('selects the lesson’s object when nothing is selected', async () => {
     startLesson('transforms-exercise-1');
-    const host = mount(h(EditorColumn, {}));
+    const host = mount(lessonEditor());
     await settle();
     const s = useVamsStore.getState();
     expect(s.objects.length).toBeGreaterThan(0);
@@ -453,7 +457,7 @@ describe('BB-LCOL-20: A per-object focus selects the newest object, and never cr
 
   it('selects the newest object when a step moves to a per-object focus with nothing selected', async () => {
     startLesson('transforms-demo-1');
-    const host = mount(h(EditorColumn, {}));
+    const host = mount(lessonEditor());
     await settle();
     useVamsStore.setState({ selectedObjectId: null });
     await settle();
@@ -469,7 +473,7 @@ describe('BB-LCOL-20: A per-object focus selects the newest object, and never cr
 
   it('shows scene settings when there is nothing to select', async () => {
     startLesson('transforms-exercise-1');
-    const host = mount(h(EditorColumn, {}));
+    const host = mount(lessonEditor());
     await settle();
     useVamsStore.setState({ objects: [], selectedObjectId: null, lessonFocusPanel: 'object-transform' });
     await settle();
@@ -491,7 +495,7 @@ describe('BB-LCOL-21: The Pipeline illustrations appear only during Pipeline les
 describe('BB-LCOL-22: A demo scrolls to the focused group on its final layout', () => {
   it('scrolls to Texture once Transform above it has collapsed and Texture has opened', async () => {
     startLesson('textures-demo-1', 'Textures');
-    const host = mount(h(EditorColumn, {}));
+    const host = mount(lessonEditor());
     await settle();
     // Step 2 places a quad; step 3 focuses texture-attach, below the open Transform group.
     buttonNamed(host, 'Next')!.click();
@@ -517,7 +521,7 @@ describe('BB-LCOL-22: A demo scrolls to the focused group on its final layout', 
 
   it('scrolls after the card shows the new step when consecutive steps share a group', async () => {
     startLesson('primitives-demo-3', 'Primitives');
-    const host = mount(h(EditorColumn, {}));
+    const host = mount(lessonEditor());
     await settle();
     // Steps 2 and 3 both focus line-style-panel; step 3's narration is longer, so the card grows.
     buttonNamed(host, 'Next')!.click();
@@ -528,7 +532,7 @@ describe('BB-LCOL-22: A demo scrolls to the focused group on its final layout', 
       configurable: true,
       get: () => 0,
       set: () => {
-        narrationAtScroll.push(host.querySelector('.lesson-card__narration')!.textContent ?? '');
+        narrationAtScroll.push(host.querySelector('.lesson-bar__narration')!.textContent ?? '');
       },
     });
     buttonNamed(host, 'Next')!.click();
@@ -542,14 +546,14 @@ describe('BB-LCOL-22: A demo scrolls to the focused group on its final layout', 
 describe('BB-LCOL-23: Leaving a lesson leaves the plain editor, and starting one forgets the opened group', () => {
   it('restores the default open groups and clears the last opened group on exit', async () => {
     startLesson('transforms-demo-4');
-    const host = mount(h(EditorColumn, {}));
+    const host = mount(lessonEditor());
     try {
       await settle();
       // The glOrtho demo collapses everything but Viewing volume.
       expect(useVamsStore.getState().openGroups).toEqual(['viewing-volume']);
       useVamsStore.getState().toggleGroup('callbacks');
       expect(useVamsStore.getState().lastOpenedGroup).toBe('callbacks');
-      buttonNamed(host, 'Exit')!.click();
+      exitButton(host).click();
       await settle();
       const s = useVamsStore.getState();
       expect(s.appMode).toBe('Author');
@@ -575,7 +579,7 @@ describe('BB-LCOL-23: Leaving a lesson leaves the plain editor, and starting one
 describe('BB-LCOL-24: Focus on the Scene list scrolls it under the card, and a new lesson starts at the top', () => {
   it('scrolls the Scene list under the card when Back returns to its step', async () => {
     startLesson('transforms-demo-1');
-    const host = mount(h(EditorColumn, {}));
+    const host = mount(lessonEditor());
     try {
       await settle();
       buttonNamed(host, 'Next')!.click();
@@ -583,25 +587,23 @@ describe('BB-LCOL-24: Focus on the Scene list scrolls it under the card, and a n
       expect(useVamsStore.getState().lessonFocusPanel).toBe('object-transform');
       const root = host.querySelector<HTMLElement>('[data-scroll-root]')!;
       const list = host.querySelector<HTMLElement>('[data-panel-id="scene-hierarchy"]')!;
-      const head = host.querySelector<HTMLElement>('.editor-column__head')!;
-      // The column is scrolled 400px down, the list sits 200px above the column's top, and the card is 120px tall.
+      // The column is scrolled 400px down and the list sits 200px above the column's top.
       root.getBoundingClientRect = () => ({ top: 50 } as DOMRect);
       list.getBoundingClientRect = () => ({ top: -150 } as DOMRect);
-      Object.defineProperty(head, 'offsetHeight', { configurable: true, get: () => 120 });
       const writes: number[] = [];
       Object.defineProperty(root, 'scrollTop', { configurable: true, get: () => 400, set: (v: number) => writes.push(v) });
       buttonNamed(host, 'Back')!.click();
       await settle();
       expect(useVamsStore.getState().lessonFocusPanel).toBe('scene-hierarchy');
-      // The column comes to rest with the list just under the card.
-      expect(writes.at(-1)).toBe(400 - 200 - 120 - 8);
+      // The column comes to rest with the list at its top.
+      expect(writes.at(-1)).toBe(400 - 200 - 8);
     } finally {
       unmount(host);
     }
   });
 
   it('resets the column to the top when a lesson starts', async () => {
-    const host = mount(h(EditorColumn, {}));
+    const host = mount(lessonEditor());
     try {
       await settle();
       const root = host.querySelector<HTMLElement>('[data-scroll-root]')!;
@@ -614,5 +616,102 @@ describe('BB-LCOL-24: Focus on the Scene list scrolls it under the card, and a n
     } finally {
       unmount(host);
     }
+  });
+});
+
+describe('BB-LCOL-25: The task line waits for the student and says Done when the step passes', () => {
+  it('falls back to "Waiting for you", shows the step’s task, and turns to Done', async () => {
+    const lesson = LESSON_REGISTRY['transforms-exercise-1'];
+    const original = lesson.steps[0].task;
+    try {
+      startLesson('transforms-exercise-1');
+      let host = mount(h(LessonBar, {}));
+      await settle();
+      expect(host.querySelector('.lesson-bar__task')!.textContent).toBe('Waiting for you');
+      expect(host.querySelector('.lesson-bar__task')!.classList.contains('is-done')).toBe(false);
+      unmount(host);
+      useVamsStore.getState().clearLessonState();
+      useVamsStore.setState({ appMode: 'Author' });
+
+      lesson.steps[0].task = 'Move the triangle to (0.5, −0.3)';
+      startLesson('transforms-exercise-1');
+      host = mount(h(LessonBar, {}));
+      await settle();
+      expect(host.querySelector('.lesson-bar__task')!.textContent).toBe('Move the triangle to (0.5, −0.3)');
+      const id = useVamsStore.getState().objects[0].id;
+      useVamsStore.getState().updateObjectTransform(id, { translateX: 0.5, translateY: -0.3 });
+      await settle();
+      const task = host.querySelector('.lesson-bar__task')!;
+      expect(task.classList.contains('is-done')).toBe(true);
+      expect(task.textContent).toBe('Done · Move the triangle to (0.5, −0.3)');
+      unmount(host);
+    } finally {
+      lesson.steps[0].task = original;
+    }
+  });
+});
+
+describe('BB-LCOL-26: Folding leaves a strip with the title, the step and Next; a new step unfolds it', () => {
+  it('folds, keeps Next working, and unfolds on the next step', async () => {
+    startLesson('transforms-demo-1');
+    const host = mount(h(LessonBar, {}));
+    await settle();
+    (host.querySelector('button[aria-label="Fold lesson"]') as HTMLButtonElement).click();
+    await settle();
+    expect(host.querySelector('.lesson-bar')!.classList.contains('is-folded')).toBe(true);
+    expect(host.querySelector('.lesson-bar__narration')).toBeNull();
+    expect(host.querySelector('.lesson-bar__step')!.textContent).toBe('Step 1 of 5');
+    expect(host.querySelector('button[aria-label="Unfold lesson"]')).not.toBeNull();
+    buttonNamed(host, 'Next')!.click();
+    await settle();
+    expect(host.querySelector('.lesson-bar')!.classList.contains('is-folded')).toBe(false);
+    expect(host.querySelector('.lesson-bar__narration')!.textContent).toContain('Translate moves the shape');
+    unmount(host);
+  });
+});
+
+describe('BB-LCOL-27: Pipeline lessons switch the canvas view from the bar', () => {
+  it('shows the viewport modes as a radiogroup under the narration', async () => {
+    const pipeline = Object.values(LESSON_REGISTRY).find((l) => l.section === 'Pipeline' && l.type === 'demo')!;
+    startLesson(pipeline.id, 'Pipeline');
+    const host = mount(h(LessonBar, {}));
+    await settle();
+    const modes = host.querySelector('.lesson-bar__modes [role="radiogroup"]')!;
+    expect(modes.getAttribute('aria-label')).toBe('Viewport mode');
+    expect([...modes.querySelectorAll('[role="radio"]')].map((r) => r.textContent)).toEqual(['Diagram', 'Raster vs vector', 'Playground']);
+    (modes.querySelector('[role="radio"]') as HTMLButtonElement).click();
+    expect(useVamsStore.getState().pipelineMode).toBe('Diagram');
+    unmount(host);
+    useVamsStore.setState({ pipelineMode: 'Playground' });
+  });
+});
+
+describe('BB-LCOL-28: Quiz rows stay plain and still pass and fail as before', () => {
+  it('letters each option, keeps a wrong answer clickable, and enables Next on the right one', async () => {
+    // A lesson without a shuffled range, so the registry's step index is the runner's.
+    const lesson = Object.values(LESSON_REGISTRY).find(
+      (l) => !l.shuffleRange && l.steps.some((s) => s.exercise?.kind === 'multiple-choice'),
+    )!;
+    const stepIndex = lesson.steps.findIndex((s) => s.exercise?.kind === 'multiple-choice');
+    const exercise = lesson.steps[stepIndex].exercise as Extract<NonNullable<typeof lesson.steps[number]['exercise']>, { kind: 'multiple-choice' }>;
+    useVamsStore.setState({ activeSection: lesson.section });
+    useVamsStore.getState().setActiveLesson(lesson.id);
+    useVamsStore.getState().setAppMode('Lesson');
+    useVamsStore.getState().setCurrentStep(stepIndex);
+    const host = mount(h(LessonBar, {}));
+    await settle();
+    const options = [...host.querySelectorAll<HTMLButtonElement>('.mc-option')];
+    expect(options.map((o) => o.querySelector('.opt-letter')!.textContent)).toEqual(options.map((_, i) => String.fromCharCode(65 + i)));
+    const wrong = options.find((o) => o.querySelector('.opt-label')!.textContent !== exercise.options.find((x) => x.id === exercise.correctId)!.label)!;
+    wrong.click();
+    await settle();
+    expect(wrong.classList.contains('wrong')).toBe(true);
+    expect(wrong.disabled).toBe(false);
+    const right = options.find((o) => o.querySelector('.opt-label')!.textContent === exercise.options.find((x) => x.id === exercise.correctId)!.label)!;
+    right.click();
+    await settle();
+    expect(right.classList.contains('correct')).toBe(true);
+    expect((buttonNamed(host, 'Next') ?? buttonNamed(host, 'Finish'))!.disabled).toBe(false);
+    unmount(host);
   });
 });

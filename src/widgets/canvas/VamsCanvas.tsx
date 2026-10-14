@@ -6,6 +6,7 @@ import { useSceneRenderer } from '@/shared/engine/pixi/hooks/useSceneRenderer';
 import { useCustomShapePreview } from '@/features/custom-shapes/model/useCustomShapePreview';
 import { useGridSystem } from '@/shared/engine/pixi/hooks/useGridSystem';
 import { runController } from '@/features/callbacks';
+import { observeResize } from '@/shared/engine/observe-resize';
 import { CanvasOverlays } from './ui/CanvasOverlays';
 import './vams-canvas.scss';
 
@@ -47,6 +48,14 @@ export default function VamsCanvas({ isHidden = false }: VamsCanvasProps) {
       runController.cleanup();
     };
   }, [setCursorWorld]);
+
+  // PixiJS, the grid and the viewport transform listen for window resizes. The canvas box also
+  // changes when a panel hides or the lesson bar grows, so pass those changes on the same way.
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    return observeResize(el, () => window.dispatchEvent(new Event('resize')));
+  }, []);
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (isHidden) return;

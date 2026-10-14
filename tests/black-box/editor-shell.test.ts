@@ -748,3 +748,31 @@ describe('BB-SHELL-30: The rail and the code column are never saved', () => {
     useVamsStore.setState({ codePane: 'code', codeHidden: false });
   });
 });
+
+describe('BB-SHELL-31: The canvas follows its box when the layout around it changes', () => {
+  it('reports every size change of the observed element and stops on cleanup', async () => {
+    const { observeResize } = await import('@/shared/engine/observe-resize');
+    const RealObserver = globalThis.ResizeObserver;
+    let callback: ResizeObserverCallback = () => {};
+    const disconnect = vi.fn();
+    globalThis.ResizeObserver = class {
+      constructor(cb: ResizeObserverCallback) { callback = cb; }
+      observe() {}
+      unobserve() {}
+      disconnect() { disconnect(); }
+    } as unknown as typeof ResizeObserver;
+    try {
+      const onResize = vi.fn();
+      const stop = observeResize(document.createElement('div'), onResize);
+      callback([], {} as ResizeObserver);
+      callback([], {} as ResizeObserver);
+      expect(onResize).toHaveBeenCalledTimes(2);
+      stop();
+      expect(disconnect).toHaveBeenCalledTimes(1);
+    } finally {
+      globalThis.ResizeObserver = RealObserver;
+    }
+    const { readFileSync } = await import('node:fs');
+    expect(readFileSync('src/widgets/canvas/VamsCanvas.tsx', 'utf8')).toContain('observeResize(');
+  });
+});

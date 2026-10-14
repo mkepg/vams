@@ -23,11 +23,19 @@
     position: relative;
     grid-row: 2;
     grid-column: 2;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
     min-width: 0;
     min-height: 0;
     background-color: rgba(var(--well-rgb), 0.5);
-    // Keeps the canvas overlays' z-indexes (the pipeline diagram uses 100) inside the canvas,
-    // so the drawer and the menus always sit above them.
+  }
+
+  // The canvas and its overlays. Keeps their z-indexes (the pipeline diagram uses 100) inside the
+  // canvas, so the drawer, the lesson bar and the menus always sit above them.
+  &__stage {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
     isolation: isolate;
   }
 

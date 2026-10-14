@@ -4,6 +4,7 @@ import { EditorColumn } from '@/widgets/layout/editor-column';
 import CodeMathColumn from '@/widgets/layout/code-math-column';
 import ViewportRouter from '@/widgets/canvas/ViewportRouter';
 import { MyScenesDialog } from '@/features/scene-library';
+import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import LearnDrawer from '@/features/lesson-engine/ui/LearnDrawer';
 import { useRecordLessonOnLeave } from '@/features/lesson-engine/model/record-on-leave';
 import HelpCenter from '@/features/help/ui/HelpCenter';
@@ -37,6 +38,7 @@ export default function EditorApp() {
       topBar={<TopBar />}
       column={<EditorColumn />}
       canvas={<ViewportRouter />}
+      lessonBar={<LessonBar />}
       codeMath={<CodeMathColumn />}
       overlays={
         <>
