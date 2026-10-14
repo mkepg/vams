@@ -811,3 +811,54 @@ describe('BB-PANEL-33: A sample replaces the scene after backing it up, and show
     }
   });
 });
+
+describe('BB-PANEL-34: The Scene toolbar selects several, groups, duplicates and deletes', () => {
+  it('names its four actions and enables each when it can act', async () => {
+    const a = addTriangle();
+    const b = addQuad();
+    const host = mount(h(SceneHierarchyPanel, {}));
+    await settle();
+    const toolbar = host.querySelector('[role="toolbar"]')!;
+    expect(toolbar.getAttribute('aria-label')).toBe('Scene');
+    const named = (name: string) =>
+      [...toolbar.querySelectorAll('button')].find((x) => (x.getAttribute('aria-label') ?? x.textContent?.trim()) === name) as HTMLButtonElement;
+    expect(named('Select several').getAttribute('aria-pressed')).toBe('false');
+    expect(named('Group').disabled).toBe(true);
+    select(b.id);
+    await settle();
+    expect(named('Duplicate').disabled).toBe(false);
+    named('Duplicate').click();
+    await settle();
+    expect(useVamsStore.getState().objects).toHaveLength(3);
+    const copy = useVamsStore.getState().selectedObjectId!;
+    named('Delete').click();
+    await settle();
+    expect(useVamsStore.getState().objects.some((o) => o.id === copy)).toBe(false);
+    named('Select several').click();
+    await settle();
+    expect(named('Select several').getAttribute('aria-pressed')).toBe('true');
+    expect(named('Duplicate').disabled).toBe(true);
+    for (const id of [a.id, b.id]) {
+      (host.querySelector(`[data-object-id="${id}"] .tree-item`) as HTMLElement).click();
+      await settle();
+    }
+    expect(named('Group').disabled).toBe(false);
+    named('Group').click();
+    await settle();
+    expect(useVamsStore.getState().objects.some((o) => o.type === 'GROUP')).toBe(true);
+    expect(named('Select several').getAttribute('aria-pressed')).toBe('false');
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-35: The scene list stops at about six rows and scrolls on its own', () => {
+  it('caps the tree’s height inside the Scene panel', async () => {
+    const { readFileSync } = await import('node:fs');
+    const scss = readFileSync('src/widgets/layout/editor-column/editor-column.scss', 'utf8');
+    const start = scss.indexOf('.scene-panel__list .tree-root');
+    expect(start).toBeGreaterThan(-1);
+    const rule = scss.slice(start, scss.indexOf('}', start));
+    expect(rule).toMatch(/max-height:\s*calc\(6 \* 31px\)/);
+    expect(rule).toMatch(/overflow-y:\s*auto/);
+  });
+});

@@ -206,3 +206,9 @@
     }
   }
 }
+
+// About six rows; a longer scene scrolls inside the list, so the inspector stays in view.
+.scene-panel__list .tree-root {
+  max-height: calc(6 * 31px);
+  overflow-y: auto;
+}

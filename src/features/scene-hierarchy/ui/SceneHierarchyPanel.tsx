@@ -3,7 +3,7 @@ import './scene-hierarchy-groups.scss';
 import { useState, useEffect, useId, useLayoutEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import {
-  Layers, Shapes, Type, Eye, EyeOff, Copy, Trash2,
+  Layers, ListChecks, Shapes, Type, Eye, EyeOff, Copy, Trash2,
   FolderOpen, Folder, FolderX, Edit3, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { useVamsStore } from "@/core/store";
@@ -439,30 +439,49 @@ export default function SceneHierarchyPanel() {
     );
   };
   return (
-    <CollapsibleSection panelId="scene-hierarchy" title="Scene Hierarchy" icon={<Layers size={14} />} defaultOpen={true}>
-      <div className="group-controls">
+    <CollapsibleSection panelId="scene-hierarchy" title="Scene Hierarchy" titleHidden icon={<Layers size={14} />} defaultOpen={true}>
+      <div className="scene-toolbar" role="toolbar" aria-label="Scene">
         <Button
           variant="quiet"
-          className={isMultiSelectMode ? 'active' : undefined}
-          title="Multi-Select Mode"
+          className="scene-toolbar__several"
+          icon={<ListChecks size={14} />}
+          aria-pressed={isMultiSelectMode}
+          title="Pick several objects to group them"
           onClick={() => {
             setIsMultiSelectMode(!isMultiSelectMode);
             setSelectedObjects(new Set());
           }}
         >
-          {isMultiSelectMode ? 'Cancel Selection' : 'Multi-Select'}
+          Select several
         </Button>
-        {isMultiSelectMode && (
-          <Button
-            variant="quiet"
-            icon={<Folder size={14} />}
-            onClick={handleCreateGroup}
-            disabled={selectedObjects.size < 2}
-            title="Create Group"
-          >
-            Group ({selectedObjects.size})
-          </Button>
-        )}
+        <Button
+          variant="quiet"
+          icon={<Folder size={14} />}
+          disabled={!isMultiSelectMode || selectedObjects.size < 2}
+          title={isMultiSelectMode ? `Group ${selectedObjects.size} objects` : 'Select several objects to group them'}
+          onClick={handleCreateGroup}
+        >
+          Group
+        </Button>
+        <Button
+          variant="quiet"
+          iconOnly
+          label="Duplicate"
+          icon={<Copy size={14} />}
+          disabled={isMultiSelectMode || !selectedObjectId}
+          onClick={() => selectedObjectId && duplicateObject(selectedObjectId)}
+        />
+        <Button
+          variant="quiet"
+          iconOnly
+          label="Delete"
+          icon={<Trash2 size={14} />}
+          disabled={isMultiSelectMode || !selectedObjectId}
+          onClick={() => {
+            const target = objects.find((o) => o.id === selectedObjectId);
+            if (target) deleteWithUndo(target.id, target.type === 'GROUP');
+          }}
+        />
       </div>
       {rootObjects.length === 0 ? (
         <p className="empty-msg">Scene is empty</p>
