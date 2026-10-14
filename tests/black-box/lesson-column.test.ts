@@ -715,3 +715,21 @@ describe('BB-LCOL-28: Quiz rows stay plain and still pass and fail as before', (
     unmount(host);
   });
 });
+
+describe('BB-LCOL-31: Next on the folded strip keeps keyboard focus when the bar unfolds', () => {
+  it('moves focus to the unfolded bar’s Next button', async () => {
+    startLesson('transforms-demo-1');
+    const host = mount(h(LessonBar, {}));
+    await settle();
+    (host.querySelector('button[aria-label="Fold lesson"]') as HTMLButtonElement).click();
+    await settle();
+    const folded = buttonNamed(host, 'Next')!;
+    folded.focus();
+    expect(document.activeElement).toBe(folded);
+    folded.click();
+    await settle();
+    expect(host.querySelector('.lesson-bar')!.classList.contains('is-folded')).toBe(false);
+    expect(document.activeElement).toBe(buttonNamed(host, 'Next'));
+    unmount(host);
+  });
+});

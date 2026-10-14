@@ -60,6 +60,19 @@ function LessonBarBody() {
     if (!active || active === document.body || !active.isConnected || active.closest('.learn-trigger')) titleRef.current?.focus();
   }, [lessonId]);
 
+  // Next sits in the strip when folded and in the nav row when unfolded, so it remounts when a new
+  // step unfolds the bar. Pressing it on the strip hands focus to the unfolded bar's Next.
+  const refocusNext = useRef(false);
+  useLayoutEffect(() => {
+    if (!refocusNext.current) return;
+    refocusNext.current = false;
+    const active = document.activeElement;
+    if (active && active !== document.body && active.isConnected) return;
+    const bar = titleRef.current?.closest('.lesson-bar');
+    const button = bar?.querySelector<HTMLButtonElement>('.lesson-bar__next:not(:disabled)');
+    (button ?? titleRef.current)?.focus();
+  }, [stepKey]);
+
   if (!runner.active || !runner.lesson || !runner.step) return null;
   const { lesson, step, stepIndex, stepCount, isLastStep, canAdvance } = runner;
   const width = `${((stepIndex + 1) / stepCount) * 100}%`;
@@ -83,7 +96,10 @@ function LessonBarBody() {
       icon={isLastStep ? <CheckCircle2 /> : <ChevronRight />}
       title={isLastStep ? 'Finish lesson' : 'Next step (→)'}
       disabled={!canAdvance}
-      onClick={isLastStep ? runner.finish : runner.next}
+      onClick={() => {
+        refocusNext.current = folded;
+        (isLastStep ? runner.finish : runner.next)();
+      }}
     >
       {isLastStep ? 'Finish' : 'Next'}
     </Button>
