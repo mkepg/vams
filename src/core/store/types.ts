@@ -217,6 +217,29 @@ export interface CallbacksSlice {
   setReshapeMode: (mode: ResizeMode) => void;
   getRegisteredCallbacks: () => CallbackRegistration[];
 }
+/** What a tour step's check compares against, captured when the step opens. */
+export interface TourBaseline {
+  /** The objects that existed when the Build step opened; a shape not in this list was built during the tour. */
+  buildIds: string[];
+  /** The object the Change step watches, and its Translate X when that step opened. */
+  objectId: string | null;
+  translateX: number | null;
+}
+
+/** The first-visit tour. Session-only: none of it is saved, so a reload ends the tour. */
+export interface TourSlice {
+  /** The open step, 0 to 5, or null when no tour runs. */
+  tourStep: number | null;
+  /** The rail panel shown before the tour, given back when it ends. */
+  railBeforeTour: RailPanel | null;
+  tourStepBaseline: TourBaseline | null;
+  startTour: () => void;
+  nextTourStep: () => void;
+  prevTourStep: () => void;
+  /** Ends the tour. The rail returns to its panel from before the tour unless `restoreRail` is false. */
+  endTour: (options?: { restoreRail?: boolean }) => void;
+}
+
 export interface HelpSlice {
   isHelpOpen: boolean;
   /** Opaque topic id (a HelpTopicId from the help feature); null until resolved. */
@@ -243,4 +266,5 @@ export type VamsState = SceneSlice &
   LessonSlice &
   CallbacksSlice &
   HelpSlice &
+  TourSlice &
   import('./texture-slice').TextureSlice;

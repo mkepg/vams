@@ -123,3 +123,17 @@ export function isCatalogLesson(id: unknown): id is string {
 export function lessonHref(id: string): string {
   return `/app?lesson=${encodeURIComponent(id)}`;
 }
+
+/** Every lesson in course order: the sections in pipeline order, each section's demos before its exercises. */
+export function courseOrder(): LessonEntry[] {
+  return COURSE.flatMap(({ section }) => {
+    const { demos, exercises } = catalogFor(section);
+    return [...demos, ...exercises];
+  });
+}
+
+/** The first lesson in course order the student has not completed, or the course's first lesson once all are done. */
+export function firstLessonToStudy(completed: readonly string[]): string {
+  const order = courseOrder();
+  return (order.find((lesson) => !completed.includes(lesson.id)) ?? order[0]).id;
+}
