@@ -51,6 +51,13 @@ const boxOf = (el: Element): Box => {
   return { left: r.left, top: r.top, width: r.width, height: r.height };
 };
 
+const sameBox = (a: Box, b: Box) => a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height;
+const sameLayout = (a: { boxes: Box[]; viewport: Size }, b: { boxes: Box[]; viewport: Size }) =>
+  a.viewport.width === b.viewport.width &&
+  a.viewport.height === b.viewport.height &&
+  a.boxes.length === b.boxes.length &&
+  a.boxes.every((box, i) => sameBox(box, b.boxes[i]));
+
 /** The first-visit tour: a spotlight on one region of the editor at a time, with a callout beside it. */
 export default function FirstVisitTour(props: FirstVisitTourProps) {
   const tourStep = useVamsStore((s) => s.tourStep);
@@ -70,6 +77,8 @@ function TourLayer({ run, codeName, startLearning, index }: FirstVisitTourProps 
   const interactionMode = useVamsStore((s) => s.interactionMode);
   const codePane = useVamsStore((s) => s.codePane);
   const baseline = useVamsStore((s) => s.tourStepBaseline);
+  const railHidden = useVamsStore((s) => s.railHidden);
+  const railPanel = useVamsStore((s) => s.railPanel);
   const setRailHidden = useVamsStore((s) => s.setRailHidden);
   const [spun, setSpun] = useState(false);
   const [layout, setLayout] = useState<{ boxes: Box[]; viewport: Size }>({ boxes: [], viewport: { width: 0, height: 0 } });
@@ -120,11 +129,14 @@ function TourLayer({ run, codeName, startLearning, index }: FirstVisitTourProps 
     return inertOutside(findAnchors(step.anchors), [layer]);
   }, [step, lifted]);
 
-  // The cut-outs follow the regions as they move or change size.
+  // The cut-outs follow the regions as they move or change size. The drawer opening or the panel changing
+  // moves a region even when no transition runs (reduced motion), so those re-measure too.
   useLayoutEffect(() => {
     const els = findAnchors(step.anchors);
-    const measure = () =>
-      setLayout({ boxes: els.map(boxOf), viewport: { width: window.innerWidth, height: window.innerHeight } });
+    const measure = () => {
+      const next = { boxes: els.map(boxOf), viewport: { width: window.innerWidth, height: window.innerHeight } };
+      setLayout((prev) => (sameLayout(prev, next) ? prev : next));
+    };
     measure();
     const stops = els.map((el) => observeResize(el, measure));
     window.addEventListener('resize', measure);
@@ -137,7 +149,7 @@ function TourLayer({ run, codeName, startLearning, index }: FirstVisitTourProps 
       stops.forEach((stop) => stop());
       window.removeEventListener('resize', measure);
     };
-  }, [step, running]);
+  }, [step, running, railHidden, railPanel]);
 
   useLayoutEffect(() => {
     const el = calloutRef.current;

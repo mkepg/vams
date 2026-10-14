@@ -801,3 +801,27 @@ describe('BB-TOUR-16: Moving on cancels a shape the lesson or page left pending'
     getState().endTour();
   });
 });
+
+describe('BB-TOUR-17: The spotlight follows the drawer when it opens without a transition', () => {
+  it('re-measures when railHidden changes, with no transitionend', async () => {
+    const editor = fakeEditor();
+    const panel = editor.querySelector<HTMLElement>('[data-tour-anchor="panel"]')!;
+    const rect = (left: number) => ({ left, top: 44, width: 272, height: 700, right: left + 272, bottom: 744, x: left, y: 44, toJSON: () => ({}) }) as DOMRect;
+    // The panel sits offscreen while the rail is hidden and in place once it is open, with no transition between.
+    panel.getBoundingClientRect = () => rect(getState().railHidden ? -208 : 64);
+    getState().startTour();
+    useVamsStore.setState({ railHidden: true });
+    const { host } = mountTour();
+    await settle();
+    const outline = () => document.querySelectorAll<HTMLElement>('.tour__outline')[1];
+    useVamsStore.setState({ railHidden: true });
+    await settle();
+    expect(outline().style.left).toBe('-208px');
+    useVamsStore.setState({ railHidden: false });
+    await settle();
+    expect(outline().style.left).toBe('64px');
+    getState().endTour();
+    unmount(host);
+    editor.remove();
+  });
+});
