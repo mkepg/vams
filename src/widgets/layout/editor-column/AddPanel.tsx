@@ -1,4 +1,6 @@
 import { useVamsStore } from '@/core/store';
+import { PRESET_LINKS } from '@/entities/project/model/preset-links';
+import { openPreset } from '@/features/scene-library';
 import CustomShapeBuilderPanel from '@/features/custom-shapes/ui/CustomShapeBuilderPanel';
 import TextNodePanel from '@/features/text-nodes/ui/TextNodePanel';
 import { PanelLayoutContext } from '@/shared/ui/controls';
@@ -17,6 +19,16 @@ export default function AddPanel() {
         <div className="rail-panel__body" data-scroll-root>
           <CustomShapeBuilderPanel />
           <TextNodePanel />
+          <section className="add-samples" aria-labelledby="add-samples-title">
+            <h3 id="add-samples-title" className="add-samples__title">Or start from a sample</h3>
+            <div className="add-samples__list">
+              {PRESET_LINKS.map((preset) => (
+                <button key={preset.slug} type="button" className="add-samples__item" onClick={() => void openPreset(preset.slug)}>
+                  {preset.title}
+                </button>
+              ))}
+            </div>
+          </section>
         </div>
       </section>
     </PanelLayoutContext.Provider>

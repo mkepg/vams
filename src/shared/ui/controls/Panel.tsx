@@ -14,9 +14,11 @@ export interface PanelProps {
   /** Mono GL call shown at the right of the header, e.g. `glLineStipple`. */
   hint?: string;
   className?: string;
+  /** Embedded only: keep the heading for screen readers, but do not show it (the panel around it already names it). */
+  titleHidden?: boolean;
 }
 
-export function Panel({ title, icon, children, defaultOpen = false, panelId, hint, className }: PanelProps) {
+export function Panel({ title, icon, children, defaultOpen = false, panelId, hint, className, titleHidden = false }: PanelProps) {
   const { mode, focusPanelId, embedded = false } = useContext(PanelLayoutContext);
   const isFocus = mode === 'lesson' && !!panelId && panelId === focusPanelId;
   const [open, setOpen] = useState(() => (mode === 'lesson' ? isFocus : defaultOpen));
@@ -48,7 +50,7 @@ export function Panel({ title, icon, children, defaultOpen = false, panelId, hin
     const flat = ['vpanel', 'vpanel--embedded', isFocus ? 'is-lesson-focus' : '', className ?? ''].filter(Boolean).join(' ');
     return (
       <section ref={sectionRef} className={flat} data-panel-id={panelId} aria-labelledby={titleId}>
-        <h4 id={titleId} className="vpanel__subhead">
+        <h4 id={titleId} className={titleHidden ? 'vpanel__subhead sr-only' : 'vpanel__subhead'}>
           <span className="vpanel__title">{title}</span>
           {hint && <code className="vpanel__hint" aria-hidden="true">{hint}</code>}
         </h4>

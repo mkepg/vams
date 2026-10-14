@@ -1,29 +1,5 @@
 @use '../../../shared/styles/tokens' as *;
 
-.add-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-
-  &__item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-height: var(--control-h);
-    padding: 0 8px;
-    border: 1px solid var(--rule);
-    border-radius: var(--radius-s);
-    background: var(--field-bg);
-    color: var(--ink);
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    text-align: left;
-    &:hover { border-color: var(--ink-faint); }
-  }
-  &__icon { display: inline-flex; color: var(--ink-muted); svg { width: 14px; height: 14px; } }
-  .add-row__more { grid-column: 1 / -1; justify-content: center; }
-}
-
 .vertex-shape-builder {
   display: flex;
   flex-direction: column;

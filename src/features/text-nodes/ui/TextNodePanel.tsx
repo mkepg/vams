@@ -13,7 +13,7 @@ export default function TextNodePanel() {
     setTextInput('');
   };
   return (
-    <CollapsibleSection panelId="text-node-panel" title="Create Text" icon={<Type size={14} />} defaultOpen={true}>
+    <CollapsibleSection panelId="text-node-panel" title="Text" icon={<Type size={14} />} defaultOpen={true}>
       <div className="text-objects-section">
         <div className="text-create">
           <span className="vfield-label">Create New Text</span>

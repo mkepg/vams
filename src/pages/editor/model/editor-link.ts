@@ -1,9 +1,9 @@
 import { toast } from 'sonner';
 import { useVamsStore } from '@/core/store';
-import { getPreset, isPresetSlug } from '@/entities/project/model/scene-presets';
+import { isPresetSlug } from '@/entities/project/model/scene-presets';
 import { getLessonById } from '@/features/lesson-engine/model/lesson-registry';
 import { recordLessonLeft } from '@/features/lesson-engine/model/progress';
-import { backupLabel, replaceScene } from '@/features/scene-library';
+import { openPreset } from '@/features/scene-library';
 
 /** What a /app URL asks the editor to open: ?lesson=<id> or ?scene=<slug>. */
 export type EditorLink =
@@ -80,21 +80,5 @@ export async function applyEditorLink(link: EditorLink, deps: ApplyDeps): Promis
     return;
   }
 
-  const preset = getPreset(link.slug);
-  if (!preset) return;
-  try {
-    const { backedUp } = await replaceScene(preset.data, { reason: 'scene-link', label: backupLabel(preset.title) });
-    useVamsStore.getState().setActiveSection(preset.section);
-    if (backedUp) {
-      toast.success(`Opened ‘${preset.title}’`, {
-        description: 'Your previous scene is in My scenes.',
-        action: { label: 'My scenes', onClick: deps.openLibrary },
-      });
-    } else {
-      toast.success(`Opened ‘${preset.title}’`);
-    }
-  } catch (error) {
-    console.error(error);
-    toast.error(`Couldn't keep a backup of your current scene, so ‘${preset.title}’ was not opened.`);
-  }
+  await openPreset(link.slug, { openLibrary: deps.openLibrary });
 }

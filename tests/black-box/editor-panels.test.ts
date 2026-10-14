@@ -22,8 +22,9 @@ import UVEditorPanel from '@/features/textures/ui/UVEditorPanel';
 import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
 import { getPreset } from '@/entities/project/model/scene-presets';
 import { loadProjectData } from '@/features/scene-library';
+import { createMemoryLibrary, getSceneLibrary, setSceneLibraryForTests } from '@/entities/project/model/scene-library';
 import { MAX_RULES } from '@/core/callbacks/callbacks-model';
-import { CallbacksRailPanel, ScenePanel, SettingsPanel } from '@/widgets/layout/editor-column';
+import { AddPanel, CallbacksRailPanel, ScenePanel, SettingsPanel } from '@/widgets/layout/editor-column';
 import { DEFAULT_OPEN_GROUPS } from '@/core/inspector';
 import { addPrimitive, addQuad, addTriangle } from '../helpers/store';
 
@@ -161,22 +162,25 @@ describe('BB-PANEL-06: Scene Hierarchy is a keyboard-navigable tree', () => {
   });
 });
 
-describe('BB-PANEL-07: The Add row names every primitive and starts placement', () => {
-  it('shows four primitives, keeps the rest in More, and shows the vertex table hint while building', async () => {
+describe('BB-PANEL-07: The Add tiles name every primitive and start placement', () => {
+  it('shows ten tiles with GL names and no More menu, and a tile starts placing its primitive', async () => {
     const host = mount(h(CustomShapeBuilderPanel, {}));
-    const row = [...host.querySelectorAll('.add-row__item')].map((b) => b.textContent?.trim());
-    expect(row).toEqual(['GL_POINTS', 'GL_LINES', 'GL_TRIANGLES', 'GL_QUADS']);
-    (host.querySelector('.add-row__more') as HTMLButtonElement).click();
     await settle();
-    const more = [...host.querySelectorAll('[role^="menuitem"] .vmenu__label')].map((el) => el.textContent);
-    expect(more).toEqual(['GL_LINE_STRIP', 'GL_LINE_LOOP', 'GL_TRIANGLE_STRIP', 'GL_TRIANGLE_FAN', 'GL_QUAD_STRIP', 'GL_POLYGON']);
-    key(document.activeElement!, 'Escape');
+    const tiles = [...host.querySelectorAll<HTMLButtonElement>('.primitive-tile')];
+    expect(tiles.map((t) => t.querySelector('.primitive-tile__gl')!.textContent)).toEqual([
+      'GL_POINTS', 'GL_LINES', 'GL_LINE_STRIP', 'GL_LINE_LOOP',
+      'GL_TRIANGLES', 'GL_TRIANGLE_STRIP', 'GL_TRIANGLE_FAN',
+      'GL_QUADS', 'GL_QUAD_STRIP', 'GL_POLYGON',
+    ]);
+    expect(host.querySelector('[aria-haspopup="menu"]')).toBeNull();
+    tiles[4].click();
     await settle();
-    ([...host.querySelectorAll('.add-row__item')].find((b) => b.textContent?.trim() === 'GL_TRIANGLES') as HTMLButtonElement).click();
-    await settle();
-    expect(useVamsStore.getState().pendingShapeType).toBe('TRIANGLES');
-    expect(hints(host)).toContain('glVertex2f(x, y)');
-    useVamsStore.getState().cancelCustomShape();
+    const s = useVamsStore.getState();
+    expect(s.pendingShapeType).toBe('TRIANGLES');
+    expect(s.interactionMode).toBe('VERTEX_PLACE');
+    expect(host.querySelector('.primitive-tile')).toBeNull();
+    expect(host.querySelector('.vertex-shape-builder')).not.toBeNull();
+    s.cancelCustomShape();
     unmount(host);
   });
 });
@@ -739,5 +743,58 @@ describe('BB-PANEL-31: The Callbacks panel lists the six callbacks and points to
     expect(host.querySelector('.cb-try')).toBeNull();
     expect(host.querySelector('[data-panel-id="callbacks-panel"]')).not.toBeNull();
     unmount(host);
+  });
+});
+
+describe('BB-PANEL-32: The Add panel groups the primitives, then Text, then the samples', () => {
+  it('lays out three groups of drawn tiles with their hints, Text, and four samples', async () => {
+    const host = mount(h(AddPanel, {}));
+    await settle();
+    expect(host.querySelector('.rail-panel__hint')!.textContent)
+      .toBe('Pick a shape, then click the canvas to place its vertices. Enter finishes.');
+    const groups = [...host.querySelectorAll('.primitive-tiles__group')];
+    expect(groups.map((g) => g.querySelector('.primitive-tiles__title')!.textContent))
+      .toEqual(['Points and lines', 'Triangles', 'Quads and polygons']);
+    expect(groups.map((g) => [...g.querySelectorAll('.primitive-tile__name')].map((n) => n.textContent))).toEqual([
+      ['Points', 'Lines', 'Line strip', 'Line loop'],
+      ['Triangles', 'Triangle strip', 'Triangle fan'],
+      ['Quads', 'Quad strip', 'Polygon'],
+    ]);
+    const triangles = [...host.querySelectorAll('.primitive-tile')].find((t) => t.querySelector('.primitive-tile__name')!.textContent === 'Triangles')!;
+    expect(triangles.getAttribute('title')).toBe('Click groups of 3 — each triple forms one triangle.');
+    for (const tile of host.querySelectorAll('.primitive-tile')) expect(tile.querySelector('svg')).not.toBeNull();
+    expect(host.querySelector('[data-panel-id="text-node-panel"]')).not.toBeNull();
+    expect(host.querySelector('.add-samples__title')!.textContent).toBe('Or start from a sample');
+    expect([...host.querySelectorAll('.add-samples__item')].map((b) => b.textContent))
+      .toEqual(['Triangle', 'Transforms', 'Primitives tour', 'Textured quad']);
+    (host.querySelector('.primitive-tile') as HTMLButtonElement).click();
+    await settle();
+    expect(host.querySelector('.primitive-tiles')).toBeNull();
+    expect(host.querySelector('.vertex-shape-builder')).not.toBeNull();
+    useVamsStore.getState().cancelCustomShape();
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-33: A sample replaces the scene after backing it up, and shows Scene', () => {
+  it('keeps the current scene in My scenes, loads the sample and switches the rail', async () => {
+    setSceneLibraryForTests(createMemoryLibrary());
+    try {
+      addTriangle();
+      useVamsStore.setState({ railPanel: 'add' });
+      const host = mount(h(AddPanel, {}));
+      await settle();
+      const sample = [...host.querySelectorAll<HTMLButtonElement>('.add-samples__item')].find((b) => b.textContent === 'Primitives tour')!;
+      sample.click();
+      for (let i = 0; i < 10 && useVamsStore.getState().railPanel !== 'scene'; i++) await settle();
+      expect(useVamsStore.getState().railPanel).toBe('scene');
+      expect(useVamsStore.getState().objects).toHaveLength(getPreset('primitives')!.data.objects.length);
+      expect(useVamsStore.getState().activeSection).toBe('Primitives');
+      const entries = await (await getSceneLibrary()).list();
+      expect(entries.some((e) => e.kind === 'backup' && e.name === 'Before opening ‘Primitives tour’')).toBe(true);
+      unmount(host);
+    } finally {
+      setSceneLibraryForTests(null);
+    }
   });
 });

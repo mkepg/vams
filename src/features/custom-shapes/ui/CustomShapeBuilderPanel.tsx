@@ -1,111 +1,11 @@
 import './custom-shape-builder-panel.scss';
-import type { ComponentChildren } from 'preact';
-import {
-  Edit3, X, Plus, Minus, MousePointer, Trash2,
-  CirclePile, Triangle, Square, Spline,
-} from 'lucide-react';
-import { MdShowChart } from "react-icons/md";
-import { TbTriangles, TbHexagons, TbCarFanFilled  } from "react-icons/tb";
-import { BsBoxes } from "react-icons/bs";
+import { Edit3, X, Plus, Minus, MousePointer, Trash2 } from 'lucide-react';
 import type { PendingVertex, PrimitiveType } from "@/core/types/scene";
 import { useVamsStore } from "@/core/store";
+import PrimitiveTiles from './PrimitiveTiles';
+import { primitiveDef, type PrimitiveDef } from '../model/primitive-defs';
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
-import { Button, DataTable, GlHint, MenuButton, NumberField, type DataColumn } from '@/shared/ui/controls';
-
-interface ShapeDefinition {
-  type: PrimitiveType;
-  icon: ComponentChildren;
-  label: string;
-  minVertices: number;
-  stride: number | null;
-  hint: string;
-}
-
-const SHAPE_DEFS: ShapeDefinition[] = [
-  {
-    type: 'POINTS',
-    icon: <CirclePile size={18} />,
-    label: 'GL_POINTS',
-    minVertices: 1,
-    stride: null,
-    hint: 'Each click places an independent point.',
-  },
-  {
-    type: 'LINES',
-    icon: <Minus size={20} />,
-    label: 'GL_LINES',
-    minVertices: 2,
-    stride: 2,
-    hint: 'Click pairs of vertices — each pair forms one segment.',
-  },
-  {
-    type: 'LINE_STRIP',
-    icon: <MdShowChart size={18} />,
-    label: 'GL_LINE_STRIP',
-    minVertices: 2,
-    stride: null,
-    hint: 'Each new vertex connects to the previous one.',
-  },
-  {
-    type: 'LINE_LOOP',
-    icon: <Spline size={18} />,
-    label: 'GL_LINE_LOOP',
-    minVertices: 3,
-    stride: null,
-    hint: 'Like Line Strip, but the last vertex connects back to the first.',
-  },
-  {
-    type: 'TRIANGLES',
-    icon: <Triangle size={18} />,
-    label: 'GL_TRIANGLES',
-    minVertices: 3,
-    stride: 3,
-    hint: 'Click groups of 3 — each triple forms one triangle.',
-  },
-  {
-    type: 'TRIANGLE_STRIP',
-    icon: <TbTriangles size={18} />,
-    label: 'GL_TRIANGLE_STRIP',
-    minVertices: 3,
-    stride: null,
-    hint: 'Each new vertex forms a triangle with the previous two.',
-  },
-  {
-    type: 'TRIANGLE_FAN',
-    icon: <TbCarFanFilled size={18} />,
-    label: 'GL_TRIANGLE_FAN',
-    minVertices: 3,
-    stride: null,
-    hint: 'First vertex is the center — all triangles fan outward from it.',
-  },
-  {
-    type: 'QUADS',
-    icon: <Square size={18} />,
-    label: 'GL_QUADS',
-    minVertices: 4,
-    stride: 4,
-    hint: 'Click groups of 4 — each quad is split into two triangles.',
-  },
-  {
-    type: 'QUAD_STRIP',
-    icon: <BsBoxes size={18} />,
-    label: 'GL_QUAD_STRIP',
-    minVertices: 4,
-    stride: 2,
-    hint: 'Click pairs of vertices forming columns of quads.',
-  },
-  {
-    type: 'POLYGON',
-    icon: <TbHexagons size={18} />,
-    label: 'GL_POLYGON',
-    minVertices: 3,
-    stride: null,
-    hint: 'Vertices of a single convex polygon — order matters.',
-  },
-];
-
-/** The four primitives most lessons start from; the rest sit in the More menu. */
-const PRIMARY: readonly PrimitiveType[] = ['POINTS', 'LINES', 'TRIANGLES', 'QUADS'];
+import { Button, DataTable, GlHint, NumberField, type DataColumn } from '@/shared/ui/controls';
 
 const STRIDE_LABEL_SINGULAR: Partial<Record<PrimitiveType, string>> = {
   LINES: 'segment',
@@ -137,7 +37,7 @@ export default function CustomShapeBuilderPanel() {
   const pushToHistory           = useVamsStore((s) => s.pushToHistory);
 
   const isPlacing = interactionMode === 'VERTEX_PLACE';
-  const activeDef = SHAPE_DEFS.find((d) => d.type === pendingShapeType);
+  const activeDef = pendingShapeType ? primitiveDef(pendingShapeType) : undefined;
 
   const hasMinimum = pendingVertices.length >= pendingMinVertices;
   const satisfiesStride =
@@ -225,41 +125,19 @@ export default function CustomShapeBuilderPanel() {
   };
 
   if (!pendingShapeType) {
-    const start = (def: ShapeDefinition) => startCustomShape(def.type, def.minVertices, def.stride);
+    const start = (def: PrimitiveDef) => startCustomShape(def.type, def.minVertices, def.stride);
     return (
-      <CollapsibleSection panelId="primitive-palette" title="Create Primitive" icon={<Edit3 size={12} />} defaultOpen={true}>
-        <div className="add-row">
-          {SHAPE_DEFS.filter((def) => PRIMARY.includes(def.type)).map((def) => (
-            <button key={def.type} type="button" className="add-row__item" title={def.hint} onClick={() => start(def)}>
-              <span className="add-row__icon" aria-hidden="true">{def.icon}</span>
-              <span>{def.label}</span>
-            </button>
-          ))}
-          <MenuButton
-            label="More primitives"
-            variant="quiet"
-            triggerClassName="add-row__more"
-            entries={SHAPE_DEFS.filter((def) => !PRIMARY.includes(def.type)).map((def) => ({
-              kind: 'item' as const,
-              id: def.type,
-              label: def.label,
-              description: def.hint,
-              icon: def.icon,
-              onSelect: () => start(def),
-            }))}
-          >
-            More
-          </MenuButton>
-        </div>
+      <CollapsibleSection panelId="primitive-palette" title="Primitives" titleHidden icon={<Edit3 size={12} />} defaultOpen={true}>
+        <PrimitiveTiles onPick={start} />
       </CollapsibleSection>
     );
   }
 
   return (
-    <CollapsibleSection panelId="primitive-palette" title="Create Primitive" icon={<Edit3 size={12} />} defaultOpen={true}>
+    <CollapsibleSection panelId="primitive-palette" title="Primitives" titleHidden icon={<Edit3 size={12} />} defaultOpen={true}>
       <div className="vertex-shape-builder">
         <div className="control-row header">
-          <span className="shape-label">{activeDef?.label}</span>
+          <span className="shape-label">{activeDef?.glName}</span>
           <Button variant="quiet" iconOnly label="Cancel" icon={<X size={16} />} onClick={cancelCustomShape} />
         </div>
         <div className={`placement-hint ${isPlacing ? 'active' : ''}`}>

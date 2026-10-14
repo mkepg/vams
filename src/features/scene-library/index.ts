@@ -14,3 +14,4 @@ export {
 } from './model/scene-ops';
 export { useMyScenesDialog } from './model/dialog-store';
 export { default as MyScenesDialog } from './ui/MyScenesDialog';
+export { openPreset } from './model/open-preset';
