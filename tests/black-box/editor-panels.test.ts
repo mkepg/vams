@@ -23,6 +23,8 @@ import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry'
 import { getPreset } from '@/entities/project/model/scene-presets';
 import { loadProjectData } from '@/features/scene-library';
 import { MAX_RULES } from '@/core/callbacks/callbacks-model';
+import { ScenePanel, SettingsPanel } from '@/widgets/layout/editor-column';
+import { DEFAULT_OPEN_GROUPS } from '@/core/inspector';
 import { addPrimitive, addQuad, addTriangle } from '../helpers/store';
 
 async function settle() {
@@ -682,6 +684,47 @@ describe('BB-PANEL-28: Off removes the callback and its rules', () => {
     (row(host, 'Idle').querySelector('.cb-toggle') as HTMLButtonElement).click();
     await settle();
     expect(useVamsStore.getState().callbacks.idle).toEqual({ handlerName: '', rules: [] });
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-29: The Scene panel lists the scene above the selected object’s groups', () => {
+  it('shows the count, the empty state with a way to Settings, and the object’s groups in pipeline order', async () => {
+    const host = mount(h(ScenePanel, {}));
+    await settle();
+    expect(host.querySelector('.rail-panel__title')!.textContent).toBe('Scene');
+    expect(host.querySelector('.rail-panel__count')!.textContent).toBe('0 objects');
+    expect(host.querySelector('.inspector__empty')!.textContent).toBe('Select an object to edit it');
+    useVamsStore.setState({ railPanel: 'scene' });
+    (host.querySelector('.inspector__link') as HTMLButtonElement).click();
+    expect(useVamsStore.getState().railPanel).toBe('settings');
+    const tri = addTriangle();
+    await settle();
+    expect(host.querySelector('.rail-panel__count')!.textContent).toBe('1 object');
+    expect(host.querySelector('[data-panel-id="scene-hierarchy"]')).not.toBeNull();
+    expect([...host.querySelectorAll('.inspector-group__title')].map((t) => t.textContent))
+      .toEqual(['Vertices', 'Buffers', 'Transform', 'Appearance', 'Texture']);
+    expect(host.querySelector('.inspector__name')!.textContent).toBe(tri.name);
+    expect(host.querySelector('textarea[aria-label="Edit text"]')).toBeNull();
+    useVamsStore.getState().addTextObject('Hello', 0, 0);
+    await settle();
+    expect((host.querySelector('textarea[aria-label="Edit text"]') as HTMLTextAreaElement).value).toBe('Hello');
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-30: The Settings panel holds the scene-wide groups, all open', () => {
+  it('lists Background, Viewing volume and Texture library, open, with no Callbacks', async () => {
+    useVamsStore.setState({ openGroups: [...DEFAULT_OPEN_GROUPS] });
+    const host = mount(h(SettingsPanel, {}));
+    await settle();
+    expect(host.querySelector('.rail-panel__title')!.textContent).toBe('Settings');
+    expect(host.querySelector('.rail-panel__hint')!.textContent).toBe('These apply to the whole scene.');
+    expect([...host.querySelectorAll('.inspector-group__title')].map((t) => t.textContent))
+      .toEqual(['Background', 'Viewing volume', 'Texture library']);
+    for (const header of host.querySelectorAll('.inspector-group__header')) expect(header.getAttribute('aria-expanded')).toBe('true');
+    expect(host.querySelector('[data-group="callbacks"]')).toBeNull();
+    expect(host.querySelector('.rail-panel__body')!.hasAttribute('data-scroll-root')).toBe(true);
     unmount(host);
   });
 });

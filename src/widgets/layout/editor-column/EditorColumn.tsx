@@ -3,7 +3,7 @@ import { useVamsStore } from '@/core/store';
 import { resolveFocus } from '@/core/inspector';
 import SceneArea from './SceneArea';
 import Inspector from './Inspector';
-import { scrollUnderCard } from './scroll-under-card';
+import { scrollIntoRoot } from './scroll-into-root';
 import './editor-column.scss';
 
 /** The left column: the scene area and the inspector, the same in every section. */
@@ -30,7 +30,7 @@ export default function EditorColumn() {
   useLayoutEffect(() => {
     if (!scenePanel) return;
     const frame = requestAnimationFrame(() =>
-      scrollUnderCard(rootRef.current?.querySelector<HTMLElement>(`[data-panel-id="${scenePanel}"]`)),
+      scrollIntoRoot(rootRef.current?.querySelector<HTMLElement>(`[data-panel-id="${scenePanel}"]`)),
     );
     return () => cancelAnimationFrame(frame);
   }, [scenePanel, stepIndex, lessonId]);
@@ -41,7 +41,7 @@ export default function EditorColumn() {
     if (addRowCue === seenCue.current) return;
     seenCue.current = addRowCue;
     const frame = requestAnimationFrame(() =>
-      scrollUnderCard(rootRef.current?.querySelector<HTMLElement>('[data-panel-id="primitive-palette"]')),
+      scrollIntoRoot(rootRef.current?.querySelector<HTMLElement>('[data-panel-id="primitive-palette"]')),
     );
     return () => cancelAnimationFrame(frame);
   }, [addRowCue]);

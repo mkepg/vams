@@ -99,3 +99,86 @@
 @media (prefers-reduced-motion: reduce) {
   .inspector-group { transition: none; }
 }
+// A rail panel: a header, then a body that scrolls on its own.
+.rail-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+
+  &__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px var(--space-2);
+    padding: var(--space-3) var(--space-3) var(--space-2);
+  }
+
+  &__title {
+    margin: 0;
+    font-size: var(--text-base);
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  &__count {
+    font-size: var(--text-xs);
+    color: var(--ink-faint);
+  }
+
+  &__hint {
+    flex-basis: 100%;
+    margin: 0;
+    font-size: var(--text-sm);
+    line-height: var(--lh-sm);
+    color: var(--ink-muted);
+  }
+
+  &__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
+.scene-panel {
+  &__list { flex: none; }
+
+  .inspector {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    border-top: 1px solid var(--rule);
+  }
+}
+
+.inspector--empty {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-3);
+}
+
+.inspector__empty {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+}
+
+.inspector__link {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}

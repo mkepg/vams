@@ -1,19 +1,13 @@
 import './text-node-panel.scss';
 import { useState } from 'react';
-import { Type, Plus, Edit3 } from 'lucide-react';
+import { Type, Plus } from 'lucide-react';
 import { useVamsStore } from "@/core/store";
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
 import { Button } from '@/shared/ui/controls';
+import TextEditField from './TextEditField';
 export default function TextNodePanel() {
-  const {
-    addTextObject,
-    objects,
-    selectedObjectId,
-    updateTextContent
-  } = useVamsStore();
+  const addTextObject = useVamsStore((s) => s.addTextObject);
   const [textInput, setTextInput] = useState('');
-  const selectedObject = objects.find(o => o.id === selectedObjectId);
-  const isTextSelected = selectedObject?.type === 'TEXT';
   const handleAddText = () => {
     if (!textInput.trim()) return;
     addTextObject(textInput, 0, 0);
@@ -43,25 +37,7 @@ export default function TextNodePanel() {
             />
           </div>
         </div>
-        {isTextSelected && (
-          <div className="text-edit">
-            <span className="vfield-label text-edit__label">
-              <Edit3 size={14} aria-hidden="true" />
-              <span>Edit Selected Text</span>
-            </span>
-            <textarea
-              value={selectedObject?.textContent || ''}
-              aria-label="Edit text"
-              onChange={(e) => {
-                if (selectedObjectId) {
-                  updateTextContent(selectedObjectId, e.currentTarget.value);
-                }
-              }}
-              className="vfield-input text-edit__area"
-              rows={3}
-            />
-          </div>
-        )}
+        <TextEditField />
       </div>
     </CollapsibleSection>
   );

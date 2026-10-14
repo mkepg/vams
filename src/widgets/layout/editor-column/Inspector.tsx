@@ -7,7 +7,7 @@ import { focusStyleFor } from '@/features/lesson-engine/model/guidance';
 import { Button, PanelLayoutContext } from '@/shared/ui/controls';
 import InspectorGroup from './InspectorGroup';
 import { OBJECT_GROUP_DEFS, SETTINGS_GROUP_DEFS } from './inspector-groups';
-import { scrollUnderCard } from './scroll-under-card';
+import { scrollIntoRoot } from './scroll-into-root';
 
 function metaLine(object: SceneNode): string {
   if (object.type === 'TEXT') return 'Bitmap text';
@@ -52,7 +52,7 @@ export default function Inspector() {
     if (style === 'tight') setOpenGroups([target]);
     else openGroup(target);
     const frame = requestAnimationFrame(() =>
-      scrollUnderCard(rootRef.current?.querySelector<HTMLElement>(`[data-group="${target}"]`) ?? null),
+      scrollIntoRoot(rootRef.current?.querySelector<HTMLElement>(`[data-group="${target}"]`) ?? null),
     );
     return () => cancelAnimationFrame(frame);
   }, [target, style, stepIndex, lessonId, setOpenGroups, openGroup]);

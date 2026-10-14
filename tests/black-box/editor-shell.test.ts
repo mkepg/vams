@@ -15,7 +15,8 @@ import NewWorkspaceButton from '@/features/workspace-reset/ui/NewWorkspaceButton
 import EditorPreferencesMenu from '@/features/editor-preferences/ui/EditorPreferencesMenu';
 import LearnButton from '@/features/lesson-engine/ui/LearnButton';
 import FileMenu from '@/widgets/layout/top-bar/FileMenu';
-import { EditorColumn, Inspector } from '@/widgets/layout/editor-column';
+import { EditorColumn, ObjectInspector, SettingsPanel } from '@/widgets/layout/editor-column';
+import { DEFAULT_OPEN_GROUPS } from '@/core/inspector';
 import Rail from '@/widgets/layout/rail';
 import { useMyScenesDialog } from '@/features/scene-library';
 import { CanvasOverlays } from '@/widgets/canvas/ui/CanvasOverlays';
@@ -379,12 +380,13 @@ describe('BB-SHELL-14: The editor column is the same in every section', () => {
   });
 });
 
-describe('BB-SHELL-15: The inspector shows the object in pipeline order, or the scene settings', () => {
-  it('orders object groups, leaves out ones that do not apply, and switches to settings', async () => {
-    const groupTitles = (host: HTMLElement) => [...host.querySelectorAll('.inspector-group__title')].map((t) => t.textContent);
+describe('BB-SHELL-15: The inspector shows the object in pipeline order; the scene settings have their own panel', () => {
+  const groupTitles = (host: HTMLElement) => [...host.querySelectorAll('.inspector-group__title')].map((t) => t.textContent);
+
+  it('orders object groups, shows an empty state without a selection, and keeps settings in Settings', async () => {
     const tri = addTriangle();
     useVamsStore.setState({ appMode: 'Author', selectedObjectId: tri.id });
-    const host = mount(h(Inspector, {}));
+    const host = mount(h(ObjectInspector, {}));
     await settle();
     expect(groupTitles(host)).toEqual(['Vertices', 'Buffers', 'Transform', 'Appearance', 'Texture']);
     expect(host.querySelector('[data-group="transform"] .inspector-group__header')!.getAttribute('aria-expanded')).toBe('true');
@@ -392,16 +394,20 @@ describe('BB-SHELL-15: The inspector shows the object in pipeline order, or the 
     expect(host.querySelector('[data-group="transform"] .inspector-group__hint')!.textContent).toContain('glTranslatef');
     useVamsStore.setState({ selectedObjectId: null });
     await settle();
-    expect(groupTitles(host)).toEqual(['Background', 'Viewing volume', 'Texture library', 'Callbacks']);
-    expect(host.querySelector('.inspector__name')!.textContent).toBe('Scene settings');
+    expect(groupTitles(host)).toEqual([]);
+    expect(host.querySelector('.inspector__empty')).not.toBeNull();
     unmount(host);
+    const settings = mount(h(SettingsPanel, {}));
+    await settle();
+    expect(groupTitles(settings)).toEqual(['Background', 'Viewing volume', 'Texture library']);
+    unmount(settings);
     useVamsStore.setState({ objects: [] });
   });
 
   it('leaves out Line style for a triangle and the Texture group for a line', async () => {
     const line = addPrimitive('LINES', [{ x: -0.5, y: 0 }, { x: 0.5, y: 0 }]);
     useVamsStore.setState({ appMode: 'Author', selectedObjectId: line.id });
-    const host = mount(h(Inspector, {}));
+    const host = mount(h(ObjectInspector, {}));
     await settle();
     expect(host.querySelector('[data-group="texture"]')).toBeNull();
     useVamsStore.getState().toggleGroup('appearance');
@@ -413,18 +419,17 @@ describe('BB-SHELL-15: The inspector shows the object in pipeline order, or the 
     expect(host.querySelector('[data-panel-id="line-style-panel"]')).toBeNull();
     expect(host.querySelector('[data-group="texture"]')).not.toBeNull();
     unmount(host);
-    useVamsStore.setState({ objects: [], selectedObjectId: null, openGroups: ['transform', 'background'] });
+    useVamsStore.setState({ objects: [], selectedObjectId: null, openGroups: [...DEFAULT_OPEN_GROUPS] });
   });
 
   it('shows only Transform for a group, with its child count', async () => {
-    const groupTitles = (host: HTMLElement) => [...host.querySelectorAll('.inspector-group__title')].map((t) => t.textContent);
     const tri = addTriangle();
     const line = addPrimitive('LINES', [{ x: -0.5, y: 0 }, { x: 0.5, y: 0 }]);
     useVamsStore.setState({ appMode: 'Author' });
     useVamsStore.getState().createGroup([tri.id, line.id]);
     const group = useVamsStore.getState().objects.find((o) => o.type === 'GROUP')!;
     expect(useVamsStore.getState().selectedObjectId).toBe(group.id);
-    const host = mount(h(Inspector, {}));
+    const host = mount(h(ObjectInspector, {}));
     await settle();
     expect(groupTitles(host)).toEqual(['Transform']);
     expect(host.querySelector('.inspector__meta')!.textContent).toBe('Group · 2 objects');
