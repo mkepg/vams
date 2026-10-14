@@ -135,7 +135,7 @@ export const PRIMITIVES_LESSONS: Record<string, Lesson> = {
         }
       },
       {
-        narration: "This hardware-accelerated blending is called Barycentric Interpolation. Check the Math Panel below the code to see the exact formula the GPU uses to calculate every pixel's color.",
+        narration: "This hardware-accelerated blending is called Barycentric Interpolation. Switch the right column to Math to see the exact formula the GPU uses to calculate every pixel's color.",
         waitForUser: true,
       }
     ],
@@ -361,7 +361,7 @@ export const PRIMITIVES_LESSONS: Record<string, Lesson> = {
     section: 'Primitives',
     steps: [
       {
-        narration: "Let's label our scene. Open the 'Create Text' panel and add a new text object that says 'Hello World'.",
+        narration: "Let's label our scene. Open the Text section of the Add panel and add a new text object that says 'Hello World'.",
         waitForUser: true,
         focusPanel: 'text-node-panel',
         successCheck: (state) => {

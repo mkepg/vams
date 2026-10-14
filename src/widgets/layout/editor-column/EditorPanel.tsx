@@ -27,7 +27,7 @@ export default function EditorPanel() {
     });
   }, [lessonId]);
 
-  // A step that focuses the Add row or Create Text scrolls it into view, on every step (Back
+  // A step that focuses a primitive or the Text section in the Add panel scrolls it into view, on every step (Back
   // included). The inspector and Settings scroll their own groups. Wait a frame for the layout.
   const sceneTarget = resolveFocus(focusPanelId, false)?.area === 'scene' ? focusPanelId : null;
   useLayoutEffect(() => {
