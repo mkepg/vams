@@ -73,7 +73,7 @@ The product rules in `AGENTS.md` and [docs/product-plan.md](../product-plan.md) 
 
 Four projects, in this order. Each has its own spec and plan.
 
-1. **Editor rail redesign:** the rail, its panels, the lesson bar, the Code | Math switch, the first-visit tour (item 15) and the two Run issues most likely to show on stage. Due by the Oct 28 freeze. Spec: `2026-10-14-editor-rail-design.md`, on its branch until it merges.
+1. **Editor rail redesign:** the rail, its panels, the lesson bar, the Code | Math switch, the first-visit tour (item 15) and the two Run issues most likely to show on stage. Due by the Oct 28 freeze. Complete (2026-10-15): [spec](2026-10-14-editor-rail-design.md), [plan](../plans/2026-10-14-editor-rail.md).
 2. **Code and math rework:** what the code and math panels contain and how they explain it, including item 16. Built straight after the rail merges; whatever misses the Oct 28 freeze waits. The owner's four problems with the panels today:
    - **The code is a wall.** The student's own part (their shape's draw function and its state) is buried in 60–100 lines of boilerplate.
    - **Lines aren't explained.** A student cannot ask what a line does; the hover notes appear only while the scene is empty.
