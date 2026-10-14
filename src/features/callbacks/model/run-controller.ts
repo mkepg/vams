@@ -37,13 +37,32 @@ const KEYBOARD = /^[a-zA-Z0-9 ]$/;
 const BUTTONS: MouseButton[] = ['left', 'middle', 'right'];
 const STOPPED: RunSnapshot = { running: false, lastCall: null, fired: null, window: null, canvas: null };
 
+/** The Running strip's height; the program window starts below it. Matches `--run-strip-height`. */
+export const RUN_STRIP_HEIGHT = 32;
+
+/** The part of the canvas the program window may use: everything below the strip. */
+const programArea = (canvas: { width: number; height: number }) => ({
+  width: canvas.width,
+  height: Math.max(0, canvas.height - RUN_STRIP_HEIGHT),
+});
+
+export type RunBlock = 'illustration' | 'empty' | 'no-callback' | null;
+
+/** Why Run is off, in the order the canvas explains it; null when it can run. */
+export function runBlock(
+  state: Pick<VamsState, 'objects' | 'callbacks' | 'appMode' | 'activeSection' | 'pipelineMode'>,
+): RunBlock {
+  // A Pipeline illustration hides the canvas, so there is nothing to run on.
+  if (showsIllustration(state)) return 'illustration';
+  if (state.objects.length === 0) return 'empty';
+  if (!CALLBACK_KINDS.some((k) => isCallbackValid(state.callbacks, k))) return 'no-callback';
+  return null;
+}
+
 export function canRun(
   state: Pick<VamsState, 'objects' | 'callbacks' | 'appMode' | 'activeSection' | 'pipelineMode'>,
 ): boolean {
-  // A Pipeline illustration hides the canvas, so there is nothing to run on.
-  if (showsIllustration(state)) return false;
-  if (state.objects.length === 0) return false;
-  return CALLBACK_KINDS.some((k) => isCallbackValid(state.callbacks, k));
+  return runBlock(state) === null;
 }
 
 const clampSize = (size: { width: number; height: number }, canvas: { width: number; height: number }) => ({
@@ -69,13 +88,14 @@ class RunController {
     if (this.snapshot.running) return true;
     const state = useVamsStore.getState();
     if (!canRun(state)) return false;
-    const canvas = renderBridge.getCanvasSize() ?? FALLBACK_CANVAS;
+    const canvas = programArea(renderBridge.getCanvasSize() ?? FALLBACK_CANVAS);
     this.run = createRunState(state.objects, state.viewportLimits, canvas);
     this.pointer = { x: 0, y: 0 };
     this.pendingMotion = null;
     this.pendingSize = null;
     this.applied = new Map(Object.keys(this.run.objects).map((id) => [id, 'null|true']));
     this.publish({ running: true, lastCall: null, fired: null, window: { ...canvas }, canvas: { ...canvas } });
+    renderBridge.setEditorOverlaysHidden(true);
     window.addEventListener('keydown', this.keyHandler, true);
     this.watchStore();
     // GLUT calls the reshape handler once when the window opens.
@@ -96,6 +116,7 @@ class RunController {
     this.run = null;
     this.applied.clear();
     renderBridge.resync();
+    renderBridge.setEditorOverlaysHidden(false);
     this.publish(STOPPED);
   }
 
@@ -131,7 +152,8 @@ class RunController {
   /** One frame: canvas size, pending resize and motion, the idle pass, then a draw. */
   stepFrame(): void {
     if (!this.run || !this.snapshot.canvas || !this.snapshot.window) return;
-    const canvas = renderBridge.getCanvasSize() ?? this.snapshot.canvas;
+    const measured = renderBridge.getCanvasSize();
+    const canvas = measured ? programArea(measured) : this.snapshot.canvas;
     if (canvas.width !== this.snapshot.canvas.width || canvas.height !== this.snapshot.canvas.height) {
       this.publish({ ...this.snapshot, canvas: { ...canvas } });
       this.pendingSize = clampSize(this.pendingSize ?? this.snapshot.window, canvas);
@@ -231,7 +253,7 @@ class RunController {
       }
     }
     const window = this.snapshot.window;
-    if (window) renderBridge.setView(run.view, { x: 0, y: 0, width: window.width, height: window.height });
+    if (window) renderBridge.setView(run.view, { x: 0, y: RUN_STRIP_HEIGHT, width: window.width, height: window.height });
   }
 
   private armFlashClear(): void {

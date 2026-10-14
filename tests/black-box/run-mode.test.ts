@@ -6,10 +6,13 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
 import { useVamsStore, STORAGE_KEY } from '@/core/store';
 import { buildProjectFile } from '@/entities/project/model/project-io';
-import { canRun, runController, MIN_WINDOW } from '@/features/callbacks/model/run-controller';
+import { canRun, runController, MIN_WINDOW, RUN_STRIP_HEIGHT } from '@/features/callbacks/model/run-controller';
 import { makeFakeDisplay, registerFakeRenderer, type FakeDisplay } from '../helpers/fake-renderer';
 import { addTriangle, getState } from '../helpers/store';
-import RunOverlay from '@/features/callbacks/ui/RunOverlay';
+import RunOverlay, { RUN_EMPTY_REASON, RUN_NO_CALLBACK_REASON, RUN_OPEN_CALLBACKS } from '@/features/callbacks/ui/RunOverlay';
+import { renderBridge } from '@/shared/engine/render-bridge';
+import { SelectionOverlay } from '@/shared/engine/selection-overlay';
+import { Container } from 'pixi.js';
 import SceneCodePanel from '@/features/code-generation/ui/SceneCodePanel';
 import EditorShell from '@/pages/editor/ui/EditorShell';
 
@@ -55,12 +58,12 @@ describe('BB-RUN-1: Run needs an object and a callback', () => {
 });
 
 describe('BB-RUN-2: Starting Run calls Reshape once with the window size', () => {
-  it('shows onReshape(800, 600)', () => {
+  it('shows onReshape(800, 568)', () => {
     setup();
     getState().setCallbackHandler('reshape', 'onReshape');
     expect(runController.start({ loop: false })).toBe(true);
-    expect(runController.getSnapshot().lastCall).toBe('onReshape(800, 600)');
-    expect(runController.getSnapshot().window).toEqual({ width: 800, height: 600 });
+    expect(runController.getSnapshot().lastCall).toBe('onReshape(800, 568)');
+    expect(runController.getSnapshot().window).toEqual({ width: 800, height: 568 });
   });
 });
 
@@ -117,15 +120,15 @@ describe('BB-RUN-7: The program window resizes within its limits and follows the
     runController.start({ loop: false });
     runController.resizeWindow(50, 5000);
     runController.stepFrame();
-    expect(runController.getSnapshot().window).toEqual({ width: MIN_WINDOW.width, height: 600 });
-    expect(runController.getSnapshot().lastCall).toBe('onReshape(200, 600)');
+    expect(runController.getSnapshot().window).toEqual({ width: MIN_WINDOW.width, height: 568 });
+    expect(runController.getSnapshot().lastCall).toBe('onReshape(200, 568)');
     runController.nudgeWindow(10, -10);
     runController.stepFrame();
-    expect(runController.getSnapshot().window).toEqual({ width: 210, height: 590 });
+    expect(runController.getSnapshot().window).toEqual({ width: 210, height: 558 });
     resize({ width: 640, height: 400 });
     runController.resizeWindow(800, 600);
     runController.stepFrame();
-    expect(runController.getSnapshot().window).toEqual({ width: 640, height: 400 });
+    expect(runController.getSnapshot().window).toEqual({ width: 640, height: 368 });
   });
 
   it('reapplies its view every frame', () => {
@@ -133,7 +136,7 @@ describe('BB-RUN-7: The program window resizes within its limits and follows the
     runController.start({ loop: false });
     setView.mockClear();
     runController.stepFrame();
-    expect(setView).toHaveBeenCalledWith(expect.objectContaining({ minX: -1, maxX: 1 }), { x: 0, y: 0, width: 800, height: 600 });
+    expect(setView).toHaveBeenCalledWith(expect.objectContaining({ minX: -1, maxX: 1 }), { x: 0, y: RUN_STRIP_HEIGHT, width: 800, height: 568 });
   });
 });
 
@@ -275,7 +278,7 @@ describe('BB-RUN-11: The overlay shows Run, then the strip, the readout and the 
     expect(bubbled).not.toHaveBeenCalled();
     runController.stepFrame();
     await settle();
-    expect(runController.getSnapshot().window).toEqual({ width: 790, height: 600 });
+    expect(runController.getSnapshot().window).toEqual({ width: 790, height: 568 });
     const stop = [...host.querySelectorAll('button')].find((b) => b.textContent?.includes('Stop'))!;
     stop.click();
     await settle();
@@ -285,12 +288,12 @@ describe('BB-RUN-11: The overlay shows Run, then the strip, the readout and the 
     host.remove();
   });
 
-  it('is disabled with a title when nothing can run', async () => {
+  it('is disabled with a reason when nothing can run', async () => {
     const host = mount(h(RunOverlay, {}));
     await settle();
     const run = host.querySelector('.run-button') as HTMLButtonElement;
     expect(run.disabled).toBe(true);
-    expect(run.title).toBe('Add a callback to run');
+    expect(host.querySelector('.run-plate')?.textContent).toBe(RUN_EMPTY_REASON);
     render(null, host);
     host.remove();
   });
@@ -311,6 +314,9 @@ describe('BB-RUN-12: The code panel flashes the branch that fired', () => {
 describe('BB-RUN-14: Run is unavailable while a Pipeline illustration replaces the canvas', () => {
   const showIllustration = () =>
     useVamsStore.setState({ appMode: 'Lesson', activeSection: 'Pipeline', pipelineMode: 'Diagram' });
+  afterEach(() => {
+    useVamsStore.setState({ appMode: 'Author', pipelineMode: 'Playground' });
+  });
 
   it('canRun is false for an illustration mode and true again in Playground', () => {
     setup();
@@ -322,6 +328,20 @@ describe('BB-RUN-14: Run is unavailable while a Pipeline illustration replaces t
     expect(canRun(getState())).toBe(false);
     useVamsStore.setState({ pipelineMode: 'Playground' });
     expect(canRun(getState())).toBe(true);
+  });
+
+  it('hides Run and its plate over an illustration', async () => {
+    setup();
+    showIllustration();
+    const host = mount(h(RunOverlay, {}));
+    await settle();
+    expect(host.querySelector('.run-button')).toBeNull();
+    expect(host.querySelector('.run-plate')).toBeNull();
+    useVamsStore.setState({ pipelineMode: 'Playground' });
+    await settle();
+    expect(host.querySelector('.run-button')).not.toBeNull();
+    render(null, host);
+    host.remove();
   });
 
   it('a running Run stops when the Pipeline mode changes to an illustration', () => {
@@ -337,5 +357,88 @@ describe('BB-RUN-14: Run is unavailable while a Pipeline illustration replaces t
     setup();
     showIllustration();
     expect(runController.start({ loop: false })).toBe(false);
+  });
+});
+
+describe('BB-RUN-15: The program window starts below the Running strip', () => {
+  it('reports the height below the strip to Reshape and maps the view below it', () => {
+    const { setView } = setup();
+    getState().setCallbackHandler('reshape', 'onReshape');
+    runController.start({ loop: false });
+    expect(RUN_STRIP_HEIGHT).toBe(32);
+    expect(runController.getSnapshot().lastCall).toBe(`onReshape(800, ${600 - RUN_STRIP_HEIGHT})`);
+    setView.mockClear();
+    runController.stepFrame();
+    expect(setView).toHaveBeenCalledWith(expect.anything(), { x: 0, y: RUN_STRIP_HEIGHT, width: 800, height: 600 - RUN_STRIP_HEIGHT });
+  });
+
+  it('draws the window under the strip', async () => {
+    setup();
+    const host = mount(h(RunOverlay, {}));
+    runController.start({ loop: false });
+    await settle();
+    expect((host.querySelector('.run-window') as HTMLElement).style.height).toBe(`${600 - RUN_STRIP_HEIGHT}px`);
+    const { readFileSync } = await import('node:fs');
+    const scss = readFileSync('src/features/callbacks/ui/run-overlay.scss', 'utf8');
+    expect(scss).toMatch(/--run-strip-height:\s*32px/);
+    const windowRule = scss.slice(scss.indexOf('.run-window {'), scss.indexOf('}', scss.indexOf('.run-window {')));
+    expect(windowRule).toMatch(/top:\s*var\(--run-strip-height\)/);
+    render(null, host);
+    host.remove();
+  });
+});
+
+describe('BB-RUN-16: The selection outline and handles hide during Run and come back after', () => {
+  it.each(['stop', 'undo', 'selection'] as const)('hides them while running and shows them after %s', (how) => {
+    setup();
+    expect(renderBridge.editorOverlaysHidden()).toBe(false);
+    runController.start({ loop: false });
+    expect(renderBridge.editorOverlaysHidden()).toBe(true);
+    if (how === 'stop') runController.stop();
+    if (how === 'undo') getState().undo();
+    if (how === 'selection') getState().selectObject(null);
+    expect(runController.getSnapshot().running).toBe(false);
+    expect(renderBridge.editorOverlaysHidden()).toBe(false);
+  });
+
+  it('keeps the outline hidden while suppressed, even when its target is set again', () => {
+    const parent = new Container();
+    const overlay = new SelectionOverlay();
+    const target = new Container();
+    parent.addChild(overlay);
+    parent.addChild(target);
+    overlay.setTarget(target);
+    expect(overlay.visible).toBe(true);
+    overlay.setSuppressed(true);
+    expect(overlay.visible).toBe(false);
+    overlay.setTarget(target);
+    expect(overlay.visible).toBe(false);
+    overlay.setSuppressed(false);
+    expect(overlay.visible).toBe(true);
+  });
+});
+
+describe('BB-RUN-17: Run off says why on the canvas', () => {
+  it('asks for a shape, then a callback with a link to Callbacks, then gets out of the way', async () => {
+    const host = mount(h(RunOverlay, {}));
+    await settle();
+    const run = () => host.querySelector('.run-button') as HTMLButtonElement;
+    const plate = () => host.querySelector('.run-plate');
+    expect(run().disabled).toBe(true);
+    expect(plate()!.textContent).toBe(RUN_EMPTY_REASON);
+    expect(run().getAttribute('aria-describedby')).toBe(plate()!.id);
+    addTriangle();
+    await settle();
+    expect(plate()!.textContent).toBe(`${RUN_NO_CALLBACK_REASON} ${RUN_OPEN_CALLBACKS}`);
+    getState().setRailPanel('scene');
+    (plate()!.querySelector('button') as HTMLButtonElement).click();
+    expect(getState().railPanel).toBe('callbacks');
+    getState().setCallbackHandler('keyboard', 'onKey');
+    await settle();
+    expect(run().disabled).toBe(false);
+    expect(plate()).toBeNull();
+    expect(host.querySelector('[data-tour-anchor="run"]')).not.toBeNull();
+    render(null, host);
+    host.remove();
   });
 });

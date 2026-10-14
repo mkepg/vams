@@ -1,14 +1,16 @@
 import './run-overlay.scss';
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { MoveDiagonal2, Play, Square } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import { Button } from '@/shared/ui/controls';
-import { RESIZE_STEP, canRun, runController } from '../model/run-controller';
+import { RESIZE_STEP, runBlock, runController } from '../model/run-controller';
 import { useRunSnapshot } from '../model/useRunSnapshot';
 
 export const RUN_HINT = 'Keys, clicks and drags go to your handlers · Esc stops';
 export const RUN_SURFACE_LABEL = 'Running program. Keys, clicks and drags go to your handlers. Press Escape to stop.';
-export const RUN_DISABLED_TITLE = 'Add a callback to run';
+export const RUN_EMPTY_REASON = 'Add a shape to run your program.';
+export const RUN_NO_CALLBACK_REASON = 'Run needs a callback.';
+export const RUN_OPEN_CALLBACKS = 'Open Callbacks';
 
 const HANDLE_KEYS: Record<string, [number, number]> = {
   ArrowLeft: [-RESIZE_STEP, 0], ArrowRight: [RESIZE_STEP, 0], ArrowUp: [0, -RESIZE_STEP], ArrowDown: [0, RESIZE_STEP],
@@ -16,7 +18,9 @@ const HANDLE_KEYS: Record<string, [number, number]> = {
 
 export default function RunOverlay() {
   const snap = useRunSnapshot();
-  const runnable = useVamsStore((s) => canRun(s));
+  const block = useVamsStore((s) => runBlock(s));
+  const setRailPanel = useVamsStore((s) => s.setRailPanel);
+  const plateId = useId();
   const runButtonRef = useRef<HTMLButtonElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const wasRunning = useRef(false);
@@ -28,18 +32,36 @@ export default function RunOverlay() {
   }, [snap.running]);
 
   if (!snap.running || !snap.window) {
+    // A Pipeline illustration replaces the canvas; there is nothing to run, so Run steps aside.
+    if (block === 'illustration') return null;
     return (
-      <Button
-        ref={runButtonRef}
-        variant="primary"
-        className="run-button"
-        icon={<Play />}
-        disabled={!runnable}
-        title={runnable ? undefined : RUN_DISABLED_TITLE}
-        onClick={() => runController.start()}
-      >
-        Run
-      </Button>
+      <div className="run-control" data-tour-anchor="run">
+        <Button
+          ref={runButtonRef}
+          variant="primary"
+          className="run-button"
+          icon={<Play />}
+          disabled={block !== null}
+          aria-describedby={block ? plateId : undefined}
+          onClick={() => runController.start()}
+        >
+          Run
+        </Button>
+        {block && (
+          <p id={plateId} className="run-plate">
+            {block === 'empty' ? (
+              RUN_EMPTY_REASON
+            ) : (
+              <>
+                {RUN_NO_CALLBACK_REASON}{' '}
+                <button type="button" className="run-plate__link" onClick={() => setRailPanel('callbacks')}>
+                  {RUN_OPEN_CALLBACKS}
+                </button>
+              </>
+            )}
+          </p>
+        )}
+      </div>
     );
   }
 

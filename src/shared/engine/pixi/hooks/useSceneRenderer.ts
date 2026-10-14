@@ -139,7 +139,13 @@ export function useSceneRenderer({
     world.addChild(vertexOverlay);
     vertexOverlayRef.current = vertexOverlay;
     const tickerFn = () => {
-      if (overlay) overlay.update();
+      const runHides = renderBridge.editorOverlaysHidden();
+      overlay.setSuppressed(runHides);
+      if (runHides) {
+        if (vertexOverlayRef.current) vertexOverlayRef.current.visible = false;
+        return;
+      }
+      overlay.update();
       if (interactionModeRef.current === 'SELECT' && prevSelectedObjectIdRef.current) {
         const layer = vertexOverlayRef.current;
         const container = containersRef.current.get(prevSelectedObjectIdRef.current);
