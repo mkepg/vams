@@ -23,7 +23,7 @@ VAMS is a **GUI-only, 2D OpenGL teaching simulator**. Students interact with a v
 ```
 ┌──────────────────────────────────────────────────┐
 │              STUDENT INTERACTION (GUI)            │
-│  Scene + Inspector · Canvas · Lesson card         │
+│  Rail and panel · Canvas · Lesson bar             │
 └──────────────────────┬───────────────────────────┘
                        │
        ┌───────────────┼───────────────┐
@@ -115,14 +115,22 @@ VAMS maintains several distinct areas of state, each with a single clear owner. 
 
 ### Workspace Layout
 
-The workspace has four regions:
+The workspace has a top bar and three working regions:
 
-- **Top bar** — application-level controls: project actions (new, open, save), undo/redo, mode indicator.
-- **Scene and inspector column**: left sidebar, the same in every section. On top, the scene: the object hierarchy, an Add row of primitives by OpenGL name, and Create Text. Below, an inspector for the selected object with groups in pipeline order (Vertices, Buffers, Transform, Appearance, Texture), each naming its OpenGL call; with nothing selected, the scene's settings (Background, Viewing volume, Texture library, Callbacks).
-- **Canvas** — central 2D viewport. Displays the scene. Supports mouse interaction for object placement, selection, vertex editing, and navigation.
-- **Code + Math column** — right sidebar split vertically. Top portion: the code panel. Bottom portion: the math panel.
+- **Top bar**: application-level controls: Learn (the course map), the File menu (new, open, save, My scenes, export), undo and redo, theme, view settings and Help.
+- **Rail and panel**: a slim labelled rail on the left with Add, Scene and Settings, a divider, then Callbacks, and Hide at the bottom. One panel shows beside it at a time:
+  - *Add*: the ten primitives by OpenGL name in three groups (points and lines, triangles, quads and polygons), Text, and the prepared sample scenes.
+  - *Scene*: the object hierarchy with its toolbar (Select several, Group, Duplicate, Delete), and below it the selected object's inspector with groups in pipeline order (Vertices, Buffers, Transform, Appearance, Texture), each naming its OpenGL call.
+  - *Settings*: the scene's settings (Background, Viewing volume, Texture library).
+  - *Callbacks*: the GLUT callbacks and their rules. The rail item's badge counts the valid callbacks.
 
-A lesson card appears at the top of that column when a lesson is active, showing the narration and Back, Next and Exit. The step's control is opened and outlined in the live editor; demos also dim the other groups, exercises only outline, and a section's last exercise gives no focus. The top bar's Learn button opens the course map: the five sections in pipeline order, each section's demos and exercises, and the student's progress, stored in the browser.
+  The rail opens on Add for an empty scene and on Scene otherwise, and selecting an object always switches it to Scene. Hide is temporary: any rail click, selection or lesson step shows the panel again. Below 1100 px the panel opens as a drawer over the canvas, beside the rail.
+- **Canvas**: central 2D viewport. Displays the scene. Supports mouse interaction for object placement, selection, vertex editing, and navigation. Run sits in its top-right corner and, when it is off, says why on the canvas.
+- **Code and math column**: right sidebar showing one pane at a time, switched by a Code / Math control. A dot on Code marks a code change made while Math shows. The whole column can be hidden to a thin edge tab.
+
+While a lesson is active, a lesson bar runs along the bottom of the canvas with the title, the step, the narration, what an exercise is waiting for, and Back, Next and Exit; it folds to a slim strip. The step's control is opened in its rail panel and outlined in the live editor; demos also dim the other groups, exercises only outline, and a section's last exercise gives no focus. The top bar's Learn button opens the course map: the five sections in pipeline order, each section's demos and exercises, and the student's progress, stored in the browser.
+
+A first-visit tour, started from the welcome dialog or the Help Center, spotlights the regions in the order VAMS teaches (build a shape, read its code, change it, see the math, run it, then go on to the lessons) and invites the student to try each one.
 
 ### Code Generation
 
@@ -140,7 +148,7 @@ The generated program structure includes at minimum: includes/setup, global decl
 
 A lesson is a sequence of steps. Each step may include:
 
-- **Narration text** — displayed in the lesson card.
+- **Narration text** — displayed in the lesson bar.
 - **A scene mutation** — a scripted change to scene state, expressed through the same mutation API the GUI uses.
 - **A code highlight** — specific lines in the code panel to visually emphasize.
 - **A wait-for-user flag** — whether the student must press Next to advance, or whether the step auto-advances.
@@ -189,7 +197,7 @@ Covers: pipeline stages (vertex specification → vertex processing → primitiv
 
 ### Workspace Configuration
 
-- **Lesson card (Pipeline lessons):** a view toggle (scene, pipeline diagram, raster vs vector) shown during Pipeline lessons. Outside Pipeline lessons the canvas always shows the scene, and the coordinate playground is the normal canvas.
+- **Lesson bar (Pipeline lessons):** a view switch (pipeline diagram, raster vs vector, playground) shown during Pipeline lessons. Outside Pipeline lessons the canvas always shows the scene, and the coordinate playground is the normal canvas.
 - **Viewport:** the active mode determines what's shown:
   - *Pipeline diagram mode* — a visual, step-through diagram of the seven pipeline stages.
   - *Coordinate playground mode* — a coordinate grid where the student can place and move markers, reading their NDC positions.
@@ -240,7 +248,7 @@ Covers: `glBegin`/`glEnd` with `GL_POINTS`, `GL_LINES`, `GL_LINE_STRIP`, `GL_LIN
 
 ### Workspace Configuration
 
-- **Inspector:** the Add row (all curriculum primitives by OpenGL name) and Create Text in the scene area; color picker with float/byte mode toggle and line style panel (shown only for line primitives) in Appearance; callbacks panel in scene settings; and the existing object hierarchy and properties.
+- **Inspector:** the Add panel (all curriculum primitives by OpenGL name, and Text); color picker with float/byte mode toggle and line style panel (shown only for line primitives) in Appearance; the Callbacks panel; and the existing object hierarchy and properties.
 - **Viewport:** 2D authoring canvas. Students click to place vertices and click to select objects.
 - **Code Panel:** full generated scene code. Changed lines animate on every scene mutation.
 - **Math Panel:** color conversion formulas (float ↔ byte), barycentric color interpolation (for triangles with per-vertex colors), stipple pattern bit display, and a vertex coordinate table for the selected object.
@@ -581,7 +589,7 @@ A lesson is a named, section-associated sequence of steps. Lessons are one of tw
 
 Each step may include:
 
-- Narration text (displayed in the lesson card)
+- Narration text (displayed in the lesson bar)
 - A scene mutation (executed via the same API the GUI uses — nothing a lesson does bypasses normal state management)
 - A code panel highlight (specific lines to visually emphasize)
 - A wait-for-user flag

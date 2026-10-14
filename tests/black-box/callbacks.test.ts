@@ -196,7 +196,7 @@ describe('BB-CB-2: A callback with no rules says so', () => {
     getState().setCallbackHandler('keyboard', 'onKey');
     expect(body(gen(), 'onKey')).toBe([
       'void onKey(unsigned char key, int x, int y)', '{',
-      '    // No rules yet: add them in the Callbacks group', '    glutPostRedisplay();', '}',
+      '    // No rules yet: add them in the Callbacks panel', '    glutPostRedisplay();', '}',
     ].join('\n'));
   });
 });

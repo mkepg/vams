@@ -17,6 +17,7 @@ import { h, render } from 'preact';
 import { useVamsStore } from '@/core/store';
 import HelpCenter from '@/features/help/ui/HelpCenter';
 import WelcomeCard from '@/features/onboarding/ui/WelcomeCard';
+import { SHORTCUT_GROUPS } from '@/features/help/model/shortcuts';
 import { getState } from '../helpers/store';
 
 const SECTIONS: CurriculumSection[] = ['Pipeline', 'Primitives', 'Buffers', 'Transforms', 'Textures'];
@@ -118,21 +119,23 @@ describe('BB-HELP-04: Help slice state machine', () => {
   });
 });
 
-describe('BB-HELP-05: Help describes the editor column, the Learn drawer and the lesson card', () => {
+describe('BB-HELP-05: Help describes the rail, the Learn drawer and the lesson bar', () => {
   const text = (id: Parameters<typeof getHelpTopic>[0]) => JSON.stringify(getHelpTopic(id));
 
   it('never mentions the removed section menu or Lessons menu, nor words student text avoids', () => {
     const all = JSON.stringify(HELP_TOPICS);
     expect(all).not.toMatch(/section menu|Lessons menu|pick a section|in the (Pipeline|Primitives|Buffers|Transforms|Textures) section/i);
-    expect(all).not.toMatch(/coming soon|not supported|future|deferred|\b3D\b|lighting/i);
+    expect(all).not.toMatch(/coming soon|not yet|not supported|unsupported|future|deferred|\b3D\b|lighting/i);
   });
 
-  it('tours the Scene list, the Add row, the inspector, scene settings, Learn and the lesson card', () => {
+  it('tours the rail and its four panels, Code and Math, Learn and the lesson bar, and starts the tour', () => {
     const tour = text('workspace-tour');
-    for (const phrase of ['Scene list', 'Add row', 'Create Text', 'inspector', 'Scene settings', 'Learn', 'lesson card']) {
-      expect(tour).toContain(phrase);
+    for (const phrase of ['rail', 'Add', 'Scene', 'Settings', 'Callbacks', 'Select several', 'Code / Math', 'Hide', 'Learn', 'lesson bar']) {
+      expect(tour, phrase).toContain(phrase);
     }
+    expect(getHelpTopic('workspace-tour').blocks[0]).toEqual({ kind: 'start-tour' });
     expect(text('modes')).toContain('Learn');
+    expect(text('modes')).toContain('lesson bar');
   });
 
   it('keeps the Welcome card to the editor that exists', () => {
@@ -141,8 +144,11 @@ describe('BB-HELP-05: Help describes the editor column, the Learn drawer and the
     document.body.appendChild(host);
     try {
       render(h(WelcomeCard, {}), host);
-      expect(document.body.textContent).toContain('Welcome to VAMS');
-      expect(document.body.textContent).not.toMatch(/pick a section/i);
+      const welcome = document.body.textContent ?? '';
+      expect(welcome).toContain('Welcome to VAMS');
+      expect(welcome).toContain('The rail on the left: Add, Scene, Settings and Callbacks.');
+      expect(welcome).toContain('Code and Math on the right');
+      expect(welcome).not.toMatch(/pick a section|left column/i);
     } finally {
       render(null, host);
       host.remove();
@@ -228,5 +234,22 @@ describe('BB-HELP-07: The welcome card and the Help Center start the tour', () =
     await settle();
     unmount(host);
     useVamsStore.setState({ hasSeenWelcome: true, appMode: 'Author' });
+  });
+});
+
+describe('BB-HELP-08: Help names only places the editor has', () => {
+  it('never names the old left column, Add row, scene settings, lesson card or Callbacks group', () => {
+    const all = JSON.stringify(HELP_TOPICS);
+    expect(all).not.toMatch(/left column|Add row|scene settings|lesson card|Multi-Select|Callbacks group|top-right panel|Below the code|Panels button/i);
+  });
+
+  it('lists the tour keys with the other shortcuts', () => {
+    const tour = SHORTCUT_GROUPS.find((g) => g.group === 'Tour');
+    expect(tour?.items.map((i) => `${i.keys}: ${i.label}`)).toEqual([
+      'Right arrow: Next tour step',
+      'Enter: Next tour step',
+      'Left arrow: Previous tour step',
+      'Esc: End the tour',
+    ]);
   });
 });

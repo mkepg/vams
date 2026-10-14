@@ -59,11 +59,12 @@ The product rules in `AGENTS.md` and [docs/product-plan.md](../product-plan.md) 
 11. Polish the demo lesson(s)
 12. Screenshot regression checks, a safety net for SP5. Done with SP5 (`npm run test:visual`)
 13. Functional callbacks: keyboard, mouse, motion, reshape and idle behaviours defined in the GUI, with generated handler bodies and a canvas Run mode that never writes scene state. Needs its own spec and a product plan amendment, since the plan specifies empty stubs. Touches the editor. Complete (2026-10-12): [spec](2026-10-12-functional-callbacks-design.md), [plan](../plans/2026-10-12-functional-callbacks.md)
+- **Editor rail redesign:** a labelled rail of four panels (Add, Scene, Settings, Callbacks) in place of the long left column, the lesson as a bar under the canvas, one Code / Math pane, the two Run fixes most likely to show on stage, and the first-visit tour (item 15). Due by Oct 28. Complete (2026-10-15): [spec](2026-10-14-editor-rail-design.md), [plan](../plans/2026-10-14-editor-rail.md)
 
 ### Could
 
 14. Glossary
-15. First-visit editor tour (by Oct 28)
+15. First-visit editor tour (by Oct 28). Complete (2026-10-15) with the editor rail redesign
 16. "Explain this line" for generated code (by Oct 28)
 17. Ctrl+K search
 18. Instructor page
@@ -102,8 +103,8 @@ Small issues left open when item 13 shipped. None loses student work or makes th
 
 Run mode:
 
-1. The Running strip covers the top ~30px of the program window and takes clicks there, so a shape near the top edge is hidden during Run. Fix by starting the window below the strip.
-2. A selected object's outline and handles stay at the saved pose while a rule moves the object.
+1. Fixed 2026-10-15 (editor rail redesign): The Running strip covers the top ~30px of the program window and takes clicks there, so a shape near the top edge is hidden during Run. Fix by starting the window below the strip.
+2. Fixed 2026-10-15 (editor rail redesign): A selected object's outline and handles stay at the saved pose while a rule moves the object.
 3. The Math panel's cursor readout shows editor coordinates during Run, not `windowToWorld`'s.
 4. The code panel can re-scroll within the 700 ms branch flash, and a repeat of the same call does not restart the flash.
 5. Motion is delivered on the next frame, so it can arrive after an immediate Mouse Up. GLUT keeps the order, and the two differ for a pair such as Mouse Up → Reset with Motion → Move to pointer.
@@ -113,7 +114,7 @@ Run mode:
 9. A theme change after a window resize during Run can clear Run's colour overrides. The top bar is inert during Run, so this is hard to reach.
 10. The window handle ignores `pointercancel` and lacks `touch-action: none`.
 11. The handle is 24px; the design spec says a 16px grip. The readout's inset hardcodes the 24px.
-12. "Try it" keeps the tooltip "Add a callback to run" when a Pipeline illustration is the reason it is disabled.
+12. Fixed 2026-10-15 (editor rail redesign): "Try it" keeps the tooltip "Add a callback to run" when a Pipeline illustration is the reason it is disabled.
 
 Callbacks panel and generated code:
 
@@ -172,8 +173,8 @@ The thesis manuscript is final and describes the evaluated build. The overhauled
 7. Ch. 6 Rec. 12 recommends expanding the lesson library. Curriculum work delivers part of it early.
 8. SP5 renames one panel title, "Position, Rotation, & Scale" to "Object Transform", to match the lesson narration, and wires two `focusPanel` targets (`object-transform`, `text-node-panel`) that never matched a panel. The narration that names screen positions stays true in the new layout.
 9. §3.4.2 describes saving only as project-file download and upload. The editor now also keeps a My scenes library and automatic backups in the browser, opens lessons and prepared scenes from links, and shows a recovery screen after a crash (SP3).
-10. §3.4.2's five layout regions and its top-bar actions. The lesson bar becomes a lesson card at the top of the section column, the section tabs become a menu at the top of that column, and the file actions move into a File menu in the top bar (SP5).
-11. The manuscript describes a tools rail whose panels change with the selected curriculum section, with the Pipeline section's canvas modes as section tools. The editor is now the same in every section: a scene list and a pipeline-ordered inspector. Sections become the course map in a Learn drawer, and the Pipeline views appear during Pipeline lessons (editor refinement).
+10. §3.4.2's five layout regions and its top-bar actions. The lesson bar sits under the canvas, the left column is a rail of four panels (Add, Scene, Settings, Callbacks) that shows one at a time, the code and math column shows code or math with a switch, and the file actions move into a File menu in the top bar (SP5, editor rail redesign).
+11. The manuscript describes a tools rail whose panels change with the selected curriculum section, with the Pipeline section's canvas modes as section tools. The editor is now the same in every section: a rail of four panels whose Scene panel holds the scene list and the selected object's pipeline-ordered inspector. Sections become the course map in a Learn drawer, and the Pipeline views appear in the lesson bar during Pipeline lessons (editor refinement, editor rail redesign).
 12. The use-case and activity diagrams show lessons reached only inside the editor. The site now has a /learn course map, with progress, that opens any lesson in the editor.
 13. §3.4.1 says "there is no concept of playback or event-driven behavior engine in the implementation, nor is there any retained state of the simulation". The editor now has Run: a transient, event-driven state that keeps a temporary copy of each object's state while it runs. It never writes scene state, and the code and math panels still draw from the store. During Run the canvas shows the running program, not the saved scene.
 14. Algorithm 2 ends the program with "callback function skeletons", and §3.4.2's callbacks panel registers names only. Handlers now have generated bodies built from rules, a sixth callback (`glutSpecialFunc`) exists, and Reshape offers two behaviours.
