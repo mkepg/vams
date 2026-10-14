@@ -8,11 +8,11 @@ Deadline: merged before the Oct 28 editor freeze
 
 A first-time user finds the editor hard to navigate. The left column is one long scroll that holds the scene list, Multi-Select, a create grid named by OpenGL constants, Create Text and four scene-settings groups, with Callbacks last and collapsed. "Take the tour" opens a long help article. Run is greyed out with its reason only in a tooltip. During a lesson the lesson card sits on top of the left column and pushes the controls below the fold.
 
-This work reorganises the editor around a slim labelled rail on the left, one panel per job, a quiet lesson bar along the bottom of the canvas, and a single code-or-math pane on the right. A short point-at tour shows a newcomer, or an expo audience, what each region of the workspace is for. The two Run issues most likely to show in the Nov 4 demo are fixed on the way.
+This work reorganises the editor around a slim labelled rail on the left, one panel per job, a quiet lesson bar along the bottom of the canvas, and a single code-or-math pane on the right. A short tour walks a newcomer through the workspace in the order VAMS teaches: build, read the code, change it, see the math, run it, then learn. The two Run issues most likely to show in the Nov 4 demo are fixed on the way.
 
 The audience is both: a student on their own, and an expo visitor trying it for a minute. Success is that either one makes a shape, sees its code change and finds the lessons and Run without help.
 
-Out of scope, each planned as its own project: lesson content (more, deeper and better lessons, including roadmap item 11), and share link with QR code (item 8). Also out: a draggable split in the right column, and remembering the layout between visits.
+Out of scope, each planned as its own project: what the code and math panels contain and how they explain it (including roadmap item 16, "Explain this line"), lesson content (more, deeper and better lessons, including roadmap item 11), and share link with QR code (item 8). This project changes only how the code and math column is laid out and switched. Also out: a draggable split in the right column, and remembering the layout between visits.
 
 ## Owner decisions (2026-10-13 and 2026-10-14)
 
@@ -33,7 +33,7 @@ Out of scope, each planned as its own project: lesson content (more, deeper and 
 | Lesson bar look | "Reading line": narration is the loudest thing, Next is the only coloured control |
 | Folded lesson bar | A slim strip with the title, the step and Next |
 | Code and math | One pane with a Code / Math switch on every screen size, and a Hide for the whole column. No drag handle |
-| Tour | A point-at tour of the workspace: it spotlights each region in turn, with Back, Next and Skip, and changes nothing |
+| Tour | A combined tour: each step spotlights one region; most also invite the student to try it, advancing by itself when done, and Next always works. It ends with "Make it spin" on Run and a hand-off to the lessons |
 | Also in this project | The Running strip covering the program window, and the selection outline staying behind during Run |
 | Lesson content | A separate project; lesson data may keep landing until Nov 2 |
 
@@ -206,32 +206,40 @@ The DEMO/EXERCISE chip, the section label, the segmented progress bar and its co
 
 ## 7. The first-visit tour
 
-A point-at tour of the workspace: it spotlights each region in turn and says what it is for. Nothing waits for the student to act, so it can't get stuck, and a presenter can click through it on stage while talking. A new feature slice, `features/first-visit-tour`, holds the pure step list and a small controller.
+The tour walks the loop VAMS teaches: build a shape, read its code, change it, see the math behind it, run it, then go on to the lessons. Every step points at one region of the workspace with a short caption. Most steps also invite the student to try the thing right there; doing it moves the tour on by itself, and Next always works without doing it. A presenter can click Next through all six steps on stage; a student who follows the invitations ends with a working, spinning program. A new feature slice, `features/first-visit-tour`, holds the pure step list, the checks and a small controller.
 
 ### Start and end
 
 - The welcome dialog's "Take the tour" starts it, as does a "Start the tour" button in the Help Center's Workspace Tour topic.
-- Every step has Back (off on step 1), Next (Finish on the last step) and "Skip tour". Arrow Right or Enter goes forward and Arrow Left goes back. Esc ends the tour, as do starting a lesson and starting Run.
-- The tour runs in Author mode and changes nothing in the scene. It is not saved; reloading ends it.
-- Starting the tour unhides the panel and the code column. When the tour ends, the rail returns to the panel it showed before the tour.
+- Every step has Back (off on step 1), Next and "Skip tour". Arrow Right or Enter goes forward and Arrow Left goes back, except while a text or number field has focus. Esc ends the tour, as does starting a lesson.
+- The tour runs in Author mode on the student's real scene. What the student builds while trying things stays, as in a lesson; clicking only Next changes nothing. The tour is not saved; reloading ends it.
+- Starting the tour unhides the panel and the code column and switches the column to Code. When the tour ends, the rail returns to the panel it showed before the tour.
 
 ### Steps
 
-| # | Spotlight | Rail | Text |
-| --- | --- | --- | --- |
-| 1 | The rail | unchanged | "This rail switches what the panel beside it shows: **Add** shapes, your **Scene**, scene **Settings**, and **Callbacks**." |
-| 2 | The Add panel | Add | "**Add** is where you build. Pick a primitive by its OpenGL name, then click the canvas to place its vertices." |
-| 3 | The Scene panel | Scene | "**Scene** lists your objects. Select one and its inspector shows its OpenGL groups, from Vertices to Texture." |
-| 4 | The canvas | unchanged | "The canvas draws your scene live. Drag shapes and their vertices right here." |
-| 5 | Run | unchanged | "**Run** plays your program: keys, clicks and idle frames go to your callbacks. **Esc** stops it, and your scene is just as you built it." |
-| 6 | The code column | unchanged | "Every change rewrites the C++ here. Switch to **Math** to see the numbers behind it." |
-| 7 | The Learn button | unchanged | "When you want a guide, **Learn** opens the course: five sections of demos and exercises." |
+| # | Spotlight | Caption | Try it (optional) | Advances by itself when |
+| --- | --- | --- | --- | --- |
+| 1 · Build | The rail's Add pill, the Add panel and the canvas | "The rail switches what this panel shows. **Add** is where you build." | "Pick **Triangles**, click three points on the canvas, then press **Enter**." | A new `TRIANGLES` object with at least 3 vertices exists and placement has ended |
+| 2 · Read | The code column | "Every shape you make becomes real OpenGL code. Your triangle is drawn by `draw_<name>()`." (Without a shape: "Every shape you make becomes real OpenGL code.") | none | never; Next only |
+| 3 · Change | The Scene panel and the code column | "Selecting an object opens its settings. Change **X** and watch the code." | Change the selected object's Translate X | The selected object's `translateX` differs from its value when the step began |
+| 4 · Understand | The Code / Math switch and the column | "**Math** shows the numbers behind the code, like the matrix your X just changed." | Click **Math** | The column shows Math |
+| 5 · Run | Run | "**Run** plays your program like a real GLUT window. **Esc** stops it, and your scene stays as you built it." | A **Make it spin** button (only when the scene has a drawable object) | A run started during this step has stopped |
+| 6 · Learn | The Learn button | "**Learn** opens the course: five sections of demos and exercises." | none | never; two buttons end the tour |
 
-- **Spotlight:** everything outside the step's region is dimmed with a scrim (`rgba(0, 0, 0, 0.55)` in both themes), leaving a cut-out with a 2 px `--accent` outline around the region. The dimmed editor is inert while the tour runs, so a stray click can't change the scene.
-- **Callout:** a small card beside the region, never covering it: "Step n of 7", the text at 14 px, and Back, Next and "Skip tour". It moves to whichever side of the region has room.
-- **Regions** are found by `data-tour-anchor` attributes on the real elements (rail, panel, canvas, Run, code column, Learn button), so the tour imports no widget.
-- **Narrow screens:** steps 2 and 3 open the panel drawer; the drawer closes when the tour leaves them.
-- **Focus:** the callout takes focus when the tour starts, and moves with each step. When the tour ends, focus returns to where it was before.
+- **Step 1:** the rail switches to Add as the step opens. Pressing Next or Back while a shape is half placed cancels the placement, as Esc does.
+- **Step 2:** the code panel scrolls to the new shape's `draw_` function, which is already highlighted because the shape is selected. `<name>` is the shape's sanitised name.
+- **Step 3:** the rail switches to Scene and selects the shape made in step 1 (or keeps the current selection). During this step the code panel flashes the lines that change, as it does in lessons: the number appears in the `ObjectState state_<name> = { ... }` line, not in `glTranslatef`, which reads the state. Without any object, the caption reads "Selecting an object opens its settings." and there is no try-it.
+- **Step 4:** the math panel's tab follows the context as usual, so it opens on Transforms after step 3.
+- **Step 5, Make it spin:** registers the Idle callback as `onIdle` (unless one is already valid) and adds the rule "every frame, rotate *the selected object* by 2 degrees" through the same store actions the Callbacks panel uses, then starts Run. The Callbacks badge shows the new count. The callback stays in the scene, and the caption adds: "Your Idle callback stays in **Callbacks**." Starting Run in this step does not end the tour; starting Run in any other step does. Without a drawable object, the step shows only its caption.
+- **Step 6:** **Start learning** opens the first lesson in course order that the student has not completed (from the browser's lesson progress), or the course's first lesson when all are done. **Explore on my own** ends the tour.
+
+### Spotlight and callout
+
+- **Spotlight:** everything outside the step's regions is dimmed with a scrim (`rgba(0, 0, 0, 0.55)` in both themes), leaving cut-outs with a 2 px `--accent` outline. Only the spotlighted regions take clicks and keys; the rest of the editor is inert for that step.
+- **Callout:** a small card beside the regions, never covering them: "Step n of 6", the caption at 14 px, the try-it line (if any) in `--ink-muted` with a small hand icon, and Back, Next and "Skip tour". It moves to whichever side has room, and stays clear of the canvas centre in step 1 so vertices can be placed.
+- **Regions** are found by `data-tour-anchor` attributes on the real elements (rail Add pill, panel, canvas, code column, Code / Math switch, Run, Learn button), so the tour imports no widget.
+- **Narrow screens:** steps 1 and 3 open the panel drawer; it closes when the tour leaves them.
+- **Accessibility:** the callout is a labelled non-modal dialog that takes focus when the tour starts and on each step, and announces the step through a polite live region. When the tour ends, focus returns to where it was. With `prefers-reduced-motion`, the spotlight moves without animation.
 
 ## 8. Run fixes
 
@@ -272,7 +280,7 @@ setCodeHidden(hidden: boolean): void;
 - `railPanel`'s initial value is decided when the store rehydrates: Add for an empty scene, otherwise Scene.
 - Selection switching to Scene happens in the store's selection actions (`selectObject` and the multi-select variants), so canvas, list and lesson actions all follow one rule.
 - `addRowCue` and `cueAddRow` are replaced by `setRailPanel('add')`.
-- The tour's state lives in its own slice: `tourStep: number | null` and `railBeforeTour: RailPanel | null`, with `startTour`, `nextTourStep`, `prevTourStep` and `endTour`.
+- The tour's state lives in its own slice: `tourStep: number | null`, `railBeforeTour: RailPanel | null` and `tourStepBaseline` (the values a step's check compares against), with `startTour`, `nextTourStep`, `prevTourStep` and `endTour`. While the tour runs, the code panel flashes changed lines as in Lesson mode.
 
 ### Components
 
@@ -283,7 +291,7 @@ setCodeHidden(hidden: boolean): void;
 | `features/custom-shapes/` | The primitive tiles and their drawings, replacing the palette grid and More menu |
 | `features/lesson-engine/ui/LessonBar.tsx` | Replaces `LessonCard.tsx`; the exercise widgets get the quieter styles |
 | `widgets/layout/code-math-column/` | The Code / Math switch, the change dot, Hide and the edge tab |
-| `features/first-visit-tour/` (new) | Steps, controller, the spotlight scrim and the callout |
+| `features/first-visit-tour/` (new) | Steps, checks, controller, the spotlight scrim and the callout |
 | `features/callbacks/ui/RunOverlay.tsx`, `model/run-controller.ts` | The strip offset and the reason plate |
 | `shared/engine/pixi/` | Hides the selection overlay while Run is on |
 | `pages/editor/ui/EditorShell.tsx`, `editor-app.scss` | The four-track grid, narrow drawer beside the rail, lesson bar under the canvas |
@@ -307,7 +315,7 @@ This project adds the fields and their behaviour only. Writing `task` text for t
 
 ## 12. Help and copy
 
-- **Welcome dialog:** Build is "the rail on the left: Add, Scene, Settings and Callbacks"; See is the canvas; Read is "Code and Math on the right". "Take the tour" starts the workspace tour.
+- **Welcome dialog:** Build is "the rail on the left: Add, Scene, Settings and Callbacks"; See is the canvas; Read is "Code and Math on the right". "Take the tour" starts the tour.
 - **Help Center:** the Workspace Tour topic is rewritten for the rail, the panels, the lesson bar and the Code / Math switch, and gains "Start the tour". Topics that name the old places are updated: the scene list and grouping ("Multi-Select" is now "Select several" in the Scene toolbar), the Add row, the Callbacks group ("in scene settings" becomes "the Callbacks panel"), and the lesson card (now the lesson bar).
 - All new copy follows the product rules: it describes what VAMS does and avoids the banned words.
 
@@ -329,7 +337,7 @@ New black-box tests, in the existing suites with the next free IDs:
 - **Panels:** Add shows all ten primitives in three groups and starts placement; a sample backs up and replaces the scene; Settings holds the three groups and no Callbacks; the Scene panel's empty-selection state.
 - **Lesson bar:** meta line, hairline width, Next/Finish, Back disabled on step 1; the task line falls back to "Waiting for you" and shows `task` when present; fold, unfold on step change; Exit and arrow shortcuts; quiz widgets still pass and fail as before.
 - **Code column:** the switch, the change dot appearing and clearing, Hide and the edge tab; `pane` and code-highlight steps switching panes; the student's choice restored when a lesson ends.
-- **Tour:** seven steps in order, each with an anchor that exists in the editor; Back, Next, Finish and the keyboard keys; steps 2 and 3 switch the rail and the end restores it; Skip, Esc, starting a lesson and starting Run end it; the scene is unchanged after a full tour; focus moves to the callout and returns at the end.
+- **Tour:** six steps in order, each with anchors that exist in the editor; each check passes and fails correctly (new triangle, X changed, Math shown, a run started and stopped); Next, Back and the keys, and Next cancelling a half-placed shape; clicking only Next leaves the scene unchanged; Make it spin registers `onIdle` with one rotate rule on the selected object and starts Run without ending the tour, while Run in any other step ends it; Start learning opens the first incomplete lesson; Skip, Esc and starting a lesson end it; the rail is restored and focus returns at the end.
 - **Run fixes:** the program window starts below the strip and reports the reduced height to Reshape; the selection overlay is hidden during Run and back after; the reason plate's two messages; Run hidden over an illustration.
 
 Existing tests that assert the old structure (group titles, the settings list including Callbacks, `cueAddRow`, the lesson card's DOM, the Panels button) are updated to the new structure; their IDs stay.
@@ -353,4 +361,4 @@ Visual tests: the editor and lesson baselines are retaken after the redesign, an
   5. The Run fixes.
   6. The tour.
   7. Help, welcome copy, the product plan and the roadmap.
-- Share link and QR follow on their own branch after this merges. Lesson content follows as its own project.
+- The code and math rework follows on its own branch after this merges, then Share link and QR. Lesson content follows as its own project.
