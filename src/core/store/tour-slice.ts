@@ -37,7 +37,7 @@ function enterStep(state: VamsState, index: number): Partial<VamsState> {
 
 /** Moving through the tour cancels a half-placed shape, as Esc does. */
 function stopPlacing(state: VamsState) {
-  if (state.interactionMode === 'VERTEX_PLACE') state.cancelCustomShape();
+  if (state.interactionMode === 'VERTEX_PLACE' || state.pendingShapeType !== null) state.cancelCustomShape();
 }
 
 export const createTourSlice: StateCreator<VamsState, [], [], TourSlice> = (set, get) => ({

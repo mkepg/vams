@@ -63,6 +63,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     summary: 'The three regions: build on the left, see in the center, read on the right.',
     keywords: ['layout', 'panels', 'column', 'regions', 'tour', 'top bar', 'scene list', 'add row', 'inspector', 'scene settings', 'learn', 'lesson card', 'file menu'],
     blocks: [
+      { kind: 'start-tour' },
       {
         kind: 'paragraph',
         text: 'The screen is split into three working regions plus a top bar. Each region has a single job, so you always know where to look.',
@@ -768,6 +769,7 @@ function blockText(block: HelpBlock): string {
     case 'definitions':
       return block.items.map((i) => `${i.term} ${i.description}`).join(' ');
     case 'shortcuts':
+    case 'start-tour':
       return '';
   }
 }

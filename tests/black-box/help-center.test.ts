@@ -15,6 +15,7 @@ import {
 import type { CurriculumSection } from '@/core/store/types';
 import { h, render } from 'preact';
 import { useVamsStore } from '@/core/store';
+import HelpCenter from '@/features/help/ui/HelpCenter';
 import WelcomeCard from '@/features/onboarding/ui/WelcomeCard';
 import { getState } from '../helpers/store';
 
@@ -158,5 +159,74 @@ describe('BB-HELP-06: Help teaches motion through the idle callback only', () =>
       expect(text).not.toContain(phrase);
     }
     for (const topic of HELP_TOPICS) expect(topic.related ?? []).not.toContain('animation');
+  });
+});
+
+describe('BB-HELP-07: The welcome card and the Help Center start the tour', () => {
+  async function settle() {
+    for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  function mountEl(vnode: ReturnType<typeof h>) {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    render(vnode, host);
+    return host;
+  }
+  function unmount(host: HTMLElement) {
+    render(null, host);
+    host.remove();
+  }
+  const buttonNamed = (name: string) =>
+    [...document.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.trim() === name);
+
+  it('Take the tour closes the welcome card and starts the tour', async () => {
+    useVamsStore.setState({ hasSeenWelcome: false, appMode: 'Author' });
+    const host = mountEl(h(WelcomeCard, {}));
+    await settle();
+    buttonNamed('Take the tour')!.click();
+    await settle();
+    expect(getState().hasSeenWelcome).toBe(true);
+    expect(getState().tourStep).toBe(0);
+    expect(getState().isHelpOpen).toBe(false);
+    getState().endTour();
+    unmount(host);
+  });
+
+  it('Start the tour in the Workspace Tour topic, and in the first-visit banner, closes Help and starts it', async () => {
+    useVamsStore.setState({ hasSeenWelcome: true, appMode: 'Author' });
+    getState().openHelp('workspace-tour');
+    let host = mountEl(h(HelpCenter, {}));
+    await settle();
+    document.querySelector<HTMLButtonElement>('.help-start-tour')!.click();
+    await settle();
+    expect(getState().isHelpOpen).toBe(false);
+    expect(getState().tourStep).toBe(0);
+    getState().endTour();
+    unmount(host);
+
+    useVamsStore.setState({ hasSeenWelcome: false });
+    getState().openHelp('shortcuts');
+    host = mountEl(h(HelpCenter, {}));
+    await settle();
+    document.querySelector<HTMLButtonElement>('.help-welcome-banner button')!.click();
+    await settle();
+    expect(getState().isHelpOpen).toBe(false);
+    expect(getState().hasSeenWelcome).toBe(true);
+    expect(getState().tourStep).toBe(0);
+    getState().endTour();
+    unmount(host);
+  });
+
+  it('offers no Start the tour during a lesson', async () => {
+    useVamsStore.setState({ hasSeenWelcome: false, appMode: 'Lesson' });
+    getState().openHelp('workspace-tour');
+    const host = mountEl(h(HelpCenter, {}));
+    await settle();
+    expect(document.querySelector('.help-start-tour')).toBeNull();
+    expect(document.querySelector('.help-welcome-banner')).toBeNull();
+    getState().closeHelp();
+    await settle();
+    unmount(host);
+    useVamsStore.setState({ hasSeenWelcome: true, appMode: 'Author' });
   });
 });

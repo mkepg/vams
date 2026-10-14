@@ -2,7 +2,7 @@
  * BLACK-BOX TEST SUITE — BB-TOUR
  * The first-visit tour: its steps and checks, the tour state, Make it spin, and the spotlight and callout.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { h, render, type VNode } from 'preact';
@@ -13,6 +13,10 @@ import { TOUR_STEPS, builtTriangle, type TourCaptionContext } from '@/features/f
 import { SPIN_HANDLER, makeItSpin, spinTarget } from '@/features/first-visit-tour/model/spin';
 import { COURSE, LESSON_CATALOG, courseOrder, firstLessonToStudy } from '@/features/lesson-engine/model/catalog';
 import SceneCodePanel from '@/features/code-generation/ui/SceneCodePanel';
+import FirstVisitTour, { TOUR_ADVANCE_MS, type TourRun } from '@/features/first-visit-tour';
+import { placeCallout } from '@/features/first-visit-tour/model/geometry';
+import { runController } from '@/features/callbacks/model/run-controller';
+import { startLesson } from '@/features/lesson-engine/model/start-lesson';
 import { addPrimitive, addQuad, addTriangle, getState } from '../helpers/store';
 
 async function settle() {
@@ -313,5 +317,456 @@ describe('BB-TOUR-07: During the tour the code flashes the lines an edit changes
     await settle();
     expect(host.querySelectorAll('.code-line.changed')).toHaveLength(0);
     unmount(host);
+  });
+});
+
+const ANCHORS = ['rail-add', 'panel', 'canvas', 'code-column', 'code-switch', 'run', 'learn'];
+
+/** A stand-in for the editor: one element per anchor, plus a button elsewhere and one already inert. */
+function fakeEditor() {
+  const root = document.createElement('div');
+  for (const id of ANCHORS) {
+    const el = document.createElement('button');
+    el.setAttribute('data-tour-anchor', id);
+    el.textContent = id;
+    root.appendChild(el);
+  }
+  const elsewhere = document.createElement('button');
+  elsewhere.id = 'elsewhere';
+  root.appendChild(elsewhere);
+  const wasInert = document.createElement('div');
+  wasInert.id = 'was-inert';
+  wasInert.setAttribute('inert', '');
+  root.appendChild(wasInert);
+  document.body.appendChild(root);
+  return root;
+}
+
+function fakeRun() {
+  let snapshot = { running: false };
+  const listeners = new Set<() => void>();
+  const publish = (running: boolean) => {
+    snapshot = { running };
+    listeners.forEach((listener) => listener());
+  };
+  return {
+    start: vi.fn(() => {
+      publish(true);
+      return true;
+    }),
+    stop: vi.fn(() => publish(false)),
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    getSnapshot: () => snapshot,
+  };
+}
+
+function mountTour(run: TourRun = fakeRun(), startLearning = vi.fn()) {
+  const host = mount(h(FirstVisitTour, { run, codeName: (name: string) => name, startLearning }));
+  return { host, run, startLearning };
+}
+const callout = () => document.querySelector<HTMLElement>('.tour-callout');
+const tourButton = (name: string) =>
+  [...document.querySelectorAll<HTMLButtonElement>('.tour-callout button')].find((b) => b.textContent?.trim() === name);
+const press = (key: string, target: EventTarget = document.body) =>
+  target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+/** With fake timers, lets renders and effects run. */
+const flush = () => vi.advanceTimersByTimeAsync(40);
+
+function mediaQuery(initial: boolean) {
+  const real = window.matchMedia;
+  let matches = initial;
+  const listeners = new Set<() => void>();
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    get matches() { return matches; },
+    media: query,
+    addEventListener: (_type: string, listener: () => void) => listeners.add(listener),
+    removeEventListener: (_type: string, listener: () => void) => listeners.delete(listener),
+    addListener: () => {}, removeListener: () => {}, onchange: null, dispatchEvent: () => false,
+  }));
+  return {
+    set(next: boolean) {
+      matches = next;
+      listeners.forEach((listener) => listener());
+    },
+    restore() {
+      window.matchMedia = real;
+    },
+  };
+}
+
+describe('BB-TOUR-08: The callout shows the step and moves with its buttons and keys', () => {
+  it('shows the step, the caption and the try-it line, and Back, Next and Skip work', async () => {
+    const editor = fakeEditor();
+    getState().startTour();
+    const { host } = mountTour();
+    await settle();
+    const dialog = callout()!;
+    expect(dialog.getAttribute('role')).toBe('dialog');
+    expect(dialog.getAttribute('aria-modal')).toBe('false');
+    expect(dialog.querySelector('.tour-callout__step')!.textContent).toBe('Step 1 of 6');
+    expect(dialog.querySelector('.tour-callout__caption strong')!.textContent).toBe('Add');
+    expect(dialog.querySelector('.tour-callout__try')!.textContent).toContain('Pick Triangles');
+    expect(dialog.querySelector('[aria-live="polite"]')!.textContent).toBe('Tour step 1 of 6: Build');
+    expect(tourButton('Back')!.disabled).toBe(true);
+    expect(document.activeElement).toBe(dialog);
+    tourButton('Next')!.click();
+    await settle();
+    expect(getState().tourStep).toBe(1);
+    expect(callout()!.querySelector('.tour-callout__step')!.textContent).toBe('Step 2 of 6');
+    tourButton('Back')!.click();
+    await settle();
+    expect(getState().tourStep).toBe(0);
+    tourButton('Skip tour')!.click();
+    await settle();
+    expect(getState().tourStep).toBeNull();
+    expect(callout()).toBeNull();
+    unmount(host);
+    editor.remove();
+  });
+
+  it('goes forward with Right or Enter, back with Left, and ends with Esc', async () => {
+    const editor = fakeEditor();
+    getState().startTour();
+    const { host } = mountTour();
+    await settle();
+    press('ArrowRight');
+    expect(getState().tourStep).toBe(1);
+    press('Enter');
+    expect(getState().tourStep).toBe(2);
+    press('ArrowLeft');
+    expect(getState().tourStep).toBe(1);
+    press('Escape');
+    expect(getState().tourStep).toBeNull();
+    unmount(host);
+    editor.remove();
+  });
+
+  it('leaves keys to fields and arrow widgets, and Enter and Esc to a shape being placed', async () => {
+    const editor = fakeEditor();
+    const input = document.createElement('input');
+    const group = document.createElement('div');
+    group.setAttribute('role', 'radiogroup');
+    const radio = document.createElement('button');
+    group.appendChild(radio);
+    editor.append(input, group);
+    getState().startTour();
+    const { host } = mountTour();
+    await settle();
+    press('ArrowRight', input);
+    press('Escape', input);
+    press('ArrowRight', radio);
+    expect(getState().tourStep).toBe(0);
+    getState().startCustomShape('TRIANGLES', 3, 3);
+    press('Enter');
+    press('Escape');
+    expect(getState().tourStep).toBe(0);
+    expect(getState().interactionMode).toBe('VERTEX_PLACE');
+    press('ArrowRight');
+    expect(getState().tourStep).toBe(1);
+    expect(getState().interactionMode).toBe('SELECT');
+    getState().endTour();
+    unmount(host);
+    editor.remove();
+  });
+
+  it('ends with Start learning and Explore on my own instead of Next', async () => {
+    const editor = fakeEditor();
+    getState().startTour();
+    goTo(5);
+    const { host } = mountTour();
+    await settle();
+    expect(tourButton('Next')).toBeUndefined();
+    expect(tourButton('Skip tour')).toBeUndefined();
+    expect(tourButton('Start learning')).toBeDefined();
+    press('ArrowRight');
+    expect(getState().tourStep).toBe(5);
+    tourButton('Explore on my own')!.click();
+    await settle();
+    expect(getState().tourStep).toBeNull();
+    unmount(host);
+    editor.remove();
+  });
+});
+
+describe('BB-TOUR-09: Doing a step moves the tour on by itself', () => {
+  it('moves on a moment after the Build triangle is finished; an undo in that moment holds it', async () => {
+    vi.useFakeTimers();
+    const editor = fakeEditor();
+    try {
+      getState().startTour();
+      const { host } = mountTour();
+      await flush();
+      useVamsStore.setState({ past: [], future: [] });
+      addTriangle();
+      await vi.advanceTimersByTimeAsync(TOUR_ADVANCE_MS / 2);
+      getState().undo();
+      await vi.advanceTimersByTimeAsync(TOUR_ADVANCE_MS);
+      expect(getState().tourStep).toBe(0);
+      getState().redo();
+      await vi.advanceTimersByTimeAsync(TOUR_ADVANCE_MS - 100);
+      expect(getState().tourStep).toBe(0);
+      await vi.advanceTimersByTimeAsync(200);
+      expect(getState().tourStep).toBe(1);
+      getState().endTour();
+      unmount(host);
+    } finally {
+      editor.remove();
+      vi.useRealTimers();
+    }
+  });
+
+  it('waits on a step that was already done when the student came Back to it', async () => {
+    vi.useFakeTimers();
+    const editor = fakeEditor();
+    try {
+      getState().startTour();
+      goTo(3);
+      const { host } = mountTour();
+      await flush();
+      getState().setCodePane('math');
+      await vi.advanceTimersByTimeAsync(TOUR_ADVANCE_MS + 100);
+      expect(getState().tourStep).toBe(4);
+      getState().prevTourStep();
+      await flush();
+      await vi.advanceTimersByTimeAsync(TOUR_ADVANCE_MS * 2);
+      expect(getState().tourStep).toBe(3);
+      getState().setCodePane('code');
+      getState().setCodePane('math');
+      await vi.advanceTimersByTimeAsync(TOUR_ADVANCE_MS + 100);
+      expect(getState().tourStep).toBe(4);
+      getState().endTour();
+      unmount(host);
+    } finally {
+      editor.remove();
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('BB-TOUR-10: The Run step', () => {
+  it('Make it spin starts Run without ending the tour, and the stopped run moves on to Learn', async () => {
+    vi.useFakeTimers();
+    const editor = fakeEditor();
+    try {
+      addTriangle();
+      getState().startTour();
+      goTo(4);
+      const run = fakeRun();
+      const { host } = mountTour(run);
+      await flush();
+      tourButton('Make it spin')!.click();
+      await flush();
+      expect(run.start).toHaveBeenCalledTimes(1);
+      expect(getState().tourStep).toBe(4);
+      expect(getState().callbacks.idle.rules).toHaveLength(1);
+      expect(document.querySelector('.tour')!.classList.contains('is-lifted')).toBe(true);
+      expect(document.querySelector('[inert]:not(#was-inert)')).toBeNull();
+      expect(tourButton('Make it spin')).toBeUndefined();
+      expect(callout()!.textContent).toContain('Your Idle callback stays in Callbacks.');
+      run.stop();
+      await vi.advanceTimersByTimeAsync(TOUR_ADVANCE_MS + 100);
+      expect(getState().tourStep).toBe(5);
+      getState().endTour();
+      unmount(host);
+    } finally {
+      editor.remove();
+      vi.useRealTimers();
+    }
+  });
+
+  it('counts a run that stopped because the scene changed', async () => {
+    vi.useFakeTimers();
+    const editor = fakeEditor();
+    const run: TourRun = {
+      start: () => runController.start({ loop: false }),
+      stop: () => runController.stop(),
+      subscribe: runController.subscribe,
+      getSnapshot: runController.getSnapshot,
+    };
+    try {
+      addTriangle();
+      useVamsStore.setState({ past: [], future: [] });
+      getState().startTour();
+      goTo(4);
+      const { host } = mountTour(run);
+      await flush();
+      tourButton('Make it spin')!.click();
+      await flush();
+      expect(runController.getSnapshot().running).toBe(true);
+      getState().undo();
+      expect(runController.getSnapshot().running).toBe(false);
+      await vi.advanceTimersByTimeAsync(TOUR_ADVANCE_MS + 100);
+      expect(getState().tourStep).toBe(5);
+      getState().endTour();
+      unmount(host);
+    } finally {
+      runController.stop();
+      editor.remove();
+      vi.useRealTimers();
+    }
+  });
+
+  it('ends the tour when Run starts on any other step, and offers no spin without a shape', async () => {
+    const editor = fakeEditor();
+    getState().startTour();
+    const run = fakeRun();
+    let { host } = mountTour(run);
+    await settle();
+    run.start();
+    await settle();
+    expect(getState().tourStep).toBeNull();
+    unmount(host);
+    run.stop();
+    getState().startTour();
+    goTo(4);
+    ({ host } = mountTour(run));
+    await settle();
+    expect(tourButton('Make it spin')).toBeUndefined();
+    expect(callout()!.querySelector('.tour-callout__try')).toBeNull();
+    getState().endTour();
+    unmount(host);
+    editor.remove();
+  });
+});
+
+describe('BB-TOUR-11: Starting a lesson ends the tour', () => {
+  it('cancels a half-placed shape and leaves the rail to the lesson', async () => {
+    useVamsStore.setState({ railPanel: 'settings' });
+    getState().startTour();
+    getState().startCustomShape('TRIANGLES', 3, 3);
+    getState().addPendingVertex(0, 0);
+    expect(await startLesson('transforms-demo-1')).toBe(true);
+    const s = getState();
+    expect(s.tourStep).toBeNull();
+    expect([s.interactionMode, s.pendingShapeType]).toEqual(['SELECT', null]);
+    expect(s.railPanel).toBe('add');
+    getState().setLessonFocusPanel('callbacks-panel');
+    expect(getState().railPanel).toBe('callbacks');
+    getState().clearLessonState();
+    useVamsStore.setState({ appMode: 'Author' });
+  });
+});
+
+describe('BB-TOUR-12: The tour hands over to the lessons', () => {
+  it('Start learning asks the page for the next lesson and ends the tour', async () => {
+    const editor = fakeEditor();
+    getState().startTour();
+    goTo(5);
+    const { host, startLearning } = mountTour();
+    await settle();
+    tourButton('Start learning')!.click();
+    await settle();
+    expect(startLearning).toHaveBeenCalledTimes(1);
+    expect(getState().tourStep).toBeNull();
+    unmount(host);
+    editor.remove();
+  });
+
+  it('opening the Learn drawer ends the tour', async () => {
+    const editor = fakeEditor();
+    getState().startTour();
+    goTo(5);
+    const { host } = mountTour();
+    await settle();
+    getState().setLearnOpen(true);
+    await settle();
+    expect(getState().tourStep).toBeNull();
+    getState().setLearnOpen(false);
+    unmount(host);
+    editor.remove();
+  });
+});
+
+describe('BB-TOUR-13: The spotlight', () => {
+  it('makes everything but the step’s regions inert, and gives it all back at the end', async () => {
+    const editor = fakeEditor();
+    const anchor = (id: string) => editor.querySelector(`[data-tour-anchor="${id}"]`)!;
+    getState().startTour();
+    const { host } = mountTour();
+    await settle();
+    for (const id of ['rail-add', 'panel', 'canvas']) expect(anchor(id).hasAttribute('inert'), id).toBe(false);
+    for (const id of ['code-column', 'run', 'learn']) expect(anchor(id).hasAttribute('inert'), id).toBe(true);
+    expect(editor.querySelector('#elsewhere')!.hasAttribute('inert')).toBe(true);
+    expect(callout()!.closest('[inert]')).toBeNull();
+    expect(document.querySelectorAll('.tour__outline')).toHaveLength(3);
+    getState().nextTourStep();
+    await settle();
+    expect(anchor('code-column').hasAttribute('inert')).toBe(false);
+    expect(anchor('canvas').hasAttribute('inert')).toBe(true);
+    expect(document.querySelectorAll('.tour__outline')).toHaveLength(1);
+    getState().endTour();
+    await settle();
+    expect([...document.querySelectorAll('[inert]')].map((el) => el.id)).toEqual(['was-inert']);
+    unmount(host);
+    editor.remove();
+  });
+
+  it('takes focus on each step and gives it back when the tour ends', async () => {
+    const editor = fakeEditor();
+    const before = editor.querySelector<HTMLButtonElement>('#elsewhere')!;
+    before.focus();
+    getState().startTour();
+    const { host } = mountTour();
+    await settle();
+    expect(document.activeElement).toBe(callout());
+    getState().endTour();
+    await settle();
+    expect(document.activeElement).toBe(before);
+    unmount(host);
+    editor.remove();
+  });
+
+  it('opens the narrow-screen drawer for Build and Change only', async () => {
+    const media = mediaQuery(true);
+    const editor = fakeEditor();
+    try {
+      getState().startTour();
+      const { host } = mountTour();
+      await settle();
+      const hidden = [getState().railHidden];
+      for (let i = 1; i < 4; i++) {
+        getState().nextTourStep();
+        await settle();
+        hidden.push(getState().railHidden);
+      }
+      expect(hidden).toEqual([false, true, false, true]);
+      getState().endTour();
+      unmount(host);
+    } finally {
+      editor.remove();
+      media.restore();
+    }
+  });
+
+  it('declares the scrim colour for both themes', () => {
+    const scss = readFileSync('src/shared/styles/_tokens.scss', 'utf8');
+    expect(scss.split('--tour-scrim: rgba(0, 0, 0, 0.55);').length - 1).toBe(2);
+  });
+});
+
+describe('BB-TOUR-14: The callout sits beside the regions, never on them', () => {
+  const viewport = { width: 1280, height: 800 };
+  const size = { width: 320, height: 200 };
+
+  it('takes the first side with room', () => {
+    // The Build step at 1280 px: the Add pill, the panel and the canvas. The room is right of the canvas.
+    const build = [
+      { left: 0, top: 52, width: 64, height: 60 },
+      { left: 64, top: 44, width: 272, height: 756 },
+      { left: 336, top: 44, width: 520, height: 756 },
+    ];
+    expect(placeCallout(build, viewport, size)).toEqual({ left: 868, top: 44 });
+    // The Read step: the code column on the right, so the callout goes to its left.
+    expect(placeCallout([{ left: 820, top: 44, width: 460, height: 756 }], viewport, size)).toEqual({ left: 488, top: 44 });
+  });
+
+  it('covers the regions as little as it can when there is no room, and stays in the window', () => {
+    expect(placeCallout([{ left: 0, top: 0, width: 1280, height: 800 }], viewport, size)).toEqual({ left: 948, top: 12 });
+    expect(placeCallout([], viewport, size)).toEqual({ left: 480, top: 588 });
   });
 });

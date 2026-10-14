@@ -1,0 +1,115 @@
+// The first-visit tour: a scrim with cut-outs over the editor, outlines on the regions, and the callout.
+// The layer takes no clicks itself: the spotlighted regions underneath take them, and the rest is inert.
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 1000; // above the editor and its drawer, below menus (1040) and dialogs (1050)
+  pointer-events: none;
+
+  &__scrim {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  &__shade {
+    fill: var(--tour-scrim);
+  }
+
+  &__outline {
+    position: absolute;
+    border-radius: var(--radius-m);
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+}
+
+.tour-callout {
+  position: absolute;
+  box-sizing: border-box;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  padding: var(--space-4);
+  pointer-events: auto;
+  color: var(--ink);
+  background: var(--paper-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-m);
+  box-shadow: 0 8px 24px rgba(var(--shadow-rgb), 0.28);
+
+  &:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  &__step {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--ink-muted);
+  }
+
+  &__caption {
+    margin: 0;
+    font-size: var(--text-base);
+    line-height: var(--lh-base);
+
+    code {
+      font-family: var(--font-mono);
+    }
+  }
+
+  &__try {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: var(--space-3) 0 0;
+    font-size: var(--text-sm);
+    color: var(--ink-muted);
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+  }
+
+  &__nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  &__skip {
+    padding: 0;
+    font: inherit;
+    font-size: var(--text-sm);
+    color: var(--ink-muted);
+    text-decoration: underline;
+    background: none;
+    border: none;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--ink);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 2px;
+    }
+  }
+}
+
+// The spotlight moves with a short slide, or at once for reduced motion.
+@media (prefers-reduced-motion: no-preference) {
+  .tour__outline {
+    transition: left 160ms ease, top 160ms ease, width 160ms ease, height 160ms ease;
+  }
+
+  .tour-callout {
+    transition: left 160ms ease, top 160ms ease;
+  }
+}

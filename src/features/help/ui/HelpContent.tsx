@@ -1,3 +1,4 @@
+import { useVamsStore } from '@/core/store';
 import { Info, Lightbulb, AlertTriangle } from 'lucide-react';
 import type { HelpBlock, HelpTopic, HelpTopicId } from '@/features/help/model/types';
 import { getHelpTopic } from '@/features/help/model/help-content';
@@ -38,6 +39,25 @@ function ShortcutsTable() {
         </div>
       ))}
     </div>
+  );
+}
+
+/** Closes Help and starts the first-visit tour, marking the welcome as seen. */
+export function startTourFromHelp() {
+  const state = useVamsStore.getState();
+  state.markWelcomeSeen();
+  state.closeHelp();
+  state.startTour();
+}
+
+/** Not offered during a lesson, which the tour would end. */
+function StartTourButton() {
+  const inLesson = useVamsStore((s) => s.appMode === 'Lesson');
+  if (inLesson) return null;
+  return (
+    <button type="button" className="help-start-tour" onClick={startTourFromHelp}>
+      Start the tour
+    </button>
   );
 }
 
@@ -113,6 +133,8 @@ function Block({ block }: { block: HelpBlock }) {
     }
     case 'shortcuts':
       return <ShortcutsTable />;
+    case 'start-tour':
+      return <StartTourButton />;
   }
 }
 

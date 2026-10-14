@@ -11,12 +11,21 @@ import { useRecordLessonOnLeave } from '@/features/lesson-engine/model/record-on
 import HelpCenter from '@/features/help/ui/HelpCenter';
 import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
 import WelcomeCard from '@/features/onboarding/ui/WelcomeCard';
+import FirstVisitTour from '@/features/first-visit-tour';
+import { runController } from '@/features/callbacks/model/run-controller';
+import { sanitizeName } from '@/features/code-generation/model/generator/utils';
+import { startLesson } from '@/features/lesson-engine/model/start-lesson';
+import { readProgress } from '@/features/lesson-engine/model/progress';
+import { firstLessonToStudy } from '@/features/lesson-engine/model/catalog';
 import { useVamsStore } from '@/core/store';
 import { getActiveTheme, subscribeTheme, toEditorTheme, type SiteTheme } from '@/shared/lib/theme';
 import { useKeyboardShortcuts } from '@/shared/hooks/useKeyboardShortcuts';
 import { useEditorLink } from '../model/useEditorLink';
 import { useCorruptSaveNotice } from '../model/recovery';
 import EditorShell from './EditorShell';
+
+/** The tour's "Start learning": the first lesson in course order the student has not completed. */
+const startLearning = () => void startLesson(firstLessonToStudy(readProgress().completed));
 
 export default function EditorApp() {
   useKeyboardShortcuts();
@@ -49,6 +58,7 @@ export default function EditorApp() {
           <MyScenesDialog />
           <ConfirmDialog />
           <WelcomeCard />
+          <FirstVisitTour run={runController} codeName={sanitizeName} startLearning={startLearning} />
         </>
       }
     />

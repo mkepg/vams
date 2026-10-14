@@ -7,7 +7,7 @@ import './welcome-card.scss';
 /**
  * First-run welcome card. Shown once (gated on the persisted `hasSeenWelcome`
  * flag) to orient a new student to the three regions of the workspace, with a
- * shortcut into the guided Workspace Tour in the Help Center.
+ * shortcut into the first-visit tour.
  */
 export default function WelcomeCard() {
   const hasSeenWelcome = useVamsStore((state) => state.hasSeenWelcome);
@@ -18,14 +18,14 @@ export default function WelcomeCard() {
 
 function WelcomeCardInner() {
   const markWelcomeSeen = useVamsStore((state) => state.markWelcomeSeen);
-  const openHelp = useVamsStore((state) => state.openHelp);
+  const startTour = useVamsStore((state) => state.startTour);
   const closeRef = useRef<HTMLButtonElement>(null);
 
   const dismiss = () => markWelcomeSeen();
 
   const takeTour = () => {
     markWelcomeSeen();
-    openHelp('workspace-tour');
+    startTour();
   };
 
   return (
