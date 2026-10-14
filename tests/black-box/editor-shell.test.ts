@@ -16,6 +16,7 @@ import EditorPreferencesMenu from '@/features/editor-preferences/ui/EditorPrefer
 import LearnButton from '@/features/lesson-engine/ui/LearnButton';
 import FileMenu from '@/widgets/layout/top-bar/FileMenu';
 import { EditorColumn, Inspector } from '@/widgets/layout/editor-column';
+import Rail from '@/widgets/layout/rail';
 import { useMyScenesDialog } from '@/features/scene-library';
 import { CanvasOverlays } from '@/widgets/canvas/ui/CanvasOverlays';
 import { addPrimitive, addTriangle } from '../helpers/store';
@@ -37,6 +38,29 @@ function key(target: EventTarget, k: string, init: KeyboardEventInit = {}) {
   const event = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init });
   target.dispatchEvent(event);
   return event;
+}
+
+/** A matchMedia stand-in whose answer can change, notifying the editor like a real resize. */
+function mediaQuery(initial: boolean) {
+  const real = window.matchMedia;
+  let matches = initial;
+  const listeners = new Set<() => void>();
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    get matches() { return matches; },
+    media: query,
+    addEventListener: (_type: string, listener: () => void) => listeners.add(listener),
+    removeEventListener: (_type: string, listener: () => void) => listeners.delete(listener),
+    addListener: () => {}, removeListener: () => {}, onchange: null, dispatchEvent: () => false,
+  }));
+  return {
+    set(next: boolean) {
+      matches = next;
+      listeners.forEach((listener) => listener());
+    },
+    restore() {
+      window.matchMedia = real;
+    },
+  };
 }
 
 function DialogHarness({ onClose }: { onClose: () => void }) {
@@ -774,5 +798,122 @@ describe('BB-SHELL-31: The canvas follows its box when the layout around it chan
     }
     const { readFileSync } = await import('node:fs');
     expect(readFileSync('src/widgets/canvas/VamsCanvas.tsx', 'utf8')).toContain('observeResize(');
+  });
+});
+
+describe('BB-SHELL-32: The rail lists Add, Scene, Settings and Callbacks as vertical tabs', () => {
+  it('names each tab, sets Callbacks apart and marks the open panel', async () => {
+    const media = mediaQuery(false);
+    try {
+      useVamsStore.setState({ railPanel: 'scene', railHidden: false });
+      const host = mount(h(Rail, {}));
+      await settle();
+      const list = host.querySelector('[role="tablist"]')!;
+      expect(list.getAttribute('aria-orientation')).toBe('vertical');
+      expect(list.getAttribute('aria-label')).toBe('Editor panels');
+      const tabs = [...list.querySelectorAll('[role="tab"]')];
+      expect(tabs.map((t) => t.querySelector('.rail__label')!.textContent)).toEqual(['Add', 'Scene', 'Settings', 'Callbacks']);
+      expect(tabs.map((t) => t.id)).toEqual(['rail-tab-add', 'rail-tab-scene', 'rail-tab-settings', 'rail-tab-callbacks']);
+      for (const tab of tabs) expect(tab.getAttribute('aria-controls')).toBe('editor-panel');
+      const divider = list.querySelector('.rail__divider')!;
+      expect(divider.previousElementSibling).toBe(tabs[2]);
+      expect(divider.nextElementSibling).toBe(tabs[3]);
+      expect(tabs.map((t) => t.getAttribute('aria-selected') === 'true')).toEqual([false, true, false, false]);
+      expect(tabs.map((t) => t.getAttribute('tabindex'))).toEqual(['-1', '0', '-1', '-1']);
+      expect(tabs[0].getAttribute('data-tour-anchor')).toBe('rail-add');
+      (tabs[2] as HTMLButtonElement).click();
+      await settle();
+      expect(useVamsStore.getState().railPanel).toBe('settings');
+      unmount(host);
+    } finally {
+      media.restore();
+    }
+  });
+});
+
+describe('BB-SHELL-33: Arrow keys move between rail tabs; Enter opens one', () => {
+  it('moves focus with Up, Down, Home and End and wraps at the ends', async () => {
+    const media = mediaQuery(false);
+    try {
+      useVamsStore.setState({ railPanel: 'add', railHidden: false });
+      const host = mount(h(Rail, {}));
+      await settle();
+      const tab = (id: string) => host.querySelector(`#rail-tab-${id}`) as HTMLButtonElement;
+      tab('add').focus();
+      key(tab('add'), 'ArrowDown');
+      expect(document.activeElement).toBe(tab('scene'));
+      key(tab('scene'), 'End');
+      expect(document.activeElement).toBe(tab('callbacks'));
+      key(tab('callbacks'), 'ArrowDown');
+      expect(document.activeElement).toBe(tab('add'));
+      key(tab('add'), 'ArrowUp');
+      expect(document.activeElement).toBe(tab('callbacks'));
+      key(tab('callbacks'), 'Home');
+      expect(document.activeElement).toBe(tab('add'));
+      // Moving focus never switches the panel; activating does.
+      expect(useVamsStore.getState().railPanel).toBe('add');
+      unmount(host);
+    } finally {
+      media.restore();
+    }
+  });
+});
+
+describe('BB-SHELL-34: The Callbacks badge counts the callbacks that work', () => {
+  it('hides at zero and counts only valid handlers', async () => {
+    const media = mediaQuery(false);
+    try {
+      const host = mount(h(Rail, {}));
+      await settle();
+      expect(host.querySelector('.rail__badge')).toBeNull();
+      const s = useVamsStore.getState();
+      s.setCallbackHandler('keyboard', 'onKey');
+      s.setCallbackHandler('idle', 'onIdle');
+      s.setCallbackHandler('mouse', 'onKey');
+      await settle();
+      expect(host.querySelector('.rail__badge')!.textContent).toBe('2');
+      expect(host.querySelector('#rail-tab-callbacks')!.textContent).toContain('2 on');
+      unmount(host);
+    } finally {
+      media.restore();
+    }
+  });
+});
+
+describe('BB-SHELL-35: Hide folds the panel and any rail item brings it back', () => {
+  it('toggles Hide and Show, leaves no tab selected while hidden, and ignores a click on the open item', async () => {
+    const media = mediaQuery(false);
+    try {
+      useVamsStore.setState({ railPanel: 'scene', railHidden: false });
+      const host = mount(h(Rail, {}));
+      await settle();
+      const hide = host.querySelector('.rail__hide') as HTMLButtonElement;
+      expect(hide.textContent).toContain('Hide');
+      expect(hide.getAttribute('aria-expanded')).toBe('true');
+      (host.querySelector('#rail-tab-scene') as HTMLButtonElement).click();
+      expect(useVamsStore.getState().railHidden).toBe(false);
+      hide.click();
+      await settle();
+      expect(useVamsStore.getState().railHidden).toBe(true);
+      expect(hide.textContent).toContain('Show');
+      expect(host.querySelectorAll('[role="tab"][aria-selected="true"]')).toHaveLength(0);
+      (host.querySelector('#rail-tab-add') as HTMLButtonElement).click();
+      await settle();
+      expect(useVamsStore.getState().railHidden).toBe(false);
+      expect(useVamsStore.getState().railPanel).toBe('add');
+      unmount(host);
+    } finally {
+      media.restore();
+    }
+  });
+});
+
+describe('BB-SHELL-36: The rail pill tokens exist in both themes', () => {
+  it('declares --rail-pill-hover and --rail-pill-active for light and dark', async () => {
+    const { readFileSync } = await import('node:fs');
+    const scss = readFileSync('src/shared/styles/_tokens.scss', 'utf8');
+    for (const token of ['--rail-pill-hover', '--rail-pill-active']) {
+      expect(scss.split(`${token}:`).length - 1).toBe(2);
+    }
   });
 });

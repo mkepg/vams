@@ -4,7 +4,7 @@ import { PanelLeft } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import { useRunSnapshot } from '@/features/callbacks';
 import { Button } from '@/shared/ui/controls';
-import { useNarrowLayout } from '../model/useNarrowLayout';
+import { useNarrowLayout } from '@/shared/hooks/useNarrowLayout';
 import './editor-app.scss';
 
 export interface EditorShellProps {
