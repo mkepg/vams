@@ -1,69 +1,64 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { ComponentChildren } from 'preact';
-import { PanelLeft } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import { useRunSnapshot } from '@/features/callbacks';
-import { Button } from '@/shared/ui/controls';
-import { useNarrowLayout } from '../model/useNarrowLayout';
+import { useNarrowLayout } from '@/shared/hooks/useNarrowLayout';
 import './editor-app.scss';
 
 export interface EditorShellProps {
   topBar: ComponentChildren;
-  column: ComponentChildren;
+  /** The rail of panel tabs. */
+  rail: ComponentChildren;
+  /** The open rail panel. */
+  panel: ComponentChildren;
   canvas: ComponentChildren;
+  /** The lesson bar, under the canvas. */
+  lessonBar?: ComponentChildren;
   codeMath: ComponentChildren;
   /** Dialogs and other overlays rendered after the grid. */
   overlays?: ComponentChildren;
 }
 
-/** The editor grid. Below 1100 px the editor column becomes a drawer over the canvas. */
-export default function EditorShell({ topBar, column, canvas, codeMath, overlays }: EditorShellProps) {
+/** The editor grid: rail, panel, canvas and code. Below 1100 px the panel is a drawer beside the rail. */
+export default function EditorShell({ topBar, rail, panel, canvas, lessonBar, codeMath, overlays }: EditorShellProps) {
   const narrow = useNarrowLayout();
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const toggleRef = useRef<HTMLButtonElement>(null);
-
-  const columnRef = useRef<HTMLElement>(null);
-
-  // Editing pauses while Run is on; the drawer closes so it never covers the canvas.
+  const railPanel = useVamsStore((s) => s.railPanel);
+  const railHidden = useVamsStore((s) => s.railHidden);
+  const codeHidden = useVamsStore((s) => s.codeHidden);
+  const setRailHidden = useVamsStore((s) => s.setRailHidden);
+  const inLesson = useVamsStore((s) => s.appMode === 'Lesson');
   const running = useRunSnapshot().running;
-  const [wasRunning, setWasRunning] = useState(running);
-  if (running !== wasRunning) {
-    setWasRunning(running);
-    if (running) setDrawerOpen(false);
-  }
+  const panelRef = useRef<HTMLElement>(null);
 
-  // Open the drawer whenever a lesson starts or moves to another step, so the narration is visible,
-  // and close it when the lesson ends.
-  const stepKey = useVamsStore((s) => (s.appMode === 'Lesson' ? `${s.activeLessonId}:${s.currentStepIndex}` : null));
-  const [lastStepKey, setLastStepKey] = useState<string | null>(null);
-  if (stepKey !== lastStepKey) {
-    setLastStepKey(stepKey);
-    if (stepKey) setDrawerOpen(true);
-    else if (lastStepKey) setDrawerOpen(false);
-  }
-
-  // "Add a shape" on the empty canvas needs the Add row, which lives in the drawer.
-  const addRowCue = useVamsStore((s) => s.addRowCue);
-  const [seenCue, setSeenCue] = useState(addRowCue);
-  if (addRowCue !== seenCue) {
-    setSeenCue(addRowCue);
-    setDrawerOpen(true);
-  }
-
-  // A closed drawer never keeps focus: move it to the Panels button (for example after Exit).
-  const showDrawer = narrow && drawerOpen;
+  // A narrow layout starts with the drawer closed; a wide one shows the panel.
   useLayoutEffect(() => {
-    if (!narrow || drawerOpen) return;
+    setRailHidden(narrow);
+  }, [narrow, setRailHidden]);
+
+  // On a narrow screen, Run and the end of a lesson close the drawer so it never covers the canvas.
+  useEffect(() => {
+    if (narrow && running) setRailHidden(true);
+  }, [narrow, running, setRailHidden]);
+  const wasInLesson = useRef(inLesson);
+  useEffect(() => {
+    if (narrow && wasInLesson.current && !inLesson) setRailHidden(true);
+    wasInLesson.current = inLesson;
+  }, [narrow, inLesson, setRailHidden]);
+
+  // A closed drawer never keeps focus: hand it to the open panel's rail tab.
+  useLayoutEffect(() => {
+    if (!narrow || !railHidden) return;
     const active = document.activeElement;
-    if (active && columnRef.current?.contains(active)) toggleRef.current?.focus();
-  }, [narrow, drawerOpen]);
+    if (active && panelRef.current?.contains(active)) document.getElementById(`rail-tab-${railPanel}`)?.focus();
+  }, [narrow, railHidden, railPanel]);
 
   // While the drawer shows, Esc closes it wherever focus is, and the lesson's window listener
   // never sees that key. The listener sits on document, so it runs after every element handler
   // (a dialog, a menu or a field that used Esc has already called preventDefault) and before window.
   // Text fields keep their own Esc (cancel the edit).
+  const drawerOpen = narrow && !railHidden;
   useEffect(() => {
-    if (!showDrawer) return;
+    if (!drawerOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
       const target = event.target instanceof HTMLElement ? event.target : null;
@@ -71,36 +66,39 @@ export default function EditorShell({ topBar, column, canvas, codeMath, overlays
       if (target?.closest('[role="dialog"], [role="alertdialog"], [role="menu"]')) return;
       event.preventDefault();
       event.stopPropagation();
-      setDrawerOpen(false);
-      toggleRef.current?.focus();
+      setRailHidden(true);
+      document.getElementById(`rail-tab-${useVamsStore.getState().railPanel}`)?.focus();
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [showDrawer]);
+  }, [drawerOpen, setRailHidden]);
 
-  const classes = ['editor', narrow ? 'editor--narrow' : '', showDrawer ? 'is-drawer-open' : ''].filter(Boolean).join(' ');
+  const classes = [
+    'editor',
+    narrow ? 'editor--narrow' : '',
+    railHidden ? 'is-panel-hidden' : '',
+    codeHidden ? 'is-code-hidden' : '',
+  ].filter(Boolean).join(' ');
   return (
     <div className={classes}>
       {topBar}
-      <aside ref={columnRef} id="editor-column" className="editor__column" inert={running || undefined} aria-label="Scene and inspector">
-        {column}
+      <div className="editor__rail" inert={running || undefined}>{rail}</div>
+      <aside
+        ref={panelRef}
+        id="editor-panel"
+        className="editor__panel"
+        role="tabpanel"
+        aria-labelledby={`rail-tab-${railPanel}`}
+        data-tour-anchor="panel"
+        inert={running || undefined}
+      >
+        {panel}
       </aside>
       <main className="editor__canvas canvas-area">
-        {narrow && !running && (
-          <Button
-            ref={toggleRef}
-            className="editor__panels-toggle"
-            icon={<PanelLeft />}
-            aria-expanded={drawerOpen}
-            aria-controls="editor-column"
-            onClick={() => setDrawerOpen((open) => !open)}
-          >
-            Panels
-          </Button>
-        )}
-        {canvas}
+        <div className="editor__stage" data-tour-anchor="canvas">{canvas}</div>
+        {lessonBar}
       </main>
-      <aside className="editor__code" aria-label="Code and math">{codeMath}</aside>
+      <aside className="editor__code" aria-label="Code and math" data-tour-anchor="code-column">{codeMath}</aside>
       {overlays}
     </div>
   );

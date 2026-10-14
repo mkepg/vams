@@ -16,7 +16,7 @@ import {
 import { COURSE, lessonsFor } from '@/features/lesson-engine/model/course';
 import { startLesson } from '@/features/lesson-engine/model/start-lesson';
 import LearnDrawer from '@/features/lesson-engine/ui/LearnDrawer';
-import LessonCard from '@/features/lesson-engine/ui/LessonCard';
+import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import { useRecordLessonOnLeave } from '@/features/lesson-engine/model/record-on-leave';
 
 async function settle() {
@@ -74,7 +74,7 @@ describe('BB-LEARN-03: A failed progress write never blocks finishing a lesson',
     useVamsStore.setState({ activeSection: 'Transforms' });
     useVamsStore.getState().setActiveLesson('transforms-exercise-4');
     useVamsStore.getState().setAppMode('Lesson');
-    const host = mount(h(LessonCard, {}));
+    const host = mount(h(LessonBar, {}));
     await settle();
     useVamsStore.getState().setCurrentStep(LESSON_REGISTRY['transforms-exercise-4'].steps.length - 1);
     await settle();

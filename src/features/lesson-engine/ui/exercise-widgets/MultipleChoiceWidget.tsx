@@ -149,7 +149,7 @@ export default function MultipleChoiceWidget({
       {visualArtifact && <VisualArtifactRenderer type={visualArtifact} />}
       <div className="widget-prompt">{prompt}</div>
       <div className="mc-options">
-        {randomizedOptions.map((opt) => {
+        {randomizedOptions.map((opt, index) => {
           const isSelected = selectedId === opt.id;
           const isCorrect = isSelected && opt.id === correctId;
           const isWrong = isSelected && opt.id !== correctId;
@@ -161,6 +161,7 @@ export default function MultipleChoiceWidget({
               className={`mc-option ${isSelected ? 'selected' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'wrong' : ''}`}
               onClick={() => onSelect(opt.id)}
             >
+              <span className="opt-letter" aria-hidden="true">{String.fromCharCode(65 + index)}</span>
               <span className="opt-label">{opt.label}</span>
               {isCorrect && <Check size={14} className="opt-icon correct" />}
               {isWrong && <X size={14} className="opt-icon wrong" />}

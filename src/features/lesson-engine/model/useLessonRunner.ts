@@ -227,6 +227,12 @@ export function useLessonRunner(): LessonRunner {
 
     const changed = resolveChangedLines(preCode, postCode, currentStep.codeChangeFocus);
     store.setChangedCodeLines(changed);
+    // A step about the math shows Math; one about the code, or one that changed it, shows Code.
+    const pane = currentStep.pane ?? (changed.length > 0 ? 'code' : null);
+    if (pane) {
+      store.setCodePane(pane);
+      store.setCodeHidden(false);
+    }
 
     store.endBatch();
     lastExecutedStepRef.current = stepKey;

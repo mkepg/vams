@@ -37,6 +37,15 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     ],
   },
   {
+    group: 'Tour',
+    items: [
+      { keys: 'Right arrow', label: 'Next tour step' },
+      { keys: 'Enter', label: 'Next tour step' },
+      { keys: 'Left arrow', label: 'Previous tour step' },
+      { keys: 'Esc', label: 'End the tour' },
+    ],
+  },
+  {
     group: 'General',
     items: [
       { keys: '?', label: 'Open this Help Center' },

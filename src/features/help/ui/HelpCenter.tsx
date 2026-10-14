@@ -12,7 +12,7 @@ import {
   searchHelpTopics,
   topicForSection,
 } from '@/features/help/model/help-content';
-import HelpContent from './HelpContent';
+import HelpContent, { startTourFromHelp } from './HelpContent';
 import './help-center.scss';
 
 /**
@@ -31,10 +31,10 @@ function HelpDialog() {
   const helpHistory = useVamsStore((state) => state.helpHistory);
   const section = useVamsStore(contextSection);
   const hasSeenWelcome = useVamsStore((state) => state.hasSeenWelcome);
+  const inLesson = useVamsStore((state) => state.appMode === 'Lesson');
   const navigateHelp = useVamsStore((state) => state.navigateHelp);
   const closeHelp = useVamsStore((state) => state.closeHelp);
   const helpBack = useVamsStore((state) => state.helpBack);
-  const markWelcomeSeen = useVamsStore((state) => state.markWelcomeSeen);
 
   const [query, setQuery] = useState('');
   const contentRef = useRef<HTMLDivElement>(null);
@@ -103,16 +103,10 @@ function HelpDialog() {
 
         <div className="help-body">
           <nav className="help-nav" aria-label="Help topics">
-            {!hasSeenWelcome && (
+            {!hasSeenWelcome && !inLesson && (
               <div className="help-welcome-banner">
                 <p>New to VAMS?</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleNavigate('workspace-tour');
-                    markWelcomeSeen();
-                  }}
-                >
+                <button type="button" onClick={startTourFromHelp}>
                   Start the tour
                 </button>
               </div>

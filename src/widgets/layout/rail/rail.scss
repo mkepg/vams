@@ -1,0 +1,98 @@
+// The rail: a 64 px column of pills. The open panel's pill fills with the accent tint.
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  min-height: 0;
+  padding: var(--space-2) 0;
+  border-right: 1px solid var(--rule);
+  background: var(--paper);
+
+  &__tabs {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  &__tab,
+  &__hide {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    width: 60px;
+    padding: 4px 0;
+    border: 0;
+    border-radius: var(--radius-m);
+    background: none;
+    color: var(--ink-muted);
+    font: inherit;
+    cursor: pointer;
+
+    &:hover .rail__pill { background: var(--rail-pill-hover); }
+
+    &:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 0;
+    }
+  }
+
+  &__pill {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 30px;
+    border-radius: 15px;
+    transition: background-color 0.12s ease;
+  }
+
+  &__label {
+    font-size: var(--text-xs);
+    line-height: 1.2;
+  }
+
+  &__tab.is-active {
+    color: var(--ink);
+
+    .rail__pill,
+    &:hover .rail__pill {
+      background: var(--rail-pill-active);
+      color: var(--accent-text);
+    }
+
+    .rail__label { font-weight: 600; }
+  }
+
+  &__divider {
+    width: 32px;
+    height: 1px;
+    margin: var(--space-1) 0;
+    background: var(--rule);
+  }
+
+  &__badge {
+    position: absolute;
+    top: -3px;
+    right: 4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    line-height: 16px;
+    text-align: center;
+  }
+
+  &__hide { margin-top: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rail__pill { transition: none; }
+}

@@ -27,104 +27,130 @@
     line-height: 1.45;
   }
 
+  // Quiz options are plain rows in two columns: a faint letter, then the option in mono.
   &.mc-widget {
     .mc-options {
       display: grid;
-      grid-template-columns: 1fr;
-      gap: 6px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 2px var(--space-4);
       width: 100%;
     }
 
     .mc-option {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
+      align-items: baseline;
       gap: 8px;
-      min-height: 34px;
-      padding: 6px 10px;
-      background: var(--field-bg);
-      border: 1px solid var(--field-line);
-      border-radius: var(--radius-m);
+      min-height: 30px;
+      padding: 4px 6px;
+      border: 0;
+      border-radius: var(--radius-s);
+      background: none;
       color: var(--ink);
       font-size: var(--text-base);
-      cursor: pointer;
       text-align: left;
+      cursor: pointer;
 
-      .opt-label { flex: 1; min-width: 0; }
-      .opt-icon { flex-shrink: 0; }
-
-      &:hover { background: var(--live-tint); }
-
-      &.selected {
-        @include selected-mark;
-        box-shadow: inset 0 0 0 1px var(--live);
+      .opt-letter {
+        flex: none;
+        font-family: var(--font-mono);
+        font-size: var(--text-xs);
+        color: var(--ink-faint);
       }
 
+      .opt-label {
+        flex: 1;
+        min-width: 0;
+        font-family: var(--font-mono);
+        font-size: var(--text-sm);
+        overflow-wrap: anywhere;
+      }
+
+      .opt-icon {
+        flex-shrink: 0;
+        align-self: center;
+      }
+
+      &:hover { background: var(--paper-sunken); }
+
+      // A chosen option is always marked right or wrong, so it needs no selected style of its own.
       &.correct {
-        background: rgba(var(--accent-green-rgb), 0.15);
-        border-color: var(--accent-green-text);
-        box-shadow: inset 0 0 0 1px var(--accent-green-text);
         color: var(--accent-green-text);
         .opt-icon.correct { color: var(--accent-green-text); }
       }
 
+      // A wrong answer shakes once and stays clickable.
       &.wrong {
-        background: rgba(var(--accent-red-rgb), 0.12);
-        border-color: var(--accent-red-text);
+        color: var(--accent-red-text);
+        animation: mc-shake 0.3s ease-in-out;
         .opt-icon.wrong { color: var(--accent-red-text); }
       }
     }
   }
 
+  // Ordered lists read left to right, with an arrow between chips, and wrap to a second row.
   &.order-widget {
     .order-list {
       list-style: none;
-      padding: 0;
-      margin: 0;
       display: flex;
-      flex-direction: column;
-      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 4px;
+      margin: 0;
+      padding: 0;
       width: 100%;
     }
 
     .order-item {
-      display: grid;
-      grid-template-columns: 16px 22px 1fr;
+      display: inline-flex;
       align-items: center;
-      gap: 8px;
-      min-height: 34px;
-      padding: 6px 10px;
-      background: var(--field-bg);
-      border: 1px solid var(--field-line);
-      border-radius: var(--radius-m);
+      gap: 6px;
+      min-height: 28px;
+      padding: 3px 8px;
+      border: 1px solid var(--rule);
+      border-radius: 14px;
+      background: none;
       cursor: grab;
 
+      &:not(:last-child)::after {
+        content: '→';
+        margin-left: 6px;
+        color: var(--ink-faint);
+      }
+
       .drag-handle { color: var(--ink-faint); }
+
       .order-num {
         font-family: var(--font-mono);
-        font-size: var(--text-sm);
-        font-weight: 700;
+        font-size: var(--text-xs);
         color: var(--ink-faint);
-        text-align: center;
       }
+
       .order-label {
-        font-size: var(--text-base);
+        font-size: var(--text-sm);
         color: var(--ink);
       }
 
-      &:hover { background: var(--live-tint); }
+      &:hover { background: var(--paper-sunken); }
 
       &.dragging {
         opacity: 0.5;
         cursor: grabbing;
-        border-color: var(--live);
+        border-color: var(--accent);
       }
 
       &.correct-pos {
-        background: rgba(var(--accent-green-rgb), 0.15);
         border-color: var(--accent-green-text);
         .order-num { color: var(--accent-green-text); }
       }
     }
   }
+}
+
+@keyframes mc-shake {
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exercise-widget.mc-widget .mc-option.wrong { animation: none; }
 }

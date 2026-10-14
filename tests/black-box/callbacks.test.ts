@@ -12,8 +12,8 @@ import {
   emptyCallbacks, isCallbackValid, isValidHandlerName, MAX_RULES,
 } from '@/core/callbacks/callbacks-model';
 import type { CallbackRule } from '@/core/types/scene';
-import { CALLBACK_DEFS, CALLBACKS_NOTE, actionSentence, triggerChip, triggerPhrase, invalidNameMessage } from '@/features/callbacks/model/rule-copy';
-import { RUN_HINT, RUN_SURFACE_LABEL, RUN_DISABLED_TITLE } from '@/features/callbacks/ui/RunOverlay';
+import { CALLBACK_DEFS, actionSentence, triggerChip, triggerPhrase, invalidNameMessage } from '@/features/callbacks/model/rule-copy';
+import { RUN_HINT, RUN_SURFACE_LABEL, RUN_EMPTY_REASON, RUN_NO_CALLBACK_REASON, RUN_OPEN_CALLBACKS } from '@/features/callbacks/ui/RunOverlay';
 import { HELP_TOPICS } from '@/features/help/model/help-content';
 import { PRIMITIVES_LESSONS } from '@/features/lesson-engine/model/primitives-lessons';
 import { addTriangle, addQuad, addPrimitive, getState } from '../helpers/store';
@@ -196,7 +196,7 @@ describe('BB-CB-2: A callback with no rules says so', () => {
     getState().setCallbackHandler('keyboard', 'onKey');
     expect(body(gen(), 'onKey')).toBe([
       'void onKey(unsigned char key, int x, int y)', '{',
-      '    // No rules yet: add them in the Callbacks group', '    glutPostRedisplay();', '}',
+      '    // No rules yet: add them in the Callbacks panel', '    glutPostRedisplay();', '}',
     ].join('\n'));
   });
 });
@@ -405,7 +405,7 @@ describe('BB-CB-17: No banned word in callbacks copy, help, narration or generat
     const banned = /coming soon|not yet|not supported|unsupported|future|deferred|\b3d\b|lighting/i;
     const t = addTriangle();
     const copy = [
-      JSON.stringify(CALLBACK_DEFS), CALLBACKS_NOTE, RUN_HINT, RUN_SURFACE_LABEL, RUN_DISABLED_TITLE, invalidNameMessage('onKey'),
+      JSON.stringify(CALLBACK_DEFS), RUN_HINT, RUN_SURFACE_LABEL, RUN_EMPTY_REASON, RUN_NO_CALLBACK_REASON, RUN_OPEN_CALLBACKS, invalidNameMessage('onKey'),
       triggerChip({ kind: 'idle' }), triggerPhrase({ kind: 'motion' }), actionSentence({ type: 'reset' }, 'T'),
       JSON.stringify(HELP_TOPICS.filter((topic) => topic.id === 'callbacks' || topic.id === 'canvas-basics')),
       JSON.stringify(['primitives-demo-5', 'primitives-exercise-5', 'primitives-exercise-6'].map((id) => PRIMITIVES_LESSONS[id].steps.map((s) => s.narration))),

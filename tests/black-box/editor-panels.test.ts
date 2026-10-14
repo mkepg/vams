@@ -14,14 +14,18 @@ import CustomShapeBuilderPanel from '@/features/custom-shapes/ui/CustomShapeBuil
 import ObjectAppearancePanel from '@/features/object-appearance/ui/ObjectAppearancePanel';
 import LineStylePanel from '@/features/line-style/ui/LineStylePanel';
 import CallbacksPanel from '@/features/callbacks/ui/CallbacksPanel';
-import PipelineModeControls from '@/features/pipeline-controls/ui/PipelineModeControls';
+import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import BuffersPanel from '@/features/buffers/ui/BuffersPanel';
 import TextureLibraryPanel from '@/features/textures/ui/TextureLibraryPanel';
 import TextureAttachmentPanel from '@/features/textures/ui/TextureAttachmentPanel';
 import UVEditorPanel from '@/features/textures/ui/UVEditorPanel';
+import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
 import { getPreset } from '@/entities/project/model/scene-presets';
 import { loadProjectData } from '@/features/scene-library';
+import { createMemoryLibrary, getSceneLibrary, setSceneLibraryForTests } from '@/entities/project/model/scene-library';
 import { MAX_RULES } from '@/core/callbacks/callbacks-model';
+import { AddPanel, CallbacksRailPanel, ScenePanel, SettingsPanel } from '@/widgets/layout/editor-column';
+import { DEFAULT_OPEN_GROUPS } from '@/core/inspector';
 import { addPrimitive, addQuad, addTriangle } from '../helpers/store';
 
 async function settle() {
@@ -158,22 +162,25 @@ describe('BB-PANEL-06: Scene Hierarchy is a keyboard-navigable tree', () => {
   });
 });
 
-describe('BB-PANEL-07: The Add row names every primitive and starts placement', () => {
-  it('shows four primitives, keeps the rest in More, and shows the vertex table hint while building', async () => {
+describe('BB-PANEL-07: The Add tiles name every primitive and start placement', () => {
+  it('shows ten tiles with GL names and no More menu, and a tile starts placing its primitive', async () => {
     const host = mount(h(CustomShapeBuilderPanel, {}));
-    const row = [...host.querySelectorAll('.add-row__item')].map((b) => b.textContent?.trim());
-    expect(row).toEqual(['GL_POINTS', 'GL_LINES', 'GL_TRIANGLES', 'GL_QUADS']);
-    (host.querySelector('.add-row__more') as HTMLButtonElement).click();
     await settle();
-    const more = [...host.querySelectorAll('[role^="menuitem"] .vmenu__label')].map((el) => el.textContent);
-    expect(more).toEqual(['GL_LINE_STRIP', 'GL_LINE_LOOP', 'GL_TRIANGLE_STRIP', 'GL_TRIANGLE_FAN', 'GL_QUAD_STRIP', 'GL_POLYGON']);
-    key(document.activeElement!, 'Escape');
+    const tiles = [...host.querySelectorAll<HTMLButtonElement>('.primitive-tile')];
+    expect(tiles.map((t) => t.querySelector('.primitive-tile__gl')!.textContent)).toEqual([
+      'GL_POINTS', 'GL_LINES', 'GL_LINE_STRIP', 'GL_LINE_LOOP',
+      'GL_TRIANGLES', 'GL_TRIANGLE_STRIP', 'GL_TRIANGLE_FAN',
+      'GL_QUADS', 'GL_QUAD_STRIP', 'GL_POLYGON',
+    ]);
+    expect(host.querySelector('[aria-haspopup="menu"]')).toBeNull();
+    tiles[4].click();
     await settle();
-    ([...host.querySelectorAll('.add-row__item')].find((b) => b.textContent?.trim() === 'GL_TRIANGLES') as HTMLButtonElement).click();
-    await settle();
-    expect(useVamsStore.getState().pendingShapeType).toBe('TRIANGLES');
-    expect(hints(host)).toContain('glVertex2f(x, y)');
-    useVamsStore.getState().cancelCustomShape();
+    const s = useVamsStore.getState();
+    expect(s.pendingShapeType).toBe('TRIANGLES');
+    expect(s.interactionMode).toBe('VERTEX_PLACE');
+    expect(host.querySelector('.primitive-tile')).toBeNull();
+    expect(host.querySelector('.vertex-shape-builder')).not.toBeNull();
+    s.cancelCustomShape();
     unmount(host);
   });
 });
@@ -221,7 +228,6 @@ describe('BB-PANEL-09: Line Style pairs width with an exact number and names sti
 describe('BB-PANEL-10: Callbacks name their GLUT registration', () => {
   it('shows one glut*Func hint per handler kind', async () => {
     const host = mount(h(CallbacksPanel, {}));
-    (host.querySelector('.vpanel__header') as HTMLButtonElement).click();
     await settle();
     expect(hints(host)).toEqual(expect.arrayContaining([
       'glutKeyboardFunc(handler)', 'glutMouseFunc(handler)', 'glutReshapeFunc(handler)', 'glutMotionFunc(handler)', 'glutIdleFunc(handler)', 'glutSpecialFunc(handler)',
@@ -339,16 +345,28 @@ function loadTexturedQuad() {
 }
 
 describe('BB-PANEL-14: Viewport mode is an arrow-key radiogroup', () => {
-  it('moves the mode with ArrowDown', async () => {
-    useVamsStore.setState({ activeSection: 'Pipeline', pipelineMode: 'Playground' });
-    const host = mount(h(PipelineModeControls, {}));
-    const group = host.querySelector('[role="radiogroup"][aria-label="Viewport mode"]')!;
-    const radios = group.querySelectorAll('[role="radio"]');
-    expect([...radios].map((r) => r.textContent?.trim())).toEqual(['Coordinate Playground', 'Pipeline Diagram', 'Raster vs. Vector']);
-    key(radios[0], 'ArrowDown');
+  it('moves between modes with the arrow keys in a Pipeline lesson', async () => {
+    const pipeline = Object.values(LESSON_REGISTRY).find((l) => l.section === 'Pipeline' && l.type === 'demo')!;
+    useVamsStore.setState({ activeSection: 'Pipeline' });
+    useVamsStore.getState().setActiveLesson(pipeline.id);
+    useVamsStore.getState().setAppMode('Lesson');
+    const host = mount(h(LessonBar, {}));
     await settle();
-    expect(useVamsStore.getState().pipelineMode).toBe('Diagram');
+    // The step's own action may set a mode; start from a known one.
+    useVamsStore.setState({ pipelineMode: 'Diagram' });
+    await settle();
+    const group = host.querySelector('.lesson-bar__modes [role="radiogroup"]') as HTMLElement;
+    const checked = () => group.querySelector('[aria-checked="true"]')!.textContent;
+    expect(checked()).toBe('Diagram');
+    group.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+    await settle();
+    expect(checked()).toBe('Raster vs vector');
+    group.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true }));
+    await settle();
+    expect(checked()).toBe('Playground');
     unmount(host);
+    useVamsStore.getState().clearLessonState();
+    useVamsStore.setState({ appMode: 'Author', pipelineMode: 'Playground' });
   });
 });
 
@@ -535,7 +553,6 @@ describe('BB-PANEL-22: The Vertices panel edits glVertex2f positions with one un
 
 function openCallbacks() {
   const host = mount(h(CallbacksPanel, {}));
-  (host.querySelector('.vpanel__header') as HTMLButtonElement).click();
   return host;
 }
 const row = (host: HTMLElement, label: string) =>
@@ -669,6 +686,192 @@ describe('BB-PANEL-28: Off removes the callback and its rules', () => {
     (row(host, 'Idle').querySelector('.cb-toggle') as HTMLButtonElement).click();
     await settle();
     expect(useVamsStore.getState().callbacks.idle).toEqual({ handlerName: '', rules: [] });
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-29: The Scene panel lists the scene above the selected object’s groups', () => {
+  it('shows the count, the empty state with a way to Settings, and the object’s groups in pipeline order', async () => {
+    const host = mount(h(ScenePanel, {}));
+    await settle();
+    expect(host.querySelector('.rail-panel__title')!.textContent).toBe('Scene');
+    expect(host.querySelector('.rail-panel__count')!.textContent).toBe('0 objects');
+    expect(host.querySelector('.inspector__empty')!.textContent).toBe('Select an object to edit it');
+    useVamsStore.setState({ railPanel: 'scene' });
+    (host.querySelector('.inspector__link') as HTMLButtonElement).click();
+    expect(useVamsStore.getState().railPanel).toBe('settings');
+    const tri = addTriangle();
+    await settle();
+    expect(host.querySelector('.rail-panel__count')!.textContent).toBe('1 object');
+    expect(host.querySelector('[data-panel-id="scene-hierarchy"]')).not.toBeNull();
+    expect([...host.querySelectorAll('.inspector-group__title')].map((t) => t.textContent))
+      .toEqual(['Vertices', 'Buffers', 'Transform', 'Appearance', 'Texture']);
+    expect(host.querySelector('.inspector__name')!.textContent).toBe(tri.name);
+    expect(host.querySelector('textarea[aria-label="Edit text"]')).toBeNull();
+    useVamsStore.getState().addTextObject('Hello', 0, 0);
+    await settle();
+    expect((host.querySelector('textarea[aria-label="Edit text"]') as HTMLTextAreaElement).value).toBe('Hello');
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-30: The Settings panel holds the scene-wide groups, all open', () => {
+  it('lists Background, Viewing volume and Texture library, open, with no Callbacks', async () => {
+    useVamsStore.setState({ openGroups: [...DEFAULT_OPEN_GROUPS] });
+    const host = mount(h(SettingsPanel, {}));
+    await settle();
+    expect(host.querySelector('.rail-panel__title')!.textContent).toBe('Settings');
+    expect(host.querySelector('.rail-panel__hint')!.textContent).toBe('These apply to the whole scene.');
+    expect([...host.querySelectorAll('.inspector-group__title')].map((t) => t.textContent))
+      .toEqual(['Background', 'Viewing volume', 'Texture library']);
+    for (const header of host.querySelectorAll('.inspector-group__header')) expect(header.getAttribute('aria-expanded')).toBe('true');
+    expect(host.querySelector('[data-group="callbacks"]')).toBeNull();
+    expect(host.querySelector('.rail-panel__body')!.hasAttribute('data-scroll-root')).toBe(true);
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-31: The Callbacks panel lists the six callbacks and points to Run', () => {
+  it('has its header, hint and footer, and no Run control of its own', async () => {
+    const host = mount(h(CallbacksRailPanel, {}));
+    await settle();
+    expect(host.querySelector('.rail-panel__title')!.textContent).toBe('Callbacks');
+    expect(host.querySelector('.rail-panel__hint')!.textContent)
+      .toBe('Functions GLUT calls when something happens. Switch one on and give it rules.');
+    expect(host.querySelectorAll('.cb-item')).toHaveLength(6);
+    expect(host.querySelector('.rail-panel__foot')!.textContent).toBe('Press Run on the canvas to try your callbacks. Esc stops.');
+    expect(host.querySelector('.cb-try')).toBeNull();
+    expect(host.querySelector('[data-panel-id="callbacks-panel"]')).not.toBeNull();
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-32: The Add panel groups the primitives, then Text, then the samples', () => {
+  it('lays out three groups of drawn tiles with their hints, Text, and four samples', async () => {
+    const host = mount(h(AddPanel, {}));
+    await settle();
+    expect(host.querySelector('.rail-panel__hint')!.textContent)
+      .toBe('Pick a shape, then click the canvas to place its vertices. Enter finishes.');
+    const groups = [...host.querySelectorAll('.primitive-tiles__group')];
+    expect(groups.map((g) => g.querySelector('.primitive-tiles__title')!.textContent))
+      .toEqual(['Points and lines', 'Triangles', 'Quads and polygons']);
+    expect(groups.map((g) => [...g.querySelectorAll('.primitive-tile__name')].map((n) => n.textContent))).toEqual([
+      ['Points', 'Lines', 'Line strip', 'Line loop'],
+      ['Triangles', 'Triangle strip', 'Triangle fan'],
+      ['Quads', 'Quad strip', 'Polygon'],
+    ]);
+    const triangles = [...host.querySelectorAll('.primitive-tile')].find((t) => t.querySelector('.primitive-tile__name')!.textContent === 'Triangles')!;
+    expect(triangles.getAttribute('title')).toBe('Click groups of 3 — each triple forms one triangle.');
+    for (const tile of host.querySelectorAll('.primitive-tile')) expect(tile.querySelector('svg')).not.toBeNull();
+    expect(host.querySelector('[data-panel-id="text-node-panel"]')).not.toBeNull();
+    expect(host.querySelector('.add-samples__title')!.textContent).toBe('Or start from a sample');
+    expect([...host.querySelectorAll('.add-samples__item')].map((b) => b.textContent))
+      .toEqual(['Triangle', 'Transforms', 'Primitives tour', 'Textured quad']);
+    (host.querySelector('.primitive-tile') as HTMLButtonElement).click();
+    await settle();
+    expect(host.querySelector('.primitive-tiles')).toBeNull();
+    expect(host.querySelector('.vertex-shape-builder')).not.toBeNull();
+    useVamsStore.getState().cancelCustomShape();
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-33: A sample replaces the scene after backing it up, and shows Scene', () => {
+  it('keeps the current scene in My scenes, loads the sample and switches the rail', async () => {
+    setSceneLibraryForTests(createMemoryLibrary());
+    try {
+      addTriangle();
+      useVamsStore.setState({ railPanel: 'add' });
+      const host = mount(h(AddPanel, {}));
+      await settle();
+      const sample = [...host.querySelectorAll<HTMLButtonElement>('.add-samples__item')].find((b) => b.textContent === 'Primitives tour')!;
+      sample.click();
+      for (let i = 0; i < 10 && useVamsStore.getState().railPanel !== 'scene'; i++) await settle();
+      expect(useVamsStore.getState().railPanel).toBe('scene');
+      expect(useVamsStore.getState().objects).toHaveLength(getPreset('primitives')!.data.objects.length);
+      expect(useVamsStore.getState().activeSection).toBe('Primitives');
+      const entries = await (await getSceneLibrary()).list();
+      expect(entries.some((e) => e.kind === 'backup' && e.name === 'Before opening ‘Primitives tour’')).toBe(true);
+      unmount(host);
+    } finally {
+      setSceneLibraryForTests(null);
+    }
+  });
+
+  it('leaves the samples out of the Add panel during a lesson', async () => {
+    useVamsStore.setState({ appMode: 'Lesson' });
+    try {
+      const host = mount(h(AddPanel, {}));
+      await settle();
+      expect(host.querySelector('.add-samples')).toBeNull();
+      expect(host.querySelector('.primitive-tile')).not.toBeNull();
+      unmount(host);
+    } finally {
+      useVamsStore.setState({ appMode: 'Author' });
+    }
+  });
+});
+
+describe('BB-PANEL-34: The Scene toolbar selects several, groups, duplicates and deletes', () => {
+  it('names its four actions and enables each when it can act', async () => {
+    const a = addTriangle();
+    const b = addQuad();
+    const host = mount(h(SceneHierarchyPanel, {}));
+    await settle();
+    const toolbar = host.querySelector('[role="toolbar"]')!;
+    expect(toolbar.getAttribute('aria-label')).toBe('Scene');
+    const named = (name: string) =>
+      [...toolbar.querySelectorAll('button')].find((x) => (x.getAttribute('aria-label') ?? x.textContent?.trim()) === name) as HTMLButtonElement;
+    expect(named('Select several').getAttribute('aria-pressed')).toBe('false');
+    expect(named('Group').disabled).toBe(true);
+    select(b.id);
+    await settle();
+    expect(named('Duplicate').disabled).toBe(false);
+    named('Duplicate').click();
+    await settle();
+    expect(useVamsStore.getState().objects).toHaveLength(3);
+    const copy = useVamsStore.getState().selectedObjectId!;
+    named('Delete').click();
+    await settle();
+    expect(useVamsStore.getState().objects.some((o) => o.id === copy)).toBe(false);
+    named('Select several').click();
+    await settle();
+    expect(named('Select several').getAttribute('aria-pressed')).toBe('true');
+    expect(named('Duplicate').disabled).toBe(true);
+    for (const id of [a.id, b.id]) {
+      (host.querySelector(`[data-object-id="${id}"] .tree-item`) as HTMLElement).click();
+      await settle();
+    }
+    expect(named('Group').disabled).toBe(false);
+    named('Group').click();
+    await settle();
+    expect(useVamsStore.getState().objects.some((o) => o.type === 'GROUP')).toBe(true);
+    expect(named('Select several').getAttribute('aria-pressed')).toBe('false');
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-35: The scene list stops at about six rows and scrolls on its own', () => {
+  it('caps the tree’s height inside the Scene panel', async () => {
+    const { readFileSync } = await import('node:fs');
+    const scss = readFileSync('src/widgets/layout/editor-column/editor-column.scss', 'utf8');
+    const start = scss.indexOf('.scene-panel__list .tree-root');
+    expect(start).toBeGreaterThan(-1);
+    const rule = scss.slice(start, scss.indexOf('}', start));
+    expect(rule).toMatch(/max-height:\s*calc\(6 \* 31px\)/);
+    expect(rule).toMatch(/overflow-y:\s*auto/);
+  });
+});
+
+describe('BB-PANEL-36: Add tile GL names break only after an underscore', () => {
+  it('puts a break opportunity after each underscore of GL_TRIANGLE_STRIP and none inside a word', async () => {
+    const host = mount(h(CustomShapeBuilderPanel, {}));
+    await settle();
+    const tiles = [...host.querySelectorAll<HTMLElement>('.primitive-tile__gl')];
+    const label = tiles.find((t) => t.textContent === 'GL_TRIANGLE_STRIP')!;
+    expect(label).toBeDefined();
+    expect(label.innerHTML).toBe('GL_<wbr>TRIANGLE_<wbr>STRIP');
+    expect(label.querySelectorAll('wbr')).toHaveLength(2);
     unmount(host);
   });
 });

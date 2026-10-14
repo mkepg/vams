@@ -6,7 +6,7 @@ import { CALLBACK_KINDS, RULE_KINDS, isCallbackValid } from '@/core/callbacks/ca
 import { sanitizeName } from './utils';
 
 /**
- * GLUT callback generation from the rules students build in the Callbacks group. Each rule
+ * GLUT callback generation from the rules students build in the Callbacks panel. Each rule
  * becomes plain lines that change the target's `state_<name>`; display() then draws the new
  * state. The Run runtime (features/callbacks) applies the same rules the same way.
  */
@@ -147,7 +147,7 @@ function reshapeBody(resize: ResizeMode, limits: ViewportLimits): string[] {
 function handlerBody(kind: GlutCallbackKind, plan: CallbackPlan, limits: ViewportLimits): string[] {
   if (kind === 'reshape') return reshapeBody(plan.resize, limits);
   const rules = plan.rules[kind];
-  if (rules.length === 0) return ['    // No rules yet: add them in the Callbacks group', '    glutPostRedisplay();'];
+  if (rules.length === 0) return ['    // No rules yet: add them in the Callbacks panel', '    glutPostRedisplay();'];
   const out: string[] = [];
   if (kind === 'keyboard' || kind === 'special') {
     out.push('    switch (key) {');

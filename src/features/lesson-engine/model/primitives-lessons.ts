@@ -135,7 +135,8 @@ export const PRIMITIVES_LESSONS: Record<string, Lesson> = {
         }
       },
       {
-        narration: "This hardware-accelerated blending is called Barycentric Interpolation. Check the Math Panel below the code to see the exact formula the GPU uses to calculate every pixel's color.",
+        pane: 'math',
+        narration: "This hardware-accelerated blending is called Barycentric Interpolation. The right column now shows Math: the exact formula the GPU uses to calculate every pixel's color.",
         waitForUser: true,
       }
     ],
@@ -361,7 +362,7 @@ export const PRIMITIVES_LESSONS: Record<string, Lesson> = {
     section: 'Primitives',
     steps: [
       {
-        narration: "Let's label our scene. Open the 'Create Text' panel and add a new text object that says 'Hello World'.",
+        narration: "Let's label our scene. Open the Text section of the Add panel and add a new text object that says 'Hello World'.",
         waitForUser: true,
         focusPanel: 'text-node-panel',
         successCheck: (state) => {
@@ -383,12 +384,12 @@ export const PRIMITIVES_LESSONS: Record<string, Lesson> = {
     section: 'Primitives',
     steps: [
       {
-        narration: 'We need the program to respond to mouse clicks. Open the Callbacks group.',
+        narration: 'We need the program to respond to mouse clicks. Open the Callbacks panel.',
         waitForUser: true,
         focusPanel: 'callbacks-panel',
       },
       {
-        narration: 'Add any shape, then click an empty part of the canvas to see the Callbacks group. Register a Mouse callback and give it a rule: when the left button goes down, move the shape to the pointer.',
+        narration: 'Add any shape, then open the Callbacks panel. Register a Mouse callback and give it a rule: when the left button goes down, move the shape to the pointer.',
         waitForUser: true,
         focusPanel: 'callbacks-panel',
         successCheck: (state) =>
@@ -412,7 +413,7 @@ export const PRIMITIVES_LESSONS: Record<string, Lesson> = {
     section: 'Primitives',
     steps: [
       {
-        narration: 'Arrow keys have no ASCII code, so GLUT sends them to a separate callback, glutSpecialFunc. Add any shape, click an empty part of the canvas to see the Callbacks group, then switch on Special keys.',
+        narration: 'Arrow keys have no ASCII code, so GLUT sends them to a separate callback, glutSpecialFunc. Add any shape, open the Callbacks panel, then switch on Special keys.',
         waitForUser: true,
         focusPanel: 'callbacks-panel',
         successCheck: (state) => state.objects.length > 0 && isCallbackValid(state.callbacks, 'special'),

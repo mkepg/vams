@@ -37,6 +37,7 @@ interface RenderBridgeHandlers {
 }
 
 let handlers: RenderBridgeHandlers | null = null;
+let editorOverlaysHidden = false;
 
 export const renderBridge = {
   /** Called by the renderer once Pixi is ready. Returns an unregister fn. */
@@ -81,5 +82,14 @@ export const renderBridge = {
 
   getCanvasSize(): { width: number; height: number } | null {
     return handlers?.getCanvasSize?.() ?? null;
+  },
+
+  /** Run hides the selection outline and vertex handles while it moves objects; the renderer reads this every frame. */
+  setEditorOverlaysHidden(hidden: boolean): void {
+    editorOverlaysHidden = hidden;
+  },
+
+  editorOverlaysHidden(): boolean {
+    return editorOverlaysHidden;
   },
 };

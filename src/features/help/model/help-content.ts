@@ -43,15 +43,15 @@ export const HELP_TOPICS: HelpTopic[] = [
         kind: 'list',
         ordered: true,
         items: [
-          'Add a shape from the Add row in the left column (or click “Add a shape” on the empty canvas).',
-          'Watch the generated OpenGL code appear in the right panel.',
-          'Select the shape and edit its color or position — notice the code and math update live.',
+          'Add a shape from the Add panel on the rail (or click “Add a shape” on the empty canvas).',
+          'Watch the generated OpenGL code appear on the right.',
+          'Select the shape and edit its color or position in the Scene panel — notice the code and math update live.',
         ],
       },
       {
         kind: 'callout',
         tone: 'tip',
-        text: 'New here? Read the Workspace Tour next — it explains the three regions of the screen in under a minute. Press ? or F1 any time to reopen this Help Center.',
+        text: 'New here? Take the tour from the Workspace Tour topic: six short steps through the workspace. Press ? or F1 any time to reopen this Help Center.',
       },
     ],
     related: ['workspace-tour', 'canvas-basics', 'modes', 'shortcuts'],
@@ -60,32 +60,38 @@ export const HELP_TOPICS: HelpTopic[] = [
     id: 'workspace-tour',
     category: 'workspace',
     title: 'Workspace Tour',
-    summary: 'The three regions: build on the left, see in the center, read on the right.',
-    keywords: ['layout', 'panels', 'column', 'regions', 'tour', 'top bar', 'scene list', 'add row', 'inspector', 'scene settings', 'learn', 'lesson card', 'file menu'],
+    summary: 'The rail and its panels on the left, the canvas in the center, code and math on the right.',
+    keywords: ['layout', 'panels', 'rail', 'regions', 'tour', 'top bar', 'add', 'scene', 'settings', 'callbacks', 'inspector', 'hide', 'code', 'math', 'learn', 'lesson bar', 'file menu'],
     blocks: [
+      { kind: 'start-tour' },
       {
         kind: 'paragraph',
-        text: 'The screen is split into three working regions plus a top bar. Each region has a single job, so you always know where to look.',
+        text: 'The screen has a top bar and three working regions. Each region has a single job, so you always know where to look.',
       },
       { kind: 'heading', text: 'Three regions' },
       {
         kind: 'list',
         items: [
-          'Left — Build. The scene and inspector column, the same in every section.',
-          'Center — See. The canvas, where your scene is drawn and where you place vertices.',
-          'Right — Read. The generated OpenGL code (top) and the math panel (bottom), with one tab per section.',
+          'Left — Build. A rail of four panels: Add, Scene, Settings and Callbacks. One panel shows at a time.',
+          'Center — See. The canvas, where your scene is drawn and where you place vertices. Run sits in its top-right corner.',
+          'Right — Read. The generated OpenGL code, or the math behind it, with a Code / Math switch at the top.',
         ],
       },
-      { kind: 'heading', text: 'The scene and inspector column' },
+      { kind: 'heading', text: 'The rail and its panels' },
       {
         kind: 'definitions',
         items: [
-          { term: 'Scene list', description: 'Every object in your scene. Rename, show or hide, group, duplicate, and delete objects here.' },
-          { term: 'Add row', description: 'The primitives by their OpenGL names: GL_POINTS, GL_LINES, GL_TRIANGLES, and GL_QUADS, with More for the rest.' },
-          { term: 'Create Text', description: 'Bitmap text, placed in the scene. Select a text object to edit it here.' },
-          { term: 'Inspector', description: 'The selected object’s groups in pipeline order: Vertices, Buffers, Transform, Appearance, and Texture. Each group header names its OpenGL call.' },
-          { term: 'Scene settings', description: 'With nothing selected, the inspector shows the scene’s settings: Background, Viewing volume, Texture library, and Callbacks.' },
+          { term: 'Add', description: 'The ten primitives by their OpenGL names, in three groups, plus Text and a few prepared sample scenes. Pick a primitive, then click its vertices on the canvas.' },
+          { term: 'Scene', description: 'The scene list, with Select several, Group, Duplicate and Delete in its toolbar, and below it the selected object’s inspector: Vertices, Buffers, Transform, Appearance and Texture, in pipeline order. Each group header names its OpenGL call. Selecting an object always opens this panel.' },
+          { term: 'Settings', description: 'The scene’s own settings: Background, Viewing volume and Texture library.' },
+          { term: 'Callbacks', description: 'The GLUT callbacks your program registers, with their rules. The badge on the rail counts the callbacks that are on.' },
+          { term: 'Hide', description: 'Hides the panel to give the canvas more room. Any rail item, a selection or a lesson step shows it again.' },
         ],
+      },
+      { kind: 'heading', text: 'Code and math' },
+      {
+        kind: 'paragraph',
+        text: 'The right column shows one thing at a time. Code is the C++ program generated from your scene; Math is the numbers behind it, with one tab per section. A dot on Code means the code changed while you were reading Math. Hide code and math folds the column to a thin tab at the edge; click the tab to bring it back.',
       },
       { kind: 'heading', text: 'Learn: the course map' },
       {
@@ -103,10 +109,10 @@ export const HELP_TOPICS: HelpTopic[] = [
           ['Textures', 'Images, UV mapping, filtering, and wrapping'],
         ],
       },
-      { kind: 'heading', text: 'The lesson card' },
+      { kind: 'heading', text: 'The lesson bar' },
       {
         kind: 'paragraph',
-        text: 'While a lesson runs, the lesson card sits at the top of the left column with the narration and Back, Next, and Exit. The editor below it stays live: each step opens and outlines the control it uses.',
+        text: 'While a lesson runs, the lesson bar sits along the bottom of the canvas with the narration, the step, and Back, Next and Exit. Fold it to a slim strip when you need the room. The editor stays live: each step opens the panel its control lives in and outlines the control.',
       },
       { kind: 'heading', text: 'The top bar' },
       {
@@ -123,7 +129,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'callout',
         tone: 'info',
-        text: 'The editor’s tools are the same in every section. Select an object to see its groups; select nothing to see the scene settings.',
+        text: 'The editor’s tools are the same in every section. Select an object to edit it in the Scene panel; the scene’s own settings are in Settings.',
       },
     ],
     related: ['canvas-basics', 'scene-hierarchy', 'code-panel', 'math-panel', 'saving-loading'],
@@ -164,7 +170,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'callout',
         tone: 'tip',
-        text: 'Changing the orthographic window (the Viewing volume group in scene settings) zooms and pans what the canvas shows without moving your objects.',
+        text: 'Changing the orthographic window (the Viewing volume group in the Settings panel) zooms and pans what the canvas shows without moving your objects.',
       },
     ],
     related: ['section-primitives', 'section-transforms', 'shortcuts'],
@@ -202,7 +208,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       },
       {
         kind: 'paragraph',
-        text: 'The lesson card sits at the top of the left column, above the live editor, and each step opens and outlines the control it uses. Demos also dim the other groups, exercises only outline, and a section’s last exercise leaves you to find the controls yourself.',
+        text: 'The lesson bar sits along the bottom of the canvas, and each step opens the panel its control lives in and outlines the control. Demos also dim the other groups, exercises only outline, and a section’s last exercise leaves you to find the controls yourself.',
       },
       { kind: 'callout', tone: 'info', text: 'Learn ticks the lessons you finish and marks a lesson you leave part way as in progress; starting it again begins at step 1. Starting another lesson from Learn asks before leaving the one that is running.' },
     ],
@@ -218,7 +224,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: 'The Pipeline section explains how vertices travel from your code to pixels on screen. Its lessons show the canvas in three views, and while a Pipeline lesson runs the lesson card has a toggle to switch between them.',
+        text: 'The Pipeline section explains how vertices travel from your code to pixels on screen. Its lessons show the canvas in three views, and while a Pipeline lesson runs the lesson bar has a switch between them.',
       },
       {
         kind: 'definitions',
@@ -325,7 +331,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { kind: 'heading', text: 'GLUT callbacks' },
       {
         kind: 'paragraph',
-        text: 'The Callbacks group in scene settings is where you register GLUT event handlers (keyboard, mouse, idle, and more) that appear in the generated program. See the GLUT Callbacks guide.',
+        text: 'The Callbacks panel on the rail is where you register GLUT event handlers (keyboard, mouse, idle, and more) that appear in the generated program. See the GLUT Callbacks guide.',
       },
     ],
     related: ['canvas-basics', 'math-panel', 'section-buffers', 'callbacks', 'glossary'],
@@ -425,7 +431,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { kind: 'heading', text: 'Animating a transform' },
       {
         kind: 'paragraph',
-        text: 'To animate a transform, switch on the Idle callback (select nothing to see the Callbacks group) and give it a rule such as "rotate Triangle by 2°". GLUT calls it every frame, so the transform changes a little each frame. Press Run to watch it. See the GLUT Callbacks guide for details.',
+        text: 'To animate a transform, switch on the Idle callback in the Callbacks panel and give it a rule such as "rotate Triangle by 2°". GLUT calls it every frame, so the transform changes a little each frame. Press Run to watch it. See the GLUT Callbacks guide for details.',
       },
     ],
     related: ['code-panel', 'math-panel', 'callbacks', 'glossary'],
@@ -479,17 +485,17 @@ export const HELP_TOPICS: HelpTopic[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: 'The Scene list sits at the top of the left column and lists every object in your scene. It is where you organize, name, and structure your work.',
+        text: 'The Scene list sits at the top of the Scene panel and lists every object in your scene. It is where you organize, name, and structure your work.',
       },
       { kind: 'heading', text: 'What you can do' },
       {
         kind: 'list',
         items: [
-          'Select — click a row to select that object and show its groups in the inspector (and the code highlight).',
+          'Select — click a row to select that object and edit it in the inspector below the list (the code highlights it too).',
           'Rename — double-click a name, or press F2 with a row selected.',
-          'Duplicate or Delete — from the row actions; a delete can be undone.',
+          'Duplicate or Delete — from the Scene toolbar; a delete can be undone.',
           'Show or hide — toggle an object’s visibility without deleting it.',
-          'Group or ungroup — select more than one object and group them under a parent.',
+          'Group or ungroup — turn on Select several in the Scene toolbar, choose more than one object, and press Group to put them under a parent.',
           'Reorder — drag a row above or below another, or drop it onto a group to nest it inside.',
         ],
       },
@@ -516,7 +522,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: 'GLUT programs respond to events through callbacks: functions you register so GLUT calls them when something happens. The Callbacks group in scene settings (select nothing to see it) has six.',
+        text: 'GLUT programs respond to events through callbacks: functions you register so GLUT calls them when something happens. The Callbacks panel on the rail has six.',
       },
       {
         kind: 'table',
@@ -562,7 +568,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: 'The top-right panel shows complete, valid OpenGL 1.5 C++ generated from your scene. It updates instantly as you edit, so you can connect each visual change to the code that produces it.',
+        text: 'The Code side of the right column shows complete, valid OpenGL 1.5 C++ generated from your scene. It updates instantly as you edit, so you can connect each visual change to the code that produces it.',
       },
       { kind: 'heading', text: 'Reading the structure' },
       {
@@ -600,7 +606,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: 'Below the code, the math panel shows the numbers behind what you see. It has one tab per section, and the tab follows what you are doing: during a lesson, the control the step opens, otherwise the current section; outside a lesson, the inspector group you opened last, otherwise the current section. Pick a tab yourself at any time; your pick holds until the next lesson step or the next group you open.',
+        text: 'Switch the right column to Math to see the numbers behind what you see. It has one tab per section, and the tab follows what you are doing: during a lesson, the control the step opens, otherwise the current section; outside a lesson, the inspector group you opened last, otherwise the current section. Pick a tab yourself at any time; your pick holds until the next lesson step or the next group you open.',
       },
       { kind: 'heading', text: 'What the tabs show' },
       {
@@ -768,6 +774,7 @@ function blockText(block: HelpBlock): string {
     case 'definitions':
       return block.items.map((i) => `${i.term} ${i.description}`).join(' ');
     case 'shortcuts':
+    case 'start-tour':
       return '';
   }
 }

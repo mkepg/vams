@@ -8,14 +8,19 @@ import { useState } from 'react';
 import { Dialog, MenuButton, type MenuEntry } from '@/shared/ui/controls';
 import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
 import { confirm, useConfirmStore } from '@/shared/ui/confirm-dialog/confirm-store';
-import { useVamsStore } from '@/core/store';
+import { STORAGE_KEY, useVamsStore } from '@/core/store';
 import { isSceneEmpty } from '@/entities/project/model/scene-empty';
 import HistoryControls from '@/features/history-controls/ui/HistoryControls';
 import NewWorkspaceButton from '@/features/workspace-reset/ui/NewWorkspaceButton';
 import EditorPreferencesMenu from '@/features/editor-preferences/ui/EditorPreferencesMenu';
 import LearnButton from '@/features/lesson-engine/ui/LearnButton';
 import FileMenu from '@/widgets/layout/top-bar/FileMenu';
-import { EditorColumn, Inspector } from '@/widgets/layout/editor-column';
+import { EditorPanel, ObjectInspector, SettingsPanel } from '@/widgets/layout/editor-column';
+import { runController } from '@/features/callbacks';
+import { registerFakeRenderer } from '../helpers/fake-renderer';
+import { DEFAULT_OPEN_GROUPS } from '@/core/inspector';
+import Rail from '@/widgets/layout/rail';
+import CodeMathColumn from '@/widgets/layout/code-math-column';
 import { useMyScenesDialog } from '@/features/scene-library';
 import { CanvasOverlays } from '@/widgets/canvas/ui/CanvasOverlays';
 import { addPrimitive, addTriangle } from '../helpers/store';
@@ -37,6 +42,51 @@ function key(target: EventTarget, k: string, init: KeyboardEventInit = {}) {
   const event = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init });
   target.dispatchEvent(event);
   return event;
+}
+
+/** A matchMedia stand-in whose answer can change, notifying the editor like a real resize. */
+function mediaQuery(initial: boolean) {
+  const real = window.matchMedia;
+  let matches = initial;
+  const listeners = new Set<() => void>();
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    get matches() { return matches; },
+    media: query,
+    addEventListener: (_type: string, listener: () => void) => listeners.add(listener),
+    removeEventListener: (_type: string, listener: () => void) => listeners.delete(listener),
+    addListener: () => {}, removeListener: () => {}, onchange: null, dispatchEvent: () => false,
+  }));
+  return {
+    set(next: boolean) {
+      matches = next;
+      listeners.forEach((listener) => listener());
+    },
+    restore() {
+      window.matchMedia = real;
+    },
+  };
+}
+
+async function shell(parts: { panel?: VNode; canvas?: VNode } = {}) {
+  const { default: EditorShell } = await import('@/pages/editor/ui/EditorShell');
+  return mount(h(EditorShell, {
+    topBar: h('header', {}, 'top'),
+    rail: h(Rail, {}),
+    panel: parts.panel ?? h('div', {}, h('button', { id: 'inside' }, 'inside')),
+    canvas: parts.canvas ?? h('div', {}, 'canvas'),
+    codeMath: h('div', {}, 'code'),
+  }));
+}
+/** Starts a real Run on a fake renderer; returns the cleanup. */
+function startRun() {
+  addTriangle();
+  useVamsStore.getState().setCallbackHandler('keyboard', 'onKey');
+  const unregister = registerFakeRenderer(new Map(), { getCanvasSize: () => ({ width: 800, height: 600 }) });
+  expect(runController.start({ loop: false })).toBe(true);
+  return () => {
+    runController.stop();
+    unregister();
+  };
 }
 
 function DialogHarness({ onClose }: { onClose: () => void }) {
@@ -336,31 +386,38 @@ describe('BB-SHELL-13: The Learn button opens the course drawer in both modes', 
   });
 });
 
-describe('BB-SHELL-14: The editor column is the same in every section', () => {
-  it('shows the scene area and the inspector whatever the section, with no section menu', async () => {
+describe('BB-SHELL-14: The rail panels are the same in every section', () => {
+  it('shows each panel’s controls whatever the section, with no section menu', async () => {
     const tri = addTriangle();
     useVamsStore.setState({ appMode: 'Author', selectedObjectId: tri.id });
+    const panels: [string, string[]][] = [
+      ['add', ['[data-panel-id="primitive-palette"]', '[data-panel-id="text-node-panel"]']],
+      ['scene', ['[data-panel-id="scene-hierarchy"]', '.inspector']],
+      ['settings', ['[data-group="background"]']],
+      ['callbacks', ['[data-panel-id="callbacks-panel"]']],
+    ];
     for (const section of ['Pipeline', 'Primitives', 'Buffers', 'Transforms', 'Textures'] as const) {
       useVamsStore.setState({ activeSection: section });
-      const host = mount(h(EditorColumn, {}));
-      await settle();
-      expect(host.querySelector('.section-menu')).toBeNull();
-      expect(host.querySelector('[data-panel-id="scene-hierarchy"]')).not.toBeNull();
-      expect(host.querySelector('[data-panel-id="primitive-palette"]')).not.toBeNull();
-      expect(host.querySelector('[data-panel-id="text-node-panel"]')).not.toBeNull();
-      expect(host.querySelector('.inspector')).not.toBeNull();
-      unmount(host);
+      for (const [panel, selectors] of panels) {
+        useVamsStore.getState().setRailPanel(panel as 'add');
+        const host = mount(h(EditorPanel, {}));
+        await settle();
+        expect(host.querySelector('.section-menu')).toBeNull();
+        for (const selector of selectors) expect(host.querySelector(selector)).not.toBeNull();
+        unmount(host);
+      }
     }
     useVamsStore.setState({ objects: [], selectedObjectId: null });
   });
 });
 
-describe('BB-SHELL-15: The inspector shows the object in pipeline order, or the scene settings', () => {
-  it('orders object groups, leaves out ones that do not apply, and switches to settings', async () => {
-    const groupTitles = (host: HTMLElement) => [...host.querySelectorAll('.inspector-group__title')].map((t) => t.textContent);
+describe('BB-SHELL-15: The inspector shows the object in pipeline order; the scene settings have their own panel', () => {
+  const groupTitles = (host: HTMLElement) => [...host.querySelectorAll('.inspector-group__title')].map((t) => t.textContent);
+
+  it('orders object groups, shows an empty state without a selection, and keeps settings in Settings', async () => {
     const tri = addTriangle();
     useVamsStore.setState({ appMode: 'Author', selectedObjectId: tri.id });
-    const host = mount(h(Inspector, {}));
+    const host = mount(h(ObjectInspector, {}));
     await settle();
     expect(groupTitles(host)).toEqual(['Vertices', 'Buffers', 'Transform', 'Appearance', 'Texture']);
     expect(host.querySelector('[data-group="transform"] .inspector-group__header')!.getAttribute('aria-expanded')).toBe('true');
@@ -368,16 +425,20 @@ describe('BB-SHELL-15: The inspector shows the object in pipeline order, or the 
     expect(host.querySelector('[data-group="transform"] .inspector-group__hint')!.textContent).toContain('glTranslatef');
     useVamsStore.setState({ selectedObjectId: null });
     await settle();
-    expect(groupTitles(host)).toEqual(['Background', 'Viewing volume', 'Texture library', 'Callbacks']);
-    expect(host.querySelector('.inspector__name')!.textContent).toBe('Scene settings');
+    expect(groupTitles(host)).toEqual([]);
+    expect(host.querySelector('.inspector__empty')).not.toBeNull();
     unmount(host);
+    const settings = mount(h(SettingsPanel, {}));
+    await settle();
+    expect(groupTitles(settings)).toEqual(['Background', 'Viewing volume', 'Texture library']);
+    unmount(settings);
     useVamsStore.setState({ objects: [] });
   });
 
   it('leaves out Line style for a triangle and the Texture group for a line', async () => {
     const line = addPrimitive('LINES', [{ x: -0.5, y: 0 }, { x: 0.5, y: 0 }]);
     useVamsStore.setState({ appMode: 'Author', selectedObjectId: line.id });
-    const host = mount(h(Inspector, {}));
+    const host = mount(h(ObjectInspector, {}));
     await settle();
     expect(host.querySelector('[data-group="texture"]')).toBeNull();
     useVamsStore.getState().toggleGroup('appearance');
@@ -389,18 +450,17 @@ describe('BB-SHELL-15: The inspector shows the object in pipeline order, or the 
     expect(host.querySelector('[data-panel-id="line-style-panel"]')).toBeNull();
     expect(host.querySelector('[data-group="texture"]')).not.toBeNull();
     unmount(host);
-    useVamsStore.setState({ objects: [], selectedObjectId: null, openGroups: ['transform', 'background'] });
+    useVamsStore.setState({ objects: [], selectedObjectId: null, openGroups: [...DEFAULT_OPEN_GROUPS] });
   });
 
   it('shows only Transform for a group, with its child count', async () => {
-    const groupTitles = (host: HTMLElement) => [...host.querySelectorAll('.inspector-group__title')].map((t) => t.textContent);
     const tri = addTriangle();
     const line = addPrimitive('LINES', [{ x: -0.5, y: 0 }, { x: 0.5, y: 0 }]);
     useVamsStore.setState({ appMode: 'Author' });
     useVamsStore.getState().createGroup([tri.id, line.id]);
     const group = useVamsStore.getState().objects.find((o) => o.type === 'GROUP')!;
     expect(useVamsStore.getState().selectedObjectId).toBe(group.id);
-    const host = mount(h(Inspector, {}));
+    const host = mount(h(ObjectInspector, {}));
     await settle();
     expect(groupTitles(host)).toEqual(['Transform']);
     expect(host.querySelector('.inspector__meta')!.textContent).toBe('Group · 2 objects');
@@ -564,17 +624,12 @@ describe('BB-SHELL-24: Selected items share one selection style', () => {
   });
 });
 
-describe('BB-SHELL-25: Add a shape opens the column, scrolls to the Add row and marks it', () => {
+describe('BB-SHELL-25: Add a shape opens the Add panel', () => {
   async function addAShape(narrow: boolean) {
-    const realMatchMedia = window.matchMedia;
-    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-      matches: narrow, media: query, addEventListener: () => {}, removeEventListener: () => {},
-      addListener: () => {}, removeListener: () => {}, onchange: null, dispatchEvent: () => false,
-    }));
-    const { default: EditorShell } = await import('@/pages/editor/ui/EditorShell');
-    const host = mount(h(EditorShell, {
-      topBar: h('header', {}, 'top'),
-      column: h(EditorColumn, {}),
+    const media = mediaQuery(narrow);
+    useVamsStore.setState({ railPanel: 'settings', railHidden: false });
+    const host = await shell({
+      panel: h(EditorPanel, {}),
       canvas: h(CanvasOverlays, {
         viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
         interactionMode: 'SELECT',
@@ -582,29 +637,20 @@ describe('BB-SHELL-25: Add a shape opens the column, scrolls to the Add row and 
         showCoordinateTracker: false,
         showEmptyHint: true,
       }),
-      codeMath: h('div', {}, 'code'),
-    }));
+    });
     try {
       await settle();
-      const root = host.querySelector<HTMLElement>('[data-scroll-root]')!;
-      const palette = host.querySelector<HTMLElement>('[data-panel-id="primitive-palette"]')!;
-      root.getBoundingClientRect = () => ({ top: 44 } as DOMRect);
-      palette.getBoundingClientRect = () => ({ top: 344 } as DOMRect);
-      const writes: number[] = [];
-      Object.defineProperty(root, 'scrollTop', { configurable: true, get: () => 0, set: (v: number) => writes.push(v) });
+      expect(useVamsStore.getState().railHidden).toBe(narrow);
       const add = [...host.querySelectorAll('.empty-canvas-hint button')].find((b) => b.textContent?.trim() === 'Add a shape') as HTMLButtonElement;
       add.click();
       await settle();
-      if (narrow) {
-        expect(host.querySelector('.editor')!.classList.contains('is-drawer-open')).toBe(true);
-        expect(host.querySelector('.editor__panels-toggle')!.getAttribute('aria-expanded')).toBe('true');
-      }
-      expect(writes).toEqual([300 - 8]);
-      expect(host.querySelector('.add-row')!.classList.contains('is-cued')).toBe(true);
-      expect(document.activeElement).toBe(host.querySelector('.add-row__item'));
+      expect(useVamsStore.getState().railPanel).toBe('add');
+      expect(useVamsStore.getState().railHidden).toBe(false);
+      expect(host.querySelector('.editor')!.classList.contains('is-panel-hidden')).toBe(false);
+      expect(host.querySelector('.add-panel')).not.toBeNull();
     } finally {
       unmount(host);
-      window.matchMedia = realMatchMedia;
+      media.restore();
     }
   }
 
@@ -612,7 +658,488 @@ describe('BB-SHELL-25: Add a shape opens the column, scrolls to the Add row and 
     await addAShape(true);
   });
 
-  it('scrolls and marks the Add row in the wide layout', async () => {
+  it('switches the panel in the wide layout', async () => {
     await addAShape(false);
+  });
+});
+
+describe('BB-SHELL-26: The rail and the code column keep their state in the store', () => {
+  it('unhides on a panel change and clears the code dot only when Code shows', () => {
+    const s = () => useVamsStore.getState();
+    useVamsStore.setState({ railPanel: 'add', railHidden: false, codePane: 'code', codeHidden: false, codeChangedUnseen: false });
+    s().setRailHidden(true);
+    s().setRailPanel('settings');
+    expect(s().railPanel).toBe('settings');
+    expect(s().railHidden).toBe(false);
+    s().markCodeChanged();
+    expect(s().codeChangedUnseen).toBe(false);
+    s().setCodePane('math');
+    s().markCodeChanged();
+    expect(s().codeChangedUnseen).toBe(true);
+    s().setCodePane('code');
+    expect(s().codeChangedUnseen).toBe(false);
+    s().setCodeHidden(true);
+    expect(s().codeHidden).toBe(true);
+    s().setCodeHidden(false);
+  });
+});
+
+describe('BB-SHELL-27: The editor opens on Add for an empty scene and on Scene otherwise', () => {
+  it('picks the opening panel from the scene', () => {
+    const s = () => useVamsStore.getState();
+    useVamsStore.setState({ railPanel: 'settings', railHidden: true });
+    s().pickOpeningPanel();
+    expect(s().railPanel).toBe('add');
+    expect(s().railHidden).toBe(false);
+    addTriangle();
+    useVamsStore.setState({ railPanel: 'add' });
+    s().pickOpeningPanel();
+    expect(s().railPanel).toBe('scene');
+  });
+
+  it('picks it when the saved scene loads', async () => {
+    const tri = addTriangle();
+    useVamsStore.setState({ objects: [], selectedObjectId: null, railPanel: 'add' });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: { objects: [tri] }, version: 9 }));
+    await useVamsStore.persist.rehydrate();
+    expect(useVamsStore.getState().objects).toHaveLength(1);
+    expect(useVamsStore.getState().railPanel).toBe('scene');
+  });
+});
+
+describe('BB-SHELL-28: Every way an object becomes selected switches the rail to Scene and opens it', () => {
+  const away = () => useVamsStore.setState({ railPanel: 'settings', railHidden: true });
+  const expectScene = () => {
+    expect(useVamsStore.getState().railPanel).toBe('scene');
+    expect(useVamsStore.getState().railHidden).toBe(false);
+  };
+
+  it('follows selection, creation, duplication, text, grouping and undo', async () => {
+    const s = () => useVamsStore.getState();
+    away();
+    const tri = addTriangle();
+    expectScene();
+    s().selectObject(null);
+    away();
+    s().selectObject(tri.id);
+    expectScene();
+    away();
+    s().duplicateObject(tri.id);
+    expectScene();
+    away();
+    s().addTextObject('Hi', 0, 0);
+    expectScene();
+    const shapes = s().objects.filter((o) => o.type !== 'TEXT').map((o) => o.id);
+    away();
+    s().createGroup(shapes);
+    expectScene();
+    // History snapshots closer than 50 ms apart are merged, so let the earlier ones age out first.
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    s().pushToHistory();
+    s().selectObject(null);
+    away();
+    s().undo();
+    expect(s().selectedObjectId).not.toBeNull();
+    expectScene();
+  });
+
+  it('leaves the rail alone when the selection is cleared', () => {
+    addTriangle();
+    useVamsStore.setState({ railPanel: 'settings', railHidden: false });
+    useVamsStore.getState().selectObject(null);
+    expect(useVamsStore.getState().railPanel).toBe('settings');
+  });
+});
+
+describe('BB-SHELL-29: A lesson step switches the rail to its panel and opens it', () => {
+  it('maps each focus to its panel and leaves the rail for the lesson bar’s own controls', () => {
+    const s = () => useVamsStore.getState();
+    const cases: [string, string][] = [
+      ['ortho-editor', 'settings'],
+      ['texture-library', 'settings'],
+      ['callbacks-panel', 'callbacks'],
+      ['primitive-palette', 'add'],
+      ['text-node-panel', 'add'],
+      ['scene-hierarchy', 'scene'],
+      ['object-transform', 'scene'],
+      ['appearance-panel', 'settings'],
+    ];
+    for (const [panelId, panel] of cases) {
+      useVamsStore.setState({ railPanel: panel === 'add' ? 'scene' : 'add', railHidden: true });
+      s().setLessonFocusPanel(panelId);
+      expect(s().railPanel).toBe(panel);
+      expect(s().railHidden).toBe(false);
+    }
+    useVamsStore.setState({ railPanel: 'scene', railHidden: true });
+    s().setLessonFocusPanel('pipeline-mode-controls');
+    expect(s().railPanel).toBe('scene');
+    expect(s().railHidden).toBe(true);
+    s().setLessonFocusPanel(null);
+    expect(s().railPanel).toBe('scene');
+    useVamsStore.setState({ railHidden: false });
+  });
+});
+
+describe('BB-SHELL-30: The rail and the code column are never saved', () => {
+  it('keeps them out of the saved editor data, which stays at version 9', () => {
+    const s = () => useVamsStore.getState();
+    s().setRailPanel('callbacks');
+    s().setCodePane('math');
+    s().setCodeHidden(true);
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
+    expect(saved.version).toBe(9);
+    for (const key of ['railPanel', 'railHidden', 'codePane', 'codeHidden', 'codeChangedUnseen']) {
+      expect(saved.state).not.toHaveProperty(key);
+    }
+    useVamsStore.setState({ codePane: 'code', codeHidden: false });
+  });
+});
+
+describe('BB-SHELL-31: The canvas follows its box when the layout around it changes', () => {
+  it('reports every size change of the observed element and stops on cleanup', async () => {
+    const { observeResize } = await import('@/shared/engine/observe-resize');
+    const RealObserver = globalThis.ResizeObserver;
+    let callback: ResizeObserverCallback = () => {};
+    const disconnect = vi.fn();
+    globalThis.ResizeObserver = class {
+      constructor(cb: ResizeObserverCallback) { callback = cb; }
+      observe() {}
+      unobserve() {}
+      disconnect() { disconnect(); }
+    } as unknown as typeof ResizeObserver;
+    try {
+      const onResize = vi.fn();
+      const stop = observeResize(document.createElement('div'), onResize);
+      callback([], {} as ResizeObserver);
+      callback([], {} as ResizeObserver);
+      expect(onResize).toHaveBeenCalledTimes(2);
+      stop();
+      expect(disconnect).toHaveBeenCalledTimes(1);
+    } finally {
+      globalThis.ResizeObserver = RealObserver;
+    }
+    const { readFileSync } = await import('node:fs');
+    expect(readFileSync('src/widgets/canvas/VamsCanvas.tsx', 'utf8')).toContain('observeResize(');
+  });
+});
+
+describe('BB-SHELL-32: The rail lists Add, Scene, Settings and Callbacks as vertical tabs', () => {
+  it('names each tab, sets Callbacks apart and marks the open panel', async () => {
+    const media = mediaQuery(false);
+    try {
+      useVamsStore.setState({ railPanel: 'scene', railHidden: false });
+      const host = mount(h(Rail, {}));
+      await settle();
+      const list = host.querySelector('[role="tablist"]')!;
+      expect(list.getAttribute('aria-orientation')).toBe('vertical');
+      expect(list.getAttribute('aria-label')).toBe('Editor panels');
+      const tabs = [...list.querySelectorAll('[role="tab"]')];
+      expect(tabs.map((t) => t.querySelector('.rail__label')!.textContent)).toEqual(['Add', 'Scene', 'Settings', 'Callbacks']);
+      expect(tabs.map((t) => t.id)).toEqual(['rail-tab-add', 'rail-tab-scene', 'rail-tab-settings', 'rail-tab-callbacks']);
+      for (const tab of tabs) expect(tab.getAttribute('aria-controls')).toBe('editor-panel');
+      const divider = list.querySelector('.rail__divider')!;
+      expect(divider.previousElementSibling).toBe(tabs[2]);
+      expect(divider.nextElementSibling).toBe(tabs[3]);
+      expect(tabs.map((t) => t.getAttribute('aria-selected') === 'true')).toEqual([false, true, false, false]);
+      expect(tabs.map((t) => t.getAttribute('tabindex'))).toEqual(['-1', '0', '-1', '-1']);
+      expect(tabs[0].getAttribute('data-tour-anchor')).toBe('rail-add');
+      (tabs[2] as HTMLButtonElement).click();
+      await settle();
+      expect(useVamsStore.getState().railPanel).toBe('settings');
+      unmount(host);
+    } finally {
+      media.restore();
+    }
+  });
+});
+
+describe('BB-SHELL-33: Arrow keys move between rail tabs; Enter opens one', () => {
+  it('moves focus with Up, Down, Home and End and wraps at the ends', async () => {
+    const media = mediaQuery(false);
+    try {
+      useVamsStore.setState({ railPanel: 'add', railHidden: false });
+      const host = mount(h(Rail, {}));
+      await settle();
+      const tab = (id: string) => host.querySelector(`#rail-tab-${id}`) as HTMLButtonElement;
+      tab('add').focus();
+      key(tab('add'), 'ArrowDown');
+      expect(document.activeElement).toBe(tab('scene'));
+      key(tab('scene'), 'End');
+      expect(document.activeElement).toBe(tab('callbacks'));
+      key(tab('callbacks'), 'ArrowDown');
+      expect(document.activeElement).toBe(tab('add'));
+      key(tab('add'), 'ArrowUp');
+      expect(document.activeElement).toBe(tab('callbacks'));
+      key(tab('callbacks'), 'Home');
+      expect(document.activeElement).toBe(tab('add'));
+      // Moving focus never switches the panel; activating does.
+      expect(useVamsStore.getState().railPanel).toBe('add');
+      unmount(host);
+    } finally {
+      media.restore();
+    }
+  });
+});
+
+describe('BB-SHELL-34: The Callbacks badge counts the callbacks that work', () => {
+  it('hides at zero and counts only valid handlers', async () => {
+    const media = mediaQuery(false);
+    try {
+      const host = mount(h(Rail, {}));
+      await settle();
+      expect(host.querySelector('.rail__badge')).toBeNull();
+      const s = useVamsStore.getState();
+      s.setCallbackHandler('keyboard', 'onKey');
+      s.setCallbackHandler('idle', 'onIdle');
+      s.setCallbackHandler('mouse', 'onKey');
+      await settle();
+      expect(host.querySelector('.rail__badge')!.textContent).toBe('2');
+      expect(host.querySelector('#rail-tab-callbacks')!.textContent).toContain('2 on');
+      unmount(host);
+    } finally {
+      media.restore();
+    }
+  });
+});
+
+describe('BB-SHELL-35: Hide folds the panel and any rail item brings it back', () => {
+  it('toggles Hide and Show, leaves no tab selected while hidden, and ignores a click on the open item', async () => {
+    const media = mediaQuery(false);
+    try {
+      useVamsStore.setState({ railPanel: 'scene', railHidden: false });
+      const host = mount(h(Rail, {}));
+      await settle();
+      const hide = host.querySelector('.rail__hide') as HTMLButtonElement;
+      expect(hide.textContent).toContain('Hide');
+      expect(hide.getAttribute('aria-expanded')).toBe('true');
+      (host.querySelector('#rail-tab-scene') as HTMLButtonElement).click();
+      expect(useVamsStore.getState().railHidden).toBe(false);
+      hide.click();
+      await settle();
+      expect(useVamsStore.getState().railHidden).toBe(true);
+      expect(hide.textContent).toContain('Show');
+      expect(host.querySelectorAll('[role="tab"][aria-selected="true"]')).toHaveLength(0);
+      (host.querySelector('#rail-tab-add') as HTMLButtonElement).click();
+      await settle();
+      expect(useVamsStore.getState().railHidden).toBe(false);
+      expect(useVamsStore.getState().railPanel).toBe('add');
+      unmount(host);
+    } finally {
+      media.restore();
+    }
+  });
+});
+
+describe('BB-SHELL-36: The rail pill tokens exist in both themes', () => {
+  it('declares --rail-pill-hover and --rail-pill-active for light and dark', async () => {
+    const { readFileSync } = await import('node:fs');
+    const scss = readFileSync('src/shared/styles/_tokens.scss', 'utf8');
+    for (const token of ['--rail-pill-hover', '--rail-pill-active']) {
+      expect(scss.split(`${token}:`).length - 1).toBe(2);
+    }
+  });
+});
+
+describe('BB-SHELL-37: The editor grid has a rail, a panel, the canvas and the code column', () => {
+  it('lays out four regions, folds the panel and the code column, and makes the rail inert during Run', async () => {
+    const media = mediaQuery(false);
+    useVamsStore.setState({ railPanel: 'scene', railHidden: false, codeHidden: false });
+    const host = await shell();
+    try {
+      await settle();
+      const editor = host.querySelector('.editor')!;
+      const panel = host.querySelector('#editor-panel')!;
+      expect(panel.getAttribute('role')).toBe('tabpanel');
+      expect(panel.getAttribute('aria-labelledby')).toBe('rail-tab-scene');
+      expect(host.querySelector('.editor__rail .rail')).not.toBeNull();
+      expect(host.querySelector('[data-tour-anchor="panel"]')).toBe(panel);
+      expect(host.querySelector('.editor__stage')!.getAttribute('data-tour-anchor')).toBe('canvas');
+      expect(host.querySelector('.editor__code')!.getAttribute('data-tour-anchor')).toBe('code-column');
+      expect(host.querySelector('.editor__panels-toggle')).toBeNull();
+      useVamsStore.getState().setRailHidden(true);
+      await settle();
+      expect(editor.classList.contains('is-panel-hidden')).toBe(true);
+      useVamsStore.getState().setCodeHidden(true);
+      await settle();
+      expect(editor.classList.contains('is-code-hidden')).toBe(true);
+      useVamsStore.setState({ railHidden: false, codeHidden: false });
+      const stop = startRun();
+      await settle();
+      expect(host.querySelector('.editor__rail')!.hasAttribute('inert')).toBe(true);
+      expect(panel.hasAttribute('inert')).toBe(true);
+      stop();
+      await settle();
+      expect(host.querySelector('.editor__rail')!.hasAttribute('inert')).toBe(false);
+    } finally {
+      unmount(host);
+      media.restore();
+    }
+  });
+});
+
+describe('BB-SHELL-38: On narrow screens the panel is a drawer beside the rail', () => {
+  it('opens from the rail, closes from its own item and Esc, and closes when Run starts', async () => {
+    const media = mediaQuery(true);
+    useVamsStore.setState({ railPanel: 'scene', railHidden: false });
+    const host = await shell();
+    try {
+      await settle();
+      const state = () => useVamsStore.getState();
+      expect(host.querySelector('.editor')!.classList.contains('editor--narrow')).toBe(true);
+      expect(state().railHidden).toBe(true);
+      const tab = (id: string) => host.querySelector(`#rail-tab-${id}`) as HTMLButtonElement;
+      tab('scene').click();
+      await settle();
+      expect(state().railHidden).toBe(false);
+      tab('scene').click();
+      await settle();
+      expect(state().railHidden).toBe(true);
+      tab('settings').click();
+      await settle();
+      expect(state().railPanel).toBe('settings');
+      expect(state().railHidden).toBe(false);
+      const inside = host.querySelector('#inside') as HTMLElement;
+      inside.focus();
+      key(inside, 'Escape');
+      await settle();
+      expect(state().railHidden).toBe(true);
+      expect(document.activeElement).toBe(tab('settings'));
+      state().setRailPanel('scene');
+      await settle();
+      const stop = startRun();
+      await settle();
+      expect(state().railHidden).toBe(true);
+      stop();
+    } finally {
+      unmount(host);
+      media.restore();
+    }
+  });
+});
+
+describe('BB-SHELL-39: Crossing 1100 px closes the drawer or shows the panel, and never strands focus', () => {
+  it('closes the panel into a drawer when the window narrows and shows it again when it widens', async () => {
+    const media = mediaQuery(false);
+    useVamsStore.setState({ railPanel: 'scene', railHidden: false });
+    const host = await shell();
+    try {
+      await settle();
+      const editor = host.querySelector('.editor')!;
+      expect(editor.classList.contains('editor--narrow')).toBe(false);
+      expect(useVamsStore.getState().railHidden).toBe(false);
+      (host.querySelector('#inside') as HTMLElement).focus();
+      media.set(true);
+      await settle();
+      expect(editor.classList.contains('editor--narrow')).toBe(true);
+      expect(useVamsStore.getState().railHidden).toBe(true);
+      expect(document.activeElement).toBe(host.querySelector('#rail-tab-scene'));
+      (host.querySelector('#rail-tab-scene') as HTMLButtonElement).click();
+      await settle();
+      expect(useVamsStore.getState().railHidden).toBe(false);
+      media.set(false);
+      await settle();
+      expect(editor.classList.contains('editor--narrow')).toBe(false);
+      expect(useVamsStore.getState().railHidden).toBe(false);
+    } finally {
+      unmount(host);
+      media.restore();
+    }
+  });
+});
+
+describe('BB-SHELL-40: The right column switches between Code and Math and marks code that changed out of sight', () => {
+  it('starts on Code, shows Math, and shows the dot until Code is shown again', async () => {
+    useVamsStore.setState({ codePane: 'code', codeHidden: false, codeChangedUnseen: false });
+    const host = mount(h(CodeMathColumn, {}));
+    await settle();
+    const radios = () => [...host.querySelectorAll<HTMLButtonElement>('[data-tour-anchor="code-switch"] [role="radio"]')];
+    expect(host.querySelector('[data-tour-anchor="code-switch"] [role="radiogroup"]')!.getAttribute('aria-label')).toBe('Code or math');
+    expect(radios().map((r) => r.textContent)).toEqual(['Code', 'Math']);
+    expect(host.querySelector('.code-viewer-container')).not.toBeNull();
+    expect(host.querySelector('.math-panel-container')).toBeNull();
+    radios()[1].click();
+    await settle();
+    expect(host.querySelector('.math-panel-container')).not.toBeNull();
+    expect(host.querySelector('.code-viewer-container')).toBeNull();
+    expect(host.querySelector('.code-math-switch__dot')).toBeNull();
+    addTriangle();
+    await settle();
+    expect(host.querySelector('.code-math-switch__dot')!.textContent).toBe('Code changed');
+    radios()[0].click();
+    await settle();
+    expect(host.querySelector('.code-math-switch__dot')).toBeNull();
+    expect(useVamsStore.getState().codeChangedUnseen).toBe(false);
+    unmount(host);
+  });
+});
+
+describe('BB-SHELL-41: Hide tucks the code column to an edge tab that brings it back', () => {
+  it('hides from Code or Math and shows again from the edge tab', async () => {
+    useVamsStore.setState({ codePane: 'code', codeHidden: false });
+    const host = mount(h(CodeMathColumn, {}));
+    await settle();
+    (host.querySelector('button[aria-label="Hide code and math"]') as HTMLButtonElement).click();
+    await settle();
+    expect(useVamsStore.getState().codeHidden).toBe(true);
+    const edge = host.querySelector('.code-math-edge') as HTMLButtonElement;
+    expect(edge.getAttribute('aria-label')).toBe('Show code and math');
+    expect(edge.textContent).toContain('Code & math');
+    expect(host.querySelector('.code-viewer-container')).toBeNull();
+    edge.click();
+    await settle();
+    expect(useVamsStore.getState().codeHidden).toBe(false);
+    expect(host.querySelector('.code-viewer-container')).not.toBeNull();
+    useVamsStore.getState().setCodePane('math');
+    await settle();
+    expect(host.querySelector('button[aria-label="Hide code and math"]')).not.toBeNull();
+    useVamsStore.getState().setCodePane('code');
+    unmount(host);
+  });
+});
+
+describe('BB-SHELL-42: Add a shape moves focus to the first primitive tile', () => {
+  async function clickAddAShape(railHidden: boolean) {
+    useVamsStore.setState({ railPanel: 'add', railHidden });
+    const host = await shell({
+      panel: h(EditorPanel, {}),
+      canvas: h(CanvasOverlays, {
+        viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
+        interactionMode: 'SELECT',
+        coordinates: { x: 0, y: 0 },
+        showCoordinateTracker: false,
+        showEmptyHint: true,
+      }),
+    });
+    await settle();
+    const add = [...host.querySelectorAll('.empty-canvas-hint button')].find((b) => b.textContent?.trim() === 'Add a shape') as HTMLButtonElement;
+    add.focus();
+    add.click();
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    return host;
+  }
+
+  it('focuses the tile when Add is already showing', async () => {
+    const media = mediaQuery(false);
+    const host = await clickAddAShape(false);
+    try {
+      expect(document.activeElement).toBe(host.querySelector('.primitive-tile'));
+      expect(document.activeElement?.classList.contains('primitive-tile')).toBe(true);
+    } finally {
+      unmount(host);
+      media.restore();
+    }
+  });
+
+  it('shows the hidden panel first and focuses the tile', async () => {
+    const media = mediaQuery(false);
+    const host = await clickAddAShape(true);
+    try {
+      expect(useVamsStore.getState().railHidden).toBe(false);
+      expect(document.activeElement).toBe(host.querySelector('.primitive-tile'));
+      expect(document.activeElement?.classList.contains('primitive-tile')).toBe(true);
+    } finally {
+      unmount(host);
+      media.restore();
+    }
   });
 });

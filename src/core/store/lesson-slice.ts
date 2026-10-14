@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand';
 import type { VamsState, LessonSlice } from '@/core/store/types';
 import type { ViewportLimits } from '@/core/types/scene';
 import { DEFAULT_OPEN_GROUPS } from '@/core/inspector/groups';
+import { railPanelFor, resolveFocus } from '@/core/inspector/focus-map';
 import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 const DEFAULT_VIEWPORT: ViewportLimits = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
 export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (set, get) => ({
@@ -17,6 +18,7 @@ export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (
   lessonFocusPanel: null,
   dmaDriverStep: null,
   changedCodeLines: [],
+  codeViewBeforeLesson: null,
   setActiveLesson: (lessonId) => {
     const state = get();
     if (lessonId && !state.activeLessonId) {
@@ -30,6 +32,7 @@ export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (
         canvasBackgroundColorBackup: state.canvasBackgroundColor,
         viewportLimitsBackup: state.viewportLimits,
         uploadedTexturesBackup: state.uploadedTextures,
+        codeViewBeforeLesson: { pane: state.codePane, hidden: state.codeHidden },
         objects: [],
         callbacks: emptyCallbacks(),
         canvasBackgroundColor: '#000000',
@@ -59,7 +62,14 @@ export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (
     },
   })),
   setSuccessState: (success) => set({ isSuccess: success }),
-  setLessonFocusPanel: (panelId) => set({ lessonFocusPanel: panelId, mathTabOverride: null }),
+  // A step's control lives in one rail panel: show that panel, and open it if it was hidden.
+  setLessonFocusPanel: (panelId) => set((state) => {
+    const place = resolveFocus(panelId, state.selectedObjectId !== null);
+    const panel = place ? railPanelFor(place) : null;
+    return panel
+      ? { lessonFocusPanel: panelId, mathTabOverride: null, railPanel: panel, railHidden: false }
+      : { lessonFocusPanel: panelId, mathTabOverride: null };
+  }),
   setDmaDriverStep: (index) => set({ dmaDriverStep: index }),
   setChangedCodeLines: (lines) => set({ changedCodeLines: lines }),
   clearLessonState: () => {
@@ -89,6 +99,11 @@ export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (
       lessonFocusPanel: null,
       dmaDriverStep: null,
       changedCodeLines: [],
+      // The lesson may have switched the right column; give the student back their own view.
+      ...(state.codeViewBeforeLesson
+        ? { codePane: state.codeViewBeforeLesson.pane, codeHidden: state.codeViewBeforeLesson.hidden, codeChangedUnseen: false }
+        : {}),
+      codeViewBeforeLesson: null,
     });
   },
 });

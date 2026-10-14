@@ -11,7 +11,6 @@ import TextureAttachmentPanel, { TEXTUREABLE_TYPES } from '@/features/textures/u
 import UVEditorPanel from '@/features/textures/ui/UVEditorPanel';
 import OrthoEditorPanel from '@/features/ortho-editor/ui/OrthoEditorPanel';
 import TextureLibraryPanel from '@/features/textures/ui/TextureLibraryPanel';
-import CallbacksPanel from '@/features/callbacks/ui/CallbacksPanel';
 
 export interface GroupDef {
   id: InspectorGroupId;
@@ -69,5 +68,4 @@ export const SETTINGS_GROUP_DEFS: GroupDef[] = [
   { id: 'background', title: 'Background', hint: () => 'glClearColor', render: () => <BackgroundColorPanel /> },
   { id: 'viewing-volume', title: 'Viewing volume', hint: () => 'glOrtho', render: () => <OrthoEditorPanel /> },
   { id: 'texture-library', title: 'Texture library', hint: () => 'glGenTextures', render: () => <TextureLibraryPanel /> },
-  { id: 'callbacks', title: 'Callbacks', hint: () => 'glutKeyboardFunc …', render: () => <CallbacksPanel /> },
 ];

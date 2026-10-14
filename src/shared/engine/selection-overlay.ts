@@ -4,6 +4,7 @@ import { readCssColor } from '@/shared/lib/theme';
 export class SelectionOverlay extends Container {
     private border: Graphics;
     private target: Container | null = null;
+    private suppressed = false;
 
     constructor() {
         super();
@@ -18,9 +19,17 @@ export class SelectionOverlay extends Container {
             this.border.clear();
             this.visible = false;
         } else {
-            this.visible = true;
+            this.visible = !this.suppressed;
             this.update();
         }
+    }
+
+    /** Run hides the outline while it moves objects; the target is kept for when Run stops. */
+    public setSuppressed(suppressed: boolean) {
+        if (this.suppressed === suppressed) return;
+        this.suppressed = suppressed;
+        this.visible = !suppressed && this.target !== null;
+        if (!suppressed && this.target) this.update();
     }
 
     public update() {

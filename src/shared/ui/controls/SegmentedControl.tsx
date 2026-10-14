@@ -1,10 +1,13 @@
 import { useRef } from 'react';
+import type { ComponentChildren } from 'preact';
 import './toggles.scss';
 
 export interface SegmentOption<T extends string> {
   value: T;
   label: string;
   title?: string;
+  /** Rendered after the label, such as a status dot. */
+  adornment?: ComponentChildren;
 }
 
 export interface SegmentedControlProps<T extends string> {
@@ -74,6 +77,7 @@ export function SegmentedControl<T extends string>({
           onClick={() => onChange(option.value)}
         >
           {option.label}
+          {option.adornment}
         </button>
       ))}
     </div>

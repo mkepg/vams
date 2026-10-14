@@ -9,7 +9,10 @@ import {
   DEFAULT_OPEN_GROUPS,
   FOCUS_PANEL_IDS,
   contextSection,
+  OBJECT_GROUPS,
+  SETTINGS_GROUPS,
   mathTabFor,
+  railPanelFor,
   resolveFocus,
   sectionForPlace,
 } from '@/core/inspector';
@@ -89,7 +92,7 @@ describe('BB-INSP-03: The context section follows focus, then the opened group, 
 describe('BB-INSP-04: Groups toggle, remember the last opened one, and clear a manual tab', () => {
   it('updates the transient state through store actions', () => {
     const s = () => useVamsStore.getState();
-    expect(s().openGroups).toEqual(['transform', 'background']);
+    expect(s().openGroups).toEqual(['transform', 'background', 'viewing-volume', 'texture-library']);
     s().setMathTabOverride('Textures');
     s().toggleGroup('buffers');
     expect(s().openGroups).toContain('buffers');
@@ -104,7 +107,7 @@ describe('BB-INSP-04: Groups toggle, remember the last opened one, and clear a m
     s().setLessonFocusPanel('object-transform');
     expect(s().mathTabOverride).toBeNull();
     s().setActiveSection('Textures');
-    expect(s().openGroups).toEqual(['transform', 'background']);
+    expect(s().openGroups).toEqual(['transform', 'background', 'viewing-volume', 'texture-library']);
     expect(s().lastOpenedGroup).toBeNull();
   });
 
@@ -200,7 +203,7 @@ describe('BB-INSP-08: An empty scene shows the annotated program in every sectio
 describe('BB-INSP-09: The Background setting shows the background colour even with an object selected', () => {
   it('renders the glClearColor control, not the object colour, under a settings focus', async () => {
     const { addTriangle } = await import('../helpers/store');
-    const { default: Inspector } = await import('@/widgets/layout/editor-column/Inspector');
+    const { default: SettingsPanel } = await import('@/widgets/layout/editor-column/SettingsPanel');
     const triangle = addTriangle();
     useVamsStore.setState({
       appMode: 'Lesson',
@@ -209,10 +212,10 @@ describe('BB-INSP-09: The Background setting shows the background colour even wi
       canvasBackgroundColor: '#123456',
       openGroups: [...DEFAULT_OPEN_GROUPS],
     });
-    const host = mountEl(h(Inspector, {}));
+    const host = mountEl(h(SettingsPanel, {}));
     try {
       await settle();
-      expect(host.querySelector('.inspector__name')!.textContent).toBe('Scene settings');
+      expect(host.querySelector('.rail-panel__title')!.textContent).toBe('Settings');
       const background = host.querySelector('[data-group="background"]')!;
       expect(background.querySelector('[data-panel-id="appearance-panel"] .vpanel__title')!.textContent).toBe('Scene Color');
       expect(background.textContent).not.toContain('Fill');
@@ -225,7 +228,7 @@ describe('BB-INSP-09: The Background setting shows the background colour even wi
 describe('BB-INSP-10: A focus on a group the object does not have dims and collapses nothing', () => {
   it('leaves the line’s groups as they were when a demo step focuses the Texture group', async () => {
     const { addPrimitive } = await import('../helpers/store');
-    const { default: Inspector } = await import('@/widgets/layout/editor-column/Inspector');
+    const { default: ObjectInspector } = await import('@/widgets/layout/editor-column/ObjectInspector');
     const line = addPrimitive('LINES', [{ x: 0, y: 0 }, { x: 0.5, y: 0.5 }]);
     useVamsStore.setState({
       appMode: 'Lesson',
@@ -234,7 +237,7 @@ describe('BB-INSP-10: A focus on a group the object does not have dims and colla
       lessonFocusPanel: 'texture-attach',
       openGroups: [...DEFAULT_OPEN_GROUPS],
     });
-    const host = mountEl(h(Inspector, {}));
+    const host = mountEl(h(ObjectInspector, {}));
     try {
       await settle();
       expect(host.querySelector('[data-group="texture"]')).toBeNull();
@@ -244,5 +247,18 @@ describe('BB-INSP-10: A focus on a group the object does not have dims and colla
       unmountEl(host);
       useVamsStore.setState({ activeLessonId: null });
     }
+  });
+});
+
+describe('BB-INSP-11: Every focus place belongs to one rail panel', () => {
+  it('maps the list and objects to Scene, the Add row and text to Add, settings to Settings and callbacks to Callbacks', () => {
+    expect(railPanelFor({ area: 'scene', target: 'list' })).toBe('scene');
+    expect(railPanelFor({ area: 'scene', target: 'add' })).toBe('add');
+    expect(railPanelFor({ area: 'scene', target: 'create-text' })).toBe('add');
+    for (const group of OBJECT_GROUPS) expect(railPanelFor({ area: 'object', group })).toBe('scene');
+    for (const group of SETTINGS_GROUPS) expect(railPanelFor({ area: 'settings', group })).toBe('settings');
+    expect(railPanelFor({ area: 'settings', group: 'callbacks' })).toBe('callbacks');
+    expect(railPanelFor({ area: 'lesson-card' })).toBeNull();
+    expect(SETTINGS_GROUPS).toEqual(['background', 'viewing-volume', 'texture-library']);
   });
 });

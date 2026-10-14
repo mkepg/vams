@@ -14,6 +14,7 @@ import { createLessonSlice } from '@/core/store/lesson-slice';
 import { createCallbacksSlice } from '@/core/store/callbacks-slice';
 import { createTextureSlice } from '@/core/store/texture-slice';
 import { createHelpSlice } from '@/core/store/help-slice';
+import { createTourSlice } from '@/core/store/tour-slice';
 import { reportCorruptSave } from '@/core/store/recovery-signal';
 
 enableMapSet();
@@ -52,6 +53,7 @@ export const useVamsStore = create<VamsState>()(
       ...createCallbacksSlice(...a),
       ...createTextureSlice(...a),
       ...createHelpSlice(...a),
+      ...createTourSlice(...a),
       resetProject: () => {
         localStorage.removeItem(STORAGE_KEY);
         window.location.reload();
@@ -80,6 +82,7 @@ export const useVamsStore = create<VamsState>()(
           // A lesson backup that survived a reload means the page reloaded mid-lesson:
           // put the student's own scene back and leave the lesson.
           if (rehydratedState?.sceneBackup) rehydratedState.clearLessonState();
+          rehydratedState?.pickOpeningPanel();
         };
       },
       partialize: (state) => ({
@@ -104,4 +107,17 @@ export const useVamsStore = create<VamsState>()(
     }
   )
 );
+// Selecting an object always shows it: the rail switches to Scene and the panel opens. Every path
+// that selects (the canvas, the list, a new shape or text, duplicate, group, undo, redo and the
+// lesson runner) goes through selectedObjectId, so the rule lives here once.
+useVamsStore.subscribe((state, prev) => {
+  if (!state.selectedObjectId || state.selectedObjectId === prev.selectedObjectId) return;
+  if (state.railPanel !== 'scene' || state.railHidden) useVamsStore.setState({ railPanel: 'scene', railHidden: false });
+});
+
+// Starting a lesson ends the tour. The lesson's focus decides the rail, so the tour leaves it alone.
+useVamsStore.subscribe((state, prev) => {
+  if (state.tourStep !== null && state.appMode === 'Lesson' && prev.appMode !== 'Lesson') state.endTour({ restoreRail: false });
+});
+
 export type { VamsState } from '@/core/store/types';

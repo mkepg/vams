@@ -51,7 +51,9 @@ export type HelpBlock =
   | { kind: 'table'; headers: string[]; rows: string[][] }
   | { kind: 'definitions'; items: { term: string; description: string }[] }
   /** Renders the canonical keyboard-shortcut table from [shortcuts.ts]. */
-  | { kind: 'shortcuts' };
+  | { kind: 'shortcuts' }
+  /** The "Start the tour" button, which closes Help and starts the first-visit tour. */
+  | { kind: 'start-tour' };
 
 export interface HelpTopic {
   id: HelpTopicId;

@@ -24,6 +24,9 @@ export interface ButtonProps {
   'aria-haspopup'?: 'menu' | 'dialog';
   'aria-controls'?: string;
   'aria-pressed'?: boolean;
+  'aria-describedby'?: string;
+  /** Lets the first-visit tour find this control. */
+  'data-tour-anchor'?: string;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(

@@ -17,3 +17,15 @@
   &[aria-selected='true'] { color: var(--ink); border-bottom-color: var(--accent); }
   &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 }
+
+// With the column's switch in front, the section tabs take a second line.
+.math-header--lead {
+  flex-wrap: wrap;
+
+  .math-tabs {
+    order: 3;
+    flex-basis: 100%;
+  }
+}
+
+.math-header__trail { margin-left: auto; }

@@ -18,7 +18,16 @@ const TABS: { section: CurriculumSection; content: () => ComponentChildren }[] =
   { section: 'Textures', content: () => <TexturesMathContent /> },
 ];
 
-export default function MathPanel() {
+interface MathPanelProps {
+  /** Replaces the "Math & data" title, such as the column's switch. */
+  headerLead?: ComponentChildren;
+  /** Rendered at the end of the header's first line. */
+  headerTrail?: ComponentChildren;
+  /** Run makes the tabs and content inert; the lead and trail stay usable. */
+  contentInert?: boolean;
+}
+
+export default function MathPanel({ headerLead, headerTrail, contentInert = false }: MathPanelProps = {}) {
   const tab = useVamsStore(mathTabFor);
   const setMathTabOverride = useVamsStore((s) => s.setMathTabOverride);
   const baseId = useId();
@@ -37,9 +46,10 @@ export default function MathPanel() {
 
   return (
     <div className="math-panel-container">
-      <div className="math-header">
-        <span className="math-title">Math &amp; data</span>
-        <div className="math-tabs" role="tablist" aria-label="Math by section" onKeyDown={onKeyDown}>
+      <div className={headerLead ? 'math-header math-header--lead' : 'math-header'}>
+        {headerLead ?? <span className="math-title">Math &amp; data</span>}
+        {headerTrail && <span className="math-header__trail">{headerTrail}</span>}
+        <div className="math-tabs" role="tablist" aria-label="Math by section" onKeyDown={onKeyDown} inert={contentInert || undefined}>
           {TABS.map((t, i) => (
             <button
               key={t.section}
@@ -57,7 +67,13 @@ export default function MathPanel() {
           ))}
         </div>
       </div>
-      <div className="math-content" id={`${baseId}-panel`} role="tabpanel" aria-labelledby={`${baseId}-tab-${index}`}>
+      <div
+        className="math-content"
+        id={`${baseId}-panel`}
+        role="tabpanel"
+        aria-labelledby={`${baseId}-tab-${index}`}
+        inert={contentInert || undefined}
+      >
         {TABS[index].content()}
       </div>
     </div>

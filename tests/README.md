@@ -50,15 +50,17 @@ tests/
 │   │                                        set)
 │   ├── editor-shell.test.ts              (BB-SHELL-*: the editor shell:
 │   │                                        dialogs, menus, the top bar,
-│   │                                        the editor column and
+│   │                                        the rail, the panels and
 │   │                                        overlays)
-│   ├── lesson-column.test.ts             (BB-LCOL-*: the lesson card,
+│   ├── lesson-column.test.ts             (BB-LCOL-*: the lesson bar,
 │   │                                        the runner and panel focus)
 │   ├── editor-panels.test.ts             (BB-PANEL-*: the panels on the
 │   │                                        shared controls)
 │   ├── callbacks.test.ts                 (BB-CB-*: callback rules, handler
 │   │                                        code, names)
-│   └── run-mode.test.ts                  (BB-RUN-*: the canvas Run state)
+│   ├── run-mode.test.ts                  (BB-RUN-*: the canvas Run state)
+│   └── first-visit-tour.test.ts          (BB-TOUR-*: the first-visit tour's
+│                                            steps, checks and spotlight)
 ├── white-box/                    ← Maps to Table 13.
 │   ├── state-management.test.ts          (WB-STATE-*)
 │   ├── matrix-engine.test.ts             (WB-MATRIX-*)
@@ -72,8 +74,8 @@ tests/
 │                                            the generated C++)
 ├── visual/                       ← Not part of `npm test`.
 │   ├── editor.spec.ts                    (VIS-EDITOR-*: screenshot checks,
-│   │                                        including the Callbacks group
-│   │                                        and Run, VIS-EDITOR-14 to 16,
+│   │                                        including the rail panels,
+│   │                                        the lesson bar, the tour and Run, VIS-EDITOR-14 to 28,
 │   │                                        run with `npm run test:visual`;
 │   │                                        per-machine baselines that are
 │   │                                        not committed)
@@ -98,7 +100,7 @@ tests/
 ## Running
 
 ```bash
-npm test                # run all 605 tests
+npm test                # run all 698 tests
 npm run test:watch      # watch mode for development
 npm run test:coverage   # also produce tests/reports/coverage/
 npm run test:visual     # editor screenshot checks (Playwright, installed Chrome)
