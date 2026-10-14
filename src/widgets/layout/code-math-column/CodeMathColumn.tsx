@@ -25,14 +25,23 @@ export default function CodeMathColumn() {
   const background = useVamsStore((s) => s.canvasBackgroundColor);
   const viewport = useVamsStore((s) => s.viewportLimits);
   const textures = useVamsStore((s) => s.uploadedTextures);
+  const appMode = useVamsStore((s) => s.appMode);
+  const lessonId = useVamsStore((s) => s.activeLessonId);
   const mounted = useRef(false);
+  const previous = useRef({ appMode, lessonId });
   useEffect(() => {
+    // A lesson starting or ending swaps the whole scene; that is not code changing out of sight.
+    const swapped = previous.current.appMode !== appMode || previous.current.lessonId !== lessonId;
     if (!mounted.current) {
       mounted.current = true;
       return;
     }
-    markCodeChanged();
-  }, [objects, callbacks, background, viewport, textures, markCodeChanged]);
+    if (!swapped) markCodeChanged();
+  }, [objects, callbacks, background, viewport, textures, markCodeChanged, appMode, lessonId]);
+  // Declared after the effect above so it compares against the previous render's values.
+  useEffect(() => {
+    previous.current = { appMode, lessonId };
+  });
 
   // A handler that fires during Run flashes its branch in Code; with Math showing, Code gets the dot.
   const firedSeq = fired?.seq;

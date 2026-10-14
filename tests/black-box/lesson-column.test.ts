@@ -11,6 +11,7 @@ import { SegmentedControl } from '@/shared/ui/controls';
 import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
 import { EditorPanel } from '@/widgets/layout/editor-column';
 import Rail from '@/widgets/layout/rail';
+import CodeMathColumn from '@/widgets/layout/code-math-column';
 import { DEFAULT_OPEN_GROUPS, FOCUS_PANEL_IDS, mathTabFor } from '@/core/inspector';
 import { startLesson as startLessonFromLearn } from '@/features/lesson-engine/model/start-lesson';
 import { focusStyleFor } from '@/features/lesson-engine/model/guidance';
@@ -801,5 +802,27 @@ describe('BB-LCOL-30: Leaving a lesson gives the student back their Code / Math 
     expect(useVamsStore.getState().codeViewBeforeLesson).toBeNull();
     useVamsStore.setState({ codePane: 'code', codeHidden: false });
     unmount(host);
+  });
+
+  it('keeps the Code dot off when a lesson starts or ends, and still lights it for an edit on Math', async () => {
+    useVamsStore.setState({ codePane: 'math', codeHidden: false, codeChangedUnseen: false });
+    const column = mount(h(CodeMathColumn, {}));
+    const bar = mount(h(LessonBar, {}));
+    await settle();
+    startLesson('transforms-demo-1');
+    await settle();
+    useVamsStore.getState().setCodePane('math');
+    await settle();
+    exitButton(bar).click();
+    await settle();
+    expect(useVamsStore.getState().codePane).toBe('math');
+    expect(useVamsStore.getState().codeChangedUnseen).toBe(false);
+    expect(column.querySelector('.code-math-switch__dot')).toBeNull();
+    addTriangle();
+    await settle();
+    expect(column.querySelector('.code-math-switch__dot')).not.toBeNull();
+    useVamsStore.setState({ codePane: 'code', codeHidden: false, codeChangedUnseen: false });
+    unmount(bar);
+    unmount(column);
   });
 });
