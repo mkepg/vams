@@ -10,7 +10,6 @@ import { canRun, runController, MIN_WINDOW } from '@/features/callbacks/model/ru
 import { makeFakeDisplay, registerFakeRenderer, type FakeDisplay } from '../helpers/fake-renderer';
 import { addTriangle, getState } from '../helpers/store';
 import RunOverlay from '@/features/callbacks/ui/RunOverlay';
-import CallbacksPanel from '@/features/callbacks/ui/CallbacksPanel';
 import SceneCodePanel from '@/features/code-generation/ui/SceneCodePanel';
 import EditorShell from '@/pages/editor/ui/EditorShell';
 
@@ -216,13 +215,14 @@ describe('BB-RUN-6: Editing pauses while running', () => {
     useVamsStore.setState({ selectedObjectId: t.id });
     const host = mount(h(EditorShell, {
       topBar: h('header', { class: 'top-bar' }, h('div', { class: 'top-bar__actions' }, 'actions')),
-      column: h('div', {}, 'column'),
+      rail: h('div', {}, 'rail'),
+      panel: h('div', {}, 'panel'),
       canvas: h('div', {}, 'canvas'),
       codeMath: h('div', {}, 'code'),
     }));
     runController.start({ loop: false });
     await settle();
-    expect(isInert(host.querySelector('#editor-column'))).toBe(true);
+    expect(isInert(host.querySelector('#editor-panel'))).toBe(true);
     const later = vi.fn();
     window.addEventListener('keydown', later);
     press('Delete');
@@ -337,20 +337,5 @@ describe('BB-RUN-14: Run is unavailable while a Pipeline illustration replaces t
     setup();
     showIllustration();
     expect(runController.start({ loop: false })).toBe(false);
-  });
-
-  it('the Try it button is disabled in the illustration state', async () => {
-    setup();
-    showIllustration();
-    const host = mount(h(CallbacksPanel, {}));
-    (host.querySelector('.vpanel__header') as HTMLButtonElement).click();
-    await settle();
-    const tryIt = host.querySelector('.cb-try') as HTMLButtonElement;
-    expect(tryIt.disabled).toBe(true);
-    useVamsStore.setState({ pipelineMode: 'Playground' });
-    await settle();
-    expect(tryIt.disabled).toBe(false);
-    render(null, host);
-    host.remove();
   });
 });

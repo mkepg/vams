@@ -4,7 +4,6 @@ import { Type, Plus } from 'lucide-react';
 import { useVamsStore } from "@/core/store";
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
 import { Button } from '@/shared/ui/controls';
-import TextEditField from './TextEditField';
 export default function TextNodePanel() {
   const addTextObject = useVamsStore((s) => s.addTextObject);
   const [textInput, setTextInput] = useState('');
@@ -37,7 +36,6 @@ export default function TextNodePanel() {
             />
           </div>
         </div>
-        <TextEditField />
       </div>
     </CollapsibleSection>
   );

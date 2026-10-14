@@ -2,27 +2,38 @@
   position: relative;
   display: grid;
   grid-template-rows: 44px minmax(0, 1fr);
-  // Column widths as variables, so overlays such as the toaster can centre on the canvas.
-  --editor-column-width: 300px;
-  --editor-code-width: clamp(360px, 30vw, 480px);
-  grid-template-columns: var(--editor-column-width) minmax(0, 1fr) var(--editor-code-width);
+  // Track widths as variables, so overlays such as the toaster can centre on the canvas.
+  --editor-rail-width: 64px;
+  --editor-panel-width: 272px;
+  --editor-code-width: clamp(340px, 28vw, 460px);
+  grid-template-columns: var(--editor-rail-width) var(--editor-panel-width) minmax(0, 1fr) var(--editor-code-width);
   height: 100vh;
   height: 100dvh;
   width: 100vw;
   overflow: hidden;
   background: var(--paper);
 
-  &__column {
+  &__rail {
+    position: relative;
+    z-index: 31;
     grid-row: 2;
     grid-column: 1;
     min-height: 0;
+  }
+
+  &__panel {
+    grid-row: 2;
+    grid-column: 2;
+    min-width: 0;
+    min-height: 0;
     border-right: 1px solid var(--rule);
+    background: var(--paper);
   }
 
   &__canvas {
     position: relative;
     grid-row: 2;
-    grid-column: 2;
+    grid-column: 3;
     display: grid;
     grid-template-rows: minmax(0, 1fr) auto;
     min-width: 0;
@@ -41,59 +52,51 @@
 
   &__code {
     grid-row: 2;
-    grid-column: 3;
+    grid-column: 4;
     min-width: 0;
     min-height: 0;
   }
 
-  &__panels-toggle {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    z-index: 110;
-  }
+  &.is-panel-hidden { --editor-panel-width: 0px; }
+  &.is-panel-hidden:not(.editor--narrow) .editor__panel { display: none; }
 
   &--narrow {
-    --editor-column-width: 0px;
+    --editor-panel-width: 0px;
     --editor-code-width: clamp(320px, 34vw, 400px);
-    grid-template-columns: minmax(0, 1fr) var(--editor-code-width);
 
-    // The Panels button sits at the canvas's top-left, so the viewport chip moves after it.
-    .canvas-wrapper .viewport-info { left: 112px; }
-
-    .editor__canvas { grid-column: 1; }
-    .editor__code { grid-column: 2; }
-
-    .editor__column {
-      // An absolutely placed grid item is positioned against its grid area (row 2, column 1).
+    .editor__panel {
+      // An absolutely placed grid item is positioned against its grid area: row 2, column 2,
+      // which starts right after the rail.
       position: absolute;
       top: 0;
       bottom: 0;
       left: 0;
       z-index: 30;
-      width: 300px;
-      background: var(--paper);
+      width: 272px;
       box-shadow: 8px 0 28px rgba(var(--shadow-rgb), 0.22);
       transform: translateX(-100%);
       visibility: hidden;
       transition: transform 0.2s ease, visibility 0.2s;
     }
+
+    &:not(.is-panel-hidden) .editor__panel {
+      transform: none;
+      visibility: visible;
+    }
   }
 
-  &.is-drawer-open .editor__column {
-    transform: none;
-    visibility: visible;
-  }
-
-  // The open drawer covers the canvas's left edge, so the button moves beside it to stay clickable.
-  &.is-drawer-open .editor__panels-toggle { left: 310px; }
+  // The hidden code column leaves its 30 px edge tab.
+  &.is-code-hidden { --editor-code-width: 30px; }
 
   // Toasts centre on the canvas column at every width, so they never cover the code and math column.
   [data-sonner-toaster][data-x-position='center'] {
-    left: calc(var(--editor-column-width) + (100vw - var(--editor-column-width) - var(--editor-code-width)) / 2);
+    left: calc(
+      var(--editor-rail-width) + var(--editor-panel-width)
+      + (100vw - var(--editor-rail-width) - var(--editor-panel-width) - var(--editor-code-width)) / 2
+    );
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .editor--narrow .editor__column { transition: none; }
+  .editor--narrow .editor__panel { transition: none; }
 }

@@ -147,8 +147,6 @@ export interface RuntimeSlice {
   /** A math tab picked by hand; cleared by the next lesson step or opened group. Session only. */
   mathTabOverride: CurriculumSection | null;
   learnOpen: boolean;
-  /** Counts "Add a shape" requests; each one opens the column, scrolls to the Add row and marks it. Session only. */
-  addRowCue: number;
   /** The panel the rail shows. Session only. */
   railPanel: RailPanel;
   /** The panel is tucked away (wide screens) or the drawer is closed (narrow screens). Session only. */
@@ -164,7 +162,6 @@ export interface RuntimeSlice {
   setOpenGroups: (ids: readonly InspectorGroupId[]) => void;
   setMathTabOverride: (section: CurriculumSection | null) => void;
   setLearnOpen: (open: boolean) => void;
-  cueAddRow: () => void;
   /** Shows a panel; also opens the panel if it was hidden. */
   setRailPanel: (panel: RailPanel) => void;
   setRailHidden: (hidden: boolean) => void;

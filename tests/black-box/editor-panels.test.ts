@@ -23,7 +23,7 @@ import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry'
 import { getPreset } from '@/entities/project/model/scene-presets';
 import { loadProjectData } from '@/features/scene-library';
 import { MAX_RULES } from '@/core/callbacks/callbacks-model';
-import { ScenePanel, SettingsPanel } from '@/widgets/layout/editor-column';
+import { CallbacksRailPanel, ScenePanel, SettingsPanel } from '@/widgets/layout/editor-column';
 import { DEFAULT_OPEN_GROUPS } from '@/core/inspector';
 import { addPrimitive, addQuad, addTriangle } from '../helpers/store';
 
@@ -224,7 +224,6 @@ describe('BB-PANEL-09: Line Style pairs width with an exact number and names sti
 describe('BB-PANEL-10: Callbacks name their GLUT registration', () => {
   it('shows one glut*Func hint per handler kind', async () => {
     const host = mount(h(CallbacksPanel, {}));
-    (host.querySelector('.vpanel__header') as HTMLButtonElement).click();
     await settle();
     expect(hints(host)).toEqual(expect.arrayContaining([
       'glutKeyboardFunc(handler)', 'glutMouseFunc(handler)', 'glutReshapeFunc(handler)', 'glutMotionFunc(handler)', 'glutIdleFunc(handler)', 'glutSpecialFunc(handler)',
@@ -550,7 +549,6 @@ describe('BB-PANEL-22: The Vertices panel edits glVertex2f positions with one un
 
 function openCallbacks() {
   const host = mount(h(CallbacksPanel, {}));
-  (host.querySelector('.vpanel__header') as HTMLButtonElement).click();
   return host;
 }
 const row = (host: HTMLElement, label: string) =>
@@ -725,6 +723,21 @@ describe('BB-PANEL-30: The Settings panel holds the scene-wide groups, all open'
     for (const header of host.querySelectorAll('.inspector-group__header')) expect(header.getAttribute('aria-expanded')).toBe('true');
     expect(host.querySelector('[data-group="callbacks"]')).toBeNull();
     expect(host.querySelector('.rail-panel__body')!.hasAttribute('data-scroll-root')).toBe(true);
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-31: The Callbacks panel lists the six callbacks and points to Run', () => {
+  it('has its header, hint and footer, and no Run control of its own', async () => {
+    const host = mount(h(CallbacksRailPanel, {}));
+    await settle();
+    expect(host.querySelector('.rail-panel__title')!.textContent).toBe('Callbacks');
+    expect(host.querySelector('.rail-panel__hint')!.textContent)
+      .toBe('Functions GLUT calls when something happens. Switch one on and give it rules.');
+    expect(host.querySelectorAll('.cb-item')).toHaveLength(6);
+    expect(host.querySelector('.rail-panel__foot')!.textContent).toBe('Press Run on the canvas to try your callbacks. Esc stops.');
+    expect(host.querySelector('.cb-try')).toBeNull();
+    expect(host.querySelector('[data-panel-id="callbacks-panel"]')).not.toBeNull();
     unmount(host);
   });
 });

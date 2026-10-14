@@ -21,9 +21,6 @@ export const CALLBACK_DEFS: readonly CallbackDef[] = [
   { kind: 'idle', glutFn: 'glutIdleFunc', label: 'Idle', description: 'Fires every frame when idle.', defaultName: 'onIdle' },
 ];
 
-export const CALLBACKS_NOTE =
-  "Each callback's rules become the body of its handler in the generated code. Press Run on the canvas to try them: keys, clicks and drags go to your handlers, and your scene is unchanged when you stop.";
-
 export const invalidNameMessage = (defaultName: string) =>
   `Use a C++ name VAMS doesn't already use, like ${defaultName}.`;
 

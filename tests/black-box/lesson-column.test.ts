@@ -8,12 +8,12 @@ import { useVamsStore } from '@/core/store';
 import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import { SegmentedControl } from '@/shared/ui/controls';
 import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
-import { EditorColumn } from '@/widgets/layout/editor-column';
+import { EditorPanel } from '@/widgets/layout/editor-column';
+import Rail from '@/widgets/layout/rail';
 import { DEFAULT_OPEN_GROUPS, FOCUS_PANEL_IDS, mathTabFor } from '@/core/inspector';
 import { startLesson as startLessonFromLearn } from '@/features/lesson-engine/model/start-lesson';
 import { focusStyleFor } from '@/features/lesson-engine/model/guidance';
 import { showsIllustration } from '@/core/store/illustration';
-import EditorShell from '@/pages/editor/ui/EditorShell';
 import ObjectTransformPanel from '@/features/object-transform/ui/ObjectTransformPanel';
 import TextNodePanel from '@/features/text-nodes/ui/TextNodePanel';
 import SceneHierarchyPanel from '@/features/scene-hierarchy/ui/SceneHierarchyPanel';
@@ -47,8 +47,8 @@ function buttonNamed(host: HTMLElement, text: string) {
   return [...host.querySelectorAll('button')].find((b) => b.textContent?.trim() === text) as HTMLButtonElement | undefined;
 }
 const exitButton = (host: HTMLElement) => host.querySelector('button[aria-label="Exit lesson (Esc)"]') as HTMLButtonElement;
-/** The lesson bar with the editor column, as the editor lays them out. */
-const lessonEditor = () => h('div', {}, h(LessonBar, {}), h(EditorColumn, {}));
+/** The lesson bar with the open panel, as the editor lays them out. */
+const lessonEditor = () => h('div', {}, h(LessonBar, {}), h(EditorPanel, {}));
 
 afterEach(() => {
   useVamsStore.getState().clearLessonState();
@@ -129,15 +129,14 @@ describe('BB-LCOL-05: Esc on the window exits the lesson', () => {
   });
 });
 
-describe('BB-LCOL-06: In Lesson mode the editor column has no lesson card', () => {
-  it('shows the scene area and the inspector, with the lesson in the bar', async () => {
+describe('BB-LCOL-06: In Lesson mode the lesson bar sits beside the live panels', () => {
+  it('shows the bar and the step’s panel, with no lesson card', async () => {
     startLesson('transforms-exercise-1');
     const host = mount(lessonEditor());
     await settle();
     expect(host.querySelector('.lesson-bar')).not.toBeNull();
-    expect(host.querySelector('.editor-column .lesson-bar, .lesson-card')).toBeNull();
-    expect(host.querySelector('.scene-area')).not.toBeNull();
-    expect(host.querySelector('.inspector')).not.toBeNull();
+    expect(host.querySelector('.editor-panel .rail-panel')).not.toBeNull();
+    expect(host.querySelector('.lesson-card')).toBeNull();
     unmount(host);
   });
 });
@@ -200,31 +199,34 @@ function mockNarrow() {
     window.matchMedia = realMatchMedia;
   };
 }
-function narrowShell(column: VNode) {
-  return mount(h(EditorShell, {
+async function narrowShell(panel: VNode) {
+  const { default: Shell } = await import('@/pages/editor/ui/EditorShell');
+  return mount(h(Shell, {
     topBar: h('header', {}, 'top'),
-    column,
+    rail: h(Rail, {}),
+    panel,
     canvas: h('div', {}, 'canvas'),
+    lessonBar: h(LessonBar, {}),
     codeMath: h('div', {}, 'code'),
   }));
 }
-const panelsToggle = (host: HTMLElement) =>
-  [...host.querySelectorAll('button')].find((b) => b.textContent?.includes('Panels'))!;
+const drawerOpen = () => !useVamsStore.getState().railHidden;
 
 describe('BB-LCOL-10: On narrow screens Esc in the open drawer closes only the drawer', () => {
-  it('keeps the lesson running and returns focus to the Panels button', async () => {
+  it('keeps the lesson running and returns focus to the rail', async () => {
     const restore = mockNarrow();
     try {
       startLesson('transforms-exercise-1');
-      const host = narrowShell(h('div', {}, h(LessonBar, {}), h('button', { id: 'inside' }, 'inside')));
+      const host = await narrowShell(h('button', { id: 'inside' }, 'inside'));
       await settle();
-      const toggle = panelsToggle(host);
-      expect(toggle.getAttribute('aria-expanded')).toBe('true');
+      useVamsStore.getState().setRailPanel('scene');
+      await settle();
+      expect(drawerOpen()).toBe(true);
       (host.querySelector('#inside') as HTMLElement).focus();
       key(host.querySelector('#inside')!, 'Escape');
       await settle();
-      expect(toggle.getAttribute('aria-expanded')).toBe('false');
-      expect(document.activeElement).toBe(toggle);
+      expect(drawerOpen()).toBe(false);
+      expect(document.activeElement).toBe(host.querySelector('#rail-tab-scene'));
       expect(useVamsStore.getState().appMode).toBe('Lesson');
       unmount(host);
     } finally {
@@ -238,9 +240,12 @@ describe('BB-LCOL-11: Esc in a rename field inside the drawer cancels the rename
     const restore = mockNarrow();
     try {
       startLesson('transforms-exercise-1');
+      const host = await narrowShell(h(SceneHierarchyPanel, {}));
+      await settle();
+      // The lesson bar sets up the step's scene when it mounts, so the object is added after it.
       const triangle = addTriangle();
       const originalName = triangle.name;
-      const host = narrowShell(h(SceneHierarchyPanel, {}));
+      useVamsStore.getState().setRailPanel('scene');
       await settle();
       (host.querySelector('button[aria-label^="Rename"]') as HTMLButtonElement).click();
       await settle();
@@ -252,7 +257,7 @@ describe('BB-LCOL-11: Esc in a rename field inside the drawer cancels the rename
       key(input, 'Escape');
       await settle();
       expect(findById(triangle.id)!.name).toBe(originalName);
-      expect(panelsToggle(host).getAttribute('aria-expanded')).toBe('true');
+      expect(drawerOpen()).toBe(true);
       unmount(host);
     } finally {
       restore();
@@ -261,18 +266,21 @@ describe('BB-LCOL-11: Esc in a rename field inside the drawer cancels the rename
 });
 
 describe('BB-LCOL-12: The drawer closes when the lesson ends', () => {
-  it('opens for a step and closes on exit', async () => {
+  it('opens for a step’s panel and closes on exit', async () => {
     const restore = mockNarrow();
     try {
-      startLesson('transforms-exercise-1');
-      const host = narrowShell(h('div', {}, 'column'));
+      startLesson('transforms-demo-1');
+      const host = await narrowShell(h('div', {}, 'panel'));
       await settle();
-      expect(panelsToggle(host).getAttribute('aria-expanded')).toBe('true');
+      buttonNamed(host, 'Next')!.click();
+      await settle();
+      expect(useVamsStore.getState().lessonFocusPanel).toBe('object-transform');
+      expect(drawerOpen()).toBe(true);
       useVamsStore.getState().clearLessonState();
       useVamsStore.getState().setAppMode('Author');
       await settle();
-      expect(panelsToggle(host).getAttribute('aria-expanded')).toBe('false');
-      expect(host.querySelector('.editor')!.classList.contains('is-drawer-open')).toBe(false);
+      expect(drawerOpen()).toBe(false);
+      expect(host.querySelector('.editor')!.classList.contains('is-panel-hidden')).toBe(true);
       unmount(host);
     } finally {
       restore();
@@ -347,22 +355,23 @@ describe('BB-LCOL-14: Arrow keys inside a radiogroup do not move the lesson', ()
 });
 
 describe('BB-LCOL-15: On narrow screens Esc outside the open drawer closes the drawer first', () => {
-  it('closes the drawer from the Panels button and keeps the lesson running', async () => {
+  it('closes the drawer from the rail and keeps the lesson running', async () => {
     const restore = mockNarrow();
     try {
       startLesson('transforms-exercise-1');
-      const host = narrowShell(h('div', {}, h(LessonBar, {})));
+      const host = await narrowShell(h('div', {}, 'panel'));
       await settle();
-      const toggle = panelsToggle(host);
-      expect(toggle.getAttribute('aria-expanded')).toBe('true');
-      toggle.focus();
-      key(toggle, 'Escape');
+      useVamsStore.getState().setRailPanel('scene');
       await settle();
-      expect(toggle.getAttribute('aria-expanded')).toBe('false');
-      expect(document.activeElement).toBe(toggle);
+      const tab = host.querySelector('#rail-tab-scene') as HTMLButtonElement;
+      tab.focus();
+      key(tab, 'Escape');
+      await settle();
+      expect(drawerOpen()).toBe(false);
+      expect(document.activeElement).toBe(tab);
       expect(useVamsStore.getState().appMode).toBe('Lesson');
       // With the drawer closed, Esc exits the lesson again.
-      key(toggle, 'Escape');
+      key(tab, 'Escape');
       await settle();
       expect(useVamsStore.getState().appMode).toBe('Author');
       unmount(host);
@@ -471,13 +480,14 @@ describe('BB-LCOL-20: A per-object focus selects the newest object, and never cr
     unmount(host);
   });
 
-  it('shows scene settings when there is nothing to select', async () => {
+  it('points to Settings when there is nothing to select', async () => {
     startLesson('transforms-exercise-1');
     const host = mount(lessonEditor());
     await settle();
-    useVamsStore.setState({ objects: [], selectedObjectId: null, lessonFocusPanel: 'object-transform' });
+    useVamsStore.setState({ objects: [], selectedObjectId: null, lessonFocusPanel: 'object-transform', railPanel: 'scene' });
     await settle();
-    expect(host.querySelector('.inspector__name')!.textContent).toBe('Scene settings');
+    expect(host.querySelector('.inspector__empty')!.textContent).toBe('Select an object to edit it');
+    expect(host.querySelector('.inspector__link')!.textContent).toBe('Scene settings are in Settings');
     unmount(host);
   });
 });
@@ -576,8 +586,8 @@ describe('BB-LCOL-23: Leaving a lesson leaves the plain editor, and starting one
   });
 });
 
-describe('BB-LCOL-24: Focus on the Scene list scrolls it under the card, and a new lesson starts at the top', () => {
-  it('scrolls the Scene list under the card when Back returns to its step', async () => {
+describe('BB-LCOL-24: Focus on the Scene list shows the Scene panel, and a new lesson starts at the top', () => {
+  it('shows and outlines the Scene list when Back returns to its step', async () => {
     startLesson('transforms-demo-1');
     const host = mount(lessonEditor());
     try {
@@ -585,31 +595,26 @@ describe('BB-LCOL-24: Focus on the Scene list scrolls it under the card, and a n
       buttonNamed(host, 'Next')!.click();
       await settle();
       expect(useVamsStore.getState().lessonFocusPanel).toBe('object-transform');
-      const root = host.querySelector<HTMLElement>('[data-scroll-root]')!;
-      const list = host.querySelector<HTMLElement>('[data-panel-id="scene-hierarchy"]')!;
-      // The column is scrolled 400px down and the list sits 200px above the column's top.
-      root.getBoundingClientRect = () => ({ top: 50 } as DOMRect);
-      list.getBoundingClientRect = () => ({ top: -150 } as DOMRect);
-      const writes: number[] = [];
-      Object.defineProperty(root, 'scrollTop', { configurable: true, get: () => 400, set: (v: number) => writes.push(v) });
+      useVamsStore.setState({ railPanel: 'settings' });
       buttonNamed(host, 'Back')!.click();
       await settle();
       expect(useVamsStore.getState().lessonFocusPanel).toBe('scene-hierarchy');
-      // The column comes to rest with the list at its top.
-      expect(writes.at(-1)).toBe(400 - 200 - 8);
+      expect(useVamsStore.getState().railPanel).toBe('scene');
+      expect(host.querySelector('[data-panel-id="scene-hierarchy"]')!.classList.contains('is-lesson-focus')).toBe(true);
     } finally {
       unmount(host);
     }
   });
 
-  it('resets the column to the top when a lesson starts', async () => {
+  it('resets the open panel to the top when a lesson starts', async () => {
+    useVamsStore.setState({ railPanel: 'settings', railHidden: false });
     const host = mount(lessonEditor());
     try {
       await settle();
       const root = host.querySelector<HTMLElement>('[data-scroll-root]')!;
       const writes: number[] = [];
       Object.defineProperty(root, 'scrollTop', { configurable: true, get: () => 400, set: (v: number) => writes.push(v) });
-      // The section's last exercise has no focus, so nothing else scrolls the column.
+      // The section's last exercise has no focus, so nothing else scrolls the panel.
       startLesson('transforms-exercise-4');
       await settle();
       expect(writes).toEqual([0]);

@@ -18,7 +18,7 @@ export function CanvasOverlays({
   showEmptyHint = false,
 }: CanvasOverlaysProps) {
   const setLearnOpen = useVamsStore((s) => s.setLearnOpen);
-  const cueAddRow = useVamsStore((s) => s.cueAddRow);
+  const setRailPanel = useVamsStore((s) => s.setRailPanel);
   return (
     <>
       <RunOverlay />
@@ -44,7 +44,7 @@ export function CanvasOverlays({
           <Shapes size={32} aria-hidden />
           <p>Your scene is empty.</p>
           <div className="empty-canvas-hint__actions">
-            <Button variant="primary" onClick={cueAddRow}>
+            <Button variant="primary" onClick={() => setRailPanel('add')}>
               Add a shape
             </Button>
             <Button onClick={() => setLearnOpen(true)}>Start a lesson</Button>

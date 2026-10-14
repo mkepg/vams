@@ -5,9 +5,6 @@ import InspectorGroup from './InspectorGroup';
 import { SETTINGS_GROUP_DEFS } from './inspector-groups';
 import { useGroupFocus } from './use-group-focus';
 
-/** Callbacks has its own rail panel; Task 5 removes it from SETTINGS_GROUP_DEFS and this filter. */
-const DEFS = SETTINGS_GROUP_DEFS.filter((def) => def.id !== 'callbacks');
-
 /** Settings for the whole scene: Background, Viewing volume and Texture library. */
 export default function SettingsPanel() {
   const hasSelection = useVamsStore((s) => s.selectedObjectId !== null);
@@ -16,7 +13,7 @@ export default function SettingsPanel() {
   const inLesson = useVamsStore((s) => s.appMode === 'Lesson');
   const focusPanelId = useVamsStore((s) => (s.appMode === 'Lesson' ? s.lessonFocusPanel : null));
   const rootRef = useRef<HTMLDivElement>(null);
-  const { target, style } = useGroupFocus(DEFS, 'settings', hasSelection, rootRef);
+  const { target, style } = useGroupFocus(SETTINGS_GROUP_DEFS, 'settings', hasSelection, rootRef);
 
   return (
     <PanelLayoutContext.Provider value={{ mode: inLesson ? 'lesson' : 'author', focusPanelId, embedded: true }}>
@@ -26,7 +23,7 @@ export default function SettingsPanel() {
           <p className="rail-panel__hint">These apply to the whole scene.</p>
         </header>
         <div ref={rootRef} className="rail-panel__body" data-scroll-root>
-          {DEFS.map((def) => (
+          {SETTINGS_GROUP_DEFS.map((def) => (
             <InspectorGroup
               key={def.id}
               id={def.id}

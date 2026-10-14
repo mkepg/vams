@@ -15,7 +15,9 @@ import NewWorkspaceButton from '@/features/workspace-reset/ui/NewWorkspaceButton
 import EditorPreferencesMenu from '@/features/editor-preferences/ui/EditorPreferencesMenu';
 import LearnButton from '@/features/lesson-engine/ui/LearnButton';
 import FileMenu from '@/widgets/layout/top-bar/FileMenu';
-import { EditorColumn, ObjectInspector, SettingsPanel } from '@/widgets/layout/editor-column';
+import { EditorPanel, ObjectInspector, SettingsPanel } from '@/widgets/layout/editor-column';
+import { runController } from '@/features/callbacks';
+import { registerFakeRenderer } from '../helpers/fake-renderer';
 import { DEFAULT_OPEN_GROUPS } from '@/core/inspector';
 import Rail from '@/widgets/layout/rail';
 import { useMyScenesDialog } from '@/features/scene-library';
@@ -61,6 +63,28 @@ function mediaQuery(initial: boolean) {
     restore() {
       window.matchMedia = real;
     },
+  };
+}
+
+async function shell(parts: { panel?: VNode; canvas?: VNode } = {}) {
+  const { default: EditorShell } = await import('@/pages/editor/ui/EditorShell');
+  return mount(h(EditorShell, {
+    topBar: h('header', {}, 'top'),
+    rail: h(Rail, {}),
+    panel: parts.panel ?? h('div', {}, h('button', { id: 'inside' }, 'inside')),
+    canvas: parts.canvas ?? h('div', {}, 'canvas'),
+    codeMath: h('div', {}, 'code'),
+  }));
+}
+/** Starts a real Run on a fake renderer; returns the cleanup. */
+function startRun() {
+  addTriangle();
+  useVamsStore.getState().setCallbackHandler('keyboard', 'onKey');
+  const unregister = registerFakeRenderer(new Map(), { getCanvasSize: () => ({ width: 800, height: 600 }) });
+  expect(runController.start({ loop: false })).toBe(true);
+  return () => {
+    runController.stop();
+    unregister();
   };
 }
 
@@ -361,20 +385,26 @@ describe('BB-SHELL-13: The Learn button opens the course drawer in both modes', 
   });
 });
 
-describe('BB-SHELL-14: The editor column is the same in every section', () => {
-  it('shows the scene area and the inspector whatever the section, with no section menu', async () => {
+describe('BB-SHELL-14: The rail panels are the same in every section', () => {
+  it('shows each panel’s controls whatever the section, with no section menu', async () => {
     const tri = addTriangle();
     useVamsStore.setState({ appMode: 'Author', selectedObjectId: tri.id });
+    const panels: [string, string[]][] = [
+      ['add', ['[data-panel-id="primitive-palette"]', '[data-panel-id="text-node-panel"]']],
+      ['scene', ['[data-panel-id="scene-hierarchy"]', '.inspector']],
+      ['settings', ['[data-group="background"]']],
+      ['callbacks', ['[data-panel-id="callbacks-panel"]']],
+    ];
     for (const section of ['Pipeline', 'Primitives', 'Buffers', 'Transforms', 'Textures'] as const) {
       useVamsStore.setState({ activeSection: section });
-      const host = mount(h(EditorColumn, {}));
-      await settle();
-      expect(host.querySelector('.section-menu')).toBeNull();
-      expect(host.querySelector('[data-panel-id="scene-hierarchy"]')).not.toBeNull();
-      expect(host.querySelector('[data-panel-id="primitive-palette"]')).not.toBeNull();
-      expect(host.querySelector('[data-panel-id="text-node-panel"]')).not.toBeNull();
-      expect(host.querySelector('.inspector')).not.toBeNull();
-      unmount(host);
+      for (const [panel, selectors] of panels) {
+        useVamsStore.getState().setRailPanel(panel as 'add');
+        const host = mount(h(EditorPanel, {}));
+        await settle();
+        expect(host.querySelector('.section-menu')).toBeNull();
+        for (const selector of selectors) expect(host.querySelector(selector)).not.toBeNull();
+        unmount(host);
+      }
     }
     useVamsStore.setState({ objects: [], selectedObjectId: null });
   });
@@ -593,17 +623,12 @@ describe('BB-SHELL-24: Selected items share one selection style', () => {
   });
 });
 
-describe('BB-SHELL-25: Add a shape opens the column, scrolls to the Add row and marks it', () => {
+describe('BB-SHELL-25: Add a shape opens the Add panel', () => {
   async function addAShape(narrow: boolean) {
-    const realMatchMedia = window.matchMedia;
-    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-      matches: narrow, media: query, addEventListener: () => {}, removeEventListener: () => {},
-      addListener: () => {}, removeListener: () => {}, onchange: null, dispatchEvent: () => false,
-    }));
-    const { default: EditorShell } = await import('@/pages/editor/ui/EditorShell');
-    const host = mount(h(EditorShell, {
-      topBar: h('header', {}, 'top'),
-      column: h(EditorColumn, {}),
+    const media = mediaQuery(narrow);
+    useVamsStore.setState({ railPanel: 'settings', railHidden: false });
+    const host = await shell({
+      panel: h(EditorPanel, {}),
       canvas: h(CanvasOverlays, {
         viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
         interactionMode: 'SELECT',
@@ -611,29 +636,20 @@ describe('BB-SHELL-25: Add a shape opens the column, scrolls to the Add row and 
         showCoordinateTracker: false,
         showEmptyHint: true,
       }),
-      codeMath: h('div', {}, 'code'),
-    }));
+    });
     try {
       await settle();
-      const root = host.querySelector<HTMLElement>('[data-scroll-root]')!;
-      const palette = host.querySelector<HTMLElement>('[data-panel-id="primitive-palette"]')!;
-      root.getBoundingClientRect = () => ({ top: 44 } as DOMRect);
-      palette.getBoundingClientRect = () => ({ top: 344 } as DOMRect);
-      const writes: number[] = [];
-      Object.defineProperty(root, 'scrollTop', { configurable: true, get: () => 0, set: (v: number) => writes.push(v) });
+      expect(useVamsStore.getState().railHidden).toBe(narrow);
       const add = [...host.querySelectorAll('.empty-canvas-hint button')].find((b) => b.textContent?.trim() === 'Add a shape') as HTMLButtonElement;
       add.click();
       await settle();
-      if (narrow) {
-        expect(host.querySelector('.editor')!.classList.contains('is-drawer-open')).toBe(true);
-        expect(host.querySelector('.editor__panels-toggle')!.getAttribute('aria-expanded')).toBe('true');
-      }
-      expect(writes).toEqual([300 - 8]);
-      expect(host.querySelector('.add-row')!.classList.contains('is-cued')).toBe(true);
-      expect(document.activeElement).toBe(host.querySelector('.add-row__item'));
+      expect(useVamsStore.getState().railPanel).toBe('add');
+      expect(useVamsStore.getState().railHidden).toBe(false);
+      expect(host.querySelector('.editor')!.classList.contains('is-panel-hidden')).toBe(false);
+      expect(host.querySelector('.add-panel')).not.toBeNull();
     } finally {
       unmount(host);
-      window.matchMedia = realMatchMedia;
+      media.restore();
     }
   }
 
@@ -641,7 +657,7 @@ describe('BB-SHELL-25: Add a shape opens the column, scrolls to the Add row and 
     await addAShape(true);
   });
 
-  it('scrolls and marks the Add row in the wide layout', async () => {
+  it('switches the panel in the wide layout', async () => {
     await addAShape(false);
   });
 });
@@ -919,6 +935,113 @@ describe('BB-SHELL-36: The rail pill tokens exist in both themes', () => {
     const scss = readFileSync('src/shared/styles/_tokens.scss', 'utf8');
     for (const token of ['--rail-pill-hover', '--rail-pill-active']) {
       expect(scss.split(`${token}:`).length - 1).toBe(2);
+    }
+  });
+});
+
+describe('BB-SHELL-37: The editor grid has a rail, a panel, the canvas and the code column', () => {
+  it('lays out four regions, folds the panel and the code column, and makes the rail inert during Run', async () => {
+    const media = mediaQuery(false);
+    useVamsStore.setState({ railPanel: 'scene', railHidden: false, codeHidden: false });
+    const host = await shell();
+    try {
+      await settle();
+      const editor = host.querySelector('.editor')!;
+      const panel = host.querySelector('#editor-panel')!;
+      expect(panel.getAttribute('role')).toBe('tabpanel');
+      expect(panel.getAttribute('aria-labelledby')).toBe('rail-tab-scene');
+      expect(host.querySelector('.editor__rail .rail')).not.toBeNull();
+      expect(host.querySelector('[data-tour-anchor="panel"]')).toBe(panel);
+      expect(host.querySelector('.editor__stage')!.getAttribute('data-tour-anchor')).toBe('canvas');
+      expect(host.querySelector('.editor__code')!.getAttribute('data-tour-anchor')).toBe('code-column');
+      expect(host.querySelector('.editor__panels-toggle')).toBeNull();
+      useVamsStore.getState().setRailHidden(true);
+      await settle();
+      expect(editor.classList.contains('is-panel-hidden')).toBe(true);
+      useVamsStore.getState().setCodeHidden(true);
+      await settle();
+      expect(editor.classList.contains('is-code-hidden')).toBe(true);
+      useVamsStore.setState({ railHidden: false, codeHidden: false });
+      const stop = startRun();
+      await settle();
+      expect(host.querySelector('.editor__rail')!.hasAttribute('inert')).toBe(true);
+      expect(panel.hasAttribute('inert')).toBe(true);
+      stop();
+      await settle();
+      expect(host.querySelector('.editor__rail')!.hasAttribute('inert')).toBe(false);
+    } finally {
+      unmount(host);
+      media.restore();
+    }
+  });
+});
+
+describe('BB-SHELL-38: On narrow screens the panel is a drawer beside the rail', () => {
+  it('opens from the rail, closes from its own item and Esc, and closes when Run starts', async () => {
+    const media = mediaQuery(true);
+    useVamsStore.setState({ railPanel: 'scene', railHidden: false });
+    const host = await shell();
+    try {
+      await settle();
+      const state = () => useVamsStore.getState();
+      expect(host.querySelector('.editor')!.classList.contains('editor--narrow')).toBe(true);
+      expect(state().railHidden).toBe(true);
+      const tab = (id: string) => host.querySelector(`#rail-tab-${id}`) as HTMLButtonElement;
+      tab('scene').click();
+      await settle();
+      expect(state().railHidden).toBe(false);
+      tab('scene').click();
+      await settle();
+      expect(state().railHidden).toBe(true);
+      tab('settings').click();
+      await settle();
+      expect(state().railPanel).toBe('settings');
+      expect(state().railHidden).toBe(false);
+      const inside = host.querySelector('#inside') as HTMLElement;
+      inside.focus();
+      key(inside, 'Escape');
+      await settle();
+      expect(state().railHidden).toBe(true);
+      expect(document.activeElement).toBe(tab('settings'));
+      state().setRailPanel('scene');
+      await settle();
+      const stop = startRun();
+      await settle();
+      expect(state().railHidden).toBe(true);
+      stop();
+    } finally {
+      unmount(host);
+      media.restore();
+    }
+  });
+});
+
+describe('BB-SHELL-39: Crossing 1100 px closes the drawer or shows the panel, and never strands focus', () => {
+  it('closes the panel into a drawer when the window narrows and shows it again when it widens', async () => {
+    const media = mediaQuery(false);
+    useVamsStore.setState({ railPanel: 'scene', railHidden: false });
+    const host = await shell();
+    try {
+      await settle();
+      const editor = host.querySelector('.editor')!;
+      expect(editor.classList.contains('editor--narrow')).toBe(false);
+      expect(useVamsStore.getState().railHidden).toBe(false);
+      (host.querySelector('#inside') as HTMLElement).focus();
+      media.set(true);
+      await settle();
+      expect(editor.classList.contains('editor--narrow')).toBe(true);
+      expect(useVamsStore.getState().railHidden).toBe(true);
+      expect(document.activeElement).toBe(host.querySelector('#rail-tab-scene'));
+      (host.querySelector('#rail-tab-scene') as HTMLButtonElement).click();
+      await settle();
+      expect(useVamsStore.getState().railHidden).toBe(false);
+      media.set(false);
+      await settle();
+      expect(editor.classList.contains('editor--narrow')).toBe(false);
+      expect(useVamsStore.getState().railHidden).toBe(false);
+    } finally {
+      unmount(host);
+      media.restore();
     }
   });
 });
