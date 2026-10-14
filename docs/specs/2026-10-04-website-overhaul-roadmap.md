@@ -68,6 +68,19 @@ The product rules in `AGENTS.md` and [docs/product-plan.md](../product-plan.md) 
 17. Ctrl+K search
 18. Instructor page
 
+### Next projects (planned 2026-10-14)
+
+Four projects, in this order. Each has its own spec and plan.
+
+1. **Editor rail redesign:** the rail, its panels, the lesson bar, the Code | Math switch, the first-visit tour (item 15) and the two Run issues most likely to show on stage. Due by the Oct 28 freeze. Spec: `2026-10-14-editor-rail-design.md`, on its branch until it merges.
+2. **Code and math rework:** what the code and math panels contain and how they explain it, including item 16. Built straight after the rail merges; whatever misses the Oct 28 freeze waits. The owner's four problems with the panels today:
+   - **The code is a wall.** The student's own part (their shape's draw function and its state) is buried in 60–100 lines of boilerplate.
+   - **Lines aren't explained.** A student cannot ask what a line does; the hover notes appear only while the scene is empty.
+   - **The math feels disconnected.** The math cards do not clearly relate to what the student just did, or to the code line that uses those numbers.
+   - **The math is just numbers.** The cards show results (a matrix, a table) but not the working: how a vertex goes from the student's values to the screen, step by step.
+3. **Share link and QR code** (item 8).
+4. **Lesson content:** more, deeper and better lessons, including item 11 and the `task` and `pane` text the lesson bar uses. Lesson data may land until Nov 2. The owner's concern, in their words: "I feel a lack of content for each lesson, it lacks quantity and quality as well as depth." Item 11 also covers tidying the lessons shown on stage.
+
 ### Below the line
 
 These don't start before the expo:
