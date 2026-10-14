@@ -1096,3 +1096,50 @@ describe('BB-SHELL-41: Hide tucks the code column to an edge tab that brings it 
     unmount(host);
   });
 });
+
+describe('BB-SHELL-42: Add a shape moves focus to the first primitive tile', () => {
+  async function clickAddAShape(railHidden: boolean) {
+    useVamsStore.setState({ railPanel: 'add', railHidden });
+    const host = await shell({
+      panel: h(EditorPanel, {}),
+      canvas: h(CanvasOverlays, {
+        viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
+        interactionMode: 'SELECT',
+        coordinates: { x: 0, y: 0 },
+        showCoordinateTracker: false,
+        showEmptyHint: true,
+      }),
+    });
+    await settle();
+    const add = [...host.querySelectorAll('.empty-canvas-hint button')].find((b) => b.textContent?.trim() === 'Add a shape') as HTMLButtonElement;
+    add.focus();
+    add.click();
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    return host;
+  }
+
+  it('focuses the tile when Add is already showing', async () => {
+    const media = mediaQuery(false);
+    const host = await clickAddAShape(false);
+    try {
+      expect(document.activeElement).toBe(host.querySelector('.primitive-tile'));
+      expect(document.activeElement?.classList.contains('primitive-tile')).toBe(true);
+    } finally {
+      unmount(host);
+      media.restore();
+    }
+  });
+
+  it('shows the hidden panel first and focuses the tile', async () => {
+    const media = mediaQuery(false);
+    const host = await clickAddAShape(true);
+    try {
+      expect(useVamsStore.getState().railHidden).toBe(false);
+      expect(document.activeElement).toBe(host.querySelector('.primitive-tile'));
+      expect(document.activeElement?.classList.contains('primitive-tile')).toBe(true);
+    } finally {
+      unmount(host);
+      media.restore();
+    }
+  });
+});

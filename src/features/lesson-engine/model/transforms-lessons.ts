@@ -76,6 +76,7 @@ export const TRANSFORMS_LESSONS: Record<string, Lesson> = {
     section: 'Transforms',
     steps: [
       {
+        pane: 'math',
         narration:
           'Every transform is represented as a 4×4 matrix. We’ve added a quad to the scene. Watch the math panel on the right to see its matrix update.',
         focusPanel: 'scene-hierarchy',
@@ -85,11 +86,13 @@ export const TRANSFORMS_LESSONS: Record<string, Lesson> = {
         },
       },
       {
+        pane: 'math',
         narration:
           'With no transform applied, the matrix is the "Identity" matrix — 1s on the diagonal, 0s elsewhere. It leaves the vertices exactly where they are.',
         focusPanel: 'object-transform',
       },
       {
+        pane: 'math',
         narration:
           'First, we’ll translate the quad. Notice the matrix: the translation distances (0.3 on X, 0.4 on Y) slot perfectly into the rightmost column.',
         focusPanel: 'object-transform',
@@ -98,6 +101,7 @@ export const TRANSFORMS_LESSONS: Record<string, Lesson> = {
         },
       },
       {
+        pane: 'math',
         narration:
           'Next, we’ll reset the position and apply a scale instead. The scale factors (1.6x and 0.8x) multiply directly into the diagonal cells.',
         focusPanel: 'object-transform',
@@ -106,6 +110,7 @@ export const TRANSFORMS_LESSONS: Record<string, Lesson> = {
         },
       },
       {
+        pane: 'math',
         narration:
           'Rotation is more complex—it mixes X and Y coordinates. We’ll reset the scale and spin the shape 45°. The top-left 2×2 block fills with the sine and cosine of 45°.',
         focusPanel: 'object-transform',
@@ -114,6 +119,7 @@ export const TRANSFORMS_LESSONS: Record<string, Lesson> = {
         },
       },
       {
+        pane: 'math',
         narration:
           'Finally, we’ll apply all three: Translate, Rotate, AND Scale. OpenGL multiplies these together in order (T · R · S) into a single composite matrix used to draw the shape.',
         focusPanel: 'object-transform',
@@ -151,6 +157,7 @@ export const TRANSFORMS_LESSONS: Record<string, Lesson> = {
         },
       },
       {
+        pane: 'math',
         narration:
           'We’ve selected the red quad for you. The math panel’s Matrix Stack shows the stack at draw time: identity at the bottom, the Group’s frame on top of that, then the quad on top.',
         focusPanel: 'scene-hierarchy',

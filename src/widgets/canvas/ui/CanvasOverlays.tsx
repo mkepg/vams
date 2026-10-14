@@ -19,6 +19,11 @@ export function CanvasOverlays({
 }: CanvasOverlaysProps) {
   const setLearnOpen = useVamsStore((s) => s.setLearnOpen);
   const setRailPanel = useVamsStore((s) => s.setRailPanel);
+  // Add may already be showing, so also bring the panel up and put focus on the first tile.
+  const addAShape = () => {
+    setRailPanel('add');
+    requestAnimationFrame(() => document.querySelector<HTMLElement>('#editor-panel .primitive-tile')?.focus());
+  };
   return (
     <>
       <RunOverlay />
@@ -44,7 +49,7 @@ export function CanvasOverlays({
           <Shapes size={32} aria-hidden />
           <p>Your scene is empty.</p>
           <div className="empty-canvas-hint__actions">
-            <Button variant="primary" onClick={() => setRailPanel('add')}>
+            <Button variant="primary" onClick={addAShape}>
               Add a shape
             </Button>
             <Button onClick={() => setLearnOpen(true)}>Start a lesson</Button>

@@ -2,6 +2,7 @@
  * BLACK-BOX TEST SUITE — BB-LCOL
  * The lesson column: the runner hook, the lesson bar and the editor column in Lesson mode.
  */
+import { readFileSync } from 'node:fs';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
 import { useVamsStore } from '@/core/store';
@@ -824,5 +825,87 @@ describe('BB-LCOL-30: Leaving a lesson gives the student back their Code / Math 
     useVamsStore.setState({ codePane: 'code', codeHidden: false, codeChangedUnseen: false });
     unmount(bar);
     unmount(column);
+  });
+});
+
+describe('BB-LCOL-32: The task line shows only when a step waits for something', () => {
+  const ID = 'test-task-line-lesson';
+  it('is absent on a narration-only step and present on a step with a success check', async () => {
+    LESSON_REGISTRY[ID] = {
+      id: ID,
+      title: 'Task line',
+      type: 'demo',
+      section: 'Transforms',
+      steps: [
+        { narration: 'Just read this.', waitForUser: true },
+        { narration: 'Now do it.', waitForUser: true, successCheck: (s) => s.objects.length > 5 },
+      ],
+    };
+    try {
+      startLesson(ID);
+      const host = mount(h(LessonBar, {}));
+      await settle();
+      expect(host.querySelector('.lesson-bar__narration')!.textContent).toBe('Just read this.');
+      expect(host.querySelector('.lesson-bar__task')).toBeNull();
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(false);
+      buttonNamed(host, 'Next')!.click();
+      await settle();
+      expect(host.querySelector('.lesson-bar__task')!.textContent).toContain('Waiting for you');
+      unmount(host);
+    } finally {
+      useVamsStore.getState().clearLessonState();
+      delete LESSON_REGISTRY[ID];
+    }
+  });
+});
+
+describe('BB-LCOL-33: The Transforms step that points at the math panel shows Math', () => {
+  it('switches the column to Math on the first step of Matrix Representation', async () => {
+    useVamsStore.setState({ codePane: 'code', codeHidden: false });
+    startLesson('transforms-demo-2');
+    const host = mount(h(LessonBar, {}));
+    await settle();
+    expect(host.querySelector('.lesson-bar__narration')!.textContent).toContain('Watch the math panel');
+    expect(useVamsStore.getState().codePane).toBe('math');
+    unmount(host);
+    useVamsStore.setState({ codePane: 'code' });
+  });
+});
+
+describe('BB-LCOL-34: On narrow screens the lesson bar stays above the open drawer', () => {
+  it('lifts the bar over the drawer and keeps the drawer clear of it', () => {
+    const scss = readFileSync('src/pages/editor/ui/editor-app.scss', 'utf8');
+    const narrow = scss.slice(scss.indexOf('&--narrow'));
+    expect(narrow).toMatch(/\.lesson-bar\s*\{[^}]*z-index:\s*(3[1-9]|[4-9]\d)/);
+    expect(narrow).toMatch(/\.editor__panel\s*\{[^}]*padding-bottom:\s*var\(--lesson-bar-height/);
+  });
+
+  it('publishes the bar height on the editor while a lesson runs', async () => {
+    const heights: Array<() => void> = [];
+    const RealRO = (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
+    (globalThis as { ResizeObserver?: unknown }).ResizeObserver = class {
+      constructor(cb: () => void) { heights.push(cb); }
+      observe() {}
+      disconnect() {}
+    };
+    const restore = mockNarrow();
+    try {
+      startLesson('transforms-demo-1');
+      const host = await narrowShell(h('div', {}, 'panel'));
+      await settle();
+      const editor = host.querySelector('.editor') as HTMLElement;
+      const bar = host.querySelector('.lesson-bar') as HTMLElement;
+      bar.getBoundingClientRect = () => ({ height: 123 }) as DOMRect;
+      heights.forEach((cb) => cb());
+      expect(editor.style.getPropertyValue('--lesson-bar-height')).toBe('123px');
+      useVamsStore.getState().clearLessonState();
+      useVamsStore.getState().setAppMode('Author');
+      await settle();
+      expect(editor.style.getPropertyValue('--lesson-bar-height')).toBe('');
+      unmount(host);
+    } finally {
+      (globalThis as { ResizeObserver?: unknown }).ResizeObserver = RealRO;
+      restore();
+    }
   });
 });

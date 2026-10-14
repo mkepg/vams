@@ -97,6 +97,7 @@ export const PIPELINE_LESSONS: Record<string, Lesson> = {
         action: (state) => state.setPipelineMode('Playground'),
       },
       {
+        pane: 'math',
         narration: "Move your cursor across the canvas — watch the math panel on the right. Those decimals are the cursor's NDC position.",
         waitForUser: true,
       },

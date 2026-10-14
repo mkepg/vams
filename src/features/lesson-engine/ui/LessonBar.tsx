@@ -73,6 +73,23 @@ function LessonBarBody() {
     (button ?? titleRef.current)?.focus();
   }, [stepKey]);
 
+  // The narrow layout's drawer needs the bar's height to keep its last items clear of the bar.
+  // The editor publishes it as --lesson-bar-height while the bar shows.
+  useEffect(() => {
+    const bar = titleRef.current?.closest<HTMLElement>('.lesson-bar');
+    const editor = bar?.closest<HTMLElement>('.editor');
+    if (!bar || !editor) return;
+    const publish = () => editor.style.setProperty('--lesson-bar-height', `${Math.round(bar.getBoundingClientRect().height)}px`);
+    publish();
+    if (typeof ResizeObserver === 'undefined') return () => editor.style.removeProperty('--lesson-bar-height');
+    const observer = new ResizeObserver(publish);
+    observer.observe(bar);
+    return () => {
+      observer.disconnect();
+      editor.style.removeProperty('--lesson-bar-height');
+    };
+  }, [folded, lessonId]);
+
   if (!runner.active || !runner.lesson || !runner.step) return null;
   const { lesson, step, stepIndex, stepCount, isLastStep, canAdvance } = runner;
   const width = `${((stepIndex + 1) / stepCount) * 100}%`;
@@ -172,7 +189,7 @@ function LessonBarBody() {
           )}
         </div>
       )}
-      {step.waitForUser && (
+      {(step.successCheck || step.exercise || step.task) && (
         <p className={done ? 'lesson-bar__task is-done' : 'lesson-bar__task'}>
           <span className="lesson-bar__dot" aria-hidden="true" />
           {done ? (step.task ? `Done · ${step.task}` : 'Done') : step.task ?? 'Waiting for you'}

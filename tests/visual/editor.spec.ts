@@ -273,3 +273,12 @@ for (const theme of THEMES) {
     await expect(page).toHaveScreenshot(`tour-build-${theme}-1280.png`, { animations: 'disabled' });
   });
 }
+
+test('VIS-EDITOR-29: Lesson bar above the open drawer, 960', async ({ page }) => {
+  await page.setViewportSize({ width: 960, height: 720 });
+  await open(page, '/app?lesson=transforms-demo-1');
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(page.locator('.lesson-bar__step')).toContainText('Step 2');
+  await expect(page.locator('.editor__panel')).toBeVisible();
+  await expect(page).toHaveScreenshot('lesson-drawer-960.png', { animations: 'disabled' });
+});
