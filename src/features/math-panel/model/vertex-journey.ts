@@ -153,7 +153,7 @@ const OUTSIDE = ' This vertex lands outside the window, so the part of the shape
 function rasterisedStage(ndc: Point, pixel: Point, canvas: CanvasSize): JourneyStage {
   const outside = pixel.x < 0 || pixel.y < 0 || pixel.x >= canvas.width || pixel.y >= canvas.height;
   return stage('rasterised', RASTERISED + (outside ? OUTSIDE : ''), [
-    { step: ['from Projected'], value: `NDC ${pair(ndc)}`, call: null, from: true },
+    { step: ['from Projected'], value: pair(ndc), call: null, from: true },
     { step: [`width ${canvas.width}`], value: `x → ${int(pixel.x)}`, call: 'glutInitWindowSize' },
     { step: [`height ${canvas.height}`], value: `y → ${int(pixel.y)}`, call: 'glutInitWindowSize' },
   ], `pixel (${int(pixel.x)}, ${int(pixel.y)})`, pixel);
@@ -239,7 +239,7 @@ function assembledRows(node: SceneNode, ndc: Point, assembly: ReturnType<typeof 
   const mode = node.renderingMode ?? 'IMMEDIATE';
   const call = mode === 'IMMEDIATE' ? 'glBegin' : node.useIndexed ? 'glDrawElements' : 'glDrawArrays';
   return [
-    { step: ['from Projected'], value: `NDC ${pair(ndc)}`, call: null, from: true },
+    { step: ['from Projected'], value: pair(ndc), call: null, from: true },
     { step: ['primitive ', { input: `GL_${node.type}` }], value: assembly.note, call },
     { step: ['this vertex'], value: assembly.result, call: null },
   ];

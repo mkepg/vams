@@ -326,7 +326,7 @@ describe("WB-JOURNEY-13: Assembled works the rule with the student's primitive t
   it("names the draw call for the mode, the rule and the vertex's place", () => {
     const tri = mockTriangle();
     expect(rowsOf(vertexJourney(scene([tri]), 'Triangle', 0, CANVAS), 'assembled')).toEqual([
-      ['from Projected', 'NDC (0.27, 0.31)', null],
+      ['from Projected', '(0.27, 0.31)', null],
       ['primitive GL_TRIANGLES', 'every 3 vertices make a triangle', 'glBegin'],
       ['this vertex', 'triangle, 1 of 3', null],
     ]);
@@ -368,7 +368,7 @@ describe("WB-JOURNEY-14: Rasterised maps NDC to the window's pixels, as the refe
     const j = vertexJourney(scene([tri]), 'Triangle', 0, CANVAS);
     const px = ndcToWindow(stage(j, 'projected').point!, CANVAS);
     expect(rowsOf(j, 'rasterised')).toEqual([
-      ['from Projected', 'NDC (0.27, 0.31)', null],
+      ['from Projected', '(0.27, 0.31)', null],
       [`width ${CANVAS.width}`, `x → ${px.x}`, 'glutInitWindowSize'],
       [`height ${CANVAS.height}`, `y → ${px.y}`, 'glutInitWindowSize'],
     ]);

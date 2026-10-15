@@ -563,18 +563,48 @@ describe('BB-JOURNEY-23: The sketch shades what holds the vertex and its caption
 });
 
 describe('BB-JOURNEY-18: Rasterised keeps the pointer readout in every Pipeline mode', () => {
-  it('shows the cursor readout and Vector vs Raster in Diagram mode too', async () => {
+  const showRasterised = async (mode: 'Diagram' | 'Playground') => {
     mockTriangle();
-    useVamsStore.setState({ pipelineMode: 'Diagram', activePipelineStage: 4 });
+    useVamsStore.setState({ pipelineMode: mode, activePipelineStage: mode === 'Diagram' ? 4 : null });
     getState().setJourneyStageOverride('rasterised');
     const host = mount(h(MathPanel, {}));
     await settle();
+    return host;
+  };
+  const formula = (host: HTMLElement) => host.querySelector('.journey-formula')!.textContent!.replace(/\s+/g, ' ');
+
+  it('shows the cursor readout and Vector vs Raster in Diagram mode too, with the real numbers', async () => {
+    const host = await showRasterised('Diagram');
     expect(host.textContent).toContain('Cursor (NDC)');
     expect(host.textContent).toContain('Vector vs Raster');
     expect(host.textContent).toContain('Rasterization');
     expect(host.textContent).toContain('The formula, with your numbers');
-    expect(host.textContent).toContain('/ 2 · width');
+    // The canvas is 800 × 600 when no canvas wrapper is mounted.
+    expect(formula(host)).toContain('= (0.27 + 1) / 2 · 800 = 508.2 → 508');
+    expect(formula(host)).toContain('= (0.31 + 1) / 2 · 600 = 393.9 → 393');
     unmount(host);
     useVamsStore.setState({ pipelineMode: 'Playground', activePipelineStage: null });
+  });
+
+  it('shows the same formula, readout and card in Playground mode', async () => {
+    const host = await showRasterised('Playground');
+    expect(host.textContent).toContain('Cursor (NDC)');
+    expect(host.textContent).toContain('Vector vs Raster');
+    expect(host.textContent).not.toContain('Rasterization');
+    expect(formula(host)).toContain('→');
+    expect(host.querySelector('.journey-picture__caption')!.textContent).toContain('whole number at or below it');
+    unmount(host);
+  });
+
+  it('has no formula for a group, and nothing breaks', async () => {
+    const a = addTriangle(-0.4, 0, 0.2);
+    const b = addTriangle(0.4, 0, 0.2);
+    getState().createGroup([a.id, b.id]);
+    getState().setJourneyStageOverride('rasterised');
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    expect(host.querySelector('.journey-formula')).toBeNull();
+    expect(host.textContent).toContain('Vector vs Raster');
+    unmount(host);
   });
 });

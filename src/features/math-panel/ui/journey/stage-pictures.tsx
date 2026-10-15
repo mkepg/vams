@@ -46,6 +46,9 @@ function MatrixPicture({ node }: { node: SceneNode }) {
   );
 }
 
+/** One decimal with a true minus sign: 372.1, −12.3. */
+const short1 = (n: number) => n.toFixed(1).replace('-', '−');
+
 const signed = (a: string, b: number) => (b < 0 ? `${a} + ${whole(-b)}` : `${a} − ${whole(b)}`);
 
 /** glOrtho's formula with the student's numbers in it. */
@@ -76,13 +79,18 @@ function OrthoFormula({ world, limits, ndc }: { world: Point; limits: ViewportLi
 
 /** NDC to a window pixel, with the student's numbers. The pixel is the stage's own, so the arithmetic lives once. */
 function PixelFormula({ ndc, pixel, canvas }: { ndc: Point; pixel: Point; canvas: { width: number; height: number } }) {
-  const line = (axis: 'x' | 'y', v: number, size: number, out: number) => (
+  const line = (axis: 'x' | 'y', v: number, size: number, out: number) => {
+    // The unrounded value, then the pixel it falls in; the arrow is dropped when they read the same.
+    const raw = ((v + 1) / 2) * size;
+    const rawText = Number.isInteger(Number(raw.toFixed(1))) ? int(raw) : short1(raw);
+    return (
     <>
       {axis} = ({axis} + 1) / 2 · {axis === 'x' ? 'width' : 'height'}
       <br />
-      {'  '}= ({fmt(v)} + 1) / 2 · {size} = <span className="is-value">{int(out)}</span>
+      {'  '}= ({fmt(v)} + 1) / 2 · {size} = {rawText === int(out) ? null : <>{rawText} → </>}<span className="is-value">{int(out)}</span>
     </>
-  );
+    );
+  };
   return (
     <Picture label="The formula, with your numbers">
       <p className="journey-formula">
@@ -90,7 +98,7 @@ function PixelFormula({ ndc, pixel, canvas }: { ndc: Point; pixel: Point; canvas
         <br />
         {line('y', ndc.y, canvas.height, pixel.y)}
       </p>
-      <p className="journey-picture__caption">Pixels are counted from the bottom-left corner, as OpenGL does.</p>
+      <p className="journey-picture__caption">The pixel is the whole number at or below it; a vertex exactly on the far edge takes the last pixel.</p>
     </Picture>
   );
 }
