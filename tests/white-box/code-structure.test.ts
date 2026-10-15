@@ -5,8 +5,10 @@
 import { describe, it, expect } from 'vitest';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { outlineCode, findCallLine, stateFieldAt, type CodeOutline } from '@/features/code-generation/model/code-outline';
+import { visibleRows } from '@/features/code-generation/model/code-folds';
+import type { CodeRow } from '@/shared/ui/code-viewer/types';
 import type { CallbackRule } from '@/core/types/scene';
-import { addTriangle, addQuad, getState } from '../helpers/store';
+import { addTriangle, addQuad, addPrimitive, getState } from '../helpers/store';
 
 const program = () => {
   const s = getState();
@@ -216,5 +218,87 @@ describe('WB-CODE-10: findCallLine and stateFieldAt', () => {
     expect(stateFieldAt(state, state.indexOf('15.0000f'))).toBe('state_TRIANGLES_1.rotation');
     expect(stateFieldAt(state, 0)).toBeNull();
     expect(stateFieldAt('    glEnd();', 4)).toBeNull();
+  });
+});
+
+/** Three shapes, the mock's scene: Triangle selected, Square and Dot folded. */
+function threeShapes() {
+  const tri = addTriangle(0.4, -0.17, 0.5);
+  getState().updateObjectName(tri.id, 'Triangle');
+  const square = addQuad(-0.5, 0.5, 0.2);
+  getState().updateObjectName(square.id, 'Square');
+  const dot = addPrimitive('POINTS', [{ x: 0.6, y: 0.6 }]);
+  getState().updateObjectName(dot.id, 'Dot');
+  return { tri, square, dot, outline: outlineCode(program()) };
+}
+const shownText = (o: CodeOutline, rows: CodeRow[]) =>
+  rows.filter((r): r is Extract<CodeRow, { kind: 'line' }> => r.kind === 'line').map((r) => o.lines[r.line].text);
+const folds = (rows: CodeRow[]) => rows.filter((r) => r.kind !== 'line').map((r) => (r as { label: string }).label);
+
+describe('WB-CODE-11: With a shape selected, its code is open and the rest folds', () => {
+  it('opens its state line and draw function, folds the others to names, and summarises the other state lines', () => {
+    const { outline } = threeShapes();
+    const rows = visibleRows(outline, 'Triangle', [], []);
+    const shown = shownText(outline, rows);
+    expect(shown).toContain('void draw_Triangle()');
+    expect(shown.some((t) => t.startsWith('ObjectState state_Triangle'))).toBe(true);
+    expect(shown.some((t) => t.startsWith('ObjectState state_Square'))).toBe(false);
+    expect(folds(rows)).toEqual(expect.arrayContaining(['#include …', 'struct ObjectState …', 'void draw_Square()', 'void draw_Dot()', 'void display()', 'void init()', 'int main()', '2 more objects']));
+    const fold = rows.find((r) => r.kind === 'fold' && r.label === 'int main()') as Extract<CodeRow, { kind: 'fold' }>;
+    expect(fold.summary).toBe('Opens the window, registers the callbacks and starts GLUT.');
+    expect(outline.lines[fold.start].text).toBe('int main(int argc, char** argv)');
+  });
+});
+
+describe('WB-CODE-12: With nothing selected, every object\'s code is open and only the boilerplate folds', () => {
+  it('opens all draw functions and state lines; folds includes, struct, declarations, display, init and main', () => {
+    const { outline } = threeShapes();
+    const rows = visibleRows(outline, null, [], []);
+    const shown = shownText(outline, rows);
+    for (const name of ['Triangle', 'Square', 'Dot']) expect(shown).toContain(`void draw_${name}()`);
+    expect(folds(rows)).toEqual(expect.arrayContaining(['#include …', 'struct ObjectState …', 'Declarations …', 'void display()', 'void init()', 'int main()']));
+    expect(folds(rows)).not.toContain('2 more objects');
+  });
+});
+
+describe('WB-CODE-13: A forced line opens its block; a block opened by hand can be closed', () => {
+  it('opens main for a forced line, and marks the first row of a hand-opened block', () => {
+    const { outline } = threeShapes();
+    const clear = outline.lines.findIndex((l) => l.text.includes('glClearColor('));
+    const forced = visibleRows(outline, 'Triangle', [], [clear]);
+    expect(shownText(outline, forced)).toContain(outline.lines[clear].text);
+    expect(folds(forced)).not.toContain('int main()');
+    const opened = visibleRows(outline, 'Triangle', ['draw:Square'], []);
+    const first = opened.find((r) => r.kind === 'line' && r.closes) as Extract<CodeRow, { kind: 'line' }>;
+    expect(first.closes).toEqual({ block: 'draw:Square', label: 'void draw_Square()' });
+    expect(outline.lines[first.line].text).toBe('void draw_Square()');
+  });
+});
+
+describe('WB-CODE-14: init() opens only the selected object\'s setup', () => {
+  it('shows the frame and the VBO upload lines, and summarises the rest', () => {
+    const { tri, outline: before } = threeShapes();
+    void before;
+    getState().updateRenderingMode(tri.id, 'VBO');
+    const outline = outlineCode(program());
+    const rows = visibleRows(outline, 'Triangle', [], []);
+    const shown = shownText(outline, rows);
+    expect(shown).toContain('void init()');
+    expect(shown).toContain('    glGenBuffers(1, &vbo_Triangle);');
+    expect(folds(rows)).not.toContain('void init()');
+  });
+});
+
+describe('WB-CODE-15: Rows cover every line once, in program order', () => {
+  it('leaves no line out and repeats none, for every selection', () => {
+    const { outline } = threeShapes();
+    for (const selection of [null, 'Triangle', 'Square', 'Dot']) {
+      const covered: number[] = [];
+      for (const r of visibleRows(outline, selection, [], [])) {
+        if (r.kind === 'line') covered.push(r.line);
+        else for (let l = r.start; l <= r.end; l++) covered.push(l);
+      }
+      expect(covered).toEqual(outline.lines.map((_, i) => i));
+    }
   });
 });
