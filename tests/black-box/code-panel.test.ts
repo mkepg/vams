@@ -356,3 +356,40 @@ describe('BB-CODE-15: Sanitised names fold and mark like any other', () => {
     unmount(host);
   });
 });
+
+describe('BB-CODE-16: Keyboard focus survives opening and closing a fold, and closing Find', () => {
+  it('moves focus to the ▾ when a fold opens, back to its fold when ▾ closes, and to Find when Find closes', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(tri.id);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    const squareFold = () => host.querySelector('.code-fold[data-block="draw:Square"]') as HTMLButtonElement;
+    squareFold().focus();
+    squareFold().click();
+    await settle();
+    const close = host.querySelector('.code-fold-close') as HTMLButtonElement;
+    expect(document.activeElement).toBe(close);
+    close.focus();
+    close.click();
+    await settle();
+    expect(document.activeElement).toBe(squareFold());
+    const findWord = () => [...host.querySelectorAll('.code-word')].find((b) => b.textContent === 'Find') as HTMLButtonElement;
+    findWord().click();
+    await settle();
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    const input = host.querySelector('.code-search input') as HTMLInputElement;
+    expect(document.activeElement).toBe(input);
+    key(input, 'Escape');
+    await settle();
+    expect(document.activeElement).toBe(findWord());
+    findWord().click();
+    await settle();
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    const closeFind = host.querySelector('.code-search__close') as HTMLButtonElement;
+    closeFind.focus();
+    closeFind.click();
+    await settle();
+    expect(document.activeElement).toBe(findWord());
+    unmount(host);
+  });
+});

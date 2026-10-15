@@ -94,6 +94,11 @@ const CodeViewer = memo(function CodeViewer({
   const findRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lineEls = useRef<Map<number, HTMLDivElement>>(new Map());
+  const searchRef = useRef<HTMLDivElement>(null);
+  const findWordRef = useRef<HTMLButtonElement>(null);
+  // Focus follows a keyboard toggle: the control that was pressed is replaced, so its twin takes focus.
+  const focusAfter = useRef<{ selector: string } | null>(null);
+  const refocusFind = useRef(false);
 
   const lines = useMemo(() => code.replace(/\r\n/g, '\n').split('\n'), [code]);
   const rowList = useMemo<readonly CodeRow[]>(() => rows ?? lines.map((_, line) => ({ kind: 'line', line })), [rows, lines]);
@@ -119,7 +124,19 @@ const CodeViewer = memo(function CodeViewer({
 
   useEffect(() => {
     if (findOpen) requestAnimationFrame(() => findRef.current?.focus());
+    else if (refocusFind.current) {
+      refocusFind.current = false;
+      findWordRef.current?.focus();
+    }
   }, [findOpen]);
+
+  // The row that took the place of a pressed fold or ▾ gets the focus the press had.
+  useEffect(() => {
+    const pending = focusAfter.current;
+    if (!pending) return;
+    focusAfter.current = null;
+    scrollRef.current?.querySelector<HTMLElement>(pending.selector)?.focus();
+  }, [rowList]);
 
   // Bring the current match into view once its fold has opened.
   useEffect(() => {
@@ -163,6 +180,7 @@ const CodeViewer = memo(function CodeViewer({
   };
 
   const closeFind = () => {
+    refocusFind.current = !!searchRef.current?.contains(document.activeElement);
     setQuery('');
     setCurrent(0);
     setFindOpen(false);
@@ -182,6 +200,11 @@ const CodeViewer = memo(function CodeViewer({
     ];
   };
 
+  const toggleFromKey = (block: string, twin: 'code-fold-close' | 'code-fold', pressed: HTMLElement) => {
+    if (document.activeElement === pressed) focusAfter.current = { selector: `.${twin}[data-block="${block}"]` };
+    onToggleFold?.(block);
+  };
+
   const renderLine = (row: Extract<CodeRow, { kind: 'line' }>) => {
     const { line } = row;
     const text = lines[line] ?? '';
@@ -196,7 +219,8 @@ const CodeViewer = memo(function CodeViewer({
             type="button"
             className="code-fold-close"
             aria-label={`Fold ${row.closes.label}`}
-            onClick={() => onToggleFold?.(row.closes!.block)}
+            data-block={row.closes.block}
+            onClick={(e) => toggleFromKey(row.closes!.block, 'code-fold', e.currentTarget)}
           >
             ▾
           </button>
@@ -225,7 +249,8 @@ const CodeViewer = memo(function CodeViewer({
           className="code-fold"
           aria-expanded="false"
           aria-describedby={tipId}
-          onClick={() => onToggleFold?.(row.block)}
+          data-block={row.block}
+          onClick={(e) => toggleFromKey(row.block, 'code-fold-close', e.currentTarget)}
         >
           <span className="code-line__num" aria-hidden="true">{row.start + 1}</span>
           <span className="code-fold__arrow" aria-hidden="true">▸ </span>
@@ -251,7 +276,7 @@ const CodeViewer = memo(function CodeViewer({
         </div>
         <div className="code-header-right">
           {!isLessonMode && (findOpen ? (
-            <div className="code-search" role="search">
+            <div className="code-search" role="search" ref={searchRef}>
               <input
                 ref={findRef}
                 value={query}
@@ -281,7 +306,7 @@ const CodeViewer = memo(function CodeViewer({
               </button>
             </div>
           ) : (
-            <button type="button" className="code-word" onClick={() => setFindOpen(true)}>Find</button>
+            <button type="button" className="code-word" ref={findWordRef} onClick={() => setFindOpen(true)}>Find</button>
           ))}
           <button type="button" className="code-word" onClick={handleCopy}>{copied ? 'Copied' : 'Copy'}</button>
           {headerTrail}
