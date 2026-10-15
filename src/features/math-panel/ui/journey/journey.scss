@@ -190,17 +190,17 @@
 
   th,
   td {
-    padding: 0 4px;
+    padding: 0 3px;
     white-space: nowrap;
     text-align: left;
     vertical-align: middle;
   }
 
   th:first-child,
-  td:first-child { padding-left: 8px; }
+  td:first-child { padding-left: 6px; }
 
   th:last-child,
-  td:last-child { padding-right: 8px; text-align: right; }
+  td:last-child { padding-right: 6px; text-align: right; }
 
   thead th {
     height: 24px;
@@ -213,8 +213,9 @@
 
   tbody tr { height: 27px; }
 
-  // The step stays on one line; the container queries below shrink the type, then let it wrap.
-  .journey-work__step {
+  // A step stays on one line while the column has room and wraps only when it does not, so Value and Code never leave the column.
+  td.journey-work__step {
+    white-space: normal;
     color: var(--ink-muted);
   }
 

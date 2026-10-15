@@ -3,6 +3,8 @@
  * The math pane's vertex journey: which stage opens, the track, the open stage, the stepper and the links.
  */
 import { describe, it, expect, afterEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { h, render, type VNode } from 'preact';
 import { useVamsStore } from '@/core/store';
 import type { Lesson } from '@/core/types/lesson';
@@ -455,5 +457,15 @@ describe('BB-JOURNEY-20: Prose values wrap so the working fits its column; numbe
     expect(typed.classList.contains('is-prose')).toBe(false);
     expect(prose.classList.contains('is-prose')).toBe(true);
     unmount(host);
+  });
+});
+
+describe('BB-JOURNEY-21: The draw call in the Buffers card wraps inside its box', () => {
+  it('lets the call text wrap instead of scrolling out of sight', () => {
+    const css = readFileSync(resolve(__dirname, '../../src/features/math-panel/ui/_buffers-math.scss'), 'utf8');
+    const block = /\.bm-current-call-code \{([^}]*)\}/.exec(css)![1];
+    expect(block).toMatch(/white-space:\s*normal/);
+    expect(block).toMatch(/overflow-wrap:\s*anywhere/);
+    expect(block).not.toMatch(/nowrap|overflow-x:\s*auto/);
   });
 });
