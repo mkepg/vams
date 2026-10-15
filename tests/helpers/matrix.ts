@@ -52,3 +52,19 @@ export function matrixDistance(a: Mat, b: Mat): number {
   for (let i = 0; i < 6; i++) s += (a[i] - b[i]) ** 2;
   return Math.sqrt(s);
 }
+
+/** glOrtho's mapping of a point in the viewing volume to normalised device coordinates. */
+export function orthoToNdc(
+  p: { x: number; y: number },
+  v: { minX: number; maxX: number; minY: number; maxY: number },
+): { x: number; y: number } {
+  return {
+    x: (2 * (p.x - v.minX)) / (v.maxX - v.minX) - 1,
+    y: (2 * (p.y - v.minY)) / (v.maxY - v.minY) - 1,
+  };
+}
+
+/** The default viewport's mapping of NDC to window pixels, counted from the bottom-left as OpenGL does. */
+export function ndcToWindow(p: { x: number; y: number }, size: { width: number; height: number }): { x: number; y: number } {
+  return { x: Math.floor(((p.x + 1) / 2) * size.width), y: Math.floor(((p.y + 1) / 2) * size.height) };
+}
