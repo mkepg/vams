@@ -507,7 +507,7 @@ describe('BB-CODE-21: Three notes sit under the key lines, and the changed value
     getState().updateObjectTransform(tri.id, { translateX: 0.4 });
     await settle();
     const notes = [...host.querySelectorAll('.code-note')].map((el) => el.textContent!.trim());
-    expect(notes).toEqual(['move by your X 0.40, Y −0.17', 'turn by 15°', 'every 3 vertices make a triangle']);
+    expect(notes).toEqual(['moves Triangle 0.40 right, 0.17 down', 'turns Triangle 15° anticlockwise', 'every 3 vertices make a triangle']);
     expect([...host.querySelectorAll('.code-note__value.is-changed')].map((el) => el.textContent)).toEqual(['0.40']);
     const toggle = [...host.querySelectorAll('.code-word')].find((b) => b.textContent === 'Notes') as HTMLButtonElement;
     expect(toggle.getAttribute('aria-pressed')).toBe('true');

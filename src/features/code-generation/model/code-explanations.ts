@@ -396,12 +396,21 @@ export function noteFor(index: number, outline: CodeOutline, scene: ExplainScene
   const code = line.object;
   const tr = node.transform;
   if (t.startsWith('glTranslatef(')) {
-    return ['move by your X ', { value: fmt(tr.translateX), ref: `state_${code}.x` }, ', Y ', { value: fmt(tr.translateY), ref: `state_${code}.y` }];
+    const { translateX: dx, translateY: dy } = tr;
+    const parts: NotePart[] = [`moves ${node.name} `];
+    if (dx !== 0) parts.push({ value: fmt(Math.abs(dx)), ref: `state_${code}.x` }, dx > 0 ? ' right' : ' left');
+    if (dx !== 0 && dy !== 0) parts.push(', ');
+    if (dy !== 0) parts.push({ value: fmt(Math.abs(dy)), ref: `state_${code}.y` }, dy > 0 ? ' up' : ' down');
+    return dx === 0 && dy === 0 ? null : parts;
   }
-  if (t.startsWith('glRotatef(')) return ['turn by ', { value: `${short(tr.rotate)}°`, ref: `state_${code}.rotation` }];
+  // glRotatef(angle, 0, 0, 1) turns a positive angle anticlockwise.
+  if (t.startsWith('glRotatef(')) {
+    if (tr.rotate === 0) return null;
+    return [`turns ${node.name} `, { value: `${short(Math.abs(tr.rotate))}°`, ref: `state_${code}.rotation` }, tr.rotate > 0 ? ' anticlockwise' : ' clockwise'];
+  }
   if (t.startsWith('glScalef(')) {
     if (tr.scaleX === 1 && tr.scaleY === 1) return null;
-    return ['stretch by ', { value: short(tr.scaleX), ref: `state_${code}.scaleX` }, ' across, ', { value: short(tr.scaleY), ref: `state_${code}.scaleY` }, ' up'];
+    return [`stretches ${node.name} `, { value: short(tr.scaleX), ref: `state_${code}.scaleX` }, '× across, ', { value: short(tr.scaleY), ref: `state_${code}.scaleY` }, '× up'];
   }
   if (/^gl(Begin|DrawArrays|DrawElements)\(/.test(t)) return [assemblyFor(node.type as PrimitiveType, 0, node.vertices.length).note];
   if (t.startsWith('glBindTexture(')) {

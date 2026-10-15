@@ -511,15 +511,15 @@ describe('WB-CODE-24: Notes sit only on the key lines of draw functions', () => 
     let outline = outlineCode(program());
     const noted = outline.lines.map((_, i) => noteFor(i, outline, explainScene())).map((n, i) => (n ? `${outline.lines[i].text.trim().split('(')[0]}: ${n.map((p) => (typeof p === 'string' ? p : p.value)).join('')}` : null)).filter(Boolean);
     expect(noted).toEqual([
-      'glTranslatef: move by your X 0.40, Y −0.17',
-      'glRotatef: turn by 15°',
+      'glTranslatef: moves Triangle 0.40 right, 0.17 down',
+      'glRotatef: turns Triangle 15° anticlockwise',
       'glBegin: every 3 vertices make a triangle',
     ]);
     const note = noteFor(lineOf(outline, 'glTranslatef('), outline, explainScene())!;
     expect(note[1]).toEqual({ value: '0.40', ref: 'state_Triangle.x' });
     getState().updateObjectTransform(tri.id, { scaleX: 1.5 });
     outline = outlineCode(program());
-    expect(noteFor(lineOf(outline, 'glScalef('), outline, explainScene())!.map((p) => (typeof p === 'string' ? p : p.value)).join('')).toBe('stretch by 1.5 across, 1 up');
+    expect(noteFor(lineOf(outline, 'glScalef('), outline, explainScene())!.map((p) => (typeof p === 'string' ? p : p.value)).join('')).toBe('stretches Triangle 1.5× across, 1× up');
     expect(noteFor(lineOf(outline, 'glClearColor('), outline, explainScene())).toBeNull();
     for (const n of outline.lines.map((_, i) => noteFor(i, outline, explainScene())).filter(Boolean)) {
       const words = n!.map((p) => (typeof p === 'string' ? p : p.value)).join('').split(/\s+/).length;
@@ -546,5 +546,26 @@ describe('WB-CODE-25: Textured and buffered draw calls are noted, and a line wid
     const reset = outline.lines.findIndex((l) => l.text.includes('glLineWidth(1.0f)'));
     expect(explainLine(set, outline, scene)!.text).toMatch(/^Sets how thick/);
     expect(explainLine(reset, outline, scene)!.text).toMatch(/^Puts the line width back/);
+  });
+});
+
+describe('WB-CODE-26: Notes read in plain directions', () => {
+  it('names left, down and clockwise for negatives, drops a zero axis, and returns null for no move or turn', () => {
+    const tri = addTriangle(0, 0, 0.5);
+    getState().updateObjectName(tri.id, 'Triangle');
+    const text = (n: ReturnType<typeof noteFor>) => (n ? n.map((p) => (typeof p === 'string' ? p : p.value)).join('') : null);
+    const read = (needle: string) => {
+      const outline = outlineCode(program());
+      return text(noteFor(lineOf(outline, needle), outline, explainScene()));
+    };
+    expect(read('glTranslatef(')).toBeNull();
+    expect(read('glRotatef(')).toBeNull();
+    getState().updateObjectTransform(tri.id, { translateX: -0.4, translateY: 0.25, rotate: -30 });
+    expect(read('glTranslatef(')).toBe('moves Triangle 0.40 left, 0.25 up');
+    expect(read('glRotatef(')).toBe('turns Triangle 30° clockwise');
+    getState().updateObjectTransform(tri.id, { translateX: 0, translateY: -0.17 });
+    expect(read('glTranslatef(')).toBe('moves Triangle 0.17 down');
+    getState().updateObjectTransform(tri.id, { translateX: 0.4, translateY: 0 });
+    expect(read('glTranslatef(')).toBe('moves Triangle 0.40 right');
   });
 });
