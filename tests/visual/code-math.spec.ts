@@ -106,3 +106,18 @@ for (const theme of ['dark', 'light'] as const) {
     }
   });
 }
+
+for (const theme of ['dark', 'light'] as const) {
+  test(`VIS-CM-04: Code pane with notes and the strip open on glTranslatef, ${theme}, 1280`, async ({ page }) => {
+    await openMockScene(page, theme);
+    await page.locator('.code-line', { hasText: 'glTranslatef(state_Triangle.x' }).click();
+    await expect(page.locator('.code-strip__sig')).toHaveText('glTranslatef(x, y, z)');
+    await expect(page.locator('.code-math-column')).toHaveScreenshot(`cm-code-strip-${theme}-1280.png`, { animations: 'allow' });
+  });
+}
+
+test('VIS-CM-05: The followed vertex ringed on the canvas with Math showing, dark, 1280', async ({ page }) => {
+  await openMockScene(page, 'dark');
+  await page.getByRole('radio', { name: 'Math' }).click();
+  await expect(page).toHaveScreenshot('cm-editor-ring-dark-1280.png');
+});
