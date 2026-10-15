@@ -697,3 +697,19 @@ describe('BB-JOURNEY-25: Coloured shows the colour across the face with the vert
     unmount(host);
   });
 });
+
+describe('BB-JOURNEY-25: a flat face is one colour', () => {
+  it('fills the face with the provoking vertex colour and draws no gradients', async () => {
+    mockTriangle();
+    useVamsStore.setState({ objects: [{ ...getState().objects[0], shading: 'FLAT' }] });
+    getState().setJourneyStageOverride('coloured');
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    const svg = host.querySelector('svg.journey-face')!;
+    expect(svg.querySelectorAll('linearGradient, radialGradient').length).toBe(0);
+    const fills = [...svg.querySelectorAll('polygon')].map((p) => p.getAttribute('fill'));
+    expect(fills).toEqual(['#55dd88']);
+    expect(svg.getAttribute('aria-label')).toContain('flat');
+    unmount(host);
+  });
+});

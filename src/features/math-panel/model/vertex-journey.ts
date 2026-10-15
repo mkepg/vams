@@ -98,8 +98,8 @@ function flatSentence(type: PrimitiveType, index: number, count: number): string
   if (type === 'POINTS') return 'With flat shading, each point keeps its own colour.';
   if (a.primitives.length === 0) return 'With flat shading, each shape takes the colour of one of its vertices; this vertex is not drawn.';
   const taken = provokingVertex(type, index, count) + 1;
-  if (type === 'POLYGON') return `With flat shading, the polygon takes vertex ${taken}'s colour.`;
-  return `With flat shading, each ${a.noun} takes the colour of one of its vertices: ${a.noun} ${a.primitives[0] + 1} takes vertex ${taken}'s.`;
+  if (type === 'POLYGON') return `With flat shading, the polygon takes vertex ${taken}’s colour.`;
+  return `With flat shading, each ${a.noun} takes the colour of one of its vertices: ${a.noun} ${a.primitives[0] + 1} takes vertex ${taken}’s.`;
 }
 
 function stage(id: JourneyStageId, sentence: string, rows: WorkingRow[], result: string | null, point: Point | null): JourneyStage {
@@ -178,6 +178,10 @@ function rgbOf(hex: string): [number, number, number] {
   return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255) as [number, number, number];
 }
 
+/** The colour as the call receives it: 0–255 integers for glColor3ub, otherwise one-decimal floats. */
+const rgbArgs = (hex: string, bytes: boolean) =>
+  `(${(bytes ? [1, 3, 5].map((i) => `${parseInt(hex.slice(i, i + 2), 16)}`) : rgbOf(hex).map((c) => c.toFixed(1))).join(', ')})`;
+
 const rgbText = ([r, g, b]: [number, number, number]) => `rgb(${r.toFixed(1)}, ${g.toFixed(1)}, ${b.toFixed(1)})`;
 
 function wrappedCoord(c: number, wrap: TextureWrap): number {
@@ -185,7 +189,8 @@ function wrappedCoord(c: number, wrap: TextureWrap): number {
 }
 
 /** The texel a UV reads, before filtering. */
-export function texelOf(uv: UV, size: { width: number; height: number }, wrap: TextureWrap): Point {
+export function texelOf(uv: UV, size: { width: number; height: number }, wrap: TextureWrap): Point | null {
+  if (size.width < 1 || size.height < 1) return null;
   return {
     x: Math.min(size.width - 1, Math.floor(wrappedCoord(uv.u, wrap) * size.width)),
     y: Math.min(size.height - 1, Math.floor(wrappedCoord(uv.v, wrap) * size.height)),
@@ -201,12 +206,13 @@ function colouredStage(node: SceneNode, index: number, scene: JourneyScene, pixe
     const texel = tex ? texelOf(uv, tex, node.texture.wrap) : null;
     const result = texel ? `texel (${texel.x}, ${texel.y})` : 'texture missing';
     const wrap = node.texture.wrap;
+    const sized = tex && texel ? tex : null;
     const wu = { u: wrappedCoord(uv.u, wrap), v: wrappedCoord(uv.v, wrap) };
     const rows: WorkingRow[] = [
       at,
       { step: ['UV'], value: `(${fmt(uv.u)}, ${fmt(uv.v)})`, call: mode === 'IMMEDIATE' ? 'glTexCoord2f' : 'glTexCoordPointer' },
       { step: ['wrap ', { input: wrap }], value: `(${fmt(wu.u)}, ${fmt(wu.v)})`, call: 'glTexParameteri' },
-      ...(tex ? [{ step: [`texture ${tex.width}×${tex.height}`], value: result, call: 'glBindTexture' } as WorkingRow] : []),
+      ...(sized ? [{ step: [`texture ${sized.width}×${sized.height}`], value: result, call: 'glBindTexture' } as WorkingRow] : []),
       { step: ['filter ', { input: node.texture.filter }], value: node.texture.filter === 'NEAREST' ? 'that texel alone' : 'a blend of the 4 around it', call: 'glTexParameteri' },
     ];
     return { ...stage('coloured', TEXTURED, rows, result, null), section: 'Textures' };
@@ -216,15 +222,18 @@ function colouredStage(node: SceneNode, index: number, scene: JourneyScene, pixe
   const flat = node.shading === 'FLAT';
   const source = flat ? provokingVertex(type, index, count) : index;
   const members = assemblyFor(type, index, count).members[0] ?? [index];
-  const rgb = rgbOf(node.vertices[index]?.color ?? '#ffffff');
+  const drawn = assemblyFor(type, index, count).primitives.length > 0;
+  const colourHex = node.vertices[index]?.color ?? '#ffffff';
   const colourCall = mode === 'IMMEDIATE' ? (node.colorMode === 'BYTE' ? 'glColor3ub' : 'glColor3f') : 'glColorPointer';
+  // A polygon can have many corners: past 4, name only the followed one so the value stays in its column.
+  const weights = members.length > 4 ? `1 here, 0 at the other ${members.length - 1}` : members.map((k) => (k === index ? '1' : '0')).join(', ');
+  const shadingValue = !drawn ? 'not drawn' : flat ? `vertex ${source + 1}’s colour` : `weights ${weights}`;
   const rows: WorkingRow[] = [
     at,
-    { step: ['vertex colour'], value: `(${rgb.map((c) => c.toFixed(1)).join(', ')})`, call: colourCall },
-    flat
-      ? { step: ['shading ', { input: 'flat' }], value: `vertex ${source + 1}’s colour`, call: 'glShadeModel' }
-      : { step: ['shading ', { input: 'smooth' }], value: `weights ${members.map((k) => (k === index ? '1' : '0')).join(', ')}`, call: 'glShadeModel' },
+    { step: ['vertex colour'], value: rgbArgs(colourHex, mode === 'IMMEDIATE' && node.colorMode === 'BYTE'), call: colourCall },
+    { step: ['shading ', { input: flat ? 'flat' : 'smooth' }], value: shadingValue, call: 'glShadeModel' },
   ];
+  if (!drawn) return stage('coloured', flat ? flatSentence(type, index, count) : SMOOTH, rows, 'not drawn', null);
   return stage('coloured', flat ? flatSentence(type, index, count) : SMOOTH, rows, rgbText(rgbOf(node.vertices[source]?.color ?? '#ffffff')), null);
 }
 
@@ -307,10 +316,11 @@ function textJourney(node: SceneNode, scene: JourneyScene, canvas: CanvasSize): 
   const { rows: moves, end: world } = transformRows(raster, chainOf(node, scene.objects));
   const ndc = ndcOf(world, scene.viewportLimits);
   const pixel = pixelOf(ndc, canvas);
-  const textRgb = rgbOf(node.vertices[0]?.color ?? '#ffffff');
+  const textHex = node.vertices[0]?.color ?? '#ffffff';
+  const textRgb = rgbOf(textHex);
   const colouredRows: WorkingRow[] = [
     { step: ['at pixel'], value: `(${int(pixel.x)}, ${int(pixel.y)})`, call: null, from: true },
-    { step: ['text colour'], value: `(${textRgb.map((c) => c.toFixed(1)).join(', ')})`, call: node.colorMode === 'BYTE' ? 'glColor3ub' : 'glColor3f' },
+    { step: ['text colour'], value: rgbArgs(textHex, node.colorMode === 'BYTE'), call: node.colorMode === 'BYTE' ? 'glColor3ub' : 'glColor3f' },
   ];
   return {
     subject: { kind: 'text', name: node.name },

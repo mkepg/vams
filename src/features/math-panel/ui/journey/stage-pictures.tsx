@@ -183,19 +183,31 @@ function FacePicture({ node, vertex }: { node: SceneNode; vertex: number }) {
   const points = members.map((k) => `${at(k).x},${at(k).y}`).join(' ');
   const flat = node.shading === 'FLAT';
   const flatColour = node.vertices[provokingVertex(type, i, n)]?.color ?? '#ffffff';
-  const reach = Math.hypot(box.width, box.height);
+  // Each corner's colour runs from the corner toward the middle of the others and is gone by the nearest of them,
+  // so it never tints another corner.
+  const fade = (k: number) => {
+    const others = members.filter((m) => m !== k).map(at);
+    const cx = others.reduce((sum, o) => sum + o.x, 0) / others.length;
+    const cy = others.reduce((sum, o) => sum + o.y, 0) / others.length;
+    const from = at(k);
+    const len = Math.hypot(cx - from.x, cy - from.y) || 1;
+    const ux = (cx - from.x) / len;
+    const uy = (cy - from.y) / len;
+    const reach = Math.max(1, Math.min(...others.map((o) => (o.x - from.x) * ux + (o.y - from.y) * uy)));
+    return { x1: from.x, y1: from.y, x2: from.x + ux * reach, y2: from.y + uy * reach };
+  };
   return (
     <Picture label="Across the face">
       <div className="journey-picture__box">
-        <svg className="journey-face" width="96" height="80" viewBox="0 0 96 80" role="img" aria-label={`The colour across ${node.name}`}>
-          <defs>
+        <svg className="journey-face" width="96" height="80" viewBox="0 0 96 80" role="img" aria-label={`${node.name}, ${flat ? 'flat' : 'smooth'} shading, with vertex ${i + 1} ringed`}>
+          {!flat && <defs>
             {members.map((k) => (
-              <radialGradient key={k} id={`${baseId}-${k}`} cx={at(k).x} cy={at(k).y} r={reach} gradientUnits="userSpaceOnUse">
+              <linearGradient key={k} id={`${baseId}-${k}`} gradientUnits="userSpaceOnUse" {...fade(k)}>
                 <stop offset="0" stopColor={node.vertices[k].color} />
-                <stop offset="0.85" stopColor={node.vertices[k].color} stopOpacity="0" />
-              </radialGradient>
+                <stop offset="1" stopColor={node.vertices[k].color} stopOpacity="0" />
+              </linearGradient>
             ))}
-          </defs>
+          </defs>}
           {flat ? (
             <polygon points={points} fill={flatColour} />
           ) : (

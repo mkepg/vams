@@ -210,9 +210,9 @@ describe('WB-JOURNEY-10: Flat shading names the primitive and its vertex; text n
   const colourSentence = (obj: SceneNode, i: number) => stage(vertexJourney(scene([obj]), obj.id, i, CANVAS), 'coloured').sentence;
 
   it('says which primitive takes which vertex\'s colour', () => {
-    expect(colourSentence(flat('TRIANGLES', 6), 4)).toBe('With flat shading, each triangle takes the colour of one of its vertices: triangle 2 takes vertex 6\'s.');
-    expect(colourSentence(flat('QUAD_STRIP', 6), 2)).toBe('With flat shading, each quad takes the colour of one of its vertices: quad 1 takes vertex 4\'s.');
-    expect(colourSentence(flat('POLYGON', 5), 3)).toBe('With flat shading, the polygon takes vertex 1\'s colour.');
+    expect(colourSentence(flat('TRIANGLES', 6), 4)).toBe('With flat shading, each triangle takes the colour of one of its vertices: triangle 2 takes vertex 6’s.');
+    expect(colourSentence(flat('QUAD_STRIP', 6), 2)).toBe('With flat shading, each quad takes the colour of one of its vertices: quad 1 takes vertex 4’s.');
+    expect(colourSentence(flat('POLYGON', 5), 3)).toBe('With flat shading, the polygon takes vertex 1’s colour.');
     expect(colourSentence(flat('POINTS', 3), 1)).toBe('With flat shading, each point keeps its own colour.');
   });
 
@@ -459,5 +459,64 @@ describe('WB-JOURNEY-17: Coloured works the vertex colour and the shading, as th
       ['texture 64×32', 'texel (16, 0)', 'glBindTexture'],
       ['filter LINEAR', 'a blend of the 4 around it', 'glTexParameteri'],
     ]);
+  });
+});
+
+describe('WB-JOURNEY-17: Coloured edge cases', () => {
+  const tex = (id = 'tex', width = 64, height = 32) => [{ id, name: 'Bricks', dataUrl: '', width, height }];
+  const quadWith = (extra: Partial<SceneNode>, uvs = [{ u: 0, v: 0 }, { u: 1.25, v: 0 }, { u: 1, v: 1 }, { u: 0, v: 1 }]) =>
+    node('Quad', 'QUADS', [[0, 0], [1, 0], [1, 1], [0, 1]], {}, { texture: { textureId: 'tex', filter: 'NEAREST', wrap: 'CLAMP' }, uvs, ...extra });
+
+  it('shows the 0–255 integers glColor3ub receives, and floats under glColorPointer', () => {
+    const tri = mockTriangle();
+    const byte = vertexJourney(scene([{ ...tri, colorMode: 'BYTE' }]), 'Triangle', 0, CANVAS);
+    expect(rowsOf(byte, 'coloured')[1]).toEqual(['vertex colour', '(255, 102, 51)', 'glColor3ub']);
+    const array = vertexJourney(scene([{ ...tri, colorMode: 'BYTE', renderingMode: 'VERTEX_ARRAY' }]), 'Triangle', 0, CANVAS);
+    expect(rowsOf(array, 'coloured')[1]).toEqual(['vertex colour', '(1.0, 0.4, 0.2)', 'glColorPointer']);
+  });
+
+  it('names the array-mode texture call and clamps the wrapped UV', () => {
+    const q = quadWith({ renderingMode: 'VERTEX_ARRAY' });
+    const j = vertexJourney({ ...scene([q]), textures: tex() }, 'Quad', 1, CANVAS);
+    expect(rowsOf(j, 'coloured').slice(1)).toEqual([
+      ['UV', '(1.25, 0.00)', 'glTexCoordPointer'],
+      ['wrap CLAMP', '(1.00, 0.00)', 'glTexParameteri'],
+      ['texture 64×32', 'texel (63, 0)', 'glBindTexture'],
+      ['filter NEAREST', 'that texel alone', 'glTexParameteri'],
+    ]);
+  });
+
+  it('has no size row for a missing or zero-size texture', () => {
+    const missing = vertexJourney(scene([quadWith({})]), 'Quad', 1, CANVAS);
+    expect(rowsOf(missing, 'coloured').map((r) => r[0])).toEqual(['at pixel', 'UV', 'wrap CLAMP', 'filter NEAREST']);
+    expect(stage(missing, 'coloured').result).toBe('texture missing');
+    const empty = vertexJourney({ ...scene([quadWith({})]), textures: tex('tex', 0, 32) }, 'Quad', 1, CANVAS);
+    expect(rowsOf(empty, 'coloured').map((r) => r[0])).not.toContain('texture 0×32');
+    expect(stage(empty, 'coloured').result).toBe('texture missing');
+  });
+
+  it('works a text object\'s colour, in bytes under glColor3ub', () => {
+    const text = node('Label', 'TEXT', [[0, 0]], {}, { textContent: 'Hi', vertices: [{ id: 't', x: 0, y: 0, color: '#ff6633' }] });
+    const j = vertexJourney(scene([text]), 'Label', 0, CANVAS);
+    const px = stage(j, 'rasterised').point!;
+    expect(rowsOf(j, 'coloured')).toEqual([['at pixel', `(${px.x}, ${px.y})`, null], ['text colour', '(1.0, 0.4, 0.2)', 'glColor3f']]);
+    const byte = vertexJourney(scene([{ ...text, colorMode: 'BYTE' }]), 'Label', 0, CANVAS);
+    expect(rowsOf(byte, 'coloured')[1]).toEqual(['text colour', '(255, 102, 51)', 'glColor3ub']);
+  });
+
+  it('says a leftover vertex is not drawn, smooth or flat', () => {
+    const four = node('Tris', 'TRIANGLES', [[0, 0], [1, 0], [0, 1], [1, 1]]);
+    for (const shading of ['SMOOTH', 'FLAT'] as const) {
+      const j = vertexJourney(scene([{ ...four, shading }]), 'Tris', 3, CANVAS);
+      expect(rowsOf(j, 'coloured')[2][1]).toBe('not drawn');
+      expect(rowsOf(j, 'coloured')[2][2]).toBe('glShadeModel');
+      expect(stage(j, 'coloured').result).toBe('not drawn');
+    }
+  });
+
+  it('keeps a large polygon\'s weights short', () => {
+    const hex = node('Hex', 'POLYGON', [[0, 0], [1, 0], [2, 1], [2, 2], [1, 2], [0, 1]]);
+    const j = vertexJourney(scene([hex]), 'Hex', 2, CANVAS);
+    expect(rowsOf(j, 'coloured')[2][1]).toBe('weights 1 here, 0 at the other 5');
   });
 });
