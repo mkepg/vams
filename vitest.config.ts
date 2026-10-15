@@ -52,9 +52,8 @@ export default defineConfig({
         'src/features/code-generation/model/generator/textures.ts',
       ],
       // The following files are runtime-only (DOM hooks, code-diff UI helpers)
-      // and require a real browser to exercise — they
-      // are deliberately scoped out of the coverage tally per Section 3.10's
-      // Table 13 module list.
+      // and require a real browser to exercise — they are deliberately scoped
+      // out of the coverage tally per Section 3.10's Table 13 module list.
       exclude: [
         'src/features/code-generation/model/code-diff.ts',
         'src/features/code-generation/model/useCanvasSize.ts',

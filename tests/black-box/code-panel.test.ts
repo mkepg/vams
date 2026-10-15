@@ -308,7 +308,7 @@ describe('BB-CODE-13: A fold opened by hand stays open until the selection chang
     await settle();
     expect(getState().codeFoldsOpened).toEqual(['draw:Square']);
     expect(lineTexts(host)).toContain('void draw_Square()');
-    (host.querySelector('.code-fold-close') as HTMLButtonElement).click();
+    (host.querySelector('.code-fold-close[data-block="draw:Square"]') as HTMLButtonElement).click();
     await settle();
     expect(foldLabels(host)).toContain('void draw_Square()');
     squareFold().click();
@@ -367,7 +367,7 @@ describe('BB-CODE-16: Keyboard focus survives opening and closing a fold, and cl
     squareFold().focus();
     squareFold().click();
     await settle();
-    const close = host.querySelector('.code-fold-close') as HTMLButtonElement;
+    const close = host.querySelector('.code-fold-close[data-block="draw:Square"]') as HTMLButtonElement;
     expect(document.activeElement).toBe(close);
     close.focus();
     close.click();
@@ -391,5 +391,28 @@ describe('BB-CODE-16: Keyboard focus survives opening and closing a fold, and cl
     await settle();
     expect(document.activeElement).toBe(findWord());
     unmount(host);
+  });
+});
+
+describe('BB-CODE-17: Run scrolls the fired branch into view', () => {
+  it('scrolls the code when a handler branch fires', async () => {
+    const tri = addTriangle();
+    getState().setCallbackHandler('keyboard', 'onKey');
+    getState().addCallbackRule('keyboard', {
+      id: 'r', objectId: tri.id, trigger: { kind: 'keyboard', key: 'd' }, action: { type: 'translate', dx: 0.1, dy: 0 },
+    });
+    const scrollTo = vi.fn();
+    const original = HTMLElement.prototype.scrollTo;
+    HTMLElement.prototype.scrollTo = scrollTo as unknown as typeof original;
+    try {
+      const host = mount(h(SceneCodePanel, { flashBranch: { handlerName: 'onKey', trigger: { kind: 'keyboard', key: 'd' }, seq: 1 } }));
+      await settle();
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+      expect(host.querySelector('.code-line.is-fired')).not.toBeNull();
+      expect(scrollTo).toHaveBeenCalled();
+      unmount(host);
+    } finally {
+      HTMLElement.prototype.scrollTo = original;
+    }
   });
 });

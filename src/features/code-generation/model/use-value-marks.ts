@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { CodeMark } from '@/shared/ui/code-viewer/types';
 import { diffChangedValues } from './value-diff';
 
@@ -32,7 +32,7 @@ export function useValueMarks(
 ): { marks: CodeMark[]; key: number } {
   const [state, setState] = useState<{ marks: CodeMark[]; key: number }>({ marks: [], key: 0 });
   const last = useRef<MarkSnapshot | null>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const prev = last.current;
     const next: MarkSnapshot = { code, width: canvas.width, height: canvas.height, swapKey, selectionKey };
     last.current = next;

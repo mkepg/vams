@@ -64,7 +64,11 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
     return visibleRows(outline, selection, opened, forced);
   }, [outline, selection, opened, lessonLines, marks, flashLines, findLine]);
 
-  const revealLines = useMemo(() => (lessonLines.length > 0 ? lessonLines : marks.map((m) => m.line)), [lessonLines, marks]);
+  // What scrolls into view: Run's fired branch, else a lesson's highlight, else the changed values.
+  const revealLines = useMemo(() => {
+    if (flashLines.length > 0) return flashLines;
+    return lessonLines.length > 0 ? lessonLines : marks.map((m) => m.line);
+  }, [flashLines, lessonLines, marks]);
 
   return (
     <CodeViewer
