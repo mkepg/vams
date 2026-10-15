@@ -486,7 +486,12 @@ describe('BB-JOURNEY-22: Step cells wrap only where a stage allows it', () => {
     await settle();
     expect(openTitle(host)).toBe('Transformed');
     const steps = [...host.querySelectorAll('table.journey-work td.journey-work__step')];
-    expect(steps.some((c) => c.textContent!.startsWith('Group 1: '))).toBe(true);
+    const heading = host.querySelector('table.journey-work tr.journey-work__group th')!;
+    expect(heading.textContent).toBe('Group 1');
+    expect(heading.getAttribute('colspan')).toBe('3');
+    expect(heading.getAttribute('scope')).toBe('colgroup');
+    expect(steps.some((c) => c.textContent!.startsWith('Group 1'))).toBe(false);
+    expect(host.querySelectorAll('table.journey-work tr.journey-work__group button').length).toBe(0);
     expect(host.querySelector('table.journey-work')!.classList.contains('journey-work--wrap-steps')).toBe(false);
     expect(steps.every((c) => c.className === 'journey-work__step')).toBe(true);
     unmount(host);

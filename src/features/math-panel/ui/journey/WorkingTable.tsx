@@ -32,7 +32,11 @@ export default function WorkingTable({ rows, result, onCall, wrapSteps }: Workin
         </tr>
       </thead>
       <tbody>
-        {rows.map((row, i) => (
+        {rows.map((row, i) => row.heading !== undefined ? (
+          <tr key={i} className="journey-work__group">
+            <th scope="colgroup" colSpan={3}>{row.heading}</th>
+          </tr>
+        ) : (
           <tr key={i} className={row.from ? 'is-from' : undefined}>
             <td className={stepClass(row, !!wrapSteps)}>
               {row.step.map((part, k) =>

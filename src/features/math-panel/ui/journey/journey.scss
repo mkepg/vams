@@ -256,6 +256,23 @@
     &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
   }
 
+  // A group's heading sits above that group's rows, on one line.
+  tr.journey-work__group {
+    height: 24px;
+
+    th {
+      overflow: hidden;
+      border-top: 1px solid var(--rule);
+      font-family: $font-ui;
+      font-size: var(--text-xs);
+      font-weight: 600;
+      color: var(--ink-dim);
+      text-align: left;
+      text-overflow: ellipsis;
+      max-width: 0;
+    }
+  }
+
   tr.is-from .journey-work__step { color: var(--ink-dim); }
 
   tr.is-result {

@@ -23,6 +23,8 @@ export interface WorkingRow {
   call: string | null;
   /** The first row: where the value came from. */
   from?: boolean;
+  /** A heading row, not a step: it names the enclosing group whose rows follow, and has no step, value or call. */
+  heading?: string;
 }
 
 export interface JourneyStage {
@@ -123,14 +125,14 @@ function transformRows(start: Point, chain: readonly SceneNode[]): { rows: Worki
   const rows: WorkingRow[] = [];
   chain.forEach((node, depth) => {
     const t: TransformState = node.transform;
-    const scope = depth === 0 ? '' : `${node.name}: `;
+    if (depth > 0) rows.push({ heading: node.name, step: [], value: '', call: null });
     p = { x: p.x * t.scaleX, y: p.y * t.scaleY };
-    rows.push({ step: [`${scope}scale `, { input: short(t.scaleX) }, ', ', { input: short(t.scaleY) }], value: pair(p), call: 'glScalef' });
+    rows.push({ step: ['scale ', { input: short(t.scaleX) }, ', ', { input: short(t.scaleY) }], value: pair(p), call: 'glScalef' });
     const r = (t.rotate * Math.PI) / 180;
     p = { x: p.x * Math.cos(r) - p.y * Math.sin(r), y: p.x * Math.sin(r) + p.y * Math.cos(r) };
-    rows.push({ step: [`${scope}rotate `, { input: `${short(t.rotate)}°` }], value: pair(p), call: 'glRotatef' });
+    rows.push({ step: ['rotate ', { input: `${short(t.rotate)}°` }], value: pair(p), call: 'glRotatef' });
     p = { x: p.x + t.translateX, y: p.y + t.translateY };
-    rows.push({ step: [`${scope}move `, { input: fmt(t.translateX) }, ', ', { input: fmt(t.translateY) }], value: pair(p), call: 'glTranslatef' });
+    rows.push({ step: ['move ', { input: fmt(t.translateX) }, ', ', { input: fmt(t.translateY) }], value: pair(p), call: 'glTranslatef' });
   });
   return { rows, end: p };
 }

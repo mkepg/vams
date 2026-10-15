@@ -64,7 +64,7 @@ describe('WB-JOURNEY-01: Each stage\'s numbers match the reference', () => {
 });
 
 describe('WB-JOURNEY-02: Enclosing groups apply after the object, innermost first', () => {
-  it('matches the reference parent · child product and names each group in its rows', () => {
+  it('matches the reference parent · child product and puts a heading row naming each group before its rows', () => {
     const outer = node('Outer', 'GROUP', [], { translateX: 0.2, rotate: 30, scaleX: 0.5, scaleY: 0.5 });
     const inner = node('Inner', 'GROUP', [], { translateY: -0.3, rotate: -10 }, { parentId: 'Outer' });
     const quad = node('Quad', 'QUADS', [[0.1, 0.2], [0.3, 0.2], [0.3, 0.4], [0.1, 0.4]], { translateX: 0.05, scaleX: 2, scaleY: 1.5 }, { parentId: 'Inner' });
@@ -73,8 +73,11 @@ describe('WB-JOURNEY-02: Enclosing groups apply after the object, innermost firs
     const world = transformPoint(m, { x: 0.3, y: 0.4 });
     expect(stage(j, 'transformed').point!.x).toBeCloseTo(world.x, 10);
     expect(stage(j, 'transformed').point!.y).toBeCloseTo(world.y, 10);
-    const steps = stage(j, 'transformed').rows.map((r) => (typeof r.step[0] === 'string' ? r.step[0] : ''));
-    expect(steps).toEqual(['from Stored', 'scale ', 'rotate ', 'move ', 'Inner: scale ', 'Inner: rotate ', 'Inner: move ', 'Outer: scale ', 'Outer: rotate ', 'Outer: move ']);
+    const rows = stage(j, 'transformed').rows;
+    const steps = rows.map((r) => (r.heading !== undefined ? `[${r.heading}]` : typeof r.step[0] === 'string' ? r.step[0] : ''));
+    expect(steps).toEqual(['from Stored', 'scale ', 'rotate ', 'move ', '[Inner]', 'scale ', 'rotate ', 'move ', '[Outer]', 'scale ', 'rotate ', 'move ']);
+    expect(rows.filter((r) => r.heading !== undefined).every((r) => r.step.length === 0 && r.value === '' && r.call === null)).toBe(true);
+    expect(rows.filter((r) => r.call !== null).map((r) => r.call)).toEqual(['glVertex2f', 'glScalef', 'glRotatef', 'glTranslatef', 'glScalef', 'glRotatef', 'glTranslatef', 'glScalef', 'glRotatef', 'glTranslatef']);;
   });
 });
 
