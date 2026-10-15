@@ -26,7 +26,9 @@ Every UI task carries the mocks' spacing, sizes, colour roles and hierarchy, map
 - Student-facing text never contains "coming soon", "not supported", "future", "deferred", "3D" or "lighting". It follows the product rules in `AGENTS.md`.
 - Section labels stay exactly `Pipeline | Primitives | Buffers | Transforms | Textures`.
 - The persisted shape does not change: `version: 9` and the same `partialize` keys. Every new store field is runtime-only.
-- The generator (`features/code-generation/model/code-generator.ts` and `generator/*`) does not change. Copy always copies the whole program.
+- The generator's output and logic do not change (`features/code-generation/model/code-generator.ts` and `generator/*`). The one edit allowed in the generator is Task 17's re-export line in `generator/utils.ts`: `sanitizeName` moves to `src/shared/lib/sanitize-name.ts`, and `generator/utils.ts` re-exports it, so the generator's own imports keep working and no copy of the logic exists. Code outside `features/code-generation` imports `sanitizeName` from `@/shared/lib/sanitize-name`. Copy always copies the whole program.
+- Editor styles stay sentence case: no new rule sets `text-transform: uppercase` (BB-SHELL-23 checks every tracked editor stylesheet). The mocks' small-caps labels become sentence-case labels in the same size and colour.
+- Negative integers shown to students (pixels) use `int()` from `@/shared/lib/format-number`, which writes U+2212.
 - Tests live in `tests/`. Each carries a stable ID `{SUITE}-{MODULE}-{NN}`. Existing IDs stay; new ones take the next free number in their file. New suites:
   - `WB-CODE` in `tests/white-box/code-structure.test.ts`
   - `BB-CODE` in `tests/black-box/code-panel.test.ts`
@@ -111,7 +113,11 @@ Every UI task carries the mocks' spacing, sizes, colour roles and hierarchy, map
 | `src/features/code-generation/model/code-folds.ts` | create | `visibleRows` |
 | `src/features/code-generation/model/code-diff.ts` | modify | `matchLines`; `diffChangedLines` uses it |
 | `src/features/code-generation/model/value-diff.ts` | create | `diffChangedValues` |
-| `src/features/code-generation/model/use-value-marks.ts` | create | Tracks the student's last edit as value marks |
+| `src/features/code-generation/model/use-value-marks.ts` | create | `nextMarks` (pure) and the hook that tracks the student's last edit as value marks |
+| `src/shared/lib/sanitize-name.ts` | create | `sanitizeName`, moved out of `generator/utils.ts` (Task 17) |
+| `src/features/code-generation/model/generator/utils.ts` | modify | Re-exports `sanitizeName`; nothing else changes |
+| `src/shared/lib/text-raster.ts` | create | `TEXT_LINE_HEIGHT`, `firstRasterY`: where text's first line starts, for the journey and the canvas ring |
+| `vitest.config.ts` | modify | Coverage `exclude` follows the deleted and moved files |
 | `src/features/code-generation/model/code-explanations.ts` | create | The catalogue: `explainLine`, `noteFor` (replaces `glut-annotations.ts`) |
 | `src/features/code-generation/model/glut-annotations.ts` | delete | Replaced |
 | `src/features/code-generation/ui/SceneCodePanel.tsx` | modify | Composes outline, folds, marks, notes, strip and links |
@@ -156,12 +162,17 @@ Every UI task carries the mocks' spacing, sizes, colour roles and hierarchy, map
 
 Plan ruling: the spec puts these resets in "`selectObject` and the multi-select actions". There are no multi-select actions, and about a dozen paths write `selectedObjectId` directly: add, delete, duplicate, group, text, undo, redo, the tour and the lesson runner. The rail already handles this with one subscription in `core/store/index.ts`, and this task follows that precedent.
 
-- [ ] **Step 1: Create the branch**
+- [ ] **Step 1: Switch to the branch**
+
+`feat/code-math` already exists, holding only plan commits beyond `main`. Switch to it and confirm it starts from `main`:
 
 ```bash
-git checkout main
-git checkout -b feat/code-math
+git switch feat/code-math
+git merge-base --is-ancestor main HEAD && echo "starts from main"
+git log --oneline main..HEAD
 ```
+
+Expected: `starts from main`, and the log lists only `docs(plans)` commits.
 
 - [ ] **Step 2: Write the failing tests**
 
@@ -395,7 +406,7 @@ import { describe, it, expect } from 'vitest';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { outlineCode, findCallLine, stateFieldAt, type CodeOutline } from '@/features/code-generation/model/code-outline';
 import type { CallbackRule } from '@/core/types/scene';
-import { addTriangle, addQuad, addPrimitive, getState } from '../helpers/store';
+import { addTriangle, addQuad, getState } from '../helpers/store';
 
 const program = () => {
   const s = getState();
@@ -607,8 +618,6 @@ describe('WB-CODE-10: findCallLine and stateFieldAt', () => {
     expect(stateFieldAt('    glEnd();', 4)).toBeNull();
   });
 });
-
-void addPrimitive;
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -990,6 +999,7 @@ Append to `tests/white-box/code-structure.test.ts`:
 ```ts
 import { visibleRows } from '@/features/code-generation/model/code-folds';
 import type { CodeRow } from '@/shared/ui/code-viewer/types';
+import { addPrimitive } from '../helpers/store';
 
 /** Three shapes, the mock's scene: Triangle selected, Square and Dot folded. */
 function threeShapes() {
@@ -1467,6 +1477,9 @@ git commit -m "feat(code): find the values that changed between two programs"
 - Rewrite: `src/shared/ui/code-viewer/code-viewer.scss`
 - Modify: `src/features/code-generation/ui/SceneCodePanel.tsx` (stop passing the three props the new viewer drops, so the build passes; Task 6 rewrites this file)
 - Modify: `tests/black-box/code-panel.test.ts` (append)
+- Modify: `tests/black-box/run-mode.test.ts` (BB-RUN-12 reads the fired lines' text)
+- Modify: `tests/black-box/first-visit-tour.test.ts` (BB-TOUR-07 skipped until Task 6)
+- Modify: `tests/black-box/editor-inspector.test.ts` (BB-INSP-08 no longer looks for the retired underlines)
 
 **Interfaces:**
 - Consumes: `CodeRow` and `CodeMark` from `./types` (Tasks 3–4), and `tokenizeLine` from `./tokenize` (Task 4).
@@ -1490,6 +1503,7 @@ export interface CodeViewerProps {
 
 - Produces: the exported `lineSegments(text, overlays)`, which splits a line's tokens at mark and match edges.
 - Produces these DOM hooks for tests:
+  - `.code-row`, holding a line and, for a block opened by hand, its `.code-fold-close` beside it
   - `.code-line` with `data-line`, plus `.is-changed` and `.is-fired`
   - `.code-line__num` and `.code-line__text`
   - `.code-fold`: a button with `aria-expanded="false"` and `aria-describedby` pointing at its `role="tooltip"` summary
@@ -1660,7 +1674,8 @@ describe('BB-CODE-08: The code uses two syntax colours and the new tokens', () =
     const tokenRules = [...scss.matchAll(/\.tk-([a-z]+)\s*\{/g)].map((m) => m[1]).sort();
     expect(tokenRules).toEqual(['comment', 'glfn']);
     const tokens = readFileSync('src/shared/styles/_tokens.scss', 'utf8').replace(/\r\n/g, '\n');
-    const [light, dark] = tokens.split("[data-theme='dark']");
+    // Split on the rule, not the header comment that also names the selector.
+    const [light, dark] = tokens.split("[data-theme='dark'] {");
     for (const name of ['--value:', '--value-wash:', '--run-fired:', '--run-fired-wash:', '--ink-dim:', '--line-number:', '--canvas-ring:']) {
       expect(light, name).toContain(name);
       expect(dark, name).toContain(name);
@@ -1914,17 +1929,9 @@ const CodeViewer = memo(function CodeViewer({
     const changed = marksByLine.has(line);
     const classes = ['code-line', changed ? 'is-changed' : '', fired.has(line) ? 'is-fired' : ''].filter(Boolean).join(' ');
     return (
-      <div
-        // A changed line remounts on each edit, so its fade starts again.
-        key={changed ? `${line}:${marksKey}` : `${line}`}
-        ref={(el) => {
-          if (el) lineEls.current.set(line, el);
-          else lineEls.current.delete(line);
-        }}
-        className={classes}
-        data-line={line}
-      >
-        <span className="code-line__num" aria-hidden="true">{line + 1}</span>
+      // A changed line remounts on each edit, so its fade starts again.
+      <div key={changed ? `${line}:${marksKey}` : `${line}`} className="code-row">
+        {/* ▾ is the line's sibling, never inside it: Task 14 makes the line itself a button. */}
         {row.closes && (
           <button
             type="button"
@@ -1935,7 +1942,17 @@ const CodeViewer = memo(function CodeViewer({
             ▾
           </button>
         )}
-        <span className="code-line__text">{text ? <LineText text={text} overlays={overlaysFor(line)} /> : ' '}</span>
+        <div
+          ref={(el) => {
+            if (el) lineEls.current.set(line, el);
+            else lineEls.current.delete(line);
+          }}
+          className={classes}
+          data-line={line}
+        >
+          <span className="code-line__num" aria-hidden="true">{line + 1}</span>
+          <span className="code-line__text">{text ? <LineText text={text} overlays={overlaysFor(line)} /> : ' '}</span>
+        </div>
       </div>
     );
   };
@@ -2208,6 +2225,7 @@ Replace `src/shared/ui/code-viewer/code-viewer.scss` with:
   box-shadow: inset 3px 0 0 var(--run-fired);
 }
 
+.code-row,
 .code-fold-row { position: relative; }
 
 .code-fold {
@@ -2246,7 +2264,7 @@ Replace `src/shared/ui/code-viewer/code-viewer.scss` with:
 .code-fold-row:hover .code-fold__summary,
 .code-fold:focus-visible + .code-fold__summary { display: block; }
 
-// A block opened by hand shows ▾ in its first line's gutter to fold it again.
+// A block opened by hand shows ▾ in its first line's gutter to fold it again. It sits in the row, beside the line.
 .code-fold-close {
   position: absolute;
   top: 0;
@@ -2268,32 +2286,55 @@ Replace `src/shared/ui/code-viewer/code-viewer.scss` with:
 
 In `src/features/code-generation/ui/SceneCodePanel.tsx`:
 1. Make the `<CodeViewer …/>` call pass only `code`, `revealLines={changedLines}`, `firedLines={flashLines}`, `isLessonMode`, `headerLead` and `headerTrail`.
-2. Remove the `highlightTarget`, `annotations` and `changedLines` props, along with the variables and the `GLUT_BOILERPLATE_ANNOTATIONS` import they leave unused.
+2. Remove the `highlightTarget`, `annotations` and `changedLines` props, along with what they leave unused: the `GLUT_BOILERPLATE_ANNOTATIONS` and `sanitizeName` imports and the `selectedObjectId`, `selectedObject`, `highlightTarget` and `showAnnotations` variables. Keep the local `changedLines` variable; it now feeds `revealLines`.
 
 Task 6 replaces the file.
 
 - [ ] **Step 7: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/black-box/code-panel.test.ts`
-Expected: PASS (8 tests).
+Expected: PASS (9 tests).
 
-BB-TOUR-07 and BB-RUN-12 read `.code-line.changed`, so they fail until Task 6 updates them. Run them now to confirm that is the only failure:
+Three existing tests read the old viewer, so they fail now. Run them to confirm that these are the only failures:
 
-`npx vitest run tests/black-box/first-visit-tour.test.ts tests/black-box/run-mode.test.ts`
-Expected: exactly BB-TOUR-07 and BB-RUN-12 fail.
+`npx vitest run tests/black-box/first-visit-tour.test.ts tests/black-box/run-mode.test.ts tests/black-box/editor-inspector.test.ts`
+Expected: exactly BB-TOUR-07, BB-RUN-12 and BB-INSP-08 fail. The first two read `.code-line.changed`; BB-INSP-08 looks for the empty-scene underlines (`.has-annot`) that this task retires.
 
-The suite must be green before this commit, so make two test edits now:
-- In BB-RUN-12, change `'.code-line.changed'` to `'.code-line.is-fired'`. It passes here, because `firedLines` is already wired.
+The suite must be green before this commit, so make three test edits now:
+- In BB-RUN-12, read the fired lines' code text. Line numbers now sit inside `.code-line`, so read `.code-line__text`:
+
+```ts
+    const changed = [...host.querySelectorAll('.code-line.is-fired .code-line__text')].map((el) => el.textContent?.trim());
+```
+
+  It passes here, because `firedLines` is already wired.
 - Mark BB-TOUR-07 `it.skip`, with the comment `// Rewritten with the value marks in the next commit.`
+- Replace BB-INSP-08 (keep its ID) with:
 
-Task 6 replaces BB-TOUR-07 and removes the skip.
+```ts
+describe('BB-INSP-08: An empty scene shows the program in every section', () => {
+  it('shows the generated lines outside Pipeline too, with no underlines', async () => {
+    useVamsStore.setState({ activeSection: 'Textures', objects: [] });
+    const host = mountEl(h(SceneCodePanel, {}));
+    try {
+      await settle();
+      expect(host.querySelectorAll('.code-line').length).toBeGreaterThan(0);
+      expect(host.querySelector('.has-annot')).toBeNull();
+    } finally {
+      unmountEl(host);
+    }
+  });
+});
+```
+
+Task 6 replaces BB-TOUR-07, removes the skip, and makes BB-INSP-08 check the folds.
 
 - [ ] **Step 8: Lint, build, test, commit**
 
 ```bash
 npm run lint && npm run build && npm test
 git checkout -- tests/reports
-git add src/shared/styles/_tokens.scss src/shared/ui/code-viewer/CodeViewer.tsx src/shared/ui/code-viewer/code-viewer.scss src/features/code-generation/ui/SceneCodePanel.tsx tests/black-box/code-panel.test.ts tests/black-box/first-visit-tour.test.ts tests/black-box/run-mode.test.ts
+git add src/shared/styles/_tokens.scss src/shared/ui/code-viewer/CodeViewer.tsx src/shared/ui/code-viewer/code-viewer.scss src/features/code-generation/ui/SceneCodePanel.tsx tests/black-box/code-panel.test.ts tests/black-box/first-visit-tour.test.ts tests/black-box/run-mode.test.ts tests/black-box/editor-inspector.test.ts
 git diff --staged
 git commit -m "feat(code): a calm code viewer with folds, value marks, outline-only Find and two syntax colours"
 ```
@@ -2306,15 +2347,21 @@ git commit -m "feat(code): a calm code viewer with folds, value marks, outline-o
 - Create: `src/features/code-generation/model/use-value-marks.ts`
 - Rewrite: `src/features/code-generation/ui/SceneCodePanel.tsx`
 - Delete: `src/features/code-generation/model/glut-annotations.ts`
+- Modify: `vitest.config.ts` (drop the deleted file from the coverage `exclude`)
 - Modify: `tests/black-box/code-panel.test.ts` (append)
+- Modify: `tests/white-box/code-structure.test.ts` (append WB-CODE-20)
 - Modify: `tests/black-box/first-visit-tour.test.ts` (BB-TOUR-07 checks value marks; remove the skip)
+- Modify: `tests/black-box/editor-inspector.test.ts` (BB-INSP-08 checks the folds)
 
 **Interfaces:**
 - Consumes: `outlineCode` (Task 2), `visibleRows` (Task 3), `diffChangedValues` (Task 4), `CodeViewer` (Task 5), and the store's `codeFoldsOpened` and `toggleCodeFold` (Task 1).
-- Produces: `export function useValueMarks(code: string, canvas: { width: number; height: number }, swapKey: string, selectionKey: string | null): { marks: CodeMark[]; key: number }`.
-  - The marks are the student's last edit: `diffChangedValues(previousCode, code)`.
-  - They clear when the selection changes with no code change.
-  - A canvas resize or a change of `swapKey` (a lesson starting or ending) clears them and marks nothing.
+- Produces, in `use-value-marks.ts`:
+  - `export interface MarkSnapshot { code: string; width: number; height: number; swapKey: string; selectionKey: string | null }`
+  - `export function nextMarks(prev: MarkSnapshot | null, next: MarkSnapshot): 'keep' | 'clear' | 'diff'`, the pure rule:
+    - `diff`: the student's edit; the marks become `diffChangedValues(prev.code, next.code)`.
+    - `clear`: a canvas resize or a change of `swapKey` (a lesson starting or ending) with a code change, or a new selection with no code change. The marks go and nothing is marked.
+    - `keep`: the first render, or nothing changed.
+  - `export function useValueMarks(code: string, canvas: { width: number; height: number }, swapKey: string, selectionKey: string | null): { marks: CodeMark[]; key: number }`, which applies `nextMarks` on every render.
 - Produces, for Task 14: `SceneCodePanel` holds `outline`, `selection` (the selected object's code name) and `rows`.
 
 Plan rulings for this task:
@@ -2361,7 +2408,6 @@ describe('BB-CODE-09: With a shape selected, its code is open and the rest of th
     expect(lineTexts(host)).toContain('void draw_Triangle()');
     expect(lineTexts(host).some((t) => t.startsWith('ObjectState state_Triangle'))).toBe(true);
     expect(foldLabels(host)).toEqual(expect.arrayContaining(['#include …', 'void draw_Square()', 'void draw_Dot()', 'void display()', 'int main()', '2 more objects']));
-    expect(host.querySelector('.code-focus, .code-change-badge, .code-annot-hint')).toBeNull();
     unmount(host);
   });
 });
@@ -2492,10 +2538,58 @@ describe('BB-TOUR-07: During the tour the code marks the value an edit changes',
 });
 ```
 
+Append to `tests/white-box/code-structure.test.ts`:
+
+```ts
+import { nextMarks, type MarkSnapshot } from '@/features/code-generation/model/use-value-marks';
+
+describe('WB-CODE-20: Only the student\'s own edit is marked', () => {
+  it('diffs an edit, and marks nothing for a canvas resize, a lesson starting or a new selection', () => {
+    const tri = addTriangle(0.3, -0.17, 0.5);
+    const at = (width: number, height: number) => {
+      const s = getState();
+      return generateCodeFromState(
+        { objects: s.objects, canvasBackgroundColor: s.canvasBackgroundColor, callbacks: s.callbacks, viewportLimits: s.viewportLimits, textures: s.getAllTextures() },
+        { width, height },
+      );
+    };
+    const before: MarkSnapshot = { code: at(800, 600), width: 800, height: 600, swapKey: 'Author:', selectionKey: null };
+    expect(nextMarks(null, before)).toBe('keep');
+    expect(nextMarks(before, { ...before })).toBe('keep');
+    // A resize changes glutInitWindowSize: a real difference, but not the student's edit.
+    const resized: MarkSnapshot = { ...before, code: at(900, 640), width: 900, height: 640 };
+    expect(diffChangedValues(before.code, resized.code).length).toBeGreaterThan(0);
+    expect(nextMarks(before, resized)).toBe('clear');
+    expect(nextMarks(before, { ...before, code: `${before.code}\n`, swapKey: 'Lesson:transforms-demo-1' })).toBe('clear');
+    expect(nextMarks(before, { ...before, selectionKey: tri.id })).toBe('clear');
+    getState().updateObjectTransform(tri.id, { translateX: 0.4 });
+    expect(nextMarks(before, { ...before, code: at(800, 600) })).toBe('diff');
+  });
+});
+```
+
+In `tests/black-box/editor-inspector.test.ts`, replace BB-INSP-08 (keep its ID) with:
+
+```ts
+describe('BB-INSP-08: An empty scene shows the folded program in every section', () => {
+  it('folds the boilerplate outside Pipeline too, with no underlines', async () => {
+    useVamsStore.setState({ activeSection: 'Textures', objects: [] });
+    const host = mountEl(h(SceneCodePanel, {}));
+    try {
+      await settle();
+      expect(host.querySelector('.code-fold')).not.toBeNull();
+      expect(host.querySelector('.has-annot')).toBeNull();
+    } finally {
+      unmountEl(host);
+    }
+  });
+});
+```
+
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `npx vitest run tests/black-box/code-panel.test.ts tests/black-box/first-visit-tour.test.ts`
-Expected: FAIL. The panel shows no folds (BB-CODE-09 to 15), and BB-TOUR-07 finds no `.code-value`.
+Run: `npx vitest run tests/black-box/code-panel.test.ts tests/black-box/first-visit-tour.test.ts tests/white-box/code-structure.test.ts tests/black-box/editor-inspector.test.ts`
+Expected: FAIL. The panel shows no folds (BB-CODE-09 to 15 and BB-INSP-08), BB-TOUR-07 finds no `.code-value`, and WB-CODE-20 cannot resolve `use-value-marks`.
 
 - [ ] **Step 3: Write the marks hook**
 
@@ -2506,7 +2600,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CodeMark } from '@/shared/ui/code-viewer/types';
 import { diffChangedValues } from './value-diff';
 
-interface Seen {
+export interface MarkSnapshot {
   code: string;
   width: number;
   height: number;
@@ -2515,10 +2609,19 @@ interface Seen {
 }
 
 /**
- * The values the student's last edit changed. A canvas resize (only glutInitWindowSize changes)
- * and a lesson starting or ending (`swapKey`) are not the student's edit: they clear the marks
- * and mark nothing. A new selection with no code change clears them too.
+ * What a new render does to the value marks. Only the student's own edit is marked (`diff`).
+ * A canvas resize (only glutInitWindowSize changes) and a lesson starting or ending (`swapKey`)
+ * are not the student's edit, and neither is a new selection with no code change: they `clear`
+ * the marks and mark nothing.
  */
+export function nextMarks(prev: MarkSnapshot | null, next: MarkSnapshot): 'keep' | 'clear' | 'diff' {
+  if (!prev) return 'keep';
+  if (prev.code === next.code) return prev.selectionKey === next.selectionKey ? 'keep' : 'clear';
+  if (prev.width !== next.width || prev.height !== next.height || prev.swapKey !== next.swapKey) return 'clear';
+  return 'diff';
+}
+
+/** The values the student's last edit changed. `key` changes with every new edit, so the fade restarts. */
 export function useValueMarks(
   code: string,
   canvas: { width: number; height: number },
@@ -2526,28 +2629,25 @@ export function useValueMarks(
   selectionKey: string | null,
 ): { marks: CodeMark[]; key: number } {
   const [state, setState] = useState<{ marks: CodeMark[]; key: number }>({ marks: [], key: 0 });
-  const last = useRef<Seen | null>(null);
+  const last = useRef<MarkSnapshot | null>(null);
   useEffect(() => {
     const prev = last.current;
-    last.current = { code, width: canvas.width, height: canvas.height, swapKey, selectionKey };
-    if (!prev) return;
-    const clear = () => setState((s) => (s.marks.length === 0 ? s : { marks: [], key: s.key }));
-    if (prev.code === code) {
-      if (prev.selectionKey !== selectionKey) clear();
-      return;
+    const next: MarkSnapshot = { code, width: canvas.width, height: canvas.height, swapKey, selectionKey };
+    last.current = next;
+    const step = nextMarks(prev, next);
+    if (step === 'clear') {
+      // A render that is not the student's edit drops the marks.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setState((s) => (s.marks.length === 0 ? s : { marks: [], key: s.key }));
+    } else if (step === 'diff' && prev) {
+      setState((s) => ({ marks: diffChangedValues(prev.code, code), key: s.key + 1 }));
     }
-    if (prev.width !== canvas.width || prev.height !== canvas.height || prev.swapKey !== swapKey) {
-      clear();
-      return;
-    }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState((s) => ({ marks: diffChangedValues(prev.code, code), key: s.key + 1 }));
   }, [code, canvas.width, canvas.height, swapKey, selectionKey]);
   return state;
 }
 ```
 
-If lint flags the `clear()` calls with `react-hooks/set-state-in-effect`, add the same disable comment above each flagged line. That is the pattern the old tour flash used.
+Lint's `react-hooks/set-state-in-effect` flags the first `setState` in the effect, so that line alone carries the disable comment, the pattern the old tour flash used. Add no other directive: an unused one is a lint warning.
 
 - [ ] **Step 4: Compose the panel**
 
@@ -2648,9 +2748,11 @@ git rm src/features/code-generation/model/glut-annotations.ts
 
 Folding hides every line those hover cards described. The explanation strip (Task 14) covers them.
 
+In `vitest.config.ts`, delete the line `'src/features/code-generation/model/glut-annotations.ts',` from `coverage.exclude`, and drop "GLUT annotation tables" from the comment above the list.
+
 - [ ] **Step 6: Run the tests to verify they pass**
 
-Run: `npx vitest run tests/black-box/code-panel.test.ts tests/black-box/first-visit-tour.test.ts tests/black-box/run-mode.test.ts tests/black-box/editor-shell.test.ts tests/black-box/lesson-column.test.ts`
+Run: `npx vitest run tests/black-box/code-panel.test.ts tests/white-box/code-structure.test.ts tests/black-box/first-visit-tour.test.ts tests/black-box/run-mode.test.ts tests/black-box/editor-shell.test.ts tests/black-box/editor-inspector.test.ts tests/black-box/lesson-column.test.ts`
 Expected: PASS.
 
 - [ ] **Step 7: Check it in the browser**
@@ -2667,7 +2769,7 @@ Expected: PASS.
 ```bash
 npm run lint && npm run build && npm test
 git checkout -- tests/reports
-git add src/features/code-generation/model/use-value-marks.ts src/features/code-generation/ui/SceneCodePanel.tsx tests/black-box/code-panel.test.ts tests/black-box/first-visit-tour.test.ts
+git add src/features/code-generation/model/use-value-marks.ts src/features/code-generation/ui/SceneCodePanel.tsx vitest.config.ts tests/black-box/code-panel.test.ts tests/white-box/code-structure.test.ts tests/black-box/first-visit-tour.test.ts tests/black-box/editor-inspector.test.ts
 git diff --staged
 git commit -m "feat(code): fold the code to the selected object and mark only the value that changed"
 ```
@@ -2719,8 +2821,13 @@ const MOCK_OBJECTS = [
   shape('dot', 'Dot', 'POINTS', [vertex('dot-v0', 0, 0, '#ffffff')], { translateX: 0.6, translateY: 0.6 }),
 ];
 
-/** Opens the editor on the mocks' scene with Triangle selected and its Translate X just changed to 0.40. */
+/**
+ * Opens the editor on the mocks' scene with Triangle selected and its Translate X just changed to 0.40.
+ * Reduced motion makes the changed value's wash hold still for its 2 s instead of fading, so a
+ * stable screenshot still shows the mark.
+ */
 export async function openMockScene(page: Page, theme: Theme) {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.addInitScript(
     ({ t, css, objects }) => {
       window.localStorage.setItem('vams-theme', t);
@@ -2752,14 +2859,14 @@ export async function openMockScene(page: Page, theme: Theme) {
 for (const theme of ['dark', 'light'] as const) {
   test(`VIS-CM-01: Code pane, Triangle selected and X just changed, ${theme}, 1280`, async ({ page }) => {
     await openMockScene(page, theme);
-    // Taken inside the 2 s the changed value's wash holds, so the mark shows.
+    // Reduced motion holds the wash still for 2 s, so the stable screenshot is taken while the mark shows.
     await expect(page.locator('.code-math-column')).toHaveScreenshot(`cm-code-${theme}-1280.png`, { animations: 'allow' });
     await expect(page).toHaveScreenshot(`cm-editor-code-${theme}-1280.png`, { animations: 'allow' });
   });
 }
 ```
 
-If Enter does not commit Translate X, use `press('Tab')`. Confirm that the screenshot shows `0.4000f` in amber.
+If Enter does not commit Translate X, use `press('Tab')`. Confirm that the screenshot shows `0.4000f` in amber on its wash. `toHaveScreenshot` waits for two identical frames; without reduced motion the 2 s fade would end before they match, and the capture would show no wash.
 
 - [ ] **Step 2: Take the real screenshots**
 
@@ -2809,15 +2916,19 @@ Run: `node .superpowers/checkpoints/shoot-mocks.mjs`
    - two syntax colours;
    - quiet line numbers;
    - the plain-word header.
+   In the same message, name the plan rulings that depart from the spec's wording, so the owner can overturn them before they are built on: P2 (the tour's Understand step sets the stage), P4 (light `--value` `#8a4f00`), P13 ("Open ‹control›" outlines the control's group), P14 (the matrix stack is a Transformed picture), P22 (sentence-case labels instead of the mocks' small caps), and two uses of the accent colours beyond spec §1's list: the strip's values in amber (Task 14) and the Assembled sketch's held primitives in cobalt (Task 18).
 4. Record the answer in the ledger.
 5. If the owner asks for changes, make them as a fix round on Tasks 5–6 (with tests where behaviour changes). Retake and re-show the screenshots before Task 8.
 
 - [ ] **Step 5: Commit the visual spec**
 
-1. In `tests/README.md`'s layout block, add under `about.spec.ts`:
+1. In `tests/README.md`'s layout block, `about.spec.ts` is the visual suite's last entry. Make it a middle entry and add the new file last:
+   - Change `│   └── about.spec.ts` to `│   ├── about.spec.ts`.
+   - Change its continuation line, `│                                            1280 and 390, citation tabs)`, to `│   │                                        1280 and 390, citation tabs)`.
+   - Add after it:
 
    ```
-   │   ├── code-math.spec.ts                 (VIS-CM-*: the code panel and the math journey in the approved mocks' scene)
+   │   └── code-math.spec.ts                 (VIS-CM-*: the code panel and the math journey in the approved mocks' scene)
    ```
 
 2. Commit:
@@ -2851,6 +2962,7 @@ Run: `node .superpowers/checkpoints/shoot-mocks.mjs`
 ```ts
 export type JourneyStageId = 'stored' | 'transformed' | 'projected' | 'assembled' | 'rasterised' | 'coloured';
 export const JOURNEY_STAGES: readonly JourneyStageId[];   // pipeline order
+export const JOURNEY_STAGE_TITLES: Record<JourneyStageId, string>;   // 'Stored', 'Transformed', …
 export function stageForSection(section: CurriculumSection): JourneyStageId;
 export function stageForPlace(place: FocusPlace): JourneyStageId | null;   // null: use the section's stage
 export function stageForGroup(group: InspectorGroupId): JourneyStageId | null;
@@ -2863,7 +2975,7 @@ export function journeyStageFor(s: JourneyContext): JourneyStageId;
   - The override is cleared wherever `mathTabOverride` is cleared today: opening a group, a lesson's focus step, a section change and leaving a lesson.
   - `mathTabOverride` stays until Task 10 removes the tabs.
 - Produces: `LessonStep.mathStage?: JourneyStageId`. The runner sets the override to `step.mathStage ?? null` after it applies the step's focus.
-- Produces: the tour's Understand step (index 3) opens with `journeyStageOverride: 'transformed'`.
+- Produces: the tour's Understand step (index 3) opens with `journeyStageOverride: 'transformed'`, and `endTour` clears the override, so the stage the tour chose does not outlive it.
 
 Plan ruling, the tour: the spec (§5) says the tour needs no change, because "the context opens Transformed". The Transform group is open by default, so changing X opens no group, `lastOpenedGroup` stays null, and the context is the course section (Pipeline for a new visitor), which opens Rasterised. Step 4's caption promises "the matrix your X just changed", so the Understand step sets the override itself. The cost is one field in `enterStep`.
 
@@ -2996,7 +3108,7 @@ describe('BB-JOURNEY-03: A lesson step can name its stage', () => {
 });
 
 describe('BB-JOURNEY-04: The tour\'s Understand step opens Transformed', () => {
-  it('sets the stage when the step opens, whatever the course section', () => {
+  it('sets the stage when the step opens, whatever the course section, and clears it when the tour ends', () => {
     useVamsStore.setState({ activeSection: 'Pipeline' });
     getState().startTour();
     getState().nextTourStep();
@@ -3006,6 +3118,7 @@ describe('BB-JOURNEY-04: The tour\'s Understand step opens Transformed', () => {
     expect(getState().tourStep).toBe(3);
     expect(journeyStageFor(getState())).toBe('transformed');
     getState().endTour();
+    expect(getState().journeyStageOverride).toBeNull();
   });
 });
 ```
@@ -3028,6 +3141,16 @@ import { resolveFocus, type FocusPlace } from './focus-map';
 export type JourneyStageId = 'stored' | 'transformed' | 'projected' | 'assembled' | 'rasterised' | 'coloured';
 
 export const JOURNEY_STAGES: readonly JourneyStageId[] = ['stored', 'transformed', 'projected', 'assembled', 'rasterised', 'coloured'];
+
+/** Each stage's name, for the journey and for the code panel's "See the math" link. */
+export const JOURNEY_STAGE_TITLES: Record<JourneyStageId, string> = {
+  stored: 'Stored',
+  transformed: 'Transformed',
+  projected: 'Projected',
+  assembled: 'Assembled',
+  rasterised: 'Rasterised',
+  coloured: 'Coloured',
+};
 
 const SECTION_STAGE: Record<CurriculumSection, JourneyStageId> = {
   Pipeline: 'rasterised',
@@ -3152,6 +3275,8 @@ In `src/core/store/tour-slice.ts`:
   if (index === UNDERSTAND) return { tourStep: index, tourStepBaseline: baseline, journeyStageOverride: 'transformed' };
 ```
 
+3. In `endTour`, add `journeyStageOverride: null,` to the object it passes to `set`, after `railBeforeTour: null,`. The stage the tour chose ends with the tour.
+
 - [ ] **Step 7: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/black-box/math-journey.test.ts tests/black-box/first-visit-tour.test.ts tests/black-box/lesson-column.test.ts tests/black-box/editor-inspector.test.ts`
@@ -3172,14 +3297,15 @@ git commit -m "feat(math): open the journey stage that matches what the student 
 ### Task 9: The vertex journey model
 
 **Files:**
-- Create: `src/shared/lib/format-number.ts` (`fmt`, `short`: the journey and the code explanations both format numbers this way)
+- Create: `src/shared/lib/format-number.ts` (`fmt`, `short`, `int`: the journey and the code explanations both format numbers this way)
+- Create: `src/shared/lib/text-raster.ts` (`TEXT_LINE_HEIGHT`, `firstRasterY`: where text's first line starts; the journey and, in Task 15, the canvas ring both need it)
 - Create: `src/entities/scene/model/primitive-assembly.ts` (`assemblyFor`, `provokingVertex`: how each primitive type groups vertices, used by the journey and the code notes)
 - Create: `src/features/math-panel/model/vertex-journey.ts`
 - Modify: `tests/helpers/matrix.ts` (add `orthoToNdc` and `ndcToWindow`; independent of `src`)
 - Create: `tests/white-box/vertex-journey.test.ts`
 
 **Interfaces:**
-- Consumes: `JourneyStageId` and `JOURNEY_STAGES` from `@/core/inspector`.
+- Consumes: `JourneyStageId`, `JOURNEY_STAGES` and `JOURNEY_STAGE_TITLES` from `@/core/inspector` (Task 8). `STAGE_INFO` reads its titles from `JOURNEY_STAGE_TITLES`, so the names live in one place.
 - Produces:
 
 ```ts
@@ -3216,7 +3342,17 @@ export function provokingVertex(type: PrimitiveType, index: number, count: numbe
 ```ts
 export function fmt(n: number): string;      // two decimals, true minus, no −0.00
 export function short(n: number): string;    // up to two decimals: 1, 1.6, 0.85
+export function int(n: number): string;      // a whole number, true minus: −12
 ```
+
+- Produces, in `@/shared/lib/text-raster`:
+
+```ts
+export const TEXT_LINE_HEIGHT: number;            // 0.07, as generator/render.ts writes it
+export function firstRasterY(text: string): number;   // the first line's glRasterPos2f y
+```
+
+- `provokingVertex` follows OpenGL: a polygon's first vertex, a quad strip quad's highest-numbered vertex (2i + 2, counting from 1), otherwise the primitive's last.
 
 What this task computes:
 - **Results for every stage**, which the closed rows show.
@@ -3259,9 +3395,9 @@ Create `tests/white-box/vertex-journey.test.ts`:
 import { describe, it, expect } from 'vitest';
 import { vertexJourney, type JourneyScene } from '@/features/math-panel/model/vertex-journey';
 import { assemblyFor, provokingVertex } from '@/entities/scene/model/primitive-assembly';
-import { fmt, short } from '@/shared/lib/format-number';
+import { fmt, int, short } from '@/shared/lib/format-number';
 import type { PrimitiveType, SceneNode, TransformState } from '@/core/types/scene';
-import { makeMatrix, multiply, transformPoint, orthoToNdc, ndcToWindow, IDENTITY } from '../helpers/matrix';
+import { makeMatrix, multiply, transformPoint, orthoToNdc, ndcToWindow } from '../helpers/matrix';
 
 const T = (t: Partial<TransformState> = {}): TransformState => ({ translateX: 0, translateY: 0, rotate: 0, scaleX: 1, scaleY: 1, ...t });
 function node(id: string, type: SceneNode['type'], points: [number, number][], transform: Partial<TransformState> = {}, extra: Partial<SceneNode> = {}): SceneNode {
@@ -3327,7 +3463,6 @@ describe('WB-JOURNEY-02: Enclosing groups apply after the object, innermost firs
     expect(stage(j, 'transformed').point!.y).toBeCloseTo(world.y, 10);
     const steps = stage(j, 'transformed').rows.map((r) => (typeof r.step[0] === 'string' ? r.step[0] : ''));
     expect(steps).toEqual(['from Stored', 'scale ', 'rotate ', 'move ', 'Inner: scale ', 'Inner: rotate ', 'Inner: move ', 'Outer: scale ', 'Outer: rotate ', 'Outer: move ']);
-    void IDENTITY;
   });
 });
 
@@ -3370,12 +3505,15 @@ describe('WB-JOURNEY-04: Every primitive type assembles by its own rule', () => 
 });
 
 describe('WB-JOURNEY-05: Flat shading takes the provoking vertex\'s colour', () => {
-  it('uses the last vertex of the primitive, or the first for a polygon', () => {
+  it('uses the last vertex of the primitive, the first for a polygon, and the highest for a quad strip', () => {
     expect(provokingVertex('TRIANGLES', 0, 6)).toBe(2);
     expect(provokingVertex('TRIANGLES', 4, 6)).toBe(5);
     expect(provokingVertex('TRIANGLE_STRIP', 0, 4)).toBe(2);
     expect(provokingVertex('QUADS', 1, 4)).toBe(3);
     expect(provokingVertex('POLYGON', 3, 5)).toBe(0);
+    // OpenGL: quad strip quad i takes vertex 2i + 2 (from 1), though the quad is drawn 2j, 2j+1, 2j+3, 2j+2.
+    expect(provokingVertex('QUAD_STRIP', 0, 6)).toBe(3);
+    expect(provokingVertex('QUAD_STRIP', 4, 6)).toBe(5);
     const tri = mockTriangle();
     const flat = { ...tri, shading: 'FLAT' as const };
     expect(stage(vertexJourney(scene([flat]), 'Triangle', 0, CANVAS), 'coloured').result).toBe('rgb(0.3, 0.9, 0.5)');
@@ -3434,6 +3572,11 @@ describe('WB-JOURNEY-09: Numbers read like the mock', () => {
     expect(short(1)).toBe('1');
     expect(short(1.6)).toBe('1.6');
     expect(short(-0.85)).toBe('−0.85');
+    expect(int(-12)).toBe('−12');
+    expect(int(0)).toBe('0');
+    // A vertex left of and below the window: its pixel is negative, with a true minus sign.
+    const left = vertexJourney(scene([node('Left', 'TRIANGLES', [[-3, -2], [-2.5, -2], [-3, -1.5]])]), 'Left', 0, CANVAS);
+    expect(stage(left, 'rasterised').result).toBe('pixel (−586, −250)');
     const j = vertexJourney(scene([mockTriangle()]), 'Triangle', 1, CANVAS);
     // Every string a student reads: sentences, results and the working.
     const text = JSON.stringify(j.stages.map((s) => [s.sentence, s.result, s.rows]));
@@ -3467,6 +3610,23 @@ export function fmt(n: number): string {
 /** As few decimals as the number needs, up to two: 1, 1.6, 0.85. */
 export function short(n: number): string {
   return minus(String(Number(zeroed(n).toFixed(2))));
+}
+
+/** A whole number with a true minus sign, such as a pixel left of the window: −12. */
+export function int(n: number): string {
+  return minus(String(Math.round(n) || 0));
+}
+```
+
+Create `src/shared/lib/text-raster.ts`:
+
+```ts
+/** Generated text draws each line at its own glRasterPos2f, this far apart, centred on the text's origin (generator/render.ts). */
+export const TEXT_LINE_HEIGHT = 0.07;
+
+/** The y of the first line's raster position, in the text's own coordinates: the highest line. */
+export function firstRasterY(text: string): number {
+  return ((text.split('\n').length - 1) / 2) * TEXT_LINE_HEIGHT;
 }
 ```
 
@@ -3553,11 +3713,17 @@ export function assemblyFor(type: PrimitiveType, index: number, count: number): 
   return { result: `${r.plural} ${numbers}`, sentence: `${capitalised}; this vertex is in ${r.plural} ${numbers}.`, note: r.note, primitives, members };
 }
 
-/** The vertex whose colour a flat-shaded primitive takes: its last, or a polygon's first. */
+/**
+ * The vertex whose colour a flat-shaded primitive takes, as OpenGL picks it: a polygon's first,
+ * a quad strip quad's highest-numbered (2i + 2, counting from 1), otherwise the primitive's last.
+ */
 export function provokingVertex(type: PrimitiveType, index: number, count: number): number {
   const members = assemblyFor(type, index, count).members[0];
   if (!members) return index;
-  return type === 'POLYGON' ? members[0] : members[members.length - 1];
+  if (type === 'POLYGON') return members[0];
+  // A quad strip's members are listed in drawing order (2j, 2j+1, 2j+3, 2j+2); OpenGL uses 2j+3.
+  if (type === 'QUAD_STRIP') return Math.max(...members);
+  return members[members.length - 1];
 }
 ```
 
@@ -3565,11 +3731,12 @@ Create `src/features/math-panel/model/vertex-journey.ts`:
 
 ```ts
 import type { CurriculumSection } from '@/core/store/types';
-import { JOURNEY_STAGES, type JourneyStageId } from '@/core/inspector/journey-stage';
+import { JOURNEY_STAGES, JOURNEY_STAGE_TITLES, type JourneyStageId } from '@/core/inspector/journey-stage';
 import type { PrimitiveType, SceneNode, TransformState, ViewportLimits } from '@/core/types/scene';
 import type { TextureAsset, TextureWrap, UV } from '@/core/types/textures';
 import { assemblyFor, provokingVertex } from '@/entities/scene/model/primitive-assembly';
-import { fmt, short } from '@/shared/lib/format-number';
+import { fmt, int, short } from '@/shared/lib/format-number';
+import { firstRasterY } from '@/shared/lib/text-raster';
 
 export interface Point {
   x: number;
@@ -3622,12 +3789,12 @@ export interface CanvasSize {
 }
 
 export const STAGE_INFO: Record<JourneyStageId, { title: string; section: CurriculumSection; description: string }> = {
-  stored: { title: 'Stored', section: 'Buffers', description: 'Where a vertex is kept before drawing.' },
-  transformed: { title: 'Transformed', section: 'Transforms', description: 'Moved, turned and scaled into place.' },
-  projected: { title: 'Projected', section: 'Transforms', description: 'Fitted into the −1 to 1 box.' },
-  assembled: { title: 'Assembled', section: 'Primitives', description: 'Joined into points, lines or shapes.' },
-  rasterised: { title: 'Rasterised', section: 'Pipeline', description: 'Turned into pixels in the window.' },
-  coloured: { title: 'Coloured', section: 'Primitives', description: 'Given its final colour.' },
+  stored: { title: JOURNEY_STAGE_TITLES.stored, section: 'Buffers', description: 'Where a vertex is kept before drawing.' },
+  transformed: { title: JOURNEY_STAGE_TITLES.transformed, section: 'Transforms', description: 'Moved, turned and scaled into place.' },
+  projected: { title: JOURNEY_STAGE_TITLES.projected, section: 'Transforms', description: 'Fitted into the −1 to 1 box.' },
+  assembled: { title: JOURNEY_STAGE_TITLES.assembled, section: 'Primitives', description: 'Joined into points, lines or shapes.' },
+  rasterised: { title: JOURNEY_STAGE_TITLES.rasterised, section: 'Pipeline', description: 'Turned into pixels in the window.' },
+  coloured: { title: JOURNEY_STAGE_TITLES.coloured, section: 'Primitives', description: 'Given its final colour.' },
 };
 
 const TRANSFORMED = 'Scale, rotate and move act on the vertex in the reverse of the order they appear in the code.';
@@ -3645,6 +3812,8 @@ const STORED_BY_MODE = {
   VERTEX_ARRAY: 'Your vertex sits in a C array in the program’s memory; the draw call reads it from there.',
   VBO: 'Your vertex was copied to a buffer on the GPU once, in init(); drawing reads it from there.',
 } as const;
+/** DYNAMIC and STREAM buffers: update_buffers() sends the data again every frame. */
+const VBO_REFRESHED = 'Your vertex was copied to a buffer on the GPU in init(), and update_buffers() copies it again every frame; drawing reads it from there.';
 
 const pair = (p: Point) => `(${fmt(p.x)}, ${fmt(p.y)})`;
 
@@ -3747,27 +3916,27 @@ function shapeJourney(node: SceneNode, scene: JourneyScene, vertexIndex: number,
   const ndc = ndcOf(world, scene.viewportLimits);
   const pixel = pixelOf(ndc, canvas);
   const mode = node.renderingMode ?? 'IMMEDIATE';
+  const storedSentence = mode === 'VBO' && (node.bufferUsage ?? 'STATIC') !== 'STATIC' ? VBO_REFRESHED : STORED_BY_MODE[mode];
   const assembly = assemblyFor(node.type as PrimitiveType, i, count);
   return {
     subject: { kind: 'shape', name: node.name, vertex: i, count },
     stages: [
-      stage('stored', STORED_BY_MODE[mode], [], pair(stored), stored),
+      stage('stored', storedSentence, [], pair(stored), stored),
       stage('transformed', TRANSFORMED, [
         { step: ['from Stored'], value: pair(stored), call: mode === 'IMMEDIATE' ? 'glVertex2f' : 'glVertexPointer', from: true },
         ...moves,
       ], pair(world), world),
       stage('projected', PROJECTED, projectedRows(world, ndc, scene.viewportLimits), `NDC ${pair(ndc)}`, ndc),
       stage('assembled', assembly.sentence, [], assembly.result, null),
-      stage('rasterised', RASTERISED, [], `pixel (${pixel.x}, ${pixel.y})`, pixel),
+      stage('rasterised', RASTERISED, [], `pixel (${int(pixel.x)}, ${int(pixel.y)})`, pixel),
       colouredStage(node, i, scene),
     ],
   };
 }
 
 function textJourney(node: SceneNode, scene: JourneyScene, canvas: CanvasSize): VertexJourney {
-  // generator/render.ts centres the lines around the origin, 0.07 apart; the first line starts highest.
-  const lines = (node.textContent ?? '').split('\n').length;
-  const raster = { x: 0, y: ((lines - 1) / 2) * 0.07 };
+  // generator/render.ts centres the lines around the origin; the first line starts highest.
+  const raster = { x: 0, y: firstRasterY(node.textContent ?? '') };
   const { rows: moves, end: world } = transformRows(raster, chainOf(node, scene.objects));
   const ndc = ndcOf(world, scene.viewportLimits);
   const pixel = pixelOf(ndc, canvas);
@@ -3778,7 +3947,7 @@ function textJourney(node: SceneNode, scene: JourneyScene, canvas: CanvasSize): 
       stage('transformed', TRANSFORMED, [{ step: ['from Stored'], value: pair(raster), call: 'glRasterPos2f', from: true }, ...moves], pair(world), world),
       stage('projected', PROJECTED, projectedRows(world, ndc, scene.viewportLimits), `NDC ${pair(ndc)}`, ndc),
       stage('assembled', TEXT_ASSEMBLED, [], 'bitmap text', null),
-      stage('rasterised', RASTERISED, [], `pixel (${pixel.x}, ${pixel.y})`, pixel),
+      stage('rasterised', RASTERISED, [], `pixel (${int(pixel.x)}, ${int(pixel.y)})`, pixel),
       stage('coloured', 'The text takes the colour set by glColor3f just before it.', [], rgbText(rgbOf(node.vertices[0]?.color ?? '#ffffff')), null),
     ],
   };
@@ -3821,7 +3990,7 @@ If an expected string in WB-JOURNEY-04 or 05 differs, first check the case again
 ```bash
 npm run lint && npm run build && npm test
 git checkout -- tests/reports
-git add src/shared/lib/format-number.ts src/entities/scene/model/primitive-assembly.ts src/features/math-panel/model/vertex-journey.ts tests/helpers/matrix.ts tests/white-box/vertex-journey.test.ts
+git add src/shared/lib/format-number.ts src/shared/lib/text-raster.ts src/entities/scene/model/primitive-assembly.ts src/features/math-panel/model/vertex-journey.ts tests/helpers/matrix.ts tests/white-box/vertex-journey.test.ts
 git diff --staged
 git commit -m "feat(math): compute the six-stage journey of one vertex with the student's numbers"
 ```
@@ -3831,7 +4000,7 @@ git commit -m "feat(math): compute the six-stage journey of one vertex with the 
 ### Task 10: The journey panel
 
 **Files:**
-- Move: `src/features/code-generation/model/useCanvasSize.ts` → `src/shared/lib/use-canvas-size.ts`. Update its two importers: `SceneCodePanel.tsx` and `useLessonRunner.ts`.
+- Move: `src/features/code-generation/model/useCanvasSize.ts` → `src/shared/lib/use-canvas-size.ts`. Update its two importers, `SceneCodePanel.tsx` and `useLessonRunner.ts`, and its path in `vitest.config.ts`'s coverage `exclude`.
 - Rewrite: `src/features/math-panel/ui/MathPanel.tsx`
 - Create:
   - `src/features/math-panel/ui/journey/JourneyFollow.tsx`
@@ -3846,15 +4015,14 @@ git commit -m "feat(math): compute the six-stage journey of one vertex with the 
   - `src/features/math-panel/ui/_math-layout.scss`: give the header the code panel's 36 px look and drop its sunken fill and top rule.
 - Remove the tabs' state:
   - `mathTabOverride` and `setMathTabOverride`, from `src/core/store/types.ts`, `runtime-slice.ts` and `lesson-slice.ts`;
-  - `mathTabFor`, from `src/core/inspector/context-section.ts`;
-  - `mathTabOverride`, from `tests/setup.ts` if Task 1 added it there.
+  - `mathTabFor`, from `src/core/inspector/context-section.ts`.
 - Modify tests:
   - `tests/black-box/editor-inspector.test.ts`: BB-INSP-03, 04 and 06, and the `afterEach`.
   - `tests/black-box/lesson-column.test.ts`: the `mathTabFor` import and its one use.
   - `tests/black-box/math-journey.test.ts`: append.
 
 **Interfaces:**
-- Consumes: `vertexJourney` and `STAGE_INFO` (Task 9), `fmt` from `@/shared/lib/format-number` (Task 9); `journeyStageFor` and `JOURNEY_STAGES` (Task 8); the store's `journeyVertex`, `setJourneyVertex` (Task 1) and `setJourneyStageOverride` (Task 8).
+- Consumes: `vertexJourney` and its row types (Task 9), `fmt` and `short` from `@/shared/lib/format-number` (Task 9); `journeyStageFor` and `JOURNEY_STAGES` (Task 8); the store's `journeyVertex`, `setJourneyVertex` (Task 1) and `setJourneyStageOverride` (Task 8).
 - Produces: the default export `MathPanel({ headerLead, headerTrail, contentInert })`, the same props as today, so `CodeMathColumn` does not change.
 - Produces these DOM hooks:
   - `.journey`, with `inert` during Run
@@ -3879,15 +4047,15 @@ The look is the mock `journey-h2-v3`. Mapped values:
 | Heading / chip | 16 px; chip 11 px `--dim`, 1 px `--rule2`, radius 10, padding 0 7 | `--text-md`; chip `--text-xs` `--ink-dim`, radius 10 px |
 | Sentence | 12.5 px `--muted`, 1.5, margin 4 0 10; code mono `--accent-text` | `--text-sm`; `--code-fn` |
 | Working well | `--sunken`, 1 px `--rule`, radius 4, mono 12 px; columns 118 px, 1fr, auto, gap 8, padding 0 10 | `--paper-sunken`, `--radius-s`, `--text-sm` mono; the first column at least 118 px |
-| Heads | 24 px, 10 px UI caps .06 em `--dim`, rule under | 24 px, `--text-xs` caps .06 em `--ink-dim` |
+| Heads | 24 px, 10 px UI caps .06 em `--dim`, rule under | 24 px, `--text-xs` 600 sentence case `--ink-dim` (P22) |
 | Rows | 27 px; step `--muted`, inputs `--amber`, code 11 px `--accent-text`; from-row step `--dim` | 27 px; `--ink-muted`, `--value`, `--text-xs` `--code-fn`; `--ink-dim` |
 | Result | rule-strong above, 30 px; step UI 12.5 px 600 `--ink`; value 600 `--amber` | `--text-sm` 600 `--ink`; 600 `--value` |
-| Picture label | 10 px UI caps .06 em `--dim`, 6 px below | `--text-xs` caps `--ink-dim` |
+| Picture label | 10 px UI caps .06 em `--dim`, 6 px below | `--text-xs` 600 sentence case `--ink-dim` (P22) |
 | Footer | rule above, padding 8 14 8 36 bleeding to the stage edge, 12.5 px; links `--accent-text`; "more" 12 px `--faint` | same; `--text-sm`; `--accent-text`; `--ink-faint` |
 
 Plan rulings for this task:
 - **Matrix stack.** For an object inside a group, the matrix stack shows among Transformed's pictures, not behind "deeper detail". The Transforms lesson's matrix-stack step names it, and the Transformed rows already walk those groups. Deeper detail keeps the full 4×4 and the T · R · S trace.
-- **Picture boxes.** Today's cards keep their content. In the journey they lose their raised-box frame, and their `h4` titles take the mock's picture-label style, because the open stage is already `--paper-raised`.
+- **Picture boxes.** Today's cards keep their content. In the journey they lose their raised-box frame, and their `h4` titles take the picture-label style, because the open stage is already `--paper-raised`. Their styles are scoped to the old tabs' wrappers (all of `_transforms-math.scss` sits inside `.transforms-math`), so each stage puts its cards in that wrapper: `.transforms-math` for Transformed and Projected, `.primitives-math` for Assembled and Coloured.
 - **Canvas size.** `useCanvasSize` moves to `shared/lib`, so the math panel does not import from `features/code-generation`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -4001,6 +4169,8 @@ describe('BB-JOURNEY-08: The stepper follows another vertex, and a removed verte
     expect(vertexText()).toBe('vertex 2 of 3');
     expect(getState().journeyVertex).toBe(1);
     (host.querySelector('button[aria-label="Previous vertex"]') as HTMLButtonElement).click();
+    // Each click acts on the vertex the panel last rendered, so let it render between clicks.
+    await settle();
     (host.querySelector('button[aria-label="Previous vertex"]') as HTMLButtonElement).click();
     await settle();
     expect(vertexText()).toBe('vertex 3 of 3');
@@ -4114,7 +4284,7 @@ Expected: FAIL. There is no `.journey-track`, and the tab list is still there.
 git mv src/features/code-generation/model/useCanvasSize.ts src/shared/lib/use-canvas-size.ts
 ```
 
-Change the two imports to `import { useCanvasSize } from '@/shared/lib/use-canvas-size';`.
+Change the two imports to `import { useCanvasSize } from '@/shared/lib/use-canvas-size';`. In `vitest.config.ts`, change `'src/features/code-generation/model/useCanvasSize.ts',` in `coverage.exclude` to `'src/shared/lib/use-canvas-size.ts',`.
 
 - [ ] **Step 4: Export the cards**
 
@@ -4205,7 +4375,7 @@ import PipelineMathContent from '../PipelineMathContent';
 import TexturesMathContent from '../TexturesMathContent';
 import { BarycentricMixer, ColorConversion, isLine, PrimitivesSection, StippleBits, VertexTable } from '../PrimitivesMathContent';
 import { buildMatrix4, getAncestorChain, Matrix4, MatrixStack, OrthoMapping, TransformsSection, TRSCompositionTrace } from '../TransformsMathContent';
-import { fmt } from '@/shared/lib/format-number';
+import { fmt, short } from '@/shared/lib/format-number';
 import type { JourneyStage, Point } from '../../model/vertex-journey';
 
 /** A labelled picture under the working. */
@@ -4295,8 +4465,9 @@ export function StagePictures({ stage, node, deeper, world }: PicturesProps) {
     case 'transformed': {
       if (!node) return null;
       const chain = getAncestorChain(node.id, objects);
+      // The Transforms cards' styles live under .transforms-math (_transforms-math.scss).
       return (
-        <>
+        <div className="transforms-math">
           <MatrixPicture node={node} />
           {chain.length > 1 && (
             <Picture label="Matrix stack">
@@ -4309,24 +4480,24 @@ export function StagePictures({ stage, node, deeper, world }: PicturesProps) {
               <Matrix4 m={buildMatrix4(node.transform)} />
             </TransformsSection>
           )}
-        </>
+        </div>
       );
     }
     case 'projected':
       return (
-        <>
+        <div className="transforms-math">
           {world && stage.point && <OrthoFormula world={world} limits={limits} ndc={stage.point} />}
           {(deeper || !node) && (
             <TransformsSection title="glOrtho — Viewing Volume">
               <OrthoMapping limits={limits} />
             </TransformsSection>
           )}
-        </>
+        </div>
       );
     case 'assembled':
       if (!shape) return null;
       return (
-        <>
+        <div className="primitives-math">
           <PrimitivesSection title="Vertices">
             <VertexTable vertices={shape.vertices} />
           </PrimitivesSection>
@@ -4335,10 +4506,13 @@ export function StagePictures({ stage, node, deeper, world }: PicturesProps) {
               <StippleBits pattern={shape.lineStipple.pattern} factor={shape.lineStipple.factor} />
             </PrimitivesSection>
           )}
+          {isLine(shape.type) && (
+            <p className="journey-picture__caption">Each line is drawn {short(shape.lineWidth ?? 1)} pixels wide, set by glLineWidth.</p>
+          )}
           {shape.type === 'POINTS' && (
             <p className="journey-picture__caption">Each point is drawn 8 pixels wide, set by glPointSize.</p>
           )}
-        </>
+        </div>
       );
     case 'rasterised':
       return <PipelineMathContent />;
@@ -4347,7 +4521,7 @@ export function StagePictures({ stage, node, deeper, world }: PicturesProps) {
       if (node.texture) return <TexturesMathContent />;
       const multi = node.vertices.length > 1 && node.vertices.some((v) => v.color !== node.vertices[0].color);
       return (
-        <>
+        <div className="primitives-math">
           <PrimitivesSection title="Color">
             <ColorConversion hex={node.vertices[0]?.color ?? '#ffffff'} />
           </PrimitivesSection>
@@ -4356,7 +4530,7 @@ export function StagePictures({ stage, node, deeper, world }: PicturesProps) {
               <BarycentricMixer vertices={node.vertices} />
             </PrimitivesSection>
           )}
-        </>
+        </div>
       );
     }
   }
@@ -4772,8 +4946,6 @@ Create `src/features/math-panel/ui/journey/journey.scss`:
     font-family: $font-ui;
     font-size: var(--text-xs);
     font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
     color: var(--ink-dim);
   }
 
@@ -4833,21 +5005,22 @@ Create `src/features/math-panel/ui/journey/journey.scss`:
   gap: 12px;
   margin-top: 12px;
   font-size: var(--text-xs);
+}
 
-  // Today's cards keep their content but lose their box: the open stage is the surface.
+// Today's cards keep their content but lose their box: the open stage is the surface. These
+// selectors match _math-layout.scss's in weight, and this file comes after it, so they win.
+.math-panel-container .journey-open__pictures {
   .math-section {
     padding: 0;
     border: 0;
     background: none;
   }
 
-  .math-section-title {
+  .math-section .math-section-title {
     margin: 0 0 6px;
     font-family: $font-ui;
     font-size: var(--text-xs);
     font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
     color: var(--ink-dim);
   }
 }
@@ -4860,8 +5033,6 @@ Create `src/features/math-panel/ui/journey/journey.scss`:
   margin-bottom: 6px;
   font-size: var(--text-xs);
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--ink-dim);
 }
 
@@ -4987,7 +5158,7 @@ Expected: PASS.
 ```bash
 npm run lint && npm run build && npm test
 git checkout -- tests/reports
-git add src/shared/lib/use-canvas-size.ts src/features/code-generation/ui/SceneCodePanel.tsx src/features/lesson-engine/model/useLessonRunner.ts src/features/math-panel src/core/store/types.ts src/core/store/runtime-slice.ts src/core/store/lesson-slice.ts src/core/inspector/context-section.ts tests/setup.ts tests/black-box/math-journey.test.ts tests/black-box/editor-inspector.test.ts tests/black-box/lesson-column.test.ts
+git add src/shared/lib/use-canvas-size.ts src/features/code-generation/ui/SceneCodePanel.tsx src/features/lesson-engine/model/useLessonRunner.ts vitest.config.ts src/features/math-panel src/core/store/types.ts src/core/store/runtime-slice.ts src/core/store/lesson-slice.ts src/core/inspector/context-section.ts tests/black-box/math-journey.test.ts tests/black-box/editor-inspector.test.ts tests/black-box/lesson-column.test.ts
 git diff --staged
 git commit -m "feat(math): the math pane is a vertex journey through six stages, replacing the section tabs"
 ```
@@ -5116,7 +5287,7 @@ git commit -m "fix(lessons): steps about the math name the journey stage they op
 **This task is the controller's.** Build step 3 does not start until the owner signs off.
 
 **Files:**
-- Modify: `tests/visual/code-math.spec.ts` (append VIS-CM-02 to 04)
+- Modify: `tests/visual/code-math.spec.ts` (append VIS-CM-02, VIS-CM-03 and VIS-CM-06; Task 16 adds 04 and 05)
 
 - [ ] **Step 1: Add the journey captures**
 
@@ -5142,22 +5313,41 @@ for (const stage of ['Projected', 'Coloured'] as const) {
     await expect(page.locator('.code-math-column')).toHaveScreenshot(`cm-journey-${stage.toLowerCase()}-dark-1280.png`);
   });
 }
+
+const STAGES = ['Stored', 'Transformed', 'Projected', 'Assembled', 'Rasterised', 'Coloured'] as const;
+
+for (const theme of ['dark', 'light'] as const) {
+  test(`VIS-CM-06: Math pane, every stage open in turn, ${theme}, 1280`, async ({ page }) => {
+    await openMockScene(page, theme);
+    await page.getByRole('radio', { name: 'Math' }).click();
+    for (const stage of STAGES) {
+      // The open stage has no closed row to click; the scene opens on Transformed.
+      const row = page.locator('.journey-stage__row', { hasText: stage });
+      if ((await row.count()) > 0) await row.click();
+      await expect(page.locator('.journey-open__title')).toHaveText(stage);
+      await expect(page.locator('.code-math-column')).toHaveScreenshot(`cm-stage-${stage.toLowerCase()}-${theme}-1280.png`);
+    }
+  });
+}
 ```
 
-The Code | Math switch is a `SegmentedControl`, whose options are `role="radio"`.
+The Code | Math switch is a `SegmentedControl`, whose options are `role="radio"`. VIS-CM-06 is the record of every stage in both themes (spec §7); Tasks 17–20 retake it as each stage gains its working.
 
 - [ ] **Step 2: Take the screenshots and show the owner**
 
 ```bash
-rm -f tests/visual/baseline.local/cm-journey-*.png tests/visual/baseline.local/cm-editor-math-*.png
+rm -f tests/visual/baseline.local/cm-journey-*.png tests/visual/baseline.local/cm-editor-math-*.png tests/visual/baseline.local/cm-stage-*.png
 npx playwright test tests/visual/code-math.spec.ts --update-snapshots
 ```
+
+Expected: the new tests pass, writing `cm-journey-*`, `cm-editor-math-*` and twelve `cm-stage-<stage>-<theme>-1280.png` baselines.
 
 1. Write `.superpowers/checkpoints/step-2.html`. It puts three pairs side by side:
    - `mock-journey-transformed.png` | `cm-journey-transformed-dark-1280.png`
    - `mock-journey-projected.png` | `cm-journey-projected-dark-1280.png`
    - `mock-journey-coloured.png` | `cm-journey-coloured-dark-1280.png`
    - Then the light Transformed capture and the dark full editor.
+   - Then a grid of the twelve `cm-stage-*` captures: six stages across, dark above light.
 2. Open it with `start`.
 3. Ask the owner whether the journey matches the approved look. List what to compare:
    - the follow header with the ring and the stepper;
@@ -5179,7 +5369,7 @@ npm run lint && npm run build && npm test
 git checkout -- tests/reports
 git add tests/visual/code-math.spec.ts
 git diff --staged
-git commit -m "test(visual): capture the journey with three stages open in the approved mock's scene"
+git commit -m "test(visual): capture the journey's stages in the approved mock's scene"
 ```
 
 ---
@@ -5190,7 +5380,6 @@ git commit -m "test(visual): capture the journey with three stages open in the a
 
 **Files:**
 - Create: `src/features/code-generation/model/code-explanations.ts`
-- Modify: `src/core/inspector/journey-stage.ts` (add `JOURNEY_STAGE_TITLES`)
 - Modify: `tests/white-box/code-structure.test.ts` (append)
 
 **Interfaces:**
@@ -5198,8 +5387,7 @@ git commit -m "test(visual): capture the journey with three stages open in the a
   - `CodeOutline` and `OutlineLine` (Task 2);
   - `assemblyFor` (Task 9, `@/entities/scene/model/primitive-assembly`);
   - `fmt` and `short` (Task 9, `@/shared/lib/format-number`);
-  - `JourneyStageId` and `InspectorGroupId` from `@/core/inspector`.
-- Produces, in `core/inspector/journey-stage.ts`: `export const JOURNEY_STAGE_TITLES: Record<JourneyStageId, string>` (`Stored`, `Transformed`, …).
+  - `JourneyStageId` and `InspectorGroupId` from `@/core/inspector`. (`JOURNEY_STAGE_TITLES`, which Task 14's link uses, comes from Task 8.)
 - Produces, in `code-explanations.ts`:
 
 ```ts
@@ -5216,7 +5404,7 @@ export function noteFor(index: number, outline: CodeOutline, scene: ExplainScene
 ```
 
 Rules:
-- **The catalogue is a list of `{ test, explain }` entries** matched against the trimmed line; the first match wins. Every line the generator writes as `explainable` has an entry. WB-CODE-20 pins this across a fixture that uses every generator feature.
+- **The catalogue is a list of `{ test, explain }` entries** matched against the trimmed line; the first match wins. Every line the generator writes as `explainable` has an entry. WB-CODE-21 pins this across a fixture that uses every generator feature.
 - **Each `values` row** names an argument that comes from the scene, the state field or literal it reads, its value now, and the control that sets it. For example: `x · state_Triangle.x = 0.40 · Translate X`.
 - **Control labels** quote the UI: `Translate X`, `Translate Y`, `Rotate`, `Scale X`, `Scale Y`, `Line width`, `Line stipple`, `Buffer usage hint`, `Filter mode`, `Wrap mode`. Group names are used where the panel has no single field: `Transform`, `Vertices`, `Appearance`, `Texture`, `Buffers`, `Background`, `Viewing volume`, `Callbacks`.
 - **Notes** (spec §2) appear only on lines inside `draw_<name>()` blocks:
@@ -5272,7 +5460,7 @@ function everythingFixture() {
   return program();
 }
 
-describe('WB-CODE-20: Every explainable line in every generator format has an explanation', () => {
+describe('WB-CODE-21: Every explainable line in every generator format has an explanation', () => {
   it.each(['keep', 'stretch'] as const)('explains each explainable line, with reshape set to %s', (reshape) => {
     everythingFixture();
     getState().setReshapeMode(reshape);
@@ -5289,7 +5477,7 @@ describe('WB-CODE-20: Every explainable line in every generator format has an ex
   });
 });
 
-describe('WB-CODE-21: Value rows name the state field, its value and its control', () => {
+describe('WB-CODE-22: Value rows name the state field, its value and its control', () => {
   it('explains glTranslatef and the state line with the student\'s numbers', () => {
     const tri = addTriangle(0.4, -0.17, 0.5);
     getState().updateObjectName(tri.id, 'Triangle');
@@ -5316,7 +5504,7 @@ describe('WB-CODE-21: Value rows name the state field, its value and its control
   });
 });
 
-describe('WB-CODE-22: Notes sit only on the key lines of draw functions', () => {
+describe('WB-CODE-23: Notes sit only on the key lines of draw functions', () => {
   it('notes move, turn, the draw call and a bound texture, scale only when it is not 1, 1, and nothing else', () => {
     const tri = addTriangle(0.4, -0.17, 0.5);
     getState().updateObjectName(tri.id, 'Triangle');
@@ -5347,22 +5535,7 @@ describe('WB-CODE-22: Notes sit only on the key lines of draw functions', () => 
 Run: `npx vitest run tests/white-box/code-structure.test.ts`
 Expected: FAIL with `Failed to resolve import "@/features/code-generation/model/code-explanations"`.
 
-- [ ] **Step 3: Add the stage titles**
-
-Append to `src/core/inspector/journey-stage.ts`:
-
-```ts
-export const JOURNEY_STAGE_TITLES: Record<JourneyStageId, string> = {
-  stored: 'Stored',
-  transformed: 'Transformed',
-  projected: 'Projected',
-  assembled: 'Assembled',
-  rasterised: 'Rasterised',
-  coloured: 'Coloured',
-};
-```
-
-- [ ] **Step 4: Write the catalogue**
+- [ ] **Step 3: Write the catalogue**
 
 Create `src/features/code-generation/model/code-explanations.ts`:
 
@@ -5777,19 +5950,19 @@ export function noteFor(index: number, outline: CodeOutline, scene: ExplainScene
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run tests/white-box/code-structure.test.ts`
 Expected: PASS.
 
-If WB-CODE-20 reports a line with no explanation, add an entry for that exact generator format; never mark the line unexplainable to pass. If the catalogue's `glLineWidth` reset branch misfires (it compares against earlier `glLineWidth` lines of the same object), keep the rule: in a draw function, the second `glLineWidth` is the reset.
+If WB-CODE-21 reports a line with no explanation, add an entry for that exact generator format; never mark the line unexplainable to pass. If the catalogue's `glLineWidth` reset branch misfires (it compares against earlier `glLineWidth` lines of the same object), keep the rule: in a draw function, the second `glLineWidth` is the reset.
 
-- [ ] **Step 6: Lint, build, test, commit**
+- [ ] **Step 5: Lint, build, test, commit**
 
 ```bash
 npm run lint && npm run build && npm test
 git checkout -- tests/reports
-git add src/features/code-generation/model/code-explanations.ts src/core/inspector/journey-stage.ts tests/white-box/code-structure.test.ts
+git add src/features/code-generation/model/code-explanations.ts tests/white-box/code-structure.test.ts
 git diff --staged
 git commit -m "feat(code): a catalogue that explains every line the generator writes, with the student's values"
 ```
@@ -5805,9 +5978,10 @@ git commit -m "feat(code): a catalogue that explains every line the generator wr
 - Modify: `src/core/store/types.ts`, `runtime-slice.ts`, `index.ts` (`revealedGroup`, `revealGroup`; the selection subscription clears it)
 - Modify: `src/widgets/layout/editor-column/use-group-focus.ts` (outline a revealed group in Author mode)
 - Modify: `tests/setup.ts`, `tests/black-box/code-panel.test.ts` (append)
+- Modify: `tests/black-box/editor-inspector.test.ts` (BB-INSP-08 also checks the footer hint)
 
 **Interfaces:**
-- Consumes: `explainLine`, `noteFor` and `ExplainScene` (Task 13); `stateFieldAt` (Task 2); `JOURNEY_STAGE_TITLES` (Task 13); the store's `explainedLine`, `setExplainedLine`, `codeNotes` and `setCodeNotes` (Task 1); `setJourneyStageOverride` (Task 8); `setCodePane` and `selectObject`.
+- Consumes: `explainLine`, `noteFor` and `ExplainScene` (Task 13); `stateFieldAt` (Task 2); `JOURNEY_STAGE_TITLES` (Task 8); the store's `explainedLine`, `setExplainedLine`, `codeNotes` and `setCodeNotes` (Task 1); `setJourneyStageOverride` (Task 8); `setCodePane` and `selectObject`.
 - Produces, in `types.ts`:
 
 ```ts
@@ -5841,7 +6015,7 @@ onToggleNotes?: () => void;
 
   It is cleared by a selection change, `toggleGroup` and `setActiveSection`.
 - Produces these DOM hooks:
-  - Explainable lines: `.code-line.is-explainable[role="button"]`, with `aria-expanded` and `aria-controls`.
+  - Explainable lines: `.code-line.is-explainable[role="button"]`, with `aria-expanded` and `aria-controls`. The line's `.code-fold-close` stays its sibling in `.code-row` (Task 5), so ▾ is never inside a button and its clicks and keys never reach the line.
   - `.code-line.is-explained`, `.code-note` and `.code-note__value.is-changed`.
   - `section.code-strip`, with a `[aria-live="polite"]` body, `.code-strip__sig`, `.code-strip__text`, `table.code-strip__values`, `.code-strip__link` and the button named "Close explanation".
   - `p.code-hint`, and the header word `Notes` with `aria-pressed`.
@@ -5979,7 +6153,7 @@ describe('BB-CODE-19: The strip links to the math and to the control', () => {
 });
 
 describe('BB-CODE-20: Explaining a folded line opens its fold; a new selection closes the strip', () => {
-  it('opens main() for an explained line inside it, and closes the strip on a new selection', async () => {
+  it('opens main() for an explained line inside it, and closes the strip and the outline on a new selection', async () => {
     const { tri, square } = mockScene();
     getState().selectObject(tri.id);
     const host = mount(h(SceneCodePanel, {}));
@@ -5989,6 +6163,8 @@ describe('BB-CODE-20: Explaining a folded line opens its fold; a new selection c
     await settle();
     expect(lineTexts(host).some((t) => t.includes('glutMainLoop'))).toBe(true);
     expect(host.querySelector('.code-strip__sig')!.textContent).toBe('glutMainLoop()');
+    getState().revealGroup('transform');
+    expect(getState().revealedGroup).toBe('transform');
     getState().selectObject(square.id);
     await settle();
     expect(host.querySelector('section.code-strip')).toBeNull();
@@ -5998,9 +6174,15 @@ describe('BB-CODE-20: Explaining a folded line opens its fold; a new selection c
 });
 ```
 
+In `tests/black-box/editor-inspector.test.ts`, BB-INSP-08 (keep its ID) also checks the footer hint. After `expect(host.querySelector('.has-annot')).toBeNull();`, add:
+
+```ts
+      expect(host.querySelector('.code-hint')!.textContent).toBe('Click any line to see what it does.');
+```
+
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `npx vitest run tests/black-box/code-panel.test.ts`
+Run: `npx vitest run tests/black-box/code-panel.test.ts tests/black-box/editor-inspector.test.ts`
 Expected: FAIL. There is no `.code-hint`, no `role="button"` on lines, and `revealedGroup` is undefined.
 
 - [ ] **Step 3: Add `revealGroup` to the store**
@@ -6116,12 +6298,11 @@ In `CodeViewer.tsx`:
         onKeyDown={canExplain ? onLineKey(line) : undefined}
 ```
 
-   - Return the line `div` and, when `notesOn && notes?.get(line)`, its note, inside `<Fragment key={changed ? `${line}:${marksKey}` : `${line}`}>`.
-     Import `Fragment` from `preact` and move the `key` off the `div` onto the `Fragment`. The changed-line remount then still restarts the fade. The note:
+   - After the line `div`, inside the same `.code-row` (whose key already restarts the fade on each edit), render its note when `notesOn` and the line has one:
 
 ```tsx
       {notesOn && note && (
-        <div key={`${line}-note`} className="code-note">
+        <div className="code-note">
           <span className="code-line__num" aria-hidden="true" />
           <span className="code-note__indent" aria-hidden="true">{text.match(/^\s*/)![0]}</span>
           <span className="code-note__text">
@@ -6288,8 +6469,6 @@ Append to `code-viewer.scss`:
     text-align: left;
     font-family: $font-ui;
     font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
     color: var(--ink-dim);
   }
 
@@ -6334,7 +6513,7 @@ In `SceneCodePanel.tsx`:
    - `stateFieldAt` from `code-outline`;
    - `JOURNEY_STAGE_TITLES` from `@/core/inspector`;
    - `type CodeNote` and `type CodeStrip` from `@/shared/ui/code-viewer/types`.
-2. Add, after `rows`'s inputs:
+2. Add these before the `rows` memo (it uses `explained`), after the store reads at the top:
 
 ```tsx
   const explainedLine = useVamsStore((s) => s.explainedLine);
@@ -6425,7 +6604,7 @@ Expected: PASS.
 ```bash
 npm run lint && npm run build && npm test
 git checkout -- tests/reports
-git add src/shared/ui/code-viewer/types.ts src/shared/ui/code-viewer/CodeViewer.tsx src/shared/ui/code-viewer/code-viewer.scss src/features/code-generation/ui/SceneCodePanel.tsx src/core/store/types.ts src/core/store/runtime-slice.ts src/core/store/index.ts src/widgets/layout/editor-column/use-group-focus.ts tests/setup.ts tests/black-box/code-panel.test.ts
+git add src/shared/ui/code-viewer/types.ts src/shared/ui/code-viewer/CodeViewer.tsx src/shared/ui/code-viewer/code-viewer.scss src/features/code-generation/ui/SceneCodePanel.tsx src/core/store/types.ts src/core/store/runtime-slice.ts src/core/store/index.ts src/widgets/layout/editor-column/use-group-focus.ts tests/setup.ts tests/black-box/code-panel.test.ts tests/black-box/editor-inspector.test.ts
 git diff --staged
 git commit -m "feat(code): explain any line in a strip, with notes on the key lines and links to the math and the control"
 ```
@@ -6438,8 +6617,8 @@ git commit -m "feat(code): explain any line in a strip, with notes on the key li
 - Modify: `src/core/store/types.ts`, `runtime-slice.ts` (`explainRequest`, `requestExplain`)
 - Modify: `src/features/code-generation/ui/SceneCodePanel.tsx` (resolve a request to a line)
 - Modify: `src/features/math-panel/ui/MathPanel.tsx` (pass `onCall`)
-- Modify: `src/shared/engine/selection-overlay.ts` (`FollowRing`, `ringTarget`)
-- Modify: `src/shared/engine/pixi/hooks/useSceneRenderer.ts` (draw the ring; a handle click chooses the vertex)
+- Modify: `src/shared/engine/selection-overlay.ts` (`FollowRing`, `ringTarget`, `pickHandleVertex`)
+- Modify: `src/shared/engine/pixi/hooks/useSceneRenderer.ts` (draw the ring; a handle click chooses the vertex through `pickHandleVertex`)
 - Modify: `tests/setup.ts`, `tests/black-box/math-journey.test.ts` (append)
 
 **Interfaces:**
@@ -6447,18 +6626,23 @@ git commit -m "feat(code): explain any line in a strip, with notes on the key li
   - `findCallLine` (Task 2);
   - the `onCall` slot in `JourneyTrack` and `WorkingTable` (Task 10);
   - `journeyVertex` and `setJourneyVertex` (Task 1);
+  - `firstRasterY` from `@/shared/lib/text-raster` (Task 9);
   - `codePane` and `codeHidden`.
 - Produces, in the store:
   - `explainRequest: string | null`.
-  - `requestExplain(call: string): void`, which sets `{ explainRequest: call, codePane: 'code', codeHidden: false, codeChangedUnseen: false }`.
-  - `SceneCodePanel` turns the request into `explainedLine` with `findCallLine(outline, selection, call)` and clears it.
+  - `requestExplain(call: string | null): void`. A call sets `{ explainRequest: call, codePane: 'code', codeHidden: false, codeChangedUnseen: false }`.
+  - `SceneCodePanel` turns the request into `explainedLine` with `findCallLine(outline, selection, call)` and clears it with `requestExplain(null)`.
 - Produces, in `selection-overlay.ts`:
 
 ```ts
-export type RingTarget = { kind: 'vertex'; index: number } | { kind: 'origin' } | null;
-export function ringTarget(node: { type: string; vertices: readonly unknown[] } | undefined, vertex: number, showsMath: boolean): RingTarget;
+export type RingTarget = { kind: 'vertex'; index: number } | { kind: 'raster'; x: number; y: number } | null;
+export function ringTarget(node: { type: string; vertices: readonly unknown[]; textContent?: string } | undefined, vertex: number, showsMath: boolean): RingTarget;
 export class FollowRing extends Graphics { show(x: number, y: number, inverseScale: number): void; hide(): void }
+/** A handle was pressed: follow its vertex. Returns the vertex, or null for a handle beyond the object's vertices. */
+export function pickHandleVertex(handles: readonly object[], handle: object, vertexCount: number, follow: (index: number) => void): number | null;
 ```
+
+- A text's ring sits at its first line's raster position, `(0, firstRasterY(text))` in the text's own coordinates, the same point the journey follows.
 
 Plan ruling: a store request (`explainRequest`), not the math panel computing line numbers. The spec keeps the link between the two features in store state (`codePane`, `journeyStageOverride`, `explainedLine`). The math panel cannot know line numbers without generating and outlining the program. It names the call; the code panel, which already has the outline, finds the line.
 
@@ -6468,7 +6652,7 @@ Append to `tests/black-box/math-journey.test.ts`:
 
 ```ts
 import CodeMathColumn from '@/widgets/layout/code-math-column';
-import { ringTarget, FollowRing } from '@/shared/engine/selection-overlay';
+import { ringTarget, FollowRing, pickHandleVertex } from '@/shared/engine/selection-overlay';
 
 describe('BB-JOURNEY-11: A working row\'s GL call opens Code on that line', () => {
   it('switches to Code, opens the line\'s fold and explains it', async () => {
@@ -6489,12 +6673,14 @@ describe('BB-JOURNEY-11: A working row\'s GL call opens Code on that line', () =
 });
 
 describe('BB-JOURNEY-12: The canvas ring marks the followed vertex only while Math shows', () => {
-  it('rings a shape\'s clamped vertex, a text\'s origin, nothing for a group, and hides with Code', () => {
+  it('rings a shape\'s clamped vertex, a text\'s first raster position, nothing for a group, and hides with Code', () => {
     const shape = { type: 'TRIANGLES', vertices: [{}, {}, {}] };
     expect(ringTarget(shape, 1, true)).toEqual({ kind: 'vertex', index: 1 });
     expect(ringTarget(shape, 7, true)).toEqual({ kind: 'vertex', index: 2 });
     expect(ringTarget(shape, 1, false)).toBeNull();
-    expect(ringTarget({ type: 'TEXT', vertices: [{}] }, 0, true)).toEqual({ kind: 'origin' });
+    expect(ringTarget({ type: 'TEXT', vertices: [{}], textContent: 'Hi' }, 0, true)).toEqual({ kind: 'raster', x: 0, y: 0 });
+    // Three lines, 0.07 apart and centred: the first starts one line above the origin.
+    expect(ringTarget({ type: 'TEXT', vertices: [{}], textContent: 'a\nb\nc' }, 0, true)).toEqual({ kind: 'raster', x: 0, y: 0.07 });
     expect(ringTarget({ type: 'GROUP', vertices: [] }, 0, true)).toBeNull();
     expect(ringTarget(undefined, 0, true)).toBeNull();
     const ring = new FollowRing();
@@ -6505,12 +6691,30 @@ describe('BB-JOURNEY-12: The canvas ring marks the followed vertex only while Ma
     expect(ring.visible).toBe(false);
   });
 });
+
+describe('BB-JOURNEY-13: Clicking a vertex handle on the canvas follows that vertex', () => {
+  it('follows the pressed handle\'s vertex in the header, and ignores a handle beyond the object\'s vertices', async () => {
+    mockTriangle();
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    // The renderer keeps one handle per vertex and spares beyond them, in vertex order.
+    const handles = [{}, {}, {}, {}];
+    expect(pickHandleVertex(handles, handles[2], 3, getState().setJourneyVertex)).toBe(2);
+    await settle();
+    expect(getState().journeyVertex).toBe(2);
+    expect(host.querySelector('.journey-follow__vertex')!.textContent).toBe('vertex 3 of 3');
+    expect(pickHandleVertex(handles, handles[3], 3, getState().setJourneyVertex)).toBeNull();
+    expect(pickHandleVertex(handles, {}, 3, getState().setJourneyVertex)).toBeNull();
+    expect(getState().journeyVertex).toBe(2);
+    unmount(host);
+  });
+});
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run tests/black-box/math-journey.test.ts`
-Expected: FAIL. `ringTarget` is not exported, and there is no `.journey-work__call-link`.
+Expected: FAIL. `ringTarget` and `pickHandleVertex` are not exported, and there is no `.journey-work__call-link`.
 
 - [ ] **Step 3: The request in the store**
 
@@ -6557,20 +6761,40 @@ In `MathPanel.tsx`, read `const requestExplain = useVamsStore((s) => s.requestEx
 
 - [ ] **Step 5: The ring**
 
-Append to `src/shared/engine/selection-overlay.ts`:
+In `src/shared/engine/selection-overlay.ts`, add `import { firstRasterY } from '@/shared/lib/text-raster';` after its `readCssColor` import, then append:
 
 ```ts
-export type RingTarget = { kind: 'vertex'; index: number } | { kind: 'origin' } | null;
+export type RingTarget = { kind: 'vertex'; index: number } | { kind: 'raster'; x: number; y: number } | null;
 
 /**
- * Where the followed vertex's ring goes: a shape's vertex (clamped), a text's raster position at
- * its origin, or nowhere for a group or while Code shows.
+ * Where the followed vertex's ring goes: a shape's vertex (clamped), a text's first raster
+ * position (the point the journey follows), or nowhere for a group or while Code shows.
  */
-export function ringTarget(node: { type: string; vertices: readonly unknown[] } | undefined, vertex: number, showsMath: boolean): RingTarget {
+export function ringTarget(
+  node: { type: string; vertices: readonly unknown[]; textContent?: string } | undefined,
+  vertex: number,
+  showsMath: boolean,
+): RingTarget {
   if (!node || !showsMath || node.type === 'GROUP') return null;
-  if (node.type === 'TEXT') return { kind: 'origin' };
+  if (node.type === 'TEXT') return { kind: 'raster', x: 0, y: firstRasterY(node.textContent ?? '') };
   if (node.vertices.length === 0) return null;
   return { kind: 'vertex', index: Math.min(Math.max(0, Math.floor(vertex)), node.vertices.length - 1) };
+}
+
+/**
+ * A vertex handle was pressed: the math follows its vertex. `handles` are the renderer's handle
+ * graphics in vertex order, including spares beyond the object's last vertex.
+ */
+export function pickHandleVertex(
+  handles: readonly object[],
+  handle: object,
+  vertexCount: number,
+  follow: (index: number) => void,
+): number | null {
+  const index = handles.indexOf(handle);
+  if (index < 0 || index >= vertexCount) return null;
+  follow(index);
+  return index;
 }
 
 /** The amber ring around the vertex the math journey follows. A transient overlay: never saved. */
@@ -6598,7 +6822,7 @@ export class FollowRing extends Graphics {
 ```
 
 In `src/shared/engine/pixi/hooks/useSceneRenderer.ts`:
-1. Import `FollowRing` and `ringTarget` from `@/shared/engine/selection-overlay`.
+1. Import `FollowRing`, `pickHandleVertex` and `ringTarget` from `@/shared/engine/selection-overlay`.
 2. Keep refs in step with the store, beside the other refs:
 
 ```ts
@@ -6624,11 +6848,11 @@ In `src/shared/engine/pixi/hooks/useSceneRenderer.ts`:
 
 and in its cleanup, `ringRef.current = null;`. The overlay's `destroy({ children: true })` already destroys the ring.
 
-4. In the handle's `pointerdown` handler, directly after `const idx = handleGraphicsRef.current.indexOf(g);`, add:
+4. In the handle's `pointerdown` handler, directly after `const currentObj = objectsRef.current.find(o => o.id === prevSelectedObjectIdRef.current);`, add:
 
 ```ts
               // Clicking a vertex handle also chooses the vertex the math follows.
-              useVamsStore.getState().setJourneyVertex(idx);
+              pickHandleVertex(handleGraphicsRef.current, g, currentObj?.vertices.length ?? 0, useVamsStore.getState().setJourneyVertex);
 ```
 
 5. Replace the ticker's `if (layer && container && obj && obj.type !== 'GROUP' && obj.type !== 'TEXT') { … } else if (layer) { layer.visible = false; }` block:
@@ -6650,11 +6874,11 @@ and in its cleanup, `ringRef.current = null;`. The overlay's `destroy({ children
           } else {
             ringRef.current?.hide();
           }
-        } else if (layer && container && obj && target?.kind === 'origin') {
-          // Text has no handles; the ring marks its raster position, at the text's origin.
+        } else if (layer && container && obj && target?.kind === 'raster') {
+          // Text has no handles; the ring marks its first line's raster position.
           layer.visible = true;
           handleGraphicsRef.current.forEach((g) => { g.visible = false; });
-          const at = world.toLocal(container.toGlobal({ x: 0, y: 0 }));
+          const at = world.toLocal(container.toGlobal({ x: target.x, y: target.y }));
           ringRef.current?.show(at.x, at.y, inverseScale);
         } else if (layer) {
           ringRef.current?.hide();
@@ -6757,17 +6981,20 @@ Each task adds one stage's rows to `vertexJourney`, its picture with the student
 ### Task 17: Stored: where the vertex lives
 
 **Files:**
+- Create: `src/shared/lib/sanitize-name.ts` (`sanitizeName`, moved out of the generator)
+- Modify: `src/features/code-generation/model/generator/utils.ts` (the move leaves one re-export line; the generator's output and logic do not change)
+- Modify: `src/pages/editor/ui/EditorApp.tsx` (import `sanitizeName` from `@/shared/lib/sanitize-name`)
 - Modify: `src/features/math-panel/model/vertex-journey.ts`
 - Modify: `tests/white-box/vertex-journey.test.ts` (append)
 
 **Interfaces:**
 - Consumes:
-  - `sanitizeName` from `@/features/code-generation/model/generator/utils`. Its rows name the program's arrays (`verts_<name>`, `vbo_<name>`). The math panel already imports `code-generation`'s model under the repo's known exception; the reverse never happens.
+  - `sanitizeName` from `@/shared/lib/sanitize-name`. Its rows name the program's arrays (`verts_<name>`, `vbo_<name>`). The math panel must not import from `features/code-generation`, so this task moves `sanitizeName` to `shared/lib`, and `generator/utils.ts` re-exports it: the generator's own imports, SceneCodePanel, the catalogue and WB-GEN-01 keep working, and the logic exists once (P17).
   - `vertexJourney` and its row types (Task 9).
 - Produces: the Stored stage's `rows` for every rendering mode (spec §3, "1 · Stored"):
   - **Immediate:** typed, then "sent by glVertex2f", with "no buffer holds it".
   - **Vertex array:** the index in `verts_<name>`, the byte offset (index × 8) and the stride.
-  - **VBO:** the copy by `glBufferData` with the usage hint as the student's input, then the index in `vbo_<name>`, the byte offset and the stride.
+  - **VBO:** how the data reaches the GPU, with the usage hint as the student's input, then the index in `vbo_<name>`, the byte offset and the stride. STATIC is "copied once" by `glBufferData` in `init()`. DYNAMIC and STREAM are "refreshed every frame" by `update_buffers()`: STREAM with `glBufferData`, DYNAMIC with `glMapBuffer` when its update method is Map Buffer, else `glBufferSubData` (as `generator/buffers.ts` writes them). The stage's sentence says the same.
   - **Indexed:** an extra row that says how many vertices deduplication kept.
 
   The index is the one the generator writes: deduplicated by position, colour and UV, exactly as `generator/buffers.ts` does.
@@ -6798,11 +7025,20 @@ describe('WB-JOURNEY-10: Stored says where the vertex lives in each rendering mo
       ['byte offset 2 × 8', '16 bytes', null],
       ['stride 0', 'packed, 8 bytes apart', 'glVertexPointer'],
     ]);
+    const staticVbo = { ...tri, renderingMode: 'VBO' as const, bufferUsage: 'STATIC' as const };
+    const once = vertexJourney(scene([staticVbo]), 'Triangle', 1, CANVAS);
+    expect(rowsOf(once, 'stored')[1]).toEqual(['copied once, usage GL_STATIC_DRAW', 'vbo_Triangle on the GPU', 'glBufferData']);
+    expect(stage(once, 'stored').sentence).toContain('once, in init()');
     const vbo = { ...tri, renderingMode: 'VBO' as const, bufferUsage: 'DYNAMIC' as const };
     const j = vertexJourney(scene([vbo]), 'Triangle', 1, CANVAS);
-    expect(rowsOf(j, 'stored')[1]).toEqual(['copied once, usage GL_DYNAMIC_DRAW', 'vbo_Triangle on the GPU', 'glBufferData']);
+    expect(rowsOf(j, 'stored')[1]).toEqual(['refreshed every frame, usage GL_DYNAMIC_DRAW', 'vbo_Triangle on the GPU', 'glBufferSubData']);
     expect(stage(j, 'stored').rows[1].step).toContainEqual({ input: 'GL_DYNAMIC_DRAW' });
+    expect(stage(j, 'stored').sentence).toContain('every frame');
     expect(stage(j, 'stored').result).toBe('(−0.50, −0.50)');
+    const mapped = { ...vbo, updateMethod: 'MAP_BUFFER' as const };
+    expect(rowsOf(vertexJourney(scene([mapped]), 'Triangle', 1, CANVAS), 'stored')[1][2]).toBe('glMapBuffer');
+    const stream = { ...tri, renderingMode: 'VBO' as const, bufferUsage: 'STREAM' as const };
+    expect(rowsOf(vertexJourney(scene([stream]), 'Triangle', 1, CANVAS), 'stored')[1]).toEqual(['refreshed every frame, usage GL_STREAM_DRAW', 'vbo_Triangle on the GPU', 'glBufferData']);
   });
 });
 
@@ -6820,6 +7056,22 @@ describe('WB-JOURNEY-11: An indexed vertex has the index the generator gives it'
     }
     expect(rowsOf(vertexJourney(scene([quad]), 'Pair', 0, CANVAS), 'stored')[1]).toEqual(['deduplicated', '4 of 6 kept', 'glDrawElements']);
   });
+
+  it('keeps two corners apart when only their colours differ, as the generator does', () => {
+    const tinted = node('Tinted', 'TRIANGLES', [], {}, {
+      renderingMode: 'VERTEX_ARRAY', useIndexed: true,
+      vertices: [
+        { id: 't0', x: 0, y: 0, color: '#ffffff' }, { id: 't1', x: 1, y: 0, color: '#ffffff' }, { id: 't2', x: 0, y: 1, color: '#ffffff' },
+        { id: 't3', x: 0, y: 0, color: '#ff0000' }, { id: 't4', x: 1, y: 0, color: '#ffffff' }, { id: 't5', x: 0, y: 1, color: '#ffffff' },
+      ],
+    });
+    const code = generateCodeFromState({ objects: [tinted], canvasBackgroundColor: '#000000', callbacks: emptyCallbacks(), viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 }, textures: [] }, CANVAS);
+    const kept = /GLfloat verts_Tinted\[\] = \{ (.*) \};/.exec(code)![1].split(', ').length / 2;
+    expect(kept).toBe(4);
+    const indexOf = (i: number) => rowsOf(vertexJourney(scene([tinted]), 'Tinted', i, CANVAS), 'stored').find((r) => String(r[0]).startsWith('in verts_'))![1];
+    expect([0, 1, 2, 3, 4, 5].map(indexOf)).toEqual(['index 0', 'index 1', 'index 2', 'index 3', 'index 1', 'index 2']);
+    expect(rowsOf(vertexJourney(scene([tinted]), 'Tinted', 3, CANVAS), 'stored')[1]).toEqual(['deduplicated', `${kept} of 6 kept`, 'glDrawElements']);
+  });
 });
 ```
 
@@ -6828,10 +7080,39 @@ describe('WB-JOURNEY-11: An indexed vertex has the index the generator gives it'
 Run: `npx vitest run tests/white-box/vertex-journey.test.ts`
 Expected: FAIL. The Stored rows are empty.
 
-- [ ] **Step 3: Write the rows**
+- [ ] **Step 3: Move `sanitizeName` to `shared/lib`**
+
+Create `src/shared/lib/sanitize-name.ts`, moving the body from `generator/utils.ts` unchanged:
+
+```ts
+import { CPP_KEYWORDS } from '@/core/callbacks/cpp-keywords';
+
+/** An object's name as the generated program writes it: a valid C++ identifier ("My Shape" → My_Shape, class → class_obj). */
+export const sanitizeName = (name: string): string => {
+  let sanitized = name.replace(/[^a-zA-Z0-9_]/g, '_');
+  if (/^[0-9]/.test(sanitized)) sanitized = '_' + sanitized;
+  if (CPP_KEYWORDS.has(sanitized)) sanitized = sanitized + '_obj';
+  return sanitized;
+};
+```
+
+In `src/features/code-generation/model/generator/utils.ts`, the `CPP_KEYWORDS` import and the `sanitizeName` definition (lines 1–8) become this one line:
+
+```ts
+export { sanitizeName } from '@/shared/lib/sanitize-name';
+```
+
+Nothing else in the generator changes. Its files keep importing `sanitizeName` from `./utils`.
+
+In `src/pages/editor/ui/EditorApp.tsx`, change the import to `import { sanitizeName } from '@/shared/lib/sanitize-name';`. Code inside `features/code-generation` keeps importing from `generator/utils`.
+
+Run: `npx vitest run tests/white-box/code-generation-service.test.ts tests/black-box/code-generation.test.ts tests/black-box/cpp-code-validation.test.ts`
+Expected: PASS. WB-GEN-01 still imports `sanitizeName` from `generator/utils` and checks it through the re-export, and the generator's output is unchanged.
+
+- [ ] **Step 4: Write the rows**
 
 In `vertex-journey.ts`:
-1. Import `sanitizeName` from `@/features/code-generation/model/generator/utils`.
+1. Import `sanitizeName` from `@/shared/lib/sanitize-name`.
 2. Add, above `shapeJourney`:
 
 ```ts
@@ -6865,7 +7146,15 @@ function storedRows(node: SceneNode, i: number, stored: Point): WorkingRow[] {
   const rows: WorkingRow[] = [from];
   if (node.useIndexed) rows.push({ step: ['deduplicated'], value: `${unique} of ${node.vertices.length} kept`, call: 'glDrawElements' });
   if (mode === 'VBO') {
-    rows.push({ step: ['copied once, usage ', { input: `GL_${node.bufferUsage ?? 'STATIC'}_DRAW` }], value: `vbo_${code} on the GPU`, call: 'glBufferData' });
+    const usage = node.bufferUsage ?? 'STATIC';
+    const hint = { input: `GL_${usage}_DRAW` };
+    if (usage === 'STATIC') {
+      rows.push({ step: ['copied once, usage ', hint], value: `vbo_${code} on the GPU`, call: 'glBufferData' });
+    } else {
+      // update_buffers() sends the data again every frame (generator/buffers.ts).
+      const refresh = usage === 'STREAM' ? 'glBufferData' : node.updateMethod === 'MAP_BUFFER' ? 'glMapBuffer' : 'glBufferSubData';
+      rows.push({ step: ['refreshed every frame, usage ', hint], value: `vbo_${code} on the GPU`, call: refresh });
+    }
     rows.push({ step: [`in vbo_${code}`], value: `index ${index}`, call: 'glBindBuffer' });
   } else {
     rows.push({ step: [`in verts_${code}`], value: `index ${index}`, call: null });
@@ -6876,10 +7165,10 @@ function storedRows(node: SceneNode, i: number, stored: Point): WorkingRow[] {
 }
 ```
 
-3. In `shapeJourney`, change the Stored stage to `stage('stored', STORED_BY_MODE[mode], storedRows(node, i, stored), pair(stored), stored)`.
+3. In `shapeJourney`, change the Stored stage to `stage('stored', storedSentence, storedRows(node, i, stored), pair(stored), stored)`.
 4. In `textJourney`, give Stored the row `[{ step: ['raster position'], value: pair(raster), call: 'glRasterPos2f', from: true }]`.
 
-- [ ] **Step 4: Run, lint, build, test, commit**
+- [ ] **Step 5: Run, lint, build, test, commit**
 
 Run: `npx vitest run tests/white-box/vertex-journey.test.ts tests/black-box/math-journey.test.ts`
 Expected: PASS.
@@ -6887,10 +7176,19 @@ Expected: PASS.
 ```bash
 npm run lint && npm run build && npm test
 git checkout -- tests/reports
-git add src/features/math-panel/model/vertex-journey.ts tests/white-box/vertex-journey.test.ts
+git add src/shared/lib/sanitize-name.ts src/features/code-generation/model/generator/utils.ts src/pages/editor/ui/EditorApp.tsx src/features/math-panel/model/vertex-journey.ts tests/white-box/vertex-journey.test.ts
 git diff --staged
 git commit -m "feat(math): work the Stored stage: where the vertex lives in each rendering mode"
 ```
+
+- [ ] **Step 6: Retake the journey captures**
+
+```bash
+rm -f tests/visual/baseline.local/cm-journey-*.png tests/visual/baseline.local/cm-stage-*.png
+npx playwright test tests/visual/code-math.spec.ts --update-snapshots
+```
+
+Look at `cm-stage-stored-dark-1280.png` and `cm-stage-stored-light-1280.png` (VIS-CM-06) before moving on: Stored now shows its working.
 
 ---
 
@@ -6941,7 +7239,7 @@ describe('WB-JOURNEY-12: Assembled works the rule with the student\'s primitive 
 Append to `tests/black-box/math-journey.test.ts`:
 
 ```ts
-describe('BB-JOURNEY-13: Assembled draws the shape with the followed vertex ringed', () => {
+describe('BB-JOURNEY-14: Assembled draws the shape with the followed vertex ringed', () => {
   it('shows the working and a sketch with one ring', async () => {
     mockTriangle();
     getState().setJourneyStageOverride('assembled');
@@ -6988,27 +7286,41 @@ function assembledRows(node: SceneNode, ndc: Point, assembly: ReturnType<typeof 
 
 In `shapeJourney`, change the Assembled stage to `stage('assembled', assembly.sentence, assembledRows(node, ndc, assembly), assembly.result, null)`.
 
-In `stage-pictures.tsx`, add the sketch. Read the followed vertex in `StagePictures` with `const vertex = useVamsStore((s) => s.journeyVertex);`, and in the `'assembled'` case render `<ShapeSketch node={shape} vertex={vertex} />` before the Vertices card:
+In `stage-pictures.tsx`, add the sketch. Read the followed vertex in `StagePictures` with `const vertex = useVamsStore((s) => s.journeyVertex);`, and in the `'assembled'` case render `<ShapeSketch node={shape} vertex={vertex} />` before the Vertices card. `fitInBox` is shared with Task 20's face picture:
 
 ```tsx
 import { primitivesOf } from '@/entities/scene/model/primitive-assembly';
 import type { PrimitiveType } from '@/core/types/scene';
 
+/**
+ * Maps some of a shape's vertices into a box `width` × `height` whose top-left is (left, top),
+ * centred and keeping proportions, with y pointing up as in the scene.
+ */
+function fitInBox(vertices: readonly { x: number; y: number }[], box: { left: number; top: number; width: number; height: number }) {
+  const xs = vertices.map((v) => v.x);
+  const ys = vertices.map((v) => v.y);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  const spanX = Math.max(Math.max(...xs) - minX, 1e-6);
+  const spanY = Math.max(Math.max(...ys) - minY, 1e-6);
+  const scale = Math.min(box.width / spanX, box.height / spanY);
+  return {
+    at: (v: { x: number; y: number }) => ({
+      x: box.left + (v.x - minX) * scale + (box.width - spanX * scale) / 2,
+      y: box.top + box.height - (v.y - minY) * scale - (box.height - spanY * scale) / 2,
+    }),
+    /** The drawn size of the fitted vertices. */
+    width: spanX * scale,
+    height: spanY * scale,
+  };
+}
+
 /** The object's shape, small: each primitive outlined, the ones holding the vertex shaded, the vertex ringed. */
 function ShapeSketch({ node, vertex }: { node: SceneNode; vertex: number }) {
   const n = node.vertices.length;
   if (n === 0) return null;
-  const xs = node.vertices.map((v) => v.x);
-  const ys = node.vertices.map((v) => v.y);
-  const minX = Math.min(...xs);
-  const minY = Math.min(...ys);
-  const w = Math.max(Math.max(...xs) - minX, 1e-6);
-  const h = Math.max(Math.max(...ys) - minY, 1e-6);
-  const s = Math.min(84 / w, 68 / h);
-  const at = (k: number) => ({
-    x: 6 + (node.vertices[k].x - minX) * s + (84 - w * s) / 2,
-    y: 74 - (node.vertices[k].y - minY) * s - (68 - h * s) / 2,
-  });
+  const fit = fitInBox(node.vertices, { left: 6, top: 6, width: 84, height: 68 });
+  const at = (k: number) => fit.at(node.vertices[k]);
   const i = Math.min(Math.max(0, vertex), n - 1);
   const type = node.type as PrimitiveType;
   const prims = primitivesOf(type, n);
@@ -7063,6 +7375,15 @@ git diff --staged
 git commit -m "feat(math): work the Assembled stage with the primitive's rule and a sketch of the shape"
 ```
 
+- [ ] **Step 5: Retake the journey captures**
+
+```bash
+rm -f tests/visual/baseline.local/cm-journey-*.png tests/visual/baseline.local/cm-stage-*.png
+npx playwright test tests/visual/code-math.spec.ts --update-snapshots
+```
+
+Look at `cm-stage-assembled-dark-1280.png` and `cm-stage-assembled-light-1280.png` (VIS-CM-06) before moving on: Assembled now shows its working.
+
 ---
 
 ### Task 19: Rasterised: NDC to a pixel
@@ -7070,10 +7391,12 @@ git commit -m "feat(math): work the Assembled stage with the primitive's rule an
 **Files:**
 - Modify: `src/features/math-panel/model/vertex-journey.ts`
 - Modify: `src/features/math-panel/ui/journey/stage-pictures.tsx`
+- Modify: `src/features/math-panel/ui/journey/JourneyTrack.tsx` (pass the Projected point to the pictures)
 - Modify: `src/features/math-panel/ui/PipelineMathContent.tsx` (show the pointer readout and the vector and raster card in every mode)
 - Modify: `tests/white-box/vertex-journey.test.ts`, `tests/black-box/math-journey.test.ts` (append)
 
 **Interfaces:**
+- Consumes: `int` from `@/shared/lib/format-number` (Task 9), so a pixel left of or below the window reads `−12`.
 - Produces: the Rasterised stage's `rows`:
   - from Projected;
   - width W with "x → px";
@@ -7117,7 +7440,7 @@ describe('WB-JOURNEY-14: A vertex outside the viewing volume keeps its real numb
 Append to `tests/black-box/math-journey.test.ts`:
 
 ```ts
-describe('BB-JOURNEY-14: Rasterised keeps the pointer readout in every Pipeline mode', () => {
+describe('BB-JOURNEY-15: Rasterised keeps the pointer readout in every Pipeline mode', () => {
   it('shows the cursor readout and Vector vs Raster in Diagram mode too', async () => {
     mockTriangle();
     useVamsStore.setState({ pipelineMode: 'Diagram', activePipelineStage: 4 });
@@ -7150,33 +7473,33 @@ function rasterisedStage(ndc: Point, pixel: Point, canvas: CanvasSize): JourneyS
   const outside = pixel.x < 0 || pixel.y < 0 || pixel.x >= canvas.width || pixel.y >= canvas.height;
   return stage('rasterised', RASTERISED + (outside ? OUTSIDE : ''), [
     { step: ['from Projected'], value: `NDC ${pair(ndc)}`, call: null, from: true },
-    { step: [`width ${canvas.width}`], value: `x → ${pixel.x}`, call: 'glutInitWindowSize' },
-    { step: [`height ${canvas.height}`], value: `y → ${pixel.y}`, call: 'glutInitWindowSize' },
-  ], `pixel (${pixel.x}, ${pixel.y})`, pixel);
+    { step: [`width ${canvas.width}`], value: `x → ${int(pixel.x)}`, call: 'glutInitWindowSize' },
+    { step: [`height ${canvas.height}`], value: `y → ${int(pixel.y)}`, call: 'glutInitWindowSize' },
+  ], `pixel (${int(pixel.x)}, ${int(pixel.y)})`, pixel);
 }
 ```
 
 In both `shapeJourney` and `textJourney`, use `rasterisedStage(ndc, pixel, canvas)` for the Rasterised stage.
 
-In `stage-pictures.tsx`, add the formula and render it first in the `'rasterised'` case (`StagePictures` gains the canvas size from `useCanvasSize()`):
+In `stage-pictures.tsx`, add the formula and render it first in the `'rasterised'` case (`StagePictures` gains the canvas size from `useCanvasSize()`). The formula shows the stage's own pixel (`stage.point`), so the arithmetic lives once, in `vertexJourney`:
 
 ```tsx
 import { useCanvasSize } from '@/shared/lib/use-canvas-size';
 
-function PixelFormula({ ndc, canvas }: { ndc: Point; canvas: { width: number; height: number } }) {
-  const line = (axis: 'x' | 'y', v: number, size: number) => (
+function PixelFormula({ ndc, pixel, canvas }: { ndc: Point; pixel: Point; canvas: { width: number; height: number } }) {
+  const line = (axis: 'x' | 'y', v: number, size: number, out: number) => (
     <>
       {axis} = ({axis} + 1) / 2 · {axis === 'x' ? 'width' : 'height'}
       <br />
-      {'  '}= ({fmt(v)} + 1) / 2 · {size} = <span className="is-value">{Math.floor(((v + 1) / 2) * size)}</span>
+      {'  '}= ({fmt(v)} + 1) / 2 · {size} = <span className="is-value">{int(out)}</span>
     </>
   );
   return (
     <Picture label="The formula, with your numbers">
       <p className="journey-formula">
-        {line('x', ndc.x, canvas.width)}
+        {line('x', ndc.x, canvas.width, pixel.x)}
         <br />
-        {line('y', ndc.y, canvas.height)}
+        {line('y', ndc.y, canvas.height, pixel.y)}
       </p>
       <p className="journey-picture__caption">Pixels are counted from the bottom-left corner, as OpenGL does.</p>
     </Picture>
@@ -7184,13 +7507,13 @@ function PixelFormula({ ndc, canvas }: { ndc: Point; canvas: { width: number; he
 }
 ```
 
-Add `ndc: Point | null` to `PicturesProps`. `JourneyTrack` passes `ndc={journey.stages[2]?.point ?? null}`, the Projected stage's point. Add `const canvas = useCanvasSize();` to `StagePictures`. Then:
+Change the format-number import to `import { fmt, int, short } from '@/shared/lib/format-number';`. Add `ndc: Point | null` to `PicturesProps`. In `JourneyTrack.tsx`, pass `ndc={journey.stages[2]?.point ?? null}` (the Projected stage's point) to `StagePictures`. Add `const canvas = useCanvasSize();` to `StagePictures`. Then:
 
 ```tsx
     case 'rasterised':
       return (
         <>
-          {stage.point && ndc && <PixelFormula ndc={ndc} canvas={canvas} />}
+          {stage.point && ndc && <PixelFormula ndc={ndc} pixel={stage.point} canvas={canvas} />}
           <PipelineMathContent />
         </>
       );
@@ -7213,6 +7536,15 @@ git add src/features/math-panel/model/vertex-journey.ts src/features/math-panel/
 git diff --staged
 git commit -m "feat(math): work the Rasterised stage from NDC to the window's pixel"
 ```
+
+- [ ] **Step 5: Retake the journey captures**
+
+```bash
+rm -f tests/visual/baseline.local/cm-journey-*.png tests/visual/baseline.local/cm-stage-*.png
+npx playwright test tests/visual/code-math.spec.ts --update-snapshots
+```
+
+Look at `cm-stage-rasterised-dark-1280.png` and `cm-stage-rasterised-light-1280.png` (VIS-CM-06) before moving on: Rasterised now shows its working.
 
 ---
 
@@ -7267,7 +7599,7 @@ describe('WB-JOURNEY-15: Coloured works the vertex colour and the shading, as th
 Append to `tests/black-box/math-journey.test.ts`:
 
 ```ts
-describe('BB-JOURNEY-15: Coloured shows the colour across the face with the vertex ringed', () => {
+describe('BB-JOURNEY-16: Coloured shows the colour across the face with the vertex ringed', () => {
   it('matches the mock\'s working and draws the face', async () => {
     mockTriangle();
     getState().setJourneyStageOverride('coloured');
@@ -7298,7 +7630,7 @@ In `vertex-journey.ts`:
 2. Build its rows:
 
 ```ts
-  const at: WorkingRow = { step: ['at pixel'], value: `(${pixel.x}, ${pixel.y})`, call: null, from: true };
+  const at: WorkingRow = { step: ['at pixel'], value: `(${int(pixel.x)}, ${int(pixel.y)})`, call: null, from: true };
   const mode = node.renderingMode ?? 'IMMEDIATE';
   // textured branch, after computing `tex`:
   const wrap = node.texture.wrap;
@@ -7323,9 +7655,19 @@ In `vertex-journey.ts`:
   ];
 ```
 
-`wrappedCoord` is the existing `wrapped`; rename it so its use reads clearly. The "vertex colour" row shows the vertex's own colour. The Result row shows the colour the pixel takes (the provoking vertex's under flat shading), as today's `result`.
+`wrappedCoord` is the existing `wrapped`; rename it so its use reads clearly, and change its two calls in `texelOf` to match. The "vertex colour" row shows the vertex's own colour. The Result row shows the colour the pixel takes (the provoking vertex's under flat shading), as today's `result`.
 
-3. In `textJourney`, give Coloured the rows `[{ step: ['at pixel'], value: …, call: null, from: true }, { step: ['text colour'], value: '(r, g, b)', call: 'glColor3f' }]`.
+3. In `textJourney`, give Coloured these rows, with the text's colour in the second:
+
+```ts
+  const textRgb = rgbOf(node.vertices[0]?.color ?? '#ffffff');
+  const colouredRows: WorkingRow[] = [
+    { step: ['at pixel'], value: `(${int(pixel.x)}, ${int(pixel.y)})`, call: null, from: true },
+    { step: ['text colour'], value: `(${textRgb.map((c) => c.toFixed(1)).join(', ')})`, call: 'glColor3f' },
+  ];
+```
+
+   and pass `colouredRows` in place of `[]` in the text's `stage('coloured', …)` call; its result stays `rgbText(textRgb)`.
 
 In `stage-pictures.tsx`, add the face picture and render it first in the `'coloured'` case, for untextured `TRIANGLES`, `TRIANGLE_STRIP`, `TRIANGLE_FAN`, `QUADS`, `QUAD_STRIP` and `POLYGON`:
 
@@ -7337,18 +7679,13 @@ function FacePicture({ node, vertex }: { node: SceneNode; vertex: number }) {
   const i = Math.min(Math.max(0, vertex), n - 1);
   const members = assemblyFor(node.type as PrimitiveType, i, n).members[0];
   if (!members || members.length < 3) return null;
-  const xs = members.map((k) => node.vertices[k].x);
-  const ys = members.map((k) => node.vertices[k].y);
-  const minX = Math.min(...xs);
-  const minY = Math.min(...ys);
-  const w = Math.max(Math.max(...xs) - minX, 1e-6);
-  const h = Math.max(Math.max(...ys) - minY, 1e-6);
-  const s = Math.min(84 / w, 72 / h);
-  const at = (k: number) => ({ x: 6 + (node.vertices[k].x - minX) * s + (84 - w * s) / 2, y: 76 - (node.vertices[k].y - minY) * s - (72 - h * s) / 2 });
+  // Task 18's helper, fitted to this primitive's corners only.
+  const fit = fitInBox(members.map((k) => node.vertices[k]), { left: 6, top: 4, width: 84, height: 72 });
+  const at = (k: number) => fit.at(node.vertices[k]);
   const points = members.map((k) => `${at(k).x},${at(k).y}`).join(' ');
   const flat = node.shading === 'FLAT';
   const flatColour = node.vertices[provokingVertex(node.type as PrimitiveType, i, n)]?.color ?? '#ffffff';
-  const reach = Math.hypot(w * s, h * s);
+  const reach = Math.hypot(fit.width, fit.height);
   return (
     <Picture label="Across the face">
       <div className="journey-picture__box">
@@ -7406,12 +7743,14 @@ git diff --staged
 git commit -m "feat(math): work the Coloured stage from vertex colour or UV to the pixel's colour"
 ```
 
-After each of Tasks 17–20, retake VIS-CM-02 and 03:
-1. Delete `tests/visual/baseline.local/cm-journey-*.png`.
-2. Run `npx playwright test tests/visual/code-math.spec.ts --update-snapshots`.
-3. Look at the stage's capture before moving on.
+- [ ] **Step 5: Retake the journey captures**
 
-Show the owner the Coloured capture beside `mock-journey-coloured.png` when Task 20 lands.
+```bash
+rm -f tests/visual/baseline.local/cm-journey-*.png tests/visual/baseline.local/cm-stage-*.png
+npx playwright test tests/visual/code-math.spec.ts --update-snapshots
+```
+
+Look at `cm-stage-coloured-dark-1280.png` and `cm-stage-coloured-light-1280.png` (VIS-CM-06) before moving on: Coloured now shows its working. Then show the owner `cm-journey-coloured-dark-1280.png` beside `mock-journey-coloured.png`, and the twelve `cm-stage-*` captures, since every stage now has its working.
 
 ---
 
@@ -7610,12 +7949,17 @@ Every decision this plan took that the spec did not settle in so many words.
 | P13 | "Open ‹control›" uses `revealedGroup`, read by `useGroupFocus` in Author mode; it selects the line's object first when needed | Outlining a control existed only in lessons | One field and three lines in the hook |
 | P14 | For an object in a group, the matrix stack is a Transformed picture, not deeper detail | The Transforms lesson's matrix-stack step names it | Move one picture |
 | P15 | The "As one matrix" picture is 3 × 3, as in the mock; the full 4×4 is deeper detail | The approved mock | Show 4 × 4 instead |
-| P16 | `useCanvasSize` moves to `shared/lib`; `fmt` and `short` to `shared/lib/format-number`; the assembly rules to `entities/scene/model/primitive-assembly` | Both features need them, and neither may import the other's slice for them | Three file moves |
-| P17 | Stored rows name `verts_<name>` and `vbo_<name>` through `sanitizeName` from `code-generation` | The repo's known exception (features import `code-generation`); the reverse never happens | Copy one small function |
+| P16 | `useCanvasSize` moves to `shared/lib`; `fmt`, `short` and `int` to `shared/lib/format-number`; the text raster offset to `shared/lib/text-raster`; the assembly rules to `entities/scene/model/primitive-assembly` | Both features (and, for the raster offset, the canvas ring) need them, and neither feature may import the other's slice for them | Four file moves |
+| P17 | `sanitizeName` moves to `shared/lib/sanitize-name.ts` in Task 17; `generator/utils.ts` re-exports it; the math panel and `EditorApp` import it from `shared/lib` | The math panel names the program's arrays and may not import `features/code-generation`; a copy with a parity test would duplicate the logic. The spec freezes the generator's output and logic, not its import lines | One import line changes in a generator file; the generator tests show its output is unchanged |
 | P18 | The stepper wraps around | It is never disabled, and the live region names the vertex | Disable at the ends instead |
 | P19 | Rasterised's pointer readout and "Vector vs Raster" show in every Pipeline mode | Spec §3 lists both as Rasterised's pictures | One conditional |
 | P20 | New student-facing text uses the spec's and mocks' British spelling; quoted control labels stay as the UI writes them | The approved words; the UI elsewhere spells "color" | A spelling pass |
 | P21 | Of the 15 rail `pane: 'math'` steps, 10 narrations change and only one step gets `mathStage` | Every other step's context already opens the stage it names | One field per step |
+| P22 | New labels are sentence case: no `text-transform: uppercase` or its `letter-spacing` in the new styles, though the mocks use small caps for table heads, picture labels and the strip's "Your values" | BB-SHELL-23, an existing product test, keeps every editor stylesheet sentence case, and it outranks the mocks | The labels look less like the mock; shown to the owner at checkpoint 1 |
+| P23 | Flat shading on a quad strip takes vertex 2j+3 (0-based), the highest of the quad, not the last vertex in drawing order | OpenGL's provoking vertex for quad strip quad i is 2i + 2, counting from 1 | One branch in `provokingVertex` |
+| P24 | The visual checkpoint captures run with reduced motion | `toHaveScreenshot` waits for two identical frames, so a fading wash would be captured after it had gone; under reduced motion the wash holds still for its 2 s | One `emulateMedia` call |
+| P25 | `endTour` clears `journeyStageOverride` | The Understand step's stage belongs to the tour; left set, it would hold Math on Transformed until the next group or lesson step | One field in `endTour` |
+| P26 | A text's canvas ring sits at its first line's raster position, `(0, firstRasterY(text))`, not its origin | The journey follows that point; for one line the two are the same | One helper shared by the journey and the ring |
 
 ## Self-review
 
@@ -7653,4 +7997,9 @@ Every decision this plan took that the spec did not settle in so many words.
   - `explainRequest` and `requestExplain`
   - `revealedGroup` and `revealGroup`
   - `assemblyFor(type, index, count)`
-- **Review Focus:** items 1–5 each have their test in the owning task (Tasks 6, 1, 9 and 10, 2 and 6, and 19).
+  - `nextMarks(prev, next)` and `MarkSnapshot`
+  - `pickHandleVertex(handles, handle, vertexCount, follow)`
+  - `JOURNEY_STAGE_TITLES` (Task 8, read by `STAGE_INFO` and the strip's link)
+  - `sanitizeName` from `@/shared/lib/sanitize-name` outside `features/code-generation`
+- **Review Focus:** items 1–5 each have their test in the owning task (Tasks 6, 1, 9 and 10, 2 and 6, and 19). Item 1's resize and lesson-swap rule is WB-CODE-20.
+- **Test IDs:** every new test takes the next free number in its file at the point its task runs: WB-CODE 01–23 (20 in Task 6, 21–23 in Task 13); BB-CODE 01–20; WB-JOURNEY 01–15; BB-JOURNEY 01–16 (13 in Task 15); VIS-CM 01–06 (06 in Task 12).
