@@ -65,7 +65,7 @@ export default function JourneyTrack({ journey, open, node, onOpen, onCall }: Jo
               <p className="journey-open__why">{stage.sentence}</p>
               {stage.result !== null && <WorkingTable rows={stage.rows} result={stage.result} onCall={onCall} wrapSteps={stage.id === 'stored'} />}
               <div className="journey-open__pictures">
-                <StagePictures stage={stage} node={node} deeper={deeper} deeperId={`${bodyId}-deeper`} world={journey.stages[1]?.point ?? null} />
+                <StagePictures stage={stage} node={node} deeper={deeper} deeperId={`${bodyId}-deeper`} world={journey.stages[1]?.point ?? null} ndc={journey.stages[2]?.point ?? null} />
               </div>
               <div className="journey-open__foot">
                 {deeperLabel ? (

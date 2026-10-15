@@ -226,7 +226,7 @@ describe('WB-JOURNEY-10: Flat shading names the primitive and its vertex; text n
     const edge = node('Edge', 'POINTS', [[1, -1]]);
     const j = vertexJourney(scene([edge]), 'Edge', 0, CANVAS);
     expect(stage(j, 'rasterised').result).toBe('pixel (585, 0)');
-    expect(ndcToWindow({ x: 1, y: 1 }, CANVAS)).toEqual({ x: 586, y: 500 });
+    expect(ndcToWindow({ x: 1, y: 1 }, CANVAS)).toEqual({ x: 585, y: 499 });
   });
 });
 
@@ -359,5 +359,58 @@ describe("WB-JOURNEY-13: Assembled works the rule with the student's primitive t
     expect(rowsOf(vertexJourney(scene([lines]), 'Lines', 2, CANVAS), 'assembled')[2]).toEqual(['this vertex', 'not drawn', null]);
     const array = { ...mockTriangle(), renderingMode: 'VERTEX_ARRAY' as const };
     expect(rowsOf(vertexJourney(scene([array]), 'Triangle', 0, CANVAS), 'assembled')[1][2]).toBe('glDrawArrays');
+  });
+});
+
+describe("WB-JOURNEY-14: Rasterised maps NDC to the window's pixels, as the reference does", () => {
+  it('works x and y with the canvas size and matches ndcToWindow', () => {
+    const tri = mockTriangle();
+    const j = vertexJourney(scene([tri]), 'Triangle', 0, CANVAS);
+    const px = ndcToWindow(stage(j, 'projected').point!, CANVAS);
+    expect(rowsOf(j, 'rasterised')).toEqual([
+      ['from Projected', 'NDC (0.27, 0.31)', null],
+      [`width ${CANVAS.width}`, `x → ${px.x}`, 'glutInitWindowSize'],
+      [`height ${CANVAS.height}`, `y → ${px.y}`, 'glutInitWindowSize'],
+    ]);
+    expect(stage(j, 'rasterised').sentence).not.toContain('outside the window');
+  });
+});
+
+describe('WB-JOURNEY-15: A vertex outside the viewing volume keeps its real numbers', () => {
+  it('goes past ±1 and outside the window with no NaN, and the sentence says it is clipped', () => {
+    const far = node('Far', 'TRIANGLES', [[3, 0], [3.5, 0], [3, 0.5]]);
+    const j = vertexJourney(scene([far]), 'Far', 0, CANVAS);
+    const ndc = stage(j, 'projected').point!;
+    expect(ndc.x).toBeCloseTo(3, 10);
+    expect(stage(j, 'rasterised').point!.x).toBeGreaterThan(CANVAS.width);
+    expect(stage(j, 'rasterised').point).toEqual(ndcToWindow(ndc, CANVAS));
+    expect(JSON.stringify(j)).not.toContain('NaN');
+    expect(stage(j, 'rasterised').sentence).toContain('outside the window');
+  });
+
+  it('reports a negative pixel with a true minus and nothing clamped', () => {
+    const left = node('Left', 'POINTS', [[-1.5, -2]]);
+    const j = vertexJourney(scene([left]), 'Left', 0, CANVAS);
+    const px = stage(j, 'rasterised').point!;
+    expect(px).toEqual(ndcToWindow(stage(j, 'projected').point!, CANVAS));
+    expect(px.x).toBeLessThan(0);
+    expect(px.y).toBeLessThan(0);
+    expect(rowsOf(j, 'rasterised')[1][1]).toBe(`x → ${int(px.x)}`);
+    expect(rowsOf(j, 'rasterised')[1][1]).toContain('−');
+    expect(JSON.stringify(j)).not.toContain('NaN');
+    expect(stage(j, 'rasterised').sentence).toContain('outside the window');
+  });
+
+  it('puts NDC exactly 1 in the last pixel and anything beyond it past the window', () => {
+    const edge = vertexJourney(scene([node('E', 'POINTS', [[1, 1]])]), 'E', 0, CANVAS);
+    expect(stage(edge, 'rasterised').point).toEqual({ x: CANVAS.width - 1, y: CANVAS.height - 1 });
+    expect(stage(edge, 'rasterised').point).toEqual(ndcToWindow({ x: 1, y: 1 }, CANVAS));
+    expect(stage(edge, 'rasterised').sentence).not.toContain('outside the window');
+    const past = vertexJourney(scene([node('P', 'POINTS', [[1.5, 1.2]])]), 'P', 0, CANVAS);
+    const px = stage(past, 'rasterised').point!;
+    expect(px.x).toBeGreaterThanOrEqual(CANVAS.width);
+    expect(px.y).toBeGreaterThanOrEqual(CANVAS.height);
+    expect(px).toEqual(ndcToWindow(stage(past, 'projected').point!, CANVAS));
+    expect(stage(past, 'rasterised').sentence).toContain('outside the window');
   });
 });

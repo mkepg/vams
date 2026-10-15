@@ -561,3 +561,20 @@ describe('BB-JOURNEY-23: The sketch shades what holds the vertex and its caption
     unmount(host);
   });
 });
+
+describe('BB-JOURNEY-18: Rasterised keeps the pointer readout in every Pipeline mode', () => {
+  it('shows the cursor readout and Vector vs Raster in Diagram mode too', async () => {
+    mockTriangle();
+    useVamsStore.setState({ pipelineMode: 'Diagram', activePipelineStage: 4 });
+    getState().setJourneyStageOverride('rasterised');
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    expect(host.textContent).toContain('Cursor (NDC)');
+    expect(host.textContent).toContain('Vector vs Raster');
+    expect(host.textContent).toContain('Rasterization');
+    expect(host.textContent).toContain('The formula, with your numbers');
+    expect(host.textContent).toContain('/ 2 · width');
+    unmount(host);
+    useVamsStore.setState({ pipelineMode: 'Playground', activePipelineStage: null });
+  });
+});

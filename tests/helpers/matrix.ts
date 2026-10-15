@@ -66,5 +66,7 @@ export function orthoToNdc(
 
 /** The default viewport's mapping of NDC to window pixels, counted from the bottom-left as OpenGL does. */
 export function ndcToWindow(p: { x: number; y: number }, size: { width: number; height: number }): { x: number; y: number } {
-  return { x: Math.floor(((p.x + 1) / 2) * size.width), y: Math.floor(((p.y + 1) / 2) * size.height) };
+  // NDC exactly +1 is the last pixel; anything beyond ±1 keeps its real, unclamped pixel.
+  const at = (v: number, n: number) => (v === 1 ? n - 1 : Math.floor(((v + 1) / 2) * n));
+  return { x: at(p.x, size.width), y: at(p.y, size.height) };
 }

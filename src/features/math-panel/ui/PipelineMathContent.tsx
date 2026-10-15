@@ -19,24 +19,22 @@ export default function PipelineMathContent() {
 
   return (
     <div className="pipeline-math">
-      {pipelineMode === 'Playground' && (
-        <Section title="Cursor (NDC)">
-          {cursor ? (
-            <div className="ndc-readout">
-              <div className="coord-pair">
-                <span className="axis x">x</span>
-                <span className="value">{cursor.x.toFixed(3)}</span>
-              </div>
-              <div className="coord-pair">
-                <span className="axis y">y</span>
-                <span className="value">{cursor.y.toFixed(3)}</span>
-              </div>
+      <Section title="Cursor (NDC)">
+        {cursor ? (
+          <div className="ndc-readout">
+            <div className="coord-pair">
+              <span className="axis x">x</span>
+              <span className="value">{cursor.x.toFixed(3)}</span>
             </div>
-          ) : (
-            <div className="hint">Move your cursor over the canvas to see live coordinates.</div>
-          )}
-        </Section>
-      )}
+            <div className="coord-pair">
+              <span className="axis y">y</span>
+              <span className="value">{cursor.y.toFixed(3)}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="hint">Move your cursor over the canvas to see live coordinates.</div>
+        )}
+      </Section>
 
       {pipelineMode === 'Diagram' && (
         <>
@@ -53,19 +51,17 @@ export default function PipelineMathContent() {
         </>
       )}
 
-      {pipelineMode === 'RasterVector' && (
-        <Section title="Vector vs Raster">
-          <p className="explanation">
-            <strong>Vector</strong> shapes are described by points and equations — they
-            stay sharp at any zoom.
-          </p>
-          <p className="explanation">
-            <strong>Raster</strong> shapes are made of square fragments — what your screen
-            actually displays.
-          </p>
-          <div className="hint">The pipeline's job is to turn vector input into raster output.</div>
-        </Section>
-      )}
+      <Section title="Vector vs Raster">
+        <p className="explanation">
+          <strong>Vector</strong> shapes are described by points and equations — they
+          stay sharp at any zoom.
+        </p>
+        <p className="explanation">
+          <strong>Raster</strong> shapes are made of square fragments — what your screen
+          actually displays.
+        </p>
+        <div className="hint">The pipeline's job is to turn vector input into raster output.</div>
+      </Section>
     </div>
   );
 }

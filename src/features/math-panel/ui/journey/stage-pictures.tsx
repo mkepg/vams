@@ -8,7 +8,8 @@ import PipelineMathContent from '../PipelineMathContent';
 import TexturesMathContent from '../TexturesMathContent';
 import { BarycentricMixer, ColorConversion, isLine, PrimitivesSection, StippleBits, VertexTable } from '../PrimitivesMathContent';
 import { buildMatrix4, getAncestorChain, Matrix4, MatrixStack, OrthoMapping, TransformsSection, TRSCompositionTrace } from '../TransformsMathContent';
-import { fmt, short, whole } from '@/shared/lib/format-number';
+import { fmt, int, short, whole } from '@/shared/lib/format-number';
+import { useCanvasSize } from '@/shared/lib/use-canvas-size';
 import type { JourneyStage, Point } from '../../model/vertex-journey';
 
 /** A labelled picture under the working. */
@@ -69,6 +70,27 @@ function OrthoFormula({ world, limits, ndc }: { world: Point; limits: ViewportLi
           ? 'Your volume is already −1 to 1, so the numbers don’t change. Widen it in Settings and they will.'
           : 'Your volume is wider or narrower than −1 to 1, so the numbers change on the way in.'}
       </p>
+    </Picture>
+  );
+}
+
+/** NDC to a window pixel, with the student's numbers. The pixel is the stage's own, so the arithmetic lives once. */
+function PixelFormula({ ndc, pixel, canvas }: { ndc: Point; pixel: Point; canvas: { width: number; height: number } }) {
+  const line = (axis: 'x' | 'y', v: number, size: number, out: number) => (
+    <>
+      {axis} = ({axis} + 1) / 2 · {axis === 'x' ? 'width' : 'height'}
+      <br />
+      {'  '}= ({fmt(v)} + 1) / 2 · {size} = <span className="is-value">{int(out)}</span>
+    </>
+  );
+  return (
+    <Picture label="The formula, with your numbers">
+      <p className="journey-formula">
+        {line('x', ndc.x, canvas.width, pixel.x)}
+        <br />
+        {line('y', ndc.y, canvas.height, pixel.y)}
+      </p>
+      <p className="journey-picture__caption">Pixels are counted from the bottom-left corner, as OpenGL does.</p>
     </Picture>
   );
 }
@@ -142,6 +164,8 @@ interface PicturesProps {
   deeperId: string;
   /** For Projected: where the vertex was before projection. */
   world: Point | null;
+  /** For Rasterised: the Projected point, in NDC. */
+  ndc: Point | null;
 }
 
 /** Deeper detail each stage offers, by label; none for the stages whose cards are all shown. */
@@ -150,10 +174,11 @@ export const DEEPER_LABEL: Partial<Record<JourneyStageId, string>> = {
   projected: 'Viewing volume',
 };
 
-export function StagePictures({ stage, node, deeper, deeperId, world }: PicturesProps) {
+export function StagePictures({ stage, node, deeper, deeperId, world, ndc }: PicturesProps) {
   const objects = useVamsStore((s) => s.objects);
   const limits = useVamsStore((s) => s.viewportLimits);
   const vertex = useVamsStore((s) => s.journeyVertex);
+  const canvas = useCanvasSize();
   const shape = node && node.type !== 'GROUP' && node.type !== 'TEXT' ? node : undefined;
   switch (stage.id) {
     case 'stored':
@@ -229,7 +254,12 @@ export function StagePictures({ stage, node, deeper, deeperId, world }: Pictures
         </div>
       );
     case 'rasterised':
-      return <PipelineMathContent />;
+      return (
+        <>
+          {stage.point && ndc && <PixelFormula ndc={ndc} pixel={stage.point} canvas={canvas} />}
+          <PipelineMathContent />
+        </>
+      );
     case 'coloured': {
       if (!node || node.type === 'GROUP') return null;
       if (node.texture) return <TexturesMathContent />;

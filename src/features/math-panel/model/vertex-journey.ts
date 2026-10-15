@@ -142,9 +142,21 @@ function ndcOf(p: Point, v: ViewportLimits): Point {
 }
 
 function pixelOf(n: Point, c: CanvasSize): Point {
-  // A vertex exactly on the far edge still lands in the last pixel: pixels run 0 to size − 1.
-  const at = (v: number, size: number) => Math.min(size - 1, Math.floor(((v + 1) / 2) * size));
+  // A vertex exactly on the far edge (NDC +1) still lands in the last pixel: pixels run 0 to size − 1.
+  // Anything beyond ±1 keeps its real pixel, which can be negative or past the window.
+  const at = (v: number, size: number) => (v === 1 ? size - 1 : Math.floor(((v + 1) / 2) * size));
   return { x: at(n.x, c.width), y: at(n.y, c.height) };
+}
+
+const OUTSIDE = ' This vertex lands outside the window, so the part of the shape out there is clipped.';
+
+function rasterisedStage(ndc: Point, pixel: Point, canvas: CanvasSize): JourneyStage {
+  const outside = pixel.x < 0 || pixel.y < 0 || pixel.x >= canvas.width || pixel.y >= canvas.height;
+  return stage('rasterised', RASTERISED + (outside ? OUTSIDE : ''), [
+    { step: ['from Projected'], value: `NDC ${pair(ndc)}`, call: null, from: true },
+    { step: [`width ${canvas.width}`], value: `x → ${int(pixel.x)}`, call: 'glutInitWindowSize' },
+    { step: [`height ${canvas.height}`], value: `y → ${int(pixel.y)}`, call: 'glutInitWindowSize' },
+  ], `pixel (${int(pixel.x)}, ${int(pixel.y)})`, pixel);
 }
 
 function projectedRows(world: Point, ndc: Point, v: ViewportLimits): WorkingRow[] {
@@ -255,7 +267,7 @@ function shapeJourney(node: SceneNode, scene: JourneyScene, vertexIndex: number,
       ], pair(world), world),
       stage('projected', PROJECTED, projectedRows(world, ndc, scene.viewportLimits), `NDC ${pair(ndc)}`, ndc),
       stage('assembled', assembly.sentence, assembledRows(node, ndc, assembly), assembly.result, null),
-      stage('rasterised', RASTERISED, [], `pixel (${int(pixel.x)}, ${int(pixel.y)})`, pixel),
+      rasterisedStage(ndc, pixel, canvas),
       colouredStage(node, i, scene),
     ],
   };
@@ -274,7 +286,7 @@ function textJourney(node: SceneNode, scene: JourneyScene, canvas: CanvasSize): 
       stage('transformed', TRANSFORMED, [{ step: ['from Stored'], value: pair(raster), call: 'glRasterPos2f', from: true }, ...moves], pair(world), world),
       stage('projected', PROJECTED, projectedRows(world, ndc, scene.viewportLimits), `NDC ${pair(ndc)}`, ndc),
       stage('assembled', TEXT_ASSEMBLED, [], 'bitmap text', null),
-      stage('rasterised', RASTERISED, [], `pixel (${int(pixel.x)}, ${int(pixel.y)})`, pixel),
+      rasterisedStage(ndc, pixel, canvas),
       stage('coloured', `The text takes the colour set by ${node.colorMode === 'BYTE' ? 'glColor3ub' : 'glColor3f'} just before it.`, [], rgbText(rgbOf(node.vertices[0]?.color ?? '#ffffff')), null),
     ],
   };
