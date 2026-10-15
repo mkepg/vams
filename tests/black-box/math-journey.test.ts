@@ -608,3 +608,43 @@ describe('BB-JOURNEY-18: Rasterised keeps the pointer readout in every Pipeline 
     unmount(host);
   });
 });
+
+describe('BB-JOURNEY-19: The glViewport link exists only when a reshape handler does', () => {
+  const sizeCalls = (host: HTMLElement) =>
+    [...host.querySelectorAll('.journey-work tbody tr')].filter((r) => r.textContent!.includes('glViewport'));
+
+  it('shows plain code, no button, in the size rows without a handler', async () => {
+    mockTriangle();
+    useVamsStore.setState({ codePane: 'math', codeHidden: false });
+    getState().setJourneyStageOverride('rasterised');
+    const host = mount(h(CodeMathColumn, {}));
+    await settle();
+    expect(sizeCalls(host)).toHaveLength(2);
+    for (const r of sizeCalls(host)) {
+      expect(r.querySelector('button')).toBeNull();
+      expect(r.querySelector('code')!.textContent).toBe('glViewport');
+    }
+    expect(host.querySelector('.journey-open__why')!.textContent).toContain('GLUT calls glViewport for you');
+    unmount(host);
+  });
+
+  it('opens the explanation from the button once a handler is set', async () => {
+    mockTriangle();
+    getState().setCallbackHandler('reshape', 'onReshape');
+    useVamsStore.setState({ codePane: 'math', codeHidden: false });
+    getState().setJourneyStageOverride('rasterised');
+    const host = mount(h(CodeMathColumn, {}));
+    await settle();
+    const buttons = [...host.querySelectorAll('.journey-work__call-link')].filter((b) => b.textContent === 'glViewport') as HTMLButtonElement[];
+    expect(buttons).toHaveLength(2);
+    expect(host.querySelector('.journey-open__why')!.textContent).not.toContain('reshape handler');
+    buttons[0].click();
+    await settle();
+    await settle();
+    expect(getState().codePane).toBe('code');
+    expect(host.querySelector('.code-line.is-explained .code-line__text')!.textContent).toContain('glViewport(0, 0, width, height)');
+    expect(host.querySelector('.code-strip__sig')!.textContent).toBe('glViewport(x, y, width, height)');
+    unmount(host);
+    getState().setCallbackHandler('reshape', '');
+  });
+});

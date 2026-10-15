@@ -64,7 +64,7 @@ export default function WorkingTable({ rows, result, onCall, wrapSteps }: Workin
               </td>
               <td className={valueClass(row.value)}>{row.value}</td>
               <td className="journey-work__call">
-                {row.call && (onCall ? (
+                {row.call && (onCall && row.linked !== false ? (
                   <button type="button" className="journey-work__call-link" onClick={() => onCall(row.call!)}>{row.call}</button>
                 ) : (
                   <code>{row.call}</code>

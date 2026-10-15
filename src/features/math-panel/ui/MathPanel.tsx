@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import type { ComponentChildren } from 'preact';
 import { useVamsStore } from '@/core/store';
 import { journeyStageFor } from '@/core/inspector';
+import { isCallbackValid } from '@/core/callbacks/callbacks-model';
 import { useCanvasSize } from '@/shared/lib/use-canvas-size';
 import { vertexJourney } from '../model/vertex-journey';
 import JourneyFollow from './journey/JourneyFollow';
@@ -28,14 +29,15 @@ export default function MathPanel({ headerLead, headerTrail, contentInert = fals
   const setOverride = useVamsStore((s) => s.setJourneyStageOverride);
   const getAllTextures = useVamsStore((s) => s.getAllTextures);
   const uploaded = useVamsStore((s) => s.uploadedTextures);
+  const reshape = useVamsStore((s) => isCallbackValid(s.callbacks, 'reshape'));
   const open = useVamsStore(journeyStageFor);
   const canvas = useCanvasSize();
 
   const journey = useMemo(
-    () => vertexJourney({ objects, viewportLimits, textures: getAllTextures() }, selectedObjectId, journeyVertex, canvas),
+    () => vertexJourney({ objects, viewportLimits, textures: getAllTextures(), reshape }, selectedObjectId, journeyVertex, canvas),
     // getAllTextures is stable; uploads change `uploaded`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [objects, viewportLimits, selectedObjectId, journeyVertex, canvas, uploaded],
+    [objects, viewportLimits, selectedObjectId, journeyVertex, canvas, uploaded, reshape],
   );
   const node = objects.find((o) => o.id === selectedObjectId);
 

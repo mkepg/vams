@@ -25,6 +25,8 @@ export interface WorkingRow {
   from?: boolean;
   /** A heading row, not a step: it names the enclosing group whose rows follow, and has no step, value or call. */
   heading?: string;
+  /** False when the call is named but no line of the student's code makes it, so it is plain text, not a link. */
+  linked?: boolean;
 }
 
 export interface JourneyStage {
@@ -53,6 +55,8 @@ export interface JourneyScene {
   objects: readonly SceneNode[];
   viewportLimits: ViewportLimits;
   textures: readonly TextureAsset[];
+  /** Whether the program has a reshape handler (the generator emits one). Unset reads as true. */
+  reshape?: boolean;
 }
 
 export interface CanvasSize {
@@ -148,14 +152,15 @@ function pixelOf(n: Point, c: CanvasSize): Point {
   return { x: at(n.x, c.width), y: at(n.y, c.height) };
 }
 
+const NO_RESHAPE = ' Without a reshape handler, GLUT calls glViewport for you with the window’s size.';
 const OUTSIDE = ' This vertex lands outside the window, so the part of the shape out there is clipped.';
 
-function rasterisedStage(ndc: Point, pixel: Point, canvas: CanvasSize): JourneyStage {
+function rasterisedStage(ndc: Point, pixel: Point, canvas: CanvasSize, reshape: boolean): JourneyStage {
   const outside = pixel.x < 0 || pixel.y < 0 || pixel.x >= canvas.width || pixel.y >= canvas.height;
-  return stage('rasterised', RASTERISED + (outside ? OUTSIDE : ''), [
+  return stage('rasterised', RASTERISED + (reshape ? '' : NO_RESHAPE) + (outside ? OUTSIDE : ''), [
     { step: ['from Projected'], value: pair(ndc), call: null, from: true },
-    { step: [`width ${canvas.width}`], value: `x → ${int(pixel.x)}`, call: 'glViewport' },
-    { step: [`height ${canvas.height}`], value: `y → ${int(pixel.y)}`, call: 'glViewport' },
+    { step: [`width ${canvas.width}`], value: `x → ${int(pixel.x)}`, call: 'glViewport', linked: reshape },
+    { step: [`height ${canvas.height}`], value: `y → ${int(pixel.y)}`, call: 'glViewport', linked: reshape },
   ], `pixel (${int(pixel.x)}, ${int(pixel.y)})`, pixel);
 }
 
@@ -267,7 +272,7 @@ function shapeJourney(node: SceneNode, scene: JourneyScene, vertexIndex: number,
       ], pair(world), world),
       stage('projected', PROJECTED, projectedRows(world, ndc, scene.viewportLimits), `NDC ${pair(ndc)}`, ndc),
       stage('assembled', assembly.sentence, assembledRows(node, ndc, assembly), assembly.result, null),
-      rasterisedStage(ndc, pixel, canvas),
+      rasterisedStage(ndc, pixel, canvas, scene.reshape ?? true),
       colouredStage(node, i, scene),
     ],
   };
@@ -286,7 +291,7 @@ function textJourney(node: SceneNode, scene: JourneyScene, canvas: CanvasSize): 
       stage('transformed', TRANSFORMED, [{ step: ['from Stored'], value: pair(raster), call: 'glRasterPos2f', from: true }, ...moves], pair(world), world),
       stage('projected', PROJECTED, projectedRows(world, ndc, scene.viewportLimits), `NDC ${pair(ndc)}`, ndc),
       stage('assembled', TEXT_ASSEMBLED, [], 'bitmap text', null),
-      rasterisedStage(ndc, pixel, canvas),
+      rasterisedStage(ndc, pixel, canvas, scene.reshape ?? true),
       stage('coloured', `The text takes the colour set by ${node.colorMode === 'BYTE' ? 'glColor3ub' : 'glColor3f'} just before it.`, [], rgbText(rgbOf(node.vertices[0]?.color ?? '#ffffff')), null),
     ],
   };

@@ -414,3 +414,21 @@ describe('WB-JOURNEY-15: A vertex outside the viewing volume keeps its real numb
     expect(stage(past, 'rasterised').sentence).toContain('outside the window');
   });
 });
+
+describe('WB-JOURNEY-16: Rasterised says GLUT calls glViewport when there is no reshape handler', () => {
+  const NOTE = 'Without a reshape handler, GLUT calls glViewport for you with the window’s size.';
+  const sizeRows = (j: ReturnType<typeof vertexJourney>) => stage(j, 'rasterised').rows.filter((r) => r.call === 'glViewport');
+
+  it('adds the sentence and unlinks the size rows without a handler', () => {
+    const j = vertexJourney({ ...scene([mockTriangle()]), reshape: false }, 'Triangle', 0, CANVAS);
+    expect(stage(j, 'rasterised').sentence).toContain(NOTE);
+    expect(sizeRows(j)).toHaveLength(2);
+    expect(sizeRows(j).every((r) => r.linked === false)).toBe(true);
+  });
+
+  it('keeps the link and leaves the sentence out with a handler', () => {
+    const j = vertexJourney({ ...scene([mockTriangle()]), reshape: true }, 'Triangle', 0, CANVAS);
+    expect(stage(j, 'rasterised').sentence).not.toContain('reshape handler');
+    expect(sizeRows(j).every((r) => r.linked === true)).toBe(true);
+  });
+});
