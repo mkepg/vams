@@ -7,6 +7,8 @@ import { vertexJourney, type JourneyScene } from '@/features/math-panel/model/ve
 import { assemblyFor, provokingVertex } from '@/entities/scene/model/primitive-assembly';
 import { fmt, int, short, whole } from '@/shared/lib/format-number';
 import type { PrimitiveType, SceneNode, TransformState } from '@/core/types/scene';
+import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
+import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { makeMatrix, multiply, transformPoint, orthoToNdc, ndcToWindow } from '../helpers/matrix';
 
 const T = (t: Partial<TransformState> = {}): TransformState => ({ translateX: 0, translateY: 0, rotate: 0, scaleX: 1, scaleY: 1, ...t });
@@ -222,5 +224,71 @@ describe('WB-JOURNEY-10: Flat shading names the primitive and its vertex; text n
     const j = vertexJourney(scene([edge]), 'Edge', 0, CANVAS);
     expect(stage(j, 'rasterised').result).toBe('pixel (585, 0)');
     expect(ndcToWindow({ x: 1, y: 1 }, CANVAS)).toEqual({ x: 586, y: 500 });
+  });
+});
+
+const rowsOf = (j: ReturnType<typeof vertexJourney>, id: string) =>
+  stage(j, id).rows.map((r) => [r.step.map((p) => (typeof p === 'string' ? p : p.input)).join(''), r.value, r.call]);
+
+describe('WB-JOURNEY-11: Stored says where the vertex lives in each rendering mode', () => {
+  it('sends an immediate vertex directly, and names the array, offset and stride otherwise', () => {
+    const tri = mockTriangle();
+    expect(rowsOf(vertexJourney(scene([tri]), 'Triangle', 0, CANVAS), 'stored')).toEqual([
+      ['typed in Vertices', '(0.00, 0.50)', null],
+      ['sent by glVertex2f', 'no buffer holds it', 'glVertex2f'],
+    ]);
+    const array = { ...tri, renderingMode: 'VERTEX_ARRAY' as const };
+    expect(rowsOf(vertexJourney(scene([array]), 'Triangle', 2, CANVAS), 'stored')).toEqual([
+      ['typed in Vertices', '(0.50, −0.50)', null],
+      ['in verts_Triangle', 'index 2', null],
+      ['byte offset 2 × 8', '16 bytes', null],
+      ['stride 0', 'packed, 8 bytes apart', 'glVertexPointer'],
+    ]);
+    const staticVbo = { ...tri, renderingMode: 'VBO' as const, bufferUsage: 'STATIC' as const };
+    const once = vertexJourney(scene([staticVbo]), 'Triangle', 1, CANVAS);
+    expect(rowsOf(once, 'stored')[1]).toEqual(['copied once, usage GL_STATIC_DRAW', 'vbo_Triangle on the GPU', 'glBufferData']);
+    expect(stage(once, 'stored').sentence).toContain('once, in init()');
+    const vbo = { ...tri, renderingMode: 'VBO' as const, bufferUsage: 'DYNAMIC' as const };
+    const j = vertexJourney(scene([vbo]), 'Triangle', 1, CANVAS);
+    expect(rowsOf(j, 'stored')[1]).toEqual(['refreshed every frame, usage GL_DYNAMIC_DRAW', 'vbo_Triangle on the GPU', 'glBufferSubData']);
+    expect(stage(j, 'stored').rows[1].step).toContainEqual({ input: 'GL_DYNAMIC_DRAW' });
+    expect(stage(j, 'stored').sentence).toContain('every frame');
+    expect(stage(j, 'stored').result).toBe('(−0.50, −0.50)');
+    const mapped = { ...vbo, updateMethod: 'MAP_BUFFER' as const };
+    expect(rowsOf(vertexJourney(scene([mapped]), 'Triangle', 1, CANVAS), 'stored')[1][2]).toBe('glMapBuffer');
+    const stream = { ...tri, renderingMode: 'VBO' as const, bufferUsage: 'STREAM' as const };
+    expect(rowsOf(vertexJourney(scene([stream]), 'Triangle', 1, CANVAS), 'stored')[1]).toEqual(['refreshed every frame, usage GL_STREAM_DRAW', 'vbo_Triangle on the GPU', 'glBufferData']);
+  });
+});
+
+describe('WB-JOURNEY-12: An indexed vertex has the index the generator gives it', () => {
+  it('matches the position of the vertex in the generated verts_ array', () => {
+    // Two triangles sharing an edge: six vertices, four unique.
+    const quad = node('Pair', 'TRIANGLES', [[0, 0], [1, 0], [1, 1], [0, 0], [1, 1], [0, 1]], {}, { renderingMode: 'VERTEX_ARRAY', useIndexed: true });
+    const code = generateCodeFromState({ objects: [quad], canvasBackgroundColor: '#000000', callbacks: emptyCallbacks(), viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 }, textures: [] }, CANVAS);
+    const numbers = /GLfloat verts_Pair\[\] = \{ (.*) \};/.exec(code)![1].split(', ').map((n) => Number(n.replace('f', '')));
+    const pairs = Array.from({ length: numbers.length / 2 }, (_, k) => `${numbers[2 * k]},${numbers[2 * k + 1]}`);
+    for (let i = 0; i < 6; i++) {
+      const j = vertexJourney(scene([quad]), 'Pair', i, CANVAS);
+      const v = quad.vertices[i];
+      expect(rowsOf(j, 'stored').find((r) => String(r[0]).startsWith('in verts_'))![1]).toBe(`index ${pairs.indexOf(`${v.x},${v.y}`)}`);
+    }
+    expect(rowsOf(vertexJourney(scene([quad]), 'Pair', 0, CANVAS), 'stored')[1]).toEqual(['deduplicated', '4 of 6 kept', 'glDrawElements']);
+  });
+
+  it('keeps two corners apart when only their colours differ, as the generator does', () => {
+    const tinted = node('Tinted', 'TRIANGLES', [], {}, {
+      renderingMode: 'VERTEX_ARRAY', useIndexed: true,
+      vertices: [
+        { id: 't0', x: 0, y: 0, color: '#ffffff' }, { id: 't1', x: 1, y: 0, color: '#ffffff' }, { id: 't2', x: 0, y: 1, color: '#ffffff' },
+        { id: 't3', x: 0, y: 0, color: '#ff0000' }, { id: 't4', x: 1, y: 0, color: '#ffffff' }, { id: 't5', x: 0, y: 1, color: '#ffffff' },
+      ],
+    });
+    const code = generateCodeFromState({ objects: [tinted], canvasBackgroundColor: '#000000', callbacks: emptyCallbacks(), viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 }, textures: [] }, CANVAS);
+    const kept = /GLfloat verts_Tinted\[\] = \{ (.*) \};/.exec(code)![1].split(', ').length / 2;
+    expect(kept).toBe(4);
+    const indexOf = (i: number) => rowsOf(vertexJourney(scene([tinted]), 'Tinted', i, CANVAS), 'stored').find((r) => String(r[0]).startsWith('in verts_'))![1];
+    expect([0, 1, 2, 3, 4, 5].map(indexOf)).toEqual(['index 0', 'index 1', 'index 2', 'index 3', 'index 1', 'index 2']);
+    expect(rowsOf(vertexJourney(scene([tinted]), 'Tinted', 3, CANVAS), 'stored')[1]).toEqual(['deduplicated', `${kept} of 6 kept`, 'glDrawElements']);
   });
 });

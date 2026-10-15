@@ -4,6 +4,7 @@ import type { PrimitiveType, SceneNode, TransformState, ViewportLimits } from '@
 import type { TextureAsset, TextureWrap, UV } from '@/core/types/textures';
 import { assemblyFor, provokingVertex } from '@/entities/scene/model/primitive-assembly';
 import { fmt, int, short } from '@/shared/lib/format-number';
+import { sanitizeName } from '@/shared/lib/sanitize-name';
 import { firstRasterY } from '@/shared/lib/text-raster';
 
 export interface Point {
@@ -186,6 +187,54 @@ function colouredStage(node: SceneNode, index: number, scene: JourneyScene): Jou
 
 // --- The journey ------------------------------------------------------------------------------
 
+/** The vertex's place in the program's arrays: deduplicated when indexed, by the key generator/buffers.ts uses. */
+function arrayIndex(node: SceneNode, i: number): { index: number; unique: number } {
+  if (!node.useIndexed) return { index: i, unique: node.vertices.length };
+  const textured = !!(node.texture && node.uvs && node.uvs.length === node.vertices.length);
+  const keys: string[] = [];
+  let index = 0;
+  node.vertices.forEach((v, k) => {
+    const uv = textured ? node.uvs![k] : null;
+    const key = uv
+      ? `${v.x.toFixed(6)}|${v.y.toFixed(6)}|${v.color}|${uv.u.toFixed(6)}|${uv.v.toFixed(6)}`
+      : `${v.x.toFixed(6)}|${v.y.toFixed(6)}|${v.color}`;
+    let at = keys.indexOf(key);
+    if (at < 0) {
+      at = keys.length;
+      keys.push(key);
+    }
+    if (k === i) index = at;
+  });
+  return { index, unique: keys.length };
+}
+
+function storedRows(node: SceneNode, i: number, stored: Point): WorkingRow[] {
+  const from: WorkingRow = { step: ['typed in Vertices'], value: pair(stored), call: null, from: true };
+  const mode = node.renderingMode ?? 'IMMEDIATE';
+  if (mode === 'IMMEDIATE') return [from, { step: ['sent by glVertex2f'], value: 'no buffer holds it', call: 'glVertex2f' }];
+  const code = sanitizeName(node.name);
+  const { index, unique } = arrayIndex(node, i);
+  const rows: WorkingRow[] = [from];
+  if (node.useIndexed) rows.push({ step: ['deduplicated'], value: `${unique} of ${node.vertices.length} kept`, call: 'glDrawElements' });
+  if (mode === 'VBO') {
+    const usage = node.bufferUsage ?? 'STATIC';
+    const hint = { input: `GL_${usage}_DRAW` };
+    if (usage === 'STATIC') {
+      rows.push({ step: ['copied once, usage ', hint], value: `vbo_${code} on the GPU`, call: 'glBufferData' });
+    } else {
+      // update_buffers() sends the data again every frame (generator/buffers.ts).
+      const refresh = usage === 'STREAM' ? 'glBufferData' : node.updateMethod === 'MAP_BUFFER' ? 'glMapBuffer' : 'glBufferSubData';
+      rows.push({ step: ['refreshed every frame, usage ', hint], value: `vbo_${code} on the GPU`, call: refresh });
+    }
+    rows.push({ step: [`in vbo_${code}`], value: `index ${index}`, call: 'glBindBuffer' });
+  } else {
+    rows.push({ step: [`in verts_${code}`], value: `index ${index}`, call: null });
+  }
+  rows.push({ step: [`byte offset ${index} × 8`], value: `${index * 8} bytes`, call: null });
+  rows.push({ step: ['stride 0'], value: 'packed, 8 bytes apart', call: 'glVertexPointer' });
+  return rows;
+}
+
 function shapeJourney(node: SceneNode, scene: JourneyScene, vertexIndex: number, canvas: CanvasSize): VertexJourney {
   const count = node.vertices.length;
   if (count === 0) return { subject: { kind: 'shape', name: node.name, vertex: 0, count: 0 }, stages: blankStages() };
@@ -201,7 +250,7 @@ function shapeJourney(node: SceneNode, scene: JourneyScene, vertexIndex: number,
   return {
     subject: { kind: 'shape', name: node.name, vertex: i, count },
     stages: [
-      stage('stored', storedSentence, [], pair(stored), stored),
+      stage('stored', storedSentence, storedRows(node, i, stored), pair(stored), stored),
       stage('transformed', TRANSFORMED, [
         { step: ['from Stored'], value: pair(stored), call: mode === 'IMMEDIATE' ? 'glVertex2f' : 'glVertexPointer', from: true },
         ...moves,
@@ -223,7 +272,7 @@ function textJourney(node: SceneNode, scene: JourneyScene, canvas: CanvasSize): 
   return {
     subject: { kind: 'text', name: node.name },
     stages: [
-      stage('stored', TEXT_STORED, [], pair(raster), raster),
+      stage('stored', TEXT_STORED, [{ step: ['raster position'], value: pair(raster), call: 'glRasterPos2f', from: true }], pair(raster), raster),
       stage('transformed', TRANSFORMED, [{ step: ['from Stored'], value: pair(raster), call: 'glRasterPos2f', from: true }, ...moves], pair(world), world),
       stage('projected', PROJECTED, projectedRows(world, ndc, scene.viewportLimits), `NDC ${pair(ndc)}`, ndc),
       stage('assembled', TEXT_ASSEMBLED, [], 'bitmap text', null),
