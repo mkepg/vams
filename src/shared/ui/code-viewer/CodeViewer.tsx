@@ -404,7 +404,7 @@ const CodeViewer = memo(function CodeViewer({
       <div className="code-live" aria-live="polite">
         {strip && (
         <section id={stripId} className="code-strip" aria-label="What this line does">
-          <div aria-live="polite" className="code-strip__body">
+          <div className="code-strip__body">
             <div className="code-strip__head">
               <code className="code-strip__sig">{strip.signature}</code>
               <button type="button" className="code-strip__close" aria-label="Close explanation" onClick={closeStrip}>

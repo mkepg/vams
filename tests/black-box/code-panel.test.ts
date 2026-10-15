@@ -451,7 +451,10 @@ describe('BB-CODE-19: Clicking a line explains it in the strip; Escape closes it
     expect(getState().explainedLine).toBe(Number(translate.getAttribute('data-line')));
     expect(translate.classList.contains('is-explained')).toBe(true);
     const strip = host.querySelector('section.code-strip')!;
-    expect(strip.querySelector('[aria-live="polite"]')).not.toBeNull();
+    const live = host.querySelector('.code-live[aria-live="polite"]')!;
+    expect(live.contains(strip)).toBe(true);
+    expect(live.textContent).toContain('glTranslatef(x, y, z)');
+    expect(host.querySelectorAll('[aria-live]')).toHaveLength(1);
     expect(strip.querySelector('.code-strip__sig')!.textContent).toBe('glTranslatef(x, y, z)');
     expect([...strip.querySelectorAll('.code-strip__values tbody tr')].map((tr) => tr.textContent)).toEqual([
       expect.stringContaining('state_Triangle.x'), expect.stringContaining('state_Triangle.y'),
@@ -461,6 +464,8 @@ describe('BB-CODE-19: Clicking a line explains it in the strip; Escape closes it
     expect(host.querySelector('.code-hint')).toBeNull();
     key(translate, 'Escape');
     await settle();
+    expect(host.querySelectorAll('[aria-live]')).toHaveLength(1);
+    expect(host.querySelector('.code-live')!.childElementCount).toBe(0);
     expect(getState().explainedLine).toBeNull();
     expect(host.querySelector('section.code-strip')).toBeNull();
     unmount(host);
