@@ -185,7 +185,7 @@ export default function UVEditorPanel() {
       numeric: true,
       render: (uv, i) => (
         <NumberField
-          label={`Vertex ${i} U`}
+          label={`Vertex ${i + 1} U`}
           hideTag
           value={uv.u}
           step={0.01}
@@ -201,7 +201,7 @@ export default function UVEditorPanel() {
       numeric: true,
       render: (uv, i) => (
         <NumberField
-          label={`Vertex ${i} V`}
+          label={`Vertex ${i + 1} V`}
           hideTag
           value={uv.v}
           step={0.01}

@@ -257,7 +257,7 @@ export default function ObjectAppearancePanel() {
                 {selectedObject.vertices.map((vertex, idx) => (
                   <div key={vertex.id} className="vertex-color-row">
                     <ColorField
-                      label={`Vertex ${idx}`}
+                      label={`Vertex ${idx + 1}`}
                       showRecent={false}
                       glCall={glCall}
                       value={vertex.color}

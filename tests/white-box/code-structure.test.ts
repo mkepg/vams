@@ -495,7 +495,7 @@ describe('WB-CODE-23: Value rows name the state field, its value and its control
       'x=0.40·Translate X', 'y=−0.17·Translate Y', 'rotation=15°·Rotate', 'scaleX=1·Scale X', 'scaleY=1·Scale Y',
     ]);
     const vertex = explainLine(lineOf(outline, 'glVertex2f('), outline, explainScene())!;
-    expect(vertex.values.map((v) => v.control)).toEqual(['Vertex 0 X', 'Vertex 0 Y']);
+    expect(vertex.values.map((v) => v.control)).toEqual(['Vertex 1 X', 'Vertex 1 Y']);
     expect(vertex.control).toEqual({ label: 'Vertices', group: 'vertices', objectId: tri.id });
     const clear = explainLine(lineOf(outline, 'glClearColor('), outline, explainScene())!;
     expect(clear.control).toEqual({ label: 'Background', group: 'background', objectId: null });

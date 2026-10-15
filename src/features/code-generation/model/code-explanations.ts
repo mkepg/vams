@@ -298,8 +298,8 @@ const ENTRIES: Entry[] = [
         signature: 'glVertex2f(x, y)',
         text: 'Sends one vertex at (x, y), in the object’s own coordinates. It takes the colour set just before it.',
         values: [
-          { arg: 'x', source: `vertex ${n}`, value: num(m[1]), control: `Vertex ${n - 1} X` },
-          { arg: 'y', source: `vertex ${n}`, value: num(m[2]), control: `Vertex ${n - 1} Y` },
+          { arg: 'x', source: `vertex ${n}`, value: num(m[1]), control: `Vertex ${n} X` },
+          { arg: 'y', source: `vertex ${n}`, value: num(m[2]), control: `Vertex ${n} Y` },
         ],
         stage: 'stored',
         control: link('Vertices', 'vertices', objectOf(ctx)),

@@ -18,7 +18,7 @@ export default function VerticesPanel() {
       numeric: true,
       render: (v, i) => (
         <NumberField
-          label={`Vertex ${i} X`}
+          label={`Vertex ${i + 1} X`}
           hideTag
           value={v.x}
           step={0.05}
@@ -33,7 +33,7 @@ export default function VerticesPanel() {
       numeric: true,
       render: (v, i) => (
         <NumberField
-          label={`Vertex ${i} Y`}
+          label={`Vertex ${i + 1} Y`}
           hideTag
           value={v.y}
           step={0.05}
