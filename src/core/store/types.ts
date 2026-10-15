@@ -1,4 +1,5 @@
 import type { InspectorGroupId } from '@/core/inspector/groups';
+import type { JourneyStageId } from '@/core/inspector/journey-stage';
 import type {
   PrimitiveType,
   SceneNode,
@@ -146,6 +147,8 @@ export interface RuntimeSlice {
   lastOpenedGroup: InspectorGroupId | null;
   /** A math tab picked by hand; cleared by the next lesson step or opened group. Session only. */
   mathTabOverride: CurriculumSection | null;
+  /** A journey stage opened by hand; cleared by the next lesson step or opened group. Session only. */
+  journeyStageOverride: JourneyStageId | null;
   learnOpen: boolean;
   /** The panel the rail shows. Session only. */
   railPanel: RailPanel;
@@ -169,6 +172,7 @@ export interface RuntimeSlice {
   openGroup: (id: InspectorGroupId) => void;
   setOpenGroups: (ids: readonly InspectorGroupId[]) => void;
   setMathTabOverride: (section: CurriculumSection | null) => void;
+  setJourneyStageOverride: (stage: JourneyStageId | null) => void;
   setLearnOpen: (open: boolean) => void;
   /** Shows a panel; also opens the panel if it was hidden. */
   setRailPanel: (panel: RailPanel) => void;

@@ -56,6 +56,7 @@ beforeEach(() => {
     explainedLine: null,
     codeNotes: true,
     journeyVertex: 0,
+    journeyStageOverride: null,
     appMode: 'Author',
     callbacks: emptyCallbacks(),
     canvasBackgroundColor: '#000000',

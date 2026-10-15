@@ -190,6 +190,7 @@ export function useLessonRunner(): LessonRunner {
 
       const focus = effectiveFocus(lesson, currentStep);
       store.setLessonFocusPanel(focus);
+      store.setJourneyStageOverride(currentStep.mathStage ?? null);
       selectForFocus(focus);
       store.setDmaDriverStep(currentStep.dmaStep ?? null);
     } else {
@@ -221,6 +222,7 @@ export function useLessonRunner(): LessonRunner {
 
       const focus = effectiveFocus(lesson, currentStep);
       store.setLessonFocusPanel(focus);
+      store.setJourneyStageOverride(currentStep.mathStage ?? null);
       selectForFocus(focus);
       store.setDmaDriverStep(currentStep.dmaStep ?? null);
     }
