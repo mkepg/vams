@@ -6,9 +6,12 @@ import { useCanvasSize } from '@/shared/lib/use-canvas-size';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { sanitizeName } from '@/features/code-generation/model/generator/utils';
 import { locateHandlerBranch } from '@/features/code-generation/model/locate-branch';
-import { outlineCode } from '@/features/code-generation/model/code-outline';
+import { outlineCode, stateFieldAt } from '@/features/code-generation/model/code-outline';
 import { visibleRows } from '@/features/code-generation/model/code-folds';
 import { useValueMarks } from '@/features/code-generation/model/use-value-marks';
+import { explainLine, noteFor, type ExplainScene } from '@/features/code-generation/model/code-explanations';
+import { JOURNEY_STAGE_TITLES } from '@/core/inspector';
+import type { CodeNote, CodeStrip } from '@/shared/ui/code-viewer/types';
 import type { RuleTrigger } from '@/core/types/scene';
 
 interface SceneCodePanelProps {
@@ -32,6 +35,14 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
   const opened = useVamsStore((s) => s.codeFoldsOpened);
   const toggleCodeFold = useVamsStore((s) => s.toggleCodeFold);
   const getAllTextures = useVamsStore((s) => s.getAllTextures);
+  const explainedLine = useVamsStore((s) => s.explainedLine);
+  const setExplainedLine = useVamsStore((s) => s.setExplainedLine);
+  const codeNotes = useVamsStore((s) => s.codeNotes);
+  const setCodeNotes = useVamsStore((s) => s.setCodeNotes);
+  const setCodePane = useVamsStore((s) => s.setCodePane);
+  const setJourneyStageOverride = useVamsStore((s) => s.setJourneyStageOverride);
+  const revealGroup = useVamsStore((s) => s.revealGroup);
+  const selectObject = useVamsStore((s) => s.selectObject);
   const canvasSize = useCanvasSize();
 
   // Re-render on uploads:
@@ -47,6 +58,16 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
   );
   const outline = useMemo(() => outlineCode(generatedCode), [generatedCode]);
 
+  const scene = useMemo<ExplainScene>(
+    () => ({ objects, viewportLimits, canvasBackgroundColor, canvas: canvasSize, textures: getAllTextures() }),
+    [objects, viewportLimits, canvasBackgroundColor, canvasSize, getAllTextures],
+  );
+  const explainable = useMemo(
+    () => new Set(outline.lines.flatMap((l, i) => (l.explainable && explainLine(i, outline, scene) ? [i] : []))),
+    [outline, scene],
+  );
+  const explained = explainedLine !== null && explainable.has(explainedLine) ? explainedLine : null;
+
   const selected = objects.find((o) => o.id === selectedObjectId);
   const selection = selected ? sanitizeName(selected.name) : null;
   const isLessonMode = appMode === 'Lesson';
@@ -60,15 +81,56 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
   const lessonLines = isLessonMode ? changedCodeLines : NO_LINES;
 
   const rows = useMemo(() => {
-    const forced = [...lessonLines, ...marks.map((m) => m.line), ...flashLines, ...(findLine === null ? [] : [findLine])];
+    const forced = [...lessonLines, ...marks.map((m) => m.line), ...flashLines, ...(findLine === null ? [] : [findLine]), ...(explained === null ? [] : [explained])];
     return visibleRows(outline, selection, opened, forced);
-  }, [outline, selection, opened, lessonLines, marks, flashLines, findLine]);
+  }, [outline, selection, opened, lessonLines, marks, flashLines, findLine, explained]);
 
   // What scrolls into view: Run's fired branch, else a lesson's highlight, else the changed values.
   const revealLines = useMemo(() => {
     if (flashLines.length > 0) return flashLines;
     return lessonLines.length > 0 ? lessonLines : marks.map((m) => m.line);
   }, [flashLines, lessonLines, marks]);
+
+  // A note's value is amber when the student's last edit changed the state field it shows.
+  const changedRefs = useMemo(
+    () => new Set(marks.flatMap((m) => {
+      const ref = stateFieldAt(outline.lines[m.line]?.text ?? '', m.start);
+      return ref ? [ref] : [];
+    })),
+    [marks, outline],
+  );
+  const notes = useMemo(() => {
+    const map = new Map<number, CodeNote>();
+    for (const row of rows) {
+      if (row.kind !== 'line') continue;
+      const parts = noteFor(row.line, outline, scene);
+      if (parts) map.set(row.line, parts.map((p) => (typeof p === 'string' ? { text: p } : { text: p.value, changed: changedRefs.has(p.ref) })));
+    }
+    return map;
+  }, [rows, outline, scene, changedRefs]);
+
+  const strip = useMemo<CodeStrip | null>(() => {
+    if (explained === null) return null;
+    const e = explainLine(explained, outline, scene);
+    if (!e) return null;
+    const links: CodeStrip['links'] = [];
+    if (e.stage) {
+      const stage = e.stage;
+      links.push({ label: `See the math: ${JOURNEY_STAGE_TITLES[stage]}`, onSelect: () => { setJourneyStageOverride(stage); setCodePane('math'); } });
+    }
+    if (e.control) {
+      const { group, objectId, label } = e.control;
+      links.push({
+        label: `Open ${label}`,
+        onSelect: () => {
+          // Select the line's object first: a new selection clears the outline, so revealing comes second.
+          if (objectId && objectId !== selectedObjectId) selectObject(objectId);
+          revealGroup(group);
+        },
+      });
+    }
+    return { signature: e.signature, text: e.text, values: e.values, links };
+  }, [explained, outline, scene, selectedObjectId, selectObject, revealGroup, setCodePane, setJourneyStageOverride]);
 
   return (
     <CodeViewer
@@ -83,6 +145,13 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
       isLessonMode={isLessonMode}
       headerLead={headerLead}
       headerTrail={headerTrail}
+      explainable={explainable}
+      explainedLine={explained}
+      onExplain={setExplainedLine}
+      strip={strip}
+      notes={notes}
+      notesOn={codeNotes}
+      onToggleNotes={() => setCodeNotes(!codeNotes)}
     />
   );
 }

@@ -10,6 +10,7 @@ import type { CodeRow } from '@/shared/ui/code-viewer/types';
 import { useVamsStore } from '@/core/store';
 import SceneCodePanel from '@/features/code-generation/ui/SceneCodePanel';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
+import { EditorPanel } from '@/widgets/layout/editor-column';
 import { addPrimitive, addTriangle, addQuad, getState } from '../helpers/store';
 
 describe('BB-CODE-01: The code panel state starts calm and is never saved', () => {
@@ -428,6 +429,135 @@ describe('BB-CODE-18: A changed value opens only its own line; the neighbours st
     expect([...host.querySelectorAll('.code-value')].map((el) => el.textContent).join('')).toBe('0.4000f');
     expect(lineTexts(host).some((t) => t.startsWith('ObjectState state_Square'))).toBe(false);
     expect([...host.querySelectorAll('.code-fold__label')].map((el) => el.textContent)).toContain('2 more objects');
+    unmount(host);
+  });
+});
+
+const lineEl = (host: HTMLElement, starts: string) =>
+  [...host.querySelectorAll('.code-line')].find((el) => el.querySelector('.code-line__text')!.textContent!.trim().startsWith(starts)) as HTMLElement;
+
+describe('BB-CODE-19: Clicking a line explains it in the strip; Escape closes it', () => {
+  it('shows the signature, the sentence and the student\'s values, in a polite live region', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(tri.id);
+    getState().updateObjectTransform(tri.id, { translateX: 0.4 });
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    expect(host.querySelector('.code-hint')!.textContent).toBe('Click any line to see what it does.');
+    const translate = lineEl(host, 'glTranslatef(');
+    expect(translate.getAttribute('role')).toBe('button');
+    translate.click();
+    await settle();
+    expect(getState().explainedLine).toBe(Number(translate.getAttribute('data-line')));
+    expect(translate.classList.contains('is-explained')).toBe(true);
+    const strip = host.querySelector('section.code-strip')!;
+    expect(strip.querySelector('[aria-live="polite"]')).not.toBeNull();
+    expect(strip.querySelector('.code-strip__sig')!.textContent).toBe('glTranslatef(x, y, z)');
+    expect([...strip.querySelectorAll('.code-strip__values tbody tr')].map((tr) => tr.textContent)).toEqual([
+      expect.stringContaining('state_Triangle.x'), expect.stringContaining('state_Triangle.y'),
+    ]);
+    expect(strip.textContent).toContain('0.40');
+    expect(strip.textContent).toContain('Translate X');
+    expect(host.querySelector('.code-hint')).toBeNull();
+    key(translate, 'Escape');
+    await settle();
+    expect(getState().explainedLine).toBeNull();
+    expect(host.querySelector('section.code-strip')).toBeNull();
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-20: The arrow keys move between explainable lines', () => {
+  it('skips braces, blanks and comments, and explains the new line while the strip is open', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(tri.id);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    const translate = lineEl(host, 'glTranslatef(');
+    translate.click();
+    await settle();
+    key(translate, 'ArrowDown');
+    await settle();
+    expect(document.activeElement).toBe(lineEl(host, 'glRotatef('));
+    expect(getState().explainedLine).toBe(Number(lineEl(host, 'glRotatef(').getAttribute('data-line')));
+    key(lineEl(host, 'glRotatef('), 'ArrowDown');
+    key(lineEl(host, 'glScalef('), 'ArrowDown');
+    await settle();
+    expect(document.activeElement).toBe(lineEl(host, 'glShadeModel('));
+    key(lineEl(host, 'glShadeModel('), 'ArrowUp');
+    await settle();
+    expect(document.activeElement).toBe(lineEl(host, 'glScalef('));
+    const brace = [...host.querySelectorAll('.code-line')].find((el) => el.textContent!.trim().endsWith('{')) as HTMLElement;
+    expect(brace.getAttribute('role')).toBeNull();
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-21: Three notes sit under the key lines, and the changed value is amber', () => {
+  it('notes move, turn and the shape rule; marks the new X; Notes hides them', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(tri.id);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    getState().updateObjectTransform(tri.id, { translateX: 0.4 });
+    await settle();
+    const notes = [...host.querySelectorAll('.code-note')].map((el) => el.textContent!.trim());
+    expect(notes).toEqual(['move by your X 0.40, Y −0.17', 'turn by 15°', 'every 3 vertices make a triangle']);
+    expect([...host.querySelectorAll('.code-note__value.is-changed')].map((el) => el.textContent)).toEqual(['0.40']);
+    const toggle = [...host.querySelectorAll('.code-word')].find((b) => b.textContent === 'Notes') as HTMLButtonElement;
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    toggle.click();
+    await settle();
+    expect(getState().codeNotes).toBe(false);
+    expect(host.querySelectorAll('.code-note')).toHaveLength(0);
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-22: The strip links to the math and to the control', () => {
+  it('opens Math on the line\'s stage, and reveals and outlines the control in its panel', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(tri.id);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    lineEl(host, 'glTranslatef(').click();
+    await settle();
+    const links = [...host.querySelectorAll('.code-strip__link')] as HTMLButtonElement[];
+    expect(links.map((a) => a.textContent)).toEqual(['See the math: Transformed', 'Open Translate X']);
+    links[1].click();
+    await settle();
+    expect(getState().railPanel).toBe('scene');
+    expect(getState().openGroups).toContain('transform');
+    expect(getState().revealedGroup).toBe('transform');
+    const panel = mount(h(EditorPanel, {}));
+    await settle();
+    expect(panel.querySelector('[data-group="transform"]')!.classList.contains('is-focus')).toBe(true);
+    unmount(panel);
+    links[0].click();
+    await settle();
+    expect(getState().codePane).toBe('math');
+    expect(getState().journeyStageOverride).toBe('transformed');
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-23: Explaining a folded line opens its fold; a new selection closes the strip', () => {
+  it('opens main() for an explained line inside it, and closes the strip and the outline on a new selection', async () => {
+    const { tri, square } = mockScene();
+    getState().selectObject(tri.id);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    const main = currentProgram().split('\n').findIndex((l) => l.includes('glutMainLoop'));
+    getState().setExplainedLine(main);
+    await settle();
+    expect(lineTexts(host).some((t) => t.includes('glutMainLoop'))).toBe(true);
+    expect(host.querySelector('.code-strip__sig')!.textContent).toBe('glutMainLoop()');
+    getState().revealGroup('transform');
+    expect(getState().revealedGroup).toBe('transform');
+    getState().selectObject(square.id);
+    await settle();
+    expect(host.querySelector('section.code-strip')).toBeNull();
+    expect(getState().revealedGroup).toBeNull();
     unmount(host);
   });
 });

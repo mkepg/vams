@@ -3,7 +3,7 @@ import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { ComponentChildren } from 'preact';
 import { X } from 'lucide-react';
 import { tokenizeLine } from './tokenize';
-import type { CodeMark, CodeRow } from './types';
+import type { CodeMark, CodeNote, CodeRow, CodeStrip } from './types';
 
 export interface CodeViewerProps {
   code: string;
@@ -26,6 +26,18 @@ export interface CodeViewerProps {
   headerLead?: ComponentChildren;
   /** Rendered at the end of the header, after Copy. */
   headerTrail?: ComponentChildren;
+  /** Lines the student can click to have explained. */
+  explainable?: ReadonlySet<number>;
+  /** The line the strip explains. */
+  explainedLine?: number | null;
+  /** A line was chosen to explain; null closes the strip. */
+  onExplain?: (line: number | null) => void;
+  /** The open explanation, shown under the code. */
+  strip?: CodeStrip | null;
+  /** Notes under their lines. */
+  notes?: ReadonlyMap<number, CodeNote>;
+  notesOn?: boolean;
+  onToggleNotes?: () => void;
 }
 
 interface Overlay {
@@ -84,7 +96,7 @@ function byLine<T extends { line: number }>(items: readonly T[] | undefined): Ma
 
 const CodeViewer = memo(function CodeViewer({
   code, rows, onToggleFold, marks, marksKey = 0, revealLines, firedLines, onFindLine, isLessonMode,
-  headerLead, headerTrail,
+  headerLead, headerTrail, explainable, explainedLine, onExplain, strip, notes, notesOn, onToggleNotes,
 }: CodeViewerProps) {
   const baseId = useId();
   const [copied, setCopied] = useState(false);
@@ -169,6 +181,47 @@ const CodeViewer = memo(function CodeViewer({
     return () => cancelAnimationFrame(raf);
   }, [revealLines, code]);
 
+  const stripId = `${baseId}-strip`;
+  const shownLines = useMemo(
+    () => rowList.flatMap((r) => (r.kind === 'line' && explainable?.has(r.line) ? [r.line] : [])),
+    [rowList, explainable],
+  );
+  const tabLine = explainedLine != null && shownLines.includes(explainedLine) ? explainedLine : shownLines[0];
+
+  const moveTo = (from: number, delta: 1 | -1) => {
+    const next = shownLines[shownLines.indexOf(from) + delta];
+    if (next === undefined) return;
+    lineEls.current.get(next)?.focus();
+    if (explainedLine != null) onExplain?.(next);
+  };
+
+  const onLineKey = (line: number) => (e: KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onExplain?.(line);
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      moveTo(line, e.key === 'ArrowDown' ? 1 : -1);
+    } else if (e.key === 'Escape' && explainedLine != null) {
+      e.preventDefault();
+      onExplain?.(null);
+    }
+  };
+
+  // The explained line scrolls into view, as when it was chosen from the math.
+  useEffect(() => {
+    if (explainedLine == null) return;
+    const raf = requestAnimationFrame(() => lineEls.current.get(explainedLine)?.scrollIntoView?.({ block: 'nearest' }));
+    return () => cancelAnimationFrame(raf);
+  }, [explainedLine]);
+
+  const closeStrip = () => {
+    const line = explainedLine;
+    onExplain?.(null);
+    // The close button leaves with the strip; the line keeps the focus.
+    if (line != null) requestAnimationFrame(() => lineEls.current.get(line)?.focus());
+  };
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(code);
@@ -209,11 +262,17 @@ const CodeViewer = memo(function CodeViewer({
     const { line } = row;
     const text = lines[line] ?? '';
     const changed = marksByLine.has(line);
-    const classes = ['code-line', changed ? 'is-changed' : '', fired.has(line) ? 'is-fired' : ''].filter(Boolean).join(' ');
+    const canExplain = explainable?.has(line) ?? false;
+    const explained = explainedLine === line;
+    const note = notes?.get(line);
+    const classes = [
+      'code-line', changed ? 'is-changed' : '', fired.has(line) ? 'is-fired' : '',
+      canExplain ? 'is-explainable' : '', explained ? 'is-explained' : '',
+    ].filter(Boolean).join(' ');
     return (
       // A changed line remounts on each edit, so its fade starts again.
       <div key={changed ? `${line}:${marksKey}` : `${line}`} className="code-row">
-        {/* ▾ is the line's sibling, never inside it: Task 14 makes the line itself a button. */}
+        {/* ▾ is the line's sibling, never inside it: the line itself is a button. */}
         {row.closes && (
           <button
             type="button"
@@ -232,10 +291,31 @@ const CodeViewer = memo(function CodeViewer({
           }}
           className={classes}
           data-line={line}
+          role={canExplain ? 'button' : undefined}
+          tabIndex={canExplain ? (line === tabLine ? 0 : -1) : undefined}
+          aria-expanded={canExplain ? explained : undefined}
+          aria-controls={canExplain ? stripId : undefined}
+          onClick={canExplain ? () => onExplain?.(line) : undefined}
+          onKeyDown={canExplain ? onLineKey(line) : undefined}
         >
           <span className="code-line__num" aria-hidden="true">{line + 1}</span>
           <span className="code-line__text">{text ? <LineText text={text} overlays={overlaysFor(line)} /> : ' '}</span>
         </div>
+        {notesOn && note && (
+          <div className="code-note">
+            <span className="code-line__num" aria-hidden="true" />
+            <span className="code-note__indent" aria-hidden="true">{text.match(/^\s*/)![0]}</span>
+            <span className="code-note__text">
+              {note.map((part, k) =>
+                part.changed === undefined ? (
+                  <span key={k}>{part.text}</span>
+                ) : (
+                  <b key={k} className={`code-note__value${part.changed ? ' is-changed' : ''}`}>{part.text}</b>
+                ),
+              )}
+            </span>
+          </div>
+        )}
       </div>
     );
   };
@@ -275,6 +355,9 @@ const CodeViewer = memo(function CodeViewer({
           )}
         </div>
         <div className="code-header-right">
+          {onToggleNotes && (
+            <button type="button" className="code-word" aria-pressed={!!notesOn} onClick={onToggleNotes}>Notes</button>
+          )}
           {!isLessonMode && (findOpen ? (
             <div className="code-search" role="search" ref={searchRef}>
               <input
@@ -316,6 +399,43 @@ const CodeViewer = memo(function CodeViewer({
       <div className="code-content" ref={scrollRef}>
         {rowList.map((row) => (row.kind === 'line' ? renderLine(row) : renderFold(row)))}
       </div>
+
+      {strip ? (
+        <section id={stripId} className="code-strip" aria-label="What this line does">
+          <div aria-live="polite" className="code-strip__body">
+            <div className="code-strip__head">
+              <code className="code-strip__sig">{strip.signature}</code>
+              <button type="button" className="code-strip__close" aria-label="Close explanation" onClick={closeStrip}>
+                <X size={12} aria-hidden="true" />
+              </button>
+            </div>
+            <p className="code-strip__text">{strip.text}</p>
+            {strip.values.length > 0 && (
+              <table className="code-strip__values">
+                <caption>Your values</caption>
+                <tbody>
+                  {strip.values.map((v) => (
+                    <tr key={v.arg}>
+                      <th scope="row">{v.arg}</th>
+                      <td>{v.source} = <span className="code-strip__value">{v.value}</span></td>
+                      <td>{v.control ?? ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {strip.links.length > 0 && (
+              <div className="code-strip__links">
+                {strip.links.map((l) => (
+                  <button key={l.label} type="button" className="code-strip__link" onClick={l.onSelect}>{l.label}</button>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      ) : (
+        explainable && <p className="code-hint"><b>Click any line</b> to see what it does.</p>
+      )}
     </div>
   );
 });

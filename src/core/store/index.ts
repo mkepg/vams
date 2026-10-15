@@ -119,8 +119,8 @@ useVamsStore.subscribe((state, prev) => {
 // Any path that changes the selection (including clearing it) starts the new object fresh.
 useVamsStore.subscribe((state, prev) => {
   if (state.selectedObjectId === prev.selectedObjectId) return;
-  if (state.codeFoldsOpened.length === 0 && state.explainedLine === null && state.journeyVertex === 0) return;
-  useVamsStore.setState({ codeFoldsOpened: [], explainedLine: null, journeyVertex: 0 });
+  if (state.codeFoldsOpened.length === 0 && state.explainedLine === null && state.journeyVertex === 0 && state.revealedGroup === null) return;
+  useVamsStore.setState({ codeFoldsOpened: [], explainedLine: null, journeyVertex: 0, revealedGroup: null });
 });
 
 // Starting a lesson ends the tour. The lesson's focus decides the rail, so the tour leaves it alone.

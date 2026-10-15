@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { VamsState, RuntimeSlice } from '@/core/store/types';
-import { DEFAULT_OPEN_GROUPS } from '@/core/inspector/groups';
+import { DEFAULT_OPEN_GROUPS, OBJECT_GROUPS } from '@/core/inspector/groups';
 
 export const createRuntimeSlice: StateCreator<VamsState, [], [], RuntimeSlice> = (set) => ({
   appMode: 'Author',
@@ -10,6 +10,7 @@ export const createRuntimeSlice: StateCreator<VamsState, [], [], RuntimeSlice> =
   cursorWorld: null,
   openGroups: [...DEFAULT_OPEN_GROUPS],
   lastOpenedGroup: null,
+  revealedGroup: null,
   journeyStageOverride: null,
   learnOpen: false,
   railPanel: 'add',
@@ -33,6 +34,7 @@ export const createRuntimeSlice: StateCreator<VamsState, [], [], RuntimeSlice> =
       activePipelineStage: null,
       openGroups: [...DEFAULT_OPEN_GROUPS],
       lastOpenedGroup: null,
+      revealedGroup: null,
       journeyStageOverride: null,
     };
   }),
@@ -43,9 +45,15 @@ export const createRuntimeSlice: StateCreator<VamsState, [], [], RuntimeSlice> =
 
   toggleGroup: (id) => set((state) => (
     state.openGroups.includes(id)
-      ? { openGroups: state.openGroups.filter((group) => group !== id) }
-      : { openGroups: [...state.openGroups, id], lastOpenedGroup: id, journeyStageOverride: null }
+      ? { openGroups: state.openGroups.filter((group) => group !== id), revealedGroup: null }
+      : { openGroups: [...state.openGroups, id], lastOpenedGroup: id, journeyStageOverride: null, revealedGroup: null }
   )),
+  revealGroup: (group) => set((state) => ({
+    railPanel: (OBJECT_GROUPS as readonly string[]).includes(group) ? 'scene' : group === 'callbacks' ? 'callbacks' : 'settings',
+    railHidden: false,
+    openGroups: state.openGroups.includes(group) ? state.openGroups : [...state.openGroups, group],
+    revealedGroup: group,
+  })),
   openGroup: (id) => set((state) => (state.openGroups.includes(id) ? {} : { openGroups: [...state.openGroups, id] })),
   setOpenGroups: (ids) => set({ openGroups: [...ids] }),
   setJourneyStageOverride: (stage) => set({ journeyStageOverride: stage }),

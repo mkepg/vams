@@ -195,6 +195,7 @@ describe('BB-INSP-08: An empty scene shows the folded program in every section',
       await settle();
       expect(host.querySelector('.code-fold')).not.toBeNull();
       expect(host.querySelector('.has-annot')).toBeNull();
+      expect(host.querySelector('.code-hint')!.textContent).toBe('Click any line to see what it does.');
     } finally {
       unmountEl(host);
     }

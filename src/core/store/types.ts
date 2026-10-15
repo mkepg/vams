@@ -166,6 +166,10 @@ export interface RuntimeSlice {
   codeNotes: boolean;
   /** The selected object's vertex the math journey follows, 0-based. Session only. */
   journeyVertex: number;
+  /** A group the student opened from the code's explanation strip; outlined until the selection or the open groups change. Session only. */
+  revealedGroup: InspectorGroupId | null;
+  /** Shows a group's panel, opens the group and outlines it. */
+  revealGroup: (group: InspectorGroupId) => void;
   toggleGroup: (id: InspectorGroupId) => void;
   openGroup: (id: InspectorGroupId) => void;
   setOpenGroups: (ids: readonly InspectorGroupId[]) => void;

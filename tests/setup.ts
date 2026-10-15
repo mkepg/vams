@@ -54,6 +54,7 @@ beforeEach(() => {
     codeChangedUnseen: false,
     codeFoldsOpened: [],
     explainedLine: null,
+    revealedGroup: null,
     codeNotes: true,
     journeyVertex: 0,
     journeyStageOverride: null,

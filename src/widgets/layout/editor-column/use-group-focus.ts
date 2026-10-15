@@ -27,7 +27,9 @@ export function useGroupFocus(
   const lesson = lessonId ? getLessonById(lessonId) : undefined;
   const style: FocusStyle = lesson ? focusStyleFor(lesson) : 'none';
   const place = resolveFocus(focusPanelId, hasSelection);
-  const group = place && place.area === area ? place.group : null;
+  // Outside a lesson, a group opened from the code's explanation strip is outlined the same way.
+  const revealed = useVamsStore((s) => (s.appMode === 'Author' ? s.revealedGroup : null));
+  const group = place && place.area === area ? place.group : revealed;
   const target = group && defs.some((def) => def.id === group) ? group : null;
 
   useLayoutEffect(() => {
