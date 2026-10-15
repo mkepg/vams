@@ -3,6 +3,7 @@ import { JOURNEY_STAGES, JOURNEY_STAGE_TITLES, type JourneyStageId } from '@/cor
 import type { PrimitiveType, SceneNode, TransformState, ViewportLimits } from '@/core/types/scene';
 import type { TextureAsset, TextureWrap, UV } from '@/core/types/textures';
 import { assemblyFor, provokingVertex } from '@/entities/scene/model/primitive-assembly';
+import { deduplicate } from '@/entities/scene/model/vertex-dedup';
 import { fmt, int, short } from '@/shared/lib/format-number';
 import { sanitizeName } from '@/shared/lib/sanitize-name';
 import { firstRasterY } from '@/shared/lib/text-raster';
@@ -189,23 +190,8 @@ function colouredStage(node: SceneNode, index: number, scene: JourneyScene): Jou
 
 /** The vertex's place in the program's arrays: deduplicated when indexed, by the key generator/buffers.ts uses. */
 function arrayIndex(node: SceneNode, i: number): { index: number; unique: number } {
-  if (!node.useIndexed) return { index: i, unique: node.vertices.length };
-  const textured = !!(node.texture && node.uvs && node.uvs.length === node.vertices.length);
-  const keys: string[] = [];
-  let index = 0;
-  node.vertices.forEach((v, k) => {
-    const uv = textured ? node.uvs![k] : null;
-    const key = uv
-      ? `${v.x.toFixed(6)}|${v.y.toFixed(6)}|${v.color}|${uv.u.toFixed(6)}|${uv.v.toFixed(6)}`
-      : `${v.x.toFixed(6)}|${v.y.toFixed(6)}|${v.color}`;
-    let at = keys.indexOf(key);
-    if (at < 0) {
-      at = keys.length;
-      keys.push(key);
-    }
-    if (k === i) index = at;
-  });
-  return { index, unique: keys.length };
+  const dedup = deduplicate(node);
+  return dedup ? { index: dedup.indices[i], unique: dedup.uniqueVerts.length } : { index: i, unique: node.vertices.length };
 }
 
 function storedRows(node: SceneNode, i: number, stored: Point): WorkingRow[] {

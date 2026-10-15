@@ -291,4 +291,30 @@ describe('WB-JOURNEY-12: An indexed vertex has the index the generator gives it'
     expect([0, 1, 2, 3, 4, 5].map(indexOf)).toEqual(['index 0', 'index 1', 'index 2', 'index 3', 'index 1', 'index 2']);
     expect(rowsOf(vertexJourney(scene([tinted]), 'Tinted', 3, CANVAS), 'stored')[1]).toEqual(['deduplicated', `${kept} of 6 kept`, 'glDrawElements']);
   });
+
+  it('keeps two corners apart when only their UVs differ, and indexes the UV arrays alike', () => {
+    const quad = node('Skin', 'TRIANGLES', [[0, 0], [1, 0], [0, 1], [0, 0], [1, 0], [0, 1]], {}, {
+      renderingMode: 'VERTEX_ARRAY', useIndexed: true,
+      texture: { textureId: 'tex', filter: 'NEAREST', wrap: 'REPEAT' },
+      uvs: [{ u: 0, v: 0 }, { u: 1, v: 0 }, { u: 0, v: 1 }, { u: 0.5, v: 0 }, { u: 1, v: 0 }, { u: 0, v: 1 }],
+    });
+    const code = generateCodeFromState({ objects: [quad], canvasBackgroundColor: '#000000', callbacks: emptyCallbacks(), viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 }, textures: [] }, CANVAS);
+    const grab = (re: RegExp) => re.exec(code)![1].split(', ').map((n) => Number(n.replace('f', '')));
+    const flat = grab(/GLfloat verts_Skin\[\] = \{ (.*) \};/);
+    const uvFlat = grab(/GLfloat uvs_Skin\[\] = \{ (.*) \};/);
+    expect(flat.length / 2).toBe(4);
+    expect(uvFlat.length / 2).toBe(4);
+    const indexOf = (i: number) => rowsOf(vertexJourney(scene([quad]), 'Skin', i, CANVAS), 'stored').find((r) => String(r[0]).startsWith('in verts_'))![1];
+    expect([0, 1, 2, 3, 4, 5].map(indexOf)).toEqual(['index 0', 'index 1', 'index 2', 'index 3', 'index 1', 'index 2']);
+    // The UV the generator stores at that index is the corner's own.
+    quad.uvs!.forEach((uv, i) => {
+      const at = Number(String(indexOf(i)).replace('index ', ''));
+      expect([uvFlat[2 * at], uvFlat[2 * at + 1]]).toEqual([uv.u, uv.v]);
+    });
+  });
+
+  it('names the array as the program does for an object called My Shape', () => {
+    const shape = node('My Shape', 'TRIANGLES', [[0, 0], [1, 0], [0, 1]], {}, { renderingMode: 'VERTEX_ARRAY' });
+    expect(rowsOf(vertexJourney(scene([shape]), shape.id, 0, CANVAS), 'stored')[1][0]).toBe('in verts_My_Shape');
+  });
 });

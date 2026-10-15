@@ -218,6 +218,21 @@
     color: var(--ink-muted);
   }
 
+  // Prose values ("no buffer holds it") wrap so Step and Code always stay inside the column.
+  td.journey-work__value.is-prose {
+    white-space: normal;
+    line-height: 1.25;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  td.journey-work__step.is-long {
+    white-space: normal;
+    line-height: 1.25;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
   .journey-work__in { color: var(--value); }
 
   .journey-work__call {

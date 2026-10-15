@@ -226,7 +226,7 @@ function InterleavedLayout({ obj }: { obj: SceneNode }) {
             </div>
           ) : (
             <div key={`v-${b.idx}`} className="bm-vblock">
-              <span className="bm-vblock-idx">V{b.idx}</span>
+              <span className="bm-vblock-idx">V{b.idx + 1}</span>
               <div className="bm-vblock-cells">
                 <span className="bm-cell pos">x</span>
                 <span className="bm-cell pos">y</span>

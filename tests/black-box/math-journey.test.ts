@@ -441,3 +441,19 @@ describe('BB-JOURNEY-16: Clicking a vertex handle on the canvas follows that ver
     unmount(host);
   });
 });
+
+describe('BB-JOURNEY-20: Prose values wrap so the working fits its column; numbers stay on one line', () => {
+  it('marks a prose value cell for wrapping and leaves a coordinate cell alone', async () => {
+    mockTriangle();
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    getState().setJourneyStageOverride('stored');
+    await settle();
+    const cells = [...host.querySelectorAll('table.journey-work tbody td.journey-work__value')];
+    const typed = cells.find((c) => c.textContent === '(0.00, 0.50)')!;
+    const prose = cells.find((c) => c.textContent === 'no buffer holds it')!;
+    expect(typed.classList.contains('is-prose')).toBe(false);
+    expect(prose.classList.contains('is-prose')).toBe(true);
+    unmount(host);
+  });
+});

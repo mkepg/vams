@@ -281,7 +281,7 @@ export function VertexTable({ vertices }: { vertices: Vertex[] }) {
       <div className="pvt-body">
         {vertices.map((v, i) => (
           <div key={v.id} className="pvt-row">
-            <span className="pvt-i">V{i}</span>
+            <span className="pvt-i">V{i + 1}</span>
             <code className="pvt-x">{v.x.toFixed(3)}</code>
             <code className="pvt-y">{v.y.toFixed(3)}</code>
             <span className="pvt-c">
