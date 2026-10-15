@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ComponentChildren } from 'preact';
-import { useVamsStore } from "@/core/store";
+import { useVamsStore } from '@/core/store';
 import CodeViewer from '@/shared/ui/code-viewer/CodeViewer';
 import { useCanvasSize } from '@/features/code-generation/model/useCanvasSize';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
-import { resolveChangedLines } from '@/features/code-generation/model/code-diff';
+import { sanitizeName } from '@/features/code-generation/model/generator/utils';
 import { locateHandlerBranch } from '@/features/code-generation/model/locate-branch';
+import { outlineCode } from '@/features/code-generation/model/code-outline';
+import { visibleRows } from '@/features/code-generation/model/code-folds';
+import { useValueMarks } from '@/features/code-generation/model/use-value-marks';
 import type { RuleTrigger } from '@/core/types/scene';
 
 interface SceneCodePanelProps {
@@ -15,15 +18,21 @@ interface SceneCodePanelProps {
   headerTrail?: ComponentChildren;
 }
 
+const NO_LINES: number[] = [];
+
 export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }: SceneCodePanelProps = {}) {
-  const objects = useVamsStore(s => s.objects);
-  const canvasBackgroundColor = useVamsStore(s => s.canvasBackgroundColor);
-  const appMode = useVamsStore(s => s.appMode);
-  const callbacks = useVamsStore(s => s.callbacks);
-  const changedCodeLines = useVamsStore(s => s.changedCodeLines);
-  const viewportLimits = useVamsStore(s => s.viewportLimits);
-  const canvasSize = useCanvasSize();
+  const objects = useVamsStore((s) => s.objects);
+  const selectedObjectId = useVamsStore((s) => s.selectedObjectId);
+  const canvasBackgroundColor = useVamsStore((s) => s.canvasBackgroundColor);
+  const appMode = useVamsStore((s) => s.appMode);
+  const activeLessonId = useVamsStore((s) => s.activeLessonId);
+  const callbacks = useVamsStore((s) => s.callbacks);
+  const changedCodeLines = useVamsStore((s) => s.changedCodeLines);
+  const viewportLimits = useVamsStore((s) => s.viewportLimits);
+  const opened = useVamsStore((s) => s.codeFoldsOpened);
+  const toggleCodeFold = useVamsStore((s) => s.toggleCodeFold);
   const getAllTextures = useVamsStore((s) => s.getAllTextures);
+  const canvasSize = useCanvasSize();
 
   // Re-render on uploads:
   useVamsStore((s) => s.uploadedTextures);
@@ -31,48 +40,42 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
   const generatedCode = useMemo(
     () =>
       generateCodeFromState(
-        {
-          objects,
-          canvasBackgroundColor,
-          callbacks,
-          viewportLimits,
-          textures: getAllTextures(),
-        },
+        { objects, canvasBackgroundColor, callbacks, viewportLimits, textures: getAllTextures() },
         canvasSize,
       ),
     [objects, canvasBackgroundColor, callbacks, canvasSize, viewportLimits, getAllTextures],
   );
+  const outline = useMemo(() => outlineCode(generatedCode), [generatedCode]);
 
+  const selected = objects.find((o) => o.id === selectedObjectId);
+  const selection = selected ? sanitizeName(selected.name) : null;
   const isLessonMode = appMode === 'Lesson';
+
   const flashLines = useMemo(
-    () => (flashBranch ? locateHandlerBranch(generatedCode, flashBranch.handlerName, flashBranch.trigger) : []),
+    () => (flashBranch ? locateHandlerBranch(generatedCode, flashBranch.handlerName, flashBranch.trigger) : NO_LINES),
     [flashBranch, generatedCode],
   );
-  // While the tour runs, the lines an edit changes flash as they do in a lesson.
-  const tourStep = useVamsStore((s) => s.tourStep);
-  const [tourFlash, setTourFlash] = useState<number[]>([]);
-  const lastTourCode = useRef<{ code: string; width: number; height: number } | null>(null);
-  useEffect(() => {
-    const last = lastTourCode.current;
-    lastTourCode.current = tourStep === null ? null : { code: generatedCode, width: canvasSize.width, height: canvasSize.height };
-    if (tourStep === null || !last) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setTourFlash([]);
-      return;
-    }
-    // A canvas resize changes only glutInitWindowSize; that is not the student's edit.
-    if (last.code === generatedCode || last.width !== canvasSize.width || last.height !== canvasSize.height) return;
-    setTourFlash(resolveChangedLines(last.code, generatedCode));
-  }, [generatedCode, canvasSize, tourStep]);
+  const { marks, key: marksKey } = useValueMarks(generatedCode, canvasSize, `${appMode}:${activeLessonId ?? ''}`, selectedObjectId);
+  const [findLine, setFindLine] = useState<number | null>(null);
+  const lessonLines = isLessonMode ? changedCodeLines : NO_LINES;
 
-  const changedLines = flashLines.length > 0
-    ? flashLines
-    : isLessonMode ? changedCodeLines : tourStep !== null ? tourFlash : undefined;
+  const rows = useMemo(() => {
+    const forced = [...lessonLines, ...marks.map((m) => m.line), ...flashLines, ...(findLine === null ? [] : [findLine])];
+    return visibleRows(outline, selection, opened, forced);
+  }, [outline, selection, opened, lessonLines, marks, flashLines, findLine]);
+
+  const revealLines = useMemo(() => (lessonLines.length > 0 ? lessonLines : marks.map((m) => m.line)), [lessonLines, marks]);
+
   return (
     <CodeViewer
       code={generatedCode}
-      revealLines={changedLines}
+      rows={rows}
+      onToggleFold={toggleCodeFold}
+      marks={marks}
+      marksKey={marksKey}
+      revealLines={revealLines}
       firedLines={flashLines}
+      onFindLine={setFindLine}
       isLessonMode={isLessonMode}
       headerLead={headerLead}
       headerTrail={headerTrail}

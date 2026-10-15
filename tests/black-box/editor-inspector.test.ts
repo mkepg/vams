@@ -187,13 +187,13 @@ describe('BB-INSP-07: Help opens on the topic for what the student is doing', ()
   });
 });
 
-describe('BB-INSP-08: An empty scene shows the program in every section', () => {
-  it('shows the generated lines outside Pipeline too, with no underlines', async () => {
+describe('BB-INSP-08: An empty scene shows the folded program in every section', () => {
+  it('folds the boilerplate outside Pipeline too, with no underlines', async () => {
     useVamsStore.setState({ activeSection: 'Textures', objects: [] });
     const host = mountEl(h(SceneCodePanel, {}));
     try {
       await settle();
-      expect(host.querySelectorAll('.code-line').length).toBeGreaterThan(0);
+      expect(host.querySelector('.code-fold')).not.toBeNull();
       expect(host.querySelector('.has-annot')).toBeNull();
     } finally {
       unmountEl(host);

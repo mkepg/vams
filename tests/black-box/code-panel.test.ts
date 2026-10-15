@@ -8,7 +8,9 @@ import { h, render, type VNode } from 'preact';
 import CodeViewer, { lineSegments } from '@/shared/ui/code-viewer/CodeViewer';
 import type { CodeRow } from '@/shared/ui/code-viewer/types';
 import { useVamsStore } from '@/core/store';
-import { addTriangle, addQuad, getState } from '../helpers/store';
+import SceneCodePanel from '@/features/code-generation/ui/SceneCodePanel';
+import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
+import { addPrimitive, addTriangle, addQuad, getState } from '../helpers/store';
 
 describe('BB-CODE-01: The code panel state starts calm and is never saved', () => {
   it('opens no folds, explains nothing, shows notes and follows vertex 1', () => {
@@ -215,5 +217,142 @@ describe('BB-CODE-08: The code uses two syntax colours and the new tokens', () =
     }
     expect(tokens).not.toContain('--code-match-');
     expect(tokens).not.toContain('--code-changed-');
+  });
+});
+
+/** The mocks' scene: Triangle, Square and Dot, with Triangle's state line first. */
+function mockScene() {
+  const dot = addPrimitive('POINTS', [{ x: 0.6, y: 0.6 }]);
+  getState().updateObjectName(dot.id, 'Dot');
+  const square = addQuad(-0.5, 0.5, 0.2);
+  getState().updateObjectName(square.id, 'Square');
+  const tri = addTriangle(0.3, -0.17, 0.5);
+  getState().updateObjectName(tri.id, 'Triangle');
+  getState().updateObjectTransform(tri.id, { rotate: 15 });
+  return { tri, square, dot };
+}
+const currentProgram = () => {
+  const s = getState();
+  return generateCodeFromState(
+    { objects: s.objects, canvasBackgroundColor: s.canvasBackgroundColor, callbacks: s.callbacks, viewportLimits: s.viewportLimits, textures: s.getAllTextures() },
+    { width: 800, height: 600 },
+  );
+};
+const lineTexts = (host: HTMLElement) => [...host.querySelectorAll('.code-line .code-line__text')].map((el) => el.textContent ?? '');
+const foldLabels = (host: HTMLElement) => [...host.querySelectorAll('.code-fold__label')].map((el) => el.textContent);
+
+describe('BB-CODE-09: With a shape selected, its code is open and the rest of the program folds', () => {
+  it('shows the selected draw function and state line, and folds the others to their names', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(tri.id);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    expect(lineTexts(host)).toContain('void draw_Triangle()');
+    expect(lineTexts(host).some((t) => t.startsWith('ObjectState state_Triangle'))).toBe(true);
+    expect(foldLabels(host)).toEqual(expect.arrayContaining(['#include …', 'void draw_Square()', 'void draw_Dot()', 'void display()', 'int main()', '2 more objects']));
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-10: With nothing selected, every object\'s code is open', () => {
+  it('opens all three draw functions and folds the boilerplate', async () => {
+    mockScene();
+    getState().selectObject(null);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    for (const name of ['Triangle', 'Square', 'Dot']) expect(lineTexts(host)).toContain(`void draw_${name}()`);
+    expect(foldLabels(host)).toEqual(expect.arrayContaining(['void display()', 'void init()', 'int main()']));
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-11: An edit marks only the value it changed, in Author mode', () => {
+  it('marks the new X on the state line and colours that line number', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(tri.id);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    getState().updateObjectTransform(tri.id, { translateX: 0.4 });
+    await settle();
+    expect([...host.querySelectorAll('.code-value')].map((el) => el.textContent).join('')).toBe('0.4000f');
+    const changed = host.querySelector('.code-line.is-changed .code-line__text')!.textContent!;
+    expect(changed.startsWith('ObjectState state_Triangle')).toBe(true);
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-12: A value that changes inside a fold opens it', () => {
+  it('opens main() when the background colour changes, with the new value marked', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(tri.id);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    expect(foldLabels(host)).toContain('int main()');
+    getState().setCanvasBackgroundColor('#ff0000');
+    await settle();
+    expect(foldLabels(host)).not.toContain('int main()');
+    expect(lineTexts(host).some((t) => t.includes('glClearColor(1.00f, 0.00f, 0.00f'))).toBe(true);
+    expect([...host.querySelectorAll('.code-value')].map((el) => el.textContent)).toEqual(['1.00f']);
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-13: A fold opened by hand stays open until the selection changes', () => {
+  it('opens Square\'s draw function on click, folds it with ▾, and folds it again on a new selection', async () => {
+    const { tri, square } = mockScene();
+    getState().selectObject(tri.id);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    const squareFold = () => [...host.querySelectorAll('.code-fold')].find((b) => b.textContent?.includes('void draw_Square()')) as HTMLButtonElement;
+    squareFold().click();
+    await settle();
+    expect(getState().codeFoldsOpened).toEqual(['draw:Square']);
+    expect(lineTexts(host)).toContain('void draw_Square()');
+    (host.querySelector('.code-fold-close') as HTMLButtonElement).click();
+    await settle();
+    expect(foldLabels(host)).toContain('void draw_Square()');
+    squareFold().click();
+    await settle();
+    getState().selectObject(square.id);
+    getState().selectObject(tri.id);
+    await settle();
+    expect(getState().codeFoldsOpened).toEqual([]);
+    expect(foldLabels(host)).toContain('void draw_Square()');
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-14: Only the student\'s edit is marked; a lesson\'s highlighted lines open their fold', () => {
+  it('marks nothing when a lesson swaps the scene in, and opens the fold around a lesson highlight', async () => {
+    mockScene();
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    useVamsStore.setState({ appMode: 'Lesson', activeLessonId: 'transforms-demo-1', objects: [] });
+    await settle();
+    expect(host.querySelectorAll('.code-value')).toHaveLength(0);
+    const tri = addTriangle();
+    getState().selectObject(tri.id);
+    await settle();
+    // A lesson step that highlights main()'s glutMainLoop line, as codeChangeFocus would.
+    const mainLoop = currentProgram().split('\n').findIndex((l) => l.includes('glutMainLoop'));
+    useVamsStore.setState({ changedCodeLines: [mainLoop] });
+    await settle();
+    expect(lineTexts(host).some((t) => t.includes('glutMainLoop'))).toBe(true);
+    useVamsStore.setState({ appMode: 'Author', activeLessonId: null, changedCodeLines: [] });
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-15: Sanitised names fold and mark like any other', () => {
+  it('opens draw_My_Shape for an object named "My Shape"', async () => {
+    const tri = addTriangle();
+    getState().updateObjectName(tri.id, 'My Shape');
+    addQuad(0.5, 0.5, 0.2);
+    getState().selectObject(tri.id);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    expect(lineTexts(host)).toContain('void draw_My_Shape()');
+    expect(foldLabels(host)).toContain('void draw_QUADS_1()');
+    unmount(host);
   });
 });

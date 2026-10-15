@@ -8,6 +8,7 @@ import { outlineCode, findCallLine, stateFieldAt, type CodeOutline } from '@/fea
 import { visibleRows } from '@/features/code-generation/model/code-folds';
 import { diffChangedValues } from '@/features/code-generation/model/value-diff';
 import { diffChangedLines, matchLines } from '@/features/code-generation/model/code-diff';
+import { nextMarks, type MarkSnapshot } from '@/features/code-generation/model/use-value-marks';
 import type { CodeRow } from '@/shared/ui/code-viewer/types';
 import type { CallbackRule } from '@/core/types/scene';
 import { addTriangle, addQuad, addPrimitive, getState } from '../helpers/store';
@@ -358,5 +359,29 @@ describe('WB-CODE-19: An identical program marks nothing; matchLines keeps diffC
     const b = ['x', 'a', 'B', 'c', 'd', 'y'];
     expect(matchLines(a, b)).toEqual([[0, 0], [1, 1], [3, 3], [4, 5]]);
     expect(diffChangedLines(a.join('\n'), b.join('\n'))).toEqual([2, 4]);
+  });
+});
+
+describe('WB-CODE-20: Only the student\'s own edit is marked', () => {
+  it('diffs an edit, and marks nothing for a canvas resize, a lesson starting or a new selection', () => {
+    const tri = addTriangle(0.3, -0.17, 0.5);
+    const at = (width: number, height: number) => {
+      const s = getState();
+      return generateCodeFromState(
+        { objects: s.objects, canvasBackgroundColor: s.canvasBackgroundColor, callbacks: s.callbacks, viewportLimits: s.viewportLimits, textures: s.getAllTextures() },
+        { width, height },
+      );
+    };
+    const before: MarkSnapshot = { code: at(800, 600), width: 800, height: 600, swapKey: 'Author:', selectionKey: null };
+    expect(nextMarks(null, before)).toBe('keep');
+    expect(nextMarks(before, { ...before })).toBe('keep');
+    // A resize changes glutInitWindowSize: a real difference, but not the student's edit.
+    const resized: MarkSnapshot = { ...before, code: at(900, 640), width: 900, height: 640 };
+    expect(diffChangedValues(before.code, resized.code).length).toBeGreaterThan(0);
+    expect(nextMarks(before, resized)).toBe('clear');
+    expect(nextMarks(before, { ...before, code: `${before.code}\n`, swapKey: 'Lesson:transforms-demo-1' })).toBe('clear');
+    expect(nextMarks(before, { ...before, selectionKey: tri.id })).toBe('clear');
+    getState().updateObjectTransform(tri.id, { translateX: 0.4 });
+    expect(nextMarks(before, { ...before, code: at(800, 600) })).toBe('diff');
   });
 });
