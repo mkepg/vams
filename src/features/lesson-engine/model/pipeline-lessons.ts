@@ -98,7 +98,7 @@ export const PIPELINE_LESSONS: Record<string, Lesson> = {
       },
       {
         pane: 'math',
-        narration: "Move your cursor across the canvas — watch the math panel on the right. Those decimals are the cursor's NDC position.",
+        narration: "Move your cursor across the canvas — watch the Rasterised stage in Math. Those decimals are the cursor's NDC position.",
         waitForUser: true,
       },
       {

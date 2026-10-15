@@ -20,6 +20,7 @@ import { showsIllustration } from '@/core/store/illustration';
 import ObjectTransformPanel from '@/features/object-transform/ui/ObjectTransformPanel';
 import TextNodePanel from '@/features/text-nodes/ui/TextNodePanel';
 import SceneHierarchyPanel from '@/features/scene-hierarchy/ui/SceneHierarchyPanel';
+import MathPanel from '@/features/math-panel/ui/MathPanel';
 import { addTriangle, findById } from '../helpers/store';
 
 async function settle() {
@@ -865,7 +866,7 @@ describe('BB-LCOL-33: The Transforms step that points at the math panel shows Ma
     startLesson('transforms-demo-2');
     const host = mount(h(LessonBar, {}));
     await settle();
-    expect(host.querySelector('.lesson-bar__narration')!.textContent).toContain('Watch the math panel');
+    expect(host.querySelector('.lesson-bar__narration')!.textContent).toContain('Watch the Transformed stage');
     expect(useVamsStore.getState().codePane).toBe('math');
     unmount(host);
     useVamsStore.setState({ codePane: 'code' });
@@ -907,5 +908,51 @@ describe('BB-LCOL-34: On narrow screens the lesson bar stays above the open draw
       (globalThis as { ResizeObserver?: unknown }).ResizeObserver = RealRO;
       restore();
     }
+  });
+});
+
+const STAGE_TITLES = ['Stored', 'Transformed', 'Projected', 'Assembled', 'Rasterised', 'Coloured'] as const;
+
+describe('BB-LCOL-35: Steps about the math name a journey stage, and Math opens on it', () => {
+  it('keeps the old card and column words out, and opens each named stage when its step runs', async () => {
+    const named: Array<{ lesson: string; index: number; stage: string }> = [];
+    for (const lesson of Object.values(LESSON_REGISTRY)) {
+      lesson.steps.forEach((step, index) => {
+        if (step.pane !== 'math') return;
+        expect(step.narration, `${lesson.id} ${index}`).not.toMatch(/math panel|right column|on the right/i);
+        const stage = STAGE_TITLES.find((t) => step.narration.includes(`${t} stage`));
+        if (stage) named.push({ lesson: lesson.id, index, stage });
+      });
+    }
+    expect(named).toHaveLength(10);
+    for (const { lesson, index, stage } of named) {
+      expect(await startLessonFromLearn(lesson)).toBe(true);
+      const host = mount(h('div', {}, h(LessonBar, {}), h(MathPanel, {})));
+      await settle();
+      useVamsStore.getState().setCurrentStep(index);
+      await settle();
+      expect(useVamsStore.getState().codePane, `${lesson} ${index}`).toBe('math');
+      expect(host.querySelector('.journey-open__title')!.textContent, `${lesson} ${index}`).toBe(stage);
+      unmount(host);
+      useVamsStore.getState().clearLessonState();
+    }
+  });
+});
+
+describe("BB-LCOL-36: The mapping steps still drive the Stored stage's diagram", () => {
+  it('shows the lesson-driven mapping diagram in Stored for each dmaStep', async () => {
+    const lesson = LESSON_REGISTRY['buffers-demo-5'];
+    const index = lesson.steps.findIndex((s) => s.dmaStep === 0);
+    expect(index).toBeGreaterThan(0);
+    expect(await startLessonFromLearn('buffers-demo-5')).toBe(true);
+    const host = mount(h('div', {}, h(LessonBar, {}), h(MathPanel, {})));
+    await settle();
+    useVamsStore.getState().setCurrentStep(index);
+    await settle();
+    expect(host.querySelector('.journey-open__title')!.textContent).toBe('Stored');
+    expect(host.querySelector('.bm-dma')).not.toBeNull();
+    expect(host.querySelector('.bm-dma-driven-badge')).not.toBeNull();
+    unmount(host);
+    useVamsStore.getState().clearLessonState();
   });
 });

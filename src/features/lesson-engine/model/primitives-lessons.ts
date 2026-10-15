@@ -136,7 +136,8 @@ export const PRIMITIVES_LESSONS: Record<string, Lesson> = {
       },
       {
         pane: 'math',
-        narration: "This hardware-accelerated blending is called Barycentric Interpolation. The right column now shows Math: the exact formula the GPU uses to calculate every pixel's color.",
+        narration: "This hardware-accelerated blending is called Barycentric Interpolation. Math's Coloured stage now shows the exact formula the GPU uses to calculate every pixel's color.",
+        mathStage: 'coloured',
         waitForUser: true,
       }
     ],

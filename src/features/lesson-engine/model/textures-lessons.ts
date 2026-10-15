@@ -241,7 +241,7 @@ export const TEXTURES_LESSONS: Record<string, Lesson> = {
       {
         pane: 'math',
         narration:
-          "Look at the math panel for the interpolation formula. It uses the exact same weights as glColor3f-per-vertex, just applied to a different attribute.",
+          "Look at the Coloured stage in Math for the interpolation formula. It uses the exact same weights as glColor3f-per-vertex, just applied to a different attribute.",
         waitForUser: true,
       },
     ],
