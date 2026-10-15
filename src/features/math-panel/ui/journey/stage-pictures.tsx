@@ -90,9 +90,6 @@ function fitInBox(vertices: readonly { x: number; y: number }[], box: { left: nu
       x: box.left + (v.x - minX) * scale + (box.width - spanX * scale) / 2,
       y: box.top + box.height - (v.y - minY) * scale - (box.height - spanY * scale) / 2,
     }),
-    /** The drawn size of the fitted vertices. */
-    width: spanX * scale,
-    height: spanY * scale,
   };
 }
 
@@ -101,10 +98,19 @@ function ShapeSketch({ node, vertex }: { node: SceneNode; vertex: number }) {
   const n = node.vertices.length;
   if (n === 0) return null;
   const fit = fitInBox(node.vertices, { left: 6, top: 6, width: 84, height: 68 });
-  const at = (k: number) => fit.at(node.vertices[k]);
+  const mapped = node.vertices.map((v) => fit.at(v));
+  const at = (k: number) => mapped[k];
   const i = Math.min(Math.max(0, vertex), n - 1);
   const type = node.type as PrimitiveType;
   const prims = primitivesOf(type, n);
+  const held = prims.some((members) => members.includes(i));
+  const caption = !held
+    ? 'This vertex is left over, so nothing is drawn for it.'
+    : type === 'POINTS'
+      ? 'Your vertex is ringed; the point it makes is highlighted.'
+      : type.startsWith('LINE')
+        ? 'Your vertex is ringed; the lines it belongs to are highlighted.'
+        : 'Your vertex is ringed; the shapes it belongs to are shaded.';
   const points = (members: number[]) => members.map((k) => `${at(k).x},${at(k).y}`).join(' ');
   return (
     <Picture label="Your shape">
@@ -112,7 +118,7 @@ function ShapeSketch({ node, vertex }: { node: SceneNode; vertex: number }) {
         <svg className="journey-sketch" width="96" height="80" viewBox="0 0 96 80" role="img" aria-label={`${node.name}, with vertex ${i + 1} ringed`}>
           {prims.map((members, j) => {
             const holds = members.includes(i);
-            if (type === 'POINTS') return <circle key={j} cx={at(members[0]).x} cy={at(members[0]).y} r="2" className="journey-sketch__point" />;
+            if (type === 'POINTS') return <circle key={j} cx={at(members[0]).x} cy={at(members[0]).y} r={holds ? 3 : 2} className={`journey-sketch__point${holds ? ' is-held' : ''}`} />;
             if (members.length === 2) {
               const [a, b] = members.map(at);
               return <line key={j} x1={a.x} y1={a.y} x2={b.x} y2={b.y} className={`journey-sketch__edge${holds ? ' is-held' : ''}`} />;
@@ -121,7 +127,7 @@ function ShapeSketch({ node, vertex }: { node: SceneNode; vertex: number }) {
           })}
           <circle cx={at(i).x} cy={at(i).y} r="4.5" className="journey-sketch__ring" />
         </svg>
-        <p className="journey-picture__caption">Your vertex is ringed; the {type === 'POINTS' ? 'point it makes is' : 'shapes it belongs to are'} shaded.</p>
+        <p className="journey-picture__caption">{caption}</p>
       </div>
     </Picture>
   );

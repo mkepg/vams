@@ -527,3 +527,37 @@ describe('BB-JOURNEY-17: Assembled draws the shape with the followed vertex ring
     unmount(host);
   });
 });
+
+describe('BB-JOURNEY-23: The sketch shades what holds the vertex and its caption agrees', () => {
+  const show = async (type: 'TRIANGLE_FAN' | 'LINES', n: number, vertex: number) => {
+    const id = mockTriangle();
+    const tri = getState().objects[0];
+    const vertices = Array.from({ length: n }, (_, k) => ({ id: `v${k}`, x: k * 0.2, y: (k % 2) * 0.3, color: '#ffffff' }));
+    useVamsStore.setState({ objects: [{ ...tri, type, vertices }] });
+    getState().selectObject(id);
+    getState().setJourneyVertex(vertex);
+    getState().setJourneyStageOverride('assembled');
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    return host;
+  };
+
+  it('shades all three triangles of a fan that hold its first vertex', async () => {
+    const host = await show('TRIANGLE_FAN', 5, 0);
+    expect(host.querySelectorAll('svg.journey-sketch .journey-sketch__face')).toHaveLength(3);
+    expect(host.querySelectorAll('svg.journey-sketch .journey-sketch__face.is-held')).toHaveLength(3);
+    expect(host.querySelector('.journey-picture__caption')!.textContent).toContain('shapes it belongs to are shaded');
+    unmount(host);
+  });
+
+  it('says a leftover vertex is not drawn, and calls held lines highlighted', async () => {
+    let host = await show('LINES', 3, 2);
+    expect(host.querySelector('svg.journey-sketch .is-held')).toBeNull();
+    expect(host.querySelector('.journey-picture__caption')!.textContent).toBe('This vertex is left over, so nothing is drawn for it.');
+    unmount(host);
+    host = await show('LINES', 3, 0);
+    expect(host.querySelectorAll('svg.journey-sketch .journey-sketch__edge.is-held')).toHaveLength(1);
+    expect(host.querySelector('.journey-picture__caption')!.textContent).toContain('lines it belongs to are highlighted');
+    unmount(host);
+  });
+});

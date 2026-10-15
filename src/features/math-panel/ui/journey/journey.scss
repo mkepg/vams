@@ -451,5 +451,6 @@
   .journey-sketch__edge { stroke: var(--ink-faint); stroke-width: 1.5; }
   .journey-sketch__edge.is-held { stroke: var(--accent-text); }
   .journey-sketch__point { fill: var(--ink-faint); }
+  .journey-sketch__point.is-held { fill: var(--accent-text); }
   .journey-sketch__ring { fill: none; stroke: var(--value); stroke-width: 2; }
 }

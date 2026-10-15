@@ -335,4 +335,29 @@ describe("WB-JOURNEY-13: Assembled works the rule with the student's primitive t
     expect(primitivesOf('TRIANGLE_FAN', 5)).toEqual([[0, 1, 2], [0, 2, 3], [0, 3, 4]]);
     expect(primitivesOf('LINES', 3)).toEqual([[0, 1]]);
   });
+
+  it('lists every primitive of all ten types, and none below the minimum count', () => {
+    expect(primitivesOf('POINTS', 3)).toEqual([[0], [1], [2]]);
+    expect(primitivesOf('LINES', 4)).toEqual([[0, 1], [2, 3]]);
+    expect(primitivesOf('LINE_STRIP', 4)).toEqual([[0, 1], [1, 2], [2, 3]]);
+    expect(primitivesOf('LINE_LOOP', 3)).toEqual([[0, 1], [1, 2], [2, 0]]);
+    expect(primitivesOf('LINE_LOOP', 2)).toEqual([[0, 1], [1, 0]]);
+    expect(primitivesOf('TRIANGLES', 6)).toEqual([[0, 1, 2], [3, 4, 5]]);
+    expect(primitivesOf('TRIANGLE_STRIP', 5)).toEqual([[0, 1, 2], [1, 2, 3], [2, 3, 4]]);
+    expect(primitivesOf('QUADS', 8)).toEqual([[0, 1, 2, 3], [4, 5, 6, 7]]);
+    expect(primitivesOf('QUAD_STRIP', 6)).toEqual([[0, 1, 3, 2], [2, 3, 5, 4]]);
+    expect(primitivesOf('POLYGON', 4)).toEqual([[0, 1, 2, 3]]);
+    const below: [PrimitiveType, number][] = [
+      ['POINTS', 0], ['LINES', 1], ['LINE_STRIP', 1], ['LINE_LOOP', 1], ['TRIANGLES', 2], ['TRIANGLE_STRIP', 2],
+      ['TRIANGLE_FAN', 2], ['QUADS', 3], ['QUAD_STRIP', 3], ['POLYGON', 2],
+    ];
+    for (const [type, count] of below) expect(primitivesOf(type, count)).toEqual([]);
+  });
+
+  it('says not drawn for a leftover vertex, and names glDrawArrays in array mode', () => {
+    const lines = node('Lines', 'LINES', [[0, 0], [1, 0], [0, 1]]);
+    expect(rowsOf(vertexJourney(scene([lines]), 'Lines', 2, CANVAS), 'assembled')[2]).toEqual(['this vertex', 'not drawn', null]);
+    const array = { ...mockTriangle(), renderingMode: 'VERTEX_ARRAY' as const };
+    expect(rowsOf(vertexJourney(scene([array]), 'Triangle', 0, CANVAS), 'assembled')[1][2]).toBe('glDrawArrays');
+  });
 });
