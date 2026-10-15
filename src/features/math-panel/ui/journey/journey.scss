@@ -1,0 +1,371 @@
+@use '../../../../shared/styles/tokens' as *;
+
+.journey {
+  @include scrollbar;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  color: var(--ink);
+  font-size: var(--text-base);
+}
+
+.journey-follow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--text-sm);
+  color: var(--ink-muted);
+
+  b { color: var(--ink); }
+}
+
+.journey-follow__ring {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--value);
+  border-radius: 50%;
+}
+
+.journey-follow__space { flex: 1; }
+
+.journey-follow__step {
+  padding: 1px 6px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-s);
+  background: none;
+  font-family: $font-mono;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  cursor: pointer;
+
+  &:hover { background: var(--paper-sunken); }
+  &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+}
+
+.journey-track {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.journey-stage {
+  position: relative;
+  border-bottom: 1px solid var(--rule);
+
+  // The track: a vertical line through every stage's dot.
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 17px;
+    width: 2px;
+    background: var(--rule-strong);
+  }
+}
+
+.journey-stage__dot {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--rule-strong);
+  border-radius: 50%;
+  background: var(--paper);
+}
+
+.journey-stage.is-done .journey-stage__dot { background: var(--rule-strong); }
+
+.journey-stage__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 8px 12px 8px 36px;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover { background: var(--paper-sunken); }
+  &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+}
+
+.journey-stage__name {
+  font-size: var(--text-base);
+  color: var(--ink-muted);
+}
+
+.journey-stage__value {
+  margin-left: auto;
+  font-family: $font-mono;
+  font-size: var(--text-xs);
+  color: var(--ink-faint);
+  text-align: right;
+}
+
+// The open stage: one layout for every stage.
+.journey-stage.is-open {
+  padding: 12px 14px 0 36px;
+  background: var(--paper-raised);
+
+  &::before {
+    background: var(--accent);
+    opacity: 0.55;
+  }
+
+  .journey-stage__dot {
+    top: 17px;
+    border: 0;
+    background: var(--accent);
+    box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.22);
+  }
+}
+
+.journey-open__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.journey-open__title {
+  margin: 0;
+  font-size: var(--text-md);
+
+  button {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-weight: 700;
+    color: var(--ink);
+    cursor: default;
+
+    &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+  }
+}
+
+.journey-open__section {
+  margin-left: auto;
+  padding: 0 7px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 10px;
+  font-size: var(--text-xs);
+  color: var(--ink-dim);
+}
+
+.journey-open__why {
+  margin: 4px 0 10px;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ink-muted);
+
+  code {
+    font-family: $font-mono;
+    font-size: var(--text-xs);
+    color: var(--code-fn);
+  }
+}
+
+// The working: a table in a dark well, so it never reads as part of the sentence.
+.journey-work {
+  width: 100%;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-s);
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--paper-sunken);
+  font-family: $font-mono;
+  font-size: var(--text-sm);
+  line-height: 1;
+
+  th,
+  td {
+    padding: 0 5px;
+    white-space: nowrap;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  th:first-child,
+  td:first-child { padding-left: 10px; }
+
+  th:last-child,
+  td:last-child { padding-right: 10px; text-align: right; }
+
+  thead th {
+    height: 24px;
+    border-bottom: 1px solid var(--rule);
+    font-family: $font-ui;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--ink-dim);
+  }
+
+  tbody tr { height: 27px; }
+
+  .journey-work__step {
+    min-width: 118px;
+    color: var(--ink-muted);
+  }
+
+  .journey-work__in { color: var(--value); }
+
+  .journey-work__call {
+    font-size: var(--text-xs);
+    color: var(--code-fn);
+
+    code { font: inherit; }
+  }
+
+  .journey-work__call-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: var(--code-fn);
+    cursor: pointer;
+
+    &:hover { text-decoration: underline; }
+    &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+  }
+
+  tr.is-from .journey-work__step { color: var(--ink-dim); }
+
+  tr.is-result {
+    height: 30px;
+
+    th,
+    td { border-top: 1px solid var(--rule-strong); }
+
+    .journey-work__step {
+      font-family: $font-ui;
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .journey-work__value {
+      font-weight: 600;
+      color: var(--value);
+    }
+  }
+}
+
+.journey-open__pictures {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: var(--text-xs);
+}
+
+// Today's cards keep their content but lose their box: the open stage is the surface. These
+// selectors match _math-layout.scss's in weight, and this file comes after it, so they win.
+.math-panel-container .journey-open__pictures {
+  .math-section {
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  .math-section .math-section-title {
+    margin: 0 0 6px;
+    font-family: $font-ui;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--ink-dim);
+  }
+}
+
+.journey-picture {
+  margin: 0;
+}
+
+.journey-picture__label {
+  margin-bottom: 6px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--ink-dim);
+}
+
+.journey-picture__box {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.journey-picture__caption {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+
+.journey-matrix {
+  display: inline-grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 3px 10px;
+  padding: 2px 7px;
+  border-right: 1px solid var(--ink-muted);
+  border-left: 1px solid var(--ink-muted);
+  font-family: $font-mono;
+  font-size: var(--text-xs);
+  text-align: right;
+
+  .is-value { color: var(--value); }
+}
+
+.journey-formula {
+  margin: 0;
+  font-family: $font-mono;
+  font-size: var(--text-xs);
+  line-height: 1.8;
+  white-space: pre;
+  color: var(--ink);
+
+  .is-value { color: var(--value); }
+}
+
+.journey-open__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 12px -14px 0 -36px;
+  padding: 8px 14px 8px 36px;
+  border-top: 1px solid var(--rule);
+  font-size: var(--text-sm);
+}
+
+.journey-open__nav {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.journey-open__deeper,
+.journey-open__back,
+.journey-open__next {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+
+  &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+}
+
+.journey-open__deeper { color: var(--ink-faint); }
+
+.journey-open__back,
+.journey-open__next {
+  color: var(--accent-text);
+
+  &:hover { text-decoration: underline; }
+}

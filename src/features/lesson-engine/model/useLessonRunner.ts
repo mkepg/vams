@@ -6,7 +6,7 @@ import { resolveFocus } from '@/core/inspector';
 import { LESSON_REGISTRY } from './lesson-registry';
 import { markLessonComplete, recordLessonLeft } from './progress';
 import { focusStyleFor } from './guidance';
-import { useCanvasSize } from '@/features/code-generation/model/useCanvasSize';
+import { useCanvasSize } from '@/shared/lib/use-canvas-size';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { resolveChangedLines } from '@/features/code-generation/model/code-diff';
 

@@ -13,7 +13,7 @@ import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry'
 import { EditorPanel } from '@/widgets/layout/editor-column';
 import Rail from '@/widgets/layout/rail';
 import CodeMathColumn from '@/widgets/layout/code-math-column';
-import { DEFAULT_OPEN_GROUPS, FOCUS_PANEL_IDS, mathTabFor } from '@/core/inspector';
+import { DEFAULT_OPEN_GROUPS, FOCUS_PANEL_IDS, journeyStageFor } from '@/core/inspector';
 import { startLesson as startLessonFromLearn } from '@/features/lesson-engine/model/start-lesson';
 import { focusStyleFor } from '@/features/lesson-engine/model/guidance';
 import { showsIllustration } from '@/core/store/illustration';
@@ -585,7 +585,7 @@ describe('BB-LCOL-23: Leaving a lesson leaves the plain editor, and starting one
     expect(useVamsStore.getState().lastOpenedGroup).toBe('texture-library');
     expect(await startLessonFromLearn('transforms-exercise-4')).toBe(true);
     expect(useVamsStore.getState().lastOpenedGroup).toBeNull();
-    expect(mathTabFor(useVamsStore.getState())).toBe('Transforms');
+    expect(journeyStageFor(useVamsStore.getState())).toBe('transformed');
   });
 });
 

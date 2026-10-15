@@ -10,7 +10,6 @@ export const createRuntimeSlice: StateCreator<VamsState, [], [], RuntimeSlice> =
   cursorWorld: null,
   openGroups: [...DEFAULT_OPEN_GROUPS],
   lastOpenedGroup: null,
-  mathTabOverride: null,
   journeyStageOverride: null,
   learnOpen: false,
   railPanel: 'add',
@@ -34,7 +33,6 @@ export const createRuntimeSlice: StateCreator<VamsState, [], [], RuntimeSlice> =
       activePipelineStage: null,
       openGroups: [...DEFAULT_OPEN_GROUPS],
       lastOpenedGroup: null,
-      mathTabOverride: null,
       journeyStageOverride: null,
     };
   }),
@@ -46,11 +44,10 @@ export const createRuntimeSlice: StateCreator<VamsState, [], [], RuntimeSlice> =
   toggleGroup: (id) => set((state) => (
     state.openGroups.includes(id)
       ? { openGroups: state.openGroups.filter((group) => group !== id) }
-      : { openGroups: [...state.openGroups, id], lastOpenedGroup: id, mathTabOverride: null, journeyStageOverride: null }
+      : { openGroups: [...state.openGroups, id], lastOpenedGroup: id, journeyStageOverride: null }
   )),
   openGroup: (id) => set((state) => (state.openGroups.includes(id) ? {} : { openGroups: [...state.openGroups, id] })),
   setOpenGroups: (ids) => set({ openGroups: [...ids] }),
-  setMathTabOverride: (section) => set({ mathTabOverride: section }),
   setJourneyStageOverride: (stage) => set({ journeyStageOverride: stage }),
   setLearnOpen: (open) => set({ learnOpen: open }),
   setRailPanel: (panel) => set({ railPanel: panel, railHidden: false }),

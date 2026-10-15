@@ -1,47 +1,47 @@
 import './math-panel.scss';
-import { useId } from 'react';
+import { useMemo } from 'react';
 import type { ComponentChildren } from 'preact';
 import { useVamsStore } from '@/core/store';
-import type { CurriculumSection } from '@/core/store/types';
-import { mathTabFor } from '@/core/inspector';
-import PipelineMathContent from './PipelineMathContent';
-import PrimitivesMathContent from './PrimitivesMathContent';
-import BuffersMathContent from './BuffersMathContent';
-import TransformsMathContent from './TransformsMathContent';
-import TexturesMathContent from './TexturesMathContent';
-
-const TABS: { section: CurriculumSection; content: () => ComponentChildren }[] = [
-  { section: 'Pipeline', content: () => <PipelineMathContent /> },
-  { section: 'Primitives', content: () => <PrimitivesMathContent /> },
-  { section: 'Buffers', content: () => <BuffersMathContent /> },
-  { section: 'Transforms', content: () => <TransformsMathContent /> },
-  { section: 'Textures', content: () => <TexturesMathContent /> },
-];
+import { journeyStageFor } from '@/core/inspector';
+import { useCanvasSize } from '@/shared/lib/use-canvas-size';
+import { vertexJourney } from '../model/vertex-journey';
+import JourneyFollow from './journey/JourneyFollow';
+import JourneyTrack from './journey/JourneyTrack';
 
 interface MathPanelProps {
   /** Replaces the "Math & data" title, such as the column's switch. */
   headerLead?: ComponentChildren;
-  /** Rendered at the end of the header's first line. */
+  /** Rendered at the end of the header. */
   headerTrail?: ComponentChildren;
-  /** Run makes the tabs and content inert; the lead and trail stay usable. */
+  /** Run makes the journey inert; the lead and trail stay usable. */
   contentInert?: boolean;
 }
 
+/** The math pane: one vertex of the selected object, followed through the six pipeline stages. */
 export default function MathPanel({ headerLead, headerTrail, contentInert = false }: MathPanelProps = {}) {
-  const tab = useVamsStore(mathTabFor);
-  const setMathTabOverride = useVamsStore((s) => s.setMathTabOverride);
-  const baseId = useId();
-  const index = TABS.findIndex((t) => t.section === tab);
+  const objects = useVamsStore((s) => s.objects);
+  const selectedObjectId = useVamsStore((s) => s.selectedObjectId);
+  const viewportLimits = useVamsStore((s) => s.viewportLimits);
+  const journeyVertex = useVamsStore((s) => s.journeyVertex);
+  const setJourneyVertex = useVamsStore((s) => s.setJourneyVertex);
+  const setOverride = useVamsStore((s) => s.setJourneyStageOverride);
+  const getAllTextures = useVamsStore((s) => s.getAllTextures);
+  const uploaded = useVamsStore((s) => s.uploadedTextures);
+  const open = useVamsStore(journeyStageFor);
+  const canvas = useCanvasSize();
 
-  const onKeyDown = (event: KeyboardEvent) => {
-    const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
-    let next = step === undefined ? -1 : (index + step + TABS.length) % TABS.length;
-    if (event.key === 'Home') next = 0;
-    if (event.key === 'End') next = TABS.length - 1;
-    if (next < 0) return;
-    event.preventDefault();
-    setMathTabOverride(TABS[next].section);
-    requestAnimationFrame(() => document.getElementById(`${baseId}-tab-${next}`)?.focus());
+  const journey = useMemo(
+    () => vertexJourney({ objects, viewportLimits, textures: getAllTextures() }, selectedObjectId, journeyVertex, canvas),
+    // getAllTextures is stable; uploads change `uploaded`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [objects, viewportLimits, selectedObjectId, journeyVertex, canvas, uploaded],
+  );
+  const node = objects.find((o) => o.id === selectedObjectId);
+
+  const step = (delta: 1 | -1) => {
+    if (journey.subject.kind !== 'shape' || journey.subject.count === 0) return;
+    const { vertex, count } = journey.subject;
+    setJourneyVertex((vertex + delta + count) % count);
   };
 
   return (
@@ -49,32 +49,10 @@ export default function MathPanel({ headerLead, headerTrail, contentInert = fals
       <div className={headerLead ? 'math-header math-header--lead' : 'math-header'}>
         {headerLead ?? <span className="math-title">Math &amp; data</span>}
         {headerTrail && <span className="math-header__trail">{headerTrail}</span>}
-        <div className="math-tabs" role="tablist" aria-label="Math by section" onKeyDown={onKeyDown} inert={contentInert || undefined}>
-          {TABS.map((t, i) => (
-            <button
-              key={t.section}
-              id={`${baseId}-tab-${i}`}
-              type="button"
-              role="tab"
-              aria-selected={i === index}
-              aria-controls={`${baseId}-panel`}
-              tabIndex={i === index ? 0 : -1}
-              className="math-tab"
-              onClick={() => setMathTabOverride(t.section)}
-            >
-              {t.section}
-            </button>
-          ))}
-        </div>
       </div>
-      <div
-        className="math-content"
-        id={`${baseId}-panel`}
-        role="tabpanel"
-        aria-labelledby={`${baseId}-tab-${index}`}
-        inert={contentInert || undefined}
-      >
-        {TABS[index].content()}
+      <div className="journey" inert={contentInert || undefined}>
+        <JourneyFollow subject={journey.subject} onStep={step} />
+        <JourneyTrack journey={journey} open={open} node={node} onOpen={setOverride} />
       </div>
     </div>
   );

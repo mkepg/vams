@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { useVamsStore } from '@/core/store';
 import type { SceneNode, Vertex } from '@/core/types/scene';
 
 function hexToRGB255(hex: string): [number, number, number] {
@@ -13,7 +12,7 @@ function rgb255ToFloat([r, g, b]: [number, number, number]): [number, number, nu
   return [r / 255, g / 255, b / 255];
 }
 
-function isLine(t: SceneNode['type']): boolean {
+export function isLine(t: SceneNode['type']): boolean {
   return t === 'LINES' || t === 'LINE_STRIP' || t === 'LINE_LOOP';
 }
 
@@ -27,7 +26,7 @@ function isLine(t: SceneNode['type']): boolean {
  *      composition trace.
  *   3. A faint conversion formula footer.
  */
-function ColorConversion({ hex }: { hex: string }) {
+export function ColorConversion({ hex }: { hex: string }) {
   const [r, g, b] = hexToRGB255(hex);
   const [rf, gf, bf] = rgb255ToFloat([r, g, b]);
 
@@ -89,7 +88,7 @@ function ColorConversion({ hex }: { hex: string }) {
  * each bit `factor` pixels in the rasterizer — this is the feature that
  * `factor` actually controls, so we visualize it.
  */
-function StippleBits({ pattern, factor }: { pattern: number; factor: number }) {
+export function StippleBits({ pattern, factor }: { pattern: number; factor: number }) {
   const bits = useMemo(() => {
     const out: boolean[] = [];
     for (let i = 15; i >= 0; i--) out.push(((pattern >> i) & 1) === 1);
@@ -158,7 +157,7 @@ function StippleBits({ pattern, factor }: { pattern: number; factor: number }) {
  * For non-triangle multi-vertex primitives we fall back to the corner row
  * with the centroid result.
  */
-function BarycentricMixer({ vertices }: { vertices: Vertex[] }) {
+export function BarycentricMixer({ vertices }: { vertices: Vertex[] }) {
   if (vertices.length < 2) return null;
 
   let rSum = 0, gSum = 0, bSum = 0;
@@ -268,7 +267,7 @@ function BarycentricMixer({ vertices }: { vertices: Vertex[] }) {
   );
 }
 
-function VertexTable({ vertices }: { vertices: Vertex[] }) {
+export function VertexTable({ vertices }: { vertices: Vertex[] }) {
   if (vertices.length === 0) return null;
 
   return (
@@ -305,60 +304,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export default function PrimitivesMathContent() {
-  const objects = useVamsStore((s) => s.objects);
-  const selectedObjectId = useVamsStore((s) => s.selectedObjectId);
-
-  const selected = objects.find((o) => o.id === selectedObjectId);
-
-  if (!selected) {
-    return (
-      <div className="empty-state">
-        Select a primitive to see color conversions, vertex data, and (for line primitives) stipple breakdown.
-      </div>
-    );
-  }
-
-  if (selected.type === 'GROUP') {
-    return (
-      <div className="empty-state">
-        Groups don't emit drawing calls of their own — select a primitive inside the group.
-      </div>
-    );
-  }
-
-  const firstColor = selected.vertices[0]?.color || '#ffffff';
-
-  const isMultiColor =
-    selected.vertices.length > 1 &&
-    selected.vertices.some((v) => v.color !== selected.vertices[0].color);
-
-  const showBarycentric = selected.type !== 'POINTS' && isMultiColor;
-
-  return (
-    <div className="primitives-math">
-      <Section title="Color">
-        <ColorConversion hex={firstColor} />
-      </Section>
-
-      {showBarycentric && (
-        <Section title="Barycentric Interpolation">
-          <BarycentricMixer vertices={selected.vertices} />
-        </Section>
-      )}
-
-      {isLine(selected.type) && selected.lineStipple && (
-        <Section title="Stipple Pattern">
-          <StippleBits
-            pattern={selected.lineStipple.pattern}
-            factor={selected.lineStipple.factor}
-          />
-        </Section>
-      )}
-
-      <Section title="Vertices">
-        <VertexTable vertices={selected.vertices} />
-      </Section>
-    </div>
-  );
+/** A titled card, as the old Primitives tab drew them. */
+export function PrimitivesSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return <Section title={title}>{children}</Section>;
 }

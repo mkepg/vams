@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { ComponentChildren } from 'preact';
 import { useVamsStore } from '@/core/store';
 import CodeViewer from '@/shared/ui/code-viewer/CodeViewer';
-import { useCanvasSize } from '@/features/code-generation/model/useCanvasSize';
+import { useCanvasSize } from '@/shared/lib/use-canvas-size';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { sanitizeName } from '@/features/code-generation/model/generator/utils';
 import { locateHandlerBranch } from '@/features/code-generation/model/locate-branch';

@@ -1,8 +1,6 @@
-import { useMemo } from 'react';
-import { useVamsStore } from '@/core/store';
 import type { SceneNode, TransformState, ViewportLimits } from '@/core/types/scene';
 
-function buildMatrix4(t: TransformState): number[][] {
+export function buildMatrix4(t: TransformState): number[][] {
   const rad = (t.rotate * Math.PI) / 180;
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
@@ -15,7 +13,7 @@ function buildMatrix4(t: TransformState): number[][] {
   ];
 }
 
-function getAncestorChain(objectId: string, objects: SceneNode[]): SceneNode[] {
+export function getAncestorChain(objectId: string, objects: SceneNode[]): SceneNode[] {
   const chain: SceneNode[] = [];
   const byId = new Map(objects.map((o) => [o.id, o]));
 
@@ -37,7 +35,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Matrix4({ m }: { m: number[][] }) {
+export function Matrix4({ m }: { m: number[][] }) {
   return (
     <div className="tm-matrix-container">
       <div className="tm-matrix" role="img" aria-label="4 by 4 transform matrix">
@@ -67,7 +65,7 @@ function Matrix4({ m }: { m: number[][] }) {
   );
 }
 
-function TRSCompositionTrace({ t }: { t: TransformState }) {
+export function TRSCompositionTrace({ t }: { t: TransformState }) {
   return (
     <div className="tm-composition" aria-label="Transform composition order">
       <div className="tm-comp-step">
@@ -96,7 +94,7 @@ function TRSCompositionTrace({ t }: { t: TransformState }) {
   );
 }
 
-function MatrixStack({ chain }: { chain: SceneNode[] }) {
+export function MatrixStack({ chain }: { chain: SceneNode[] }) {
   return (
     <div className="tm-stack" aria-label="Matrix stack from bottom to top">
       {/* Base Identity Frame */}
@@ -129,7 +127,7 @@ function MatrixStack({ chain }: { chain: SceneNode[] }) {
   );
 }
 
-function OrthoMapping({ limits }: { limits: ViewportLimits }) {
+export function OrthoMapping({ limits }: { limits: ViewportLimits }) {
   const w = limits.maxX - limits.minX;
   const h = limits.maxY - limits.minY;
 
@@ -171,60 +169,7 @@ function OrthoMapping({ limits }: { limits: ViewportLimits }) {
   );
 }
 
-export default function TransformsMathContent() {
-  const objects = useVamsStore((s) => s.objects);
-  const selectedObjectId = useVamsStore((s) => s.selectedObjectId);
-  const viewportLimits = useVamsStore((s) => s.viewportLimits);
-
-  const selected = objects.find((o) => o.id === selectedObjectId);
-
-  const chain = useMemo(
-    () => (selected ? getAncestorChain(selected.id, objects) : []),
-    [selected, objects],
-  );
-
-  const matrix = useMemo(
-    () => (selected ? buildMatrix4(selected.transform) : null),
-    [selected],
-  );
-
-  return (
-    <div className="transforms-math">
-      {/* GL_ORTHO / PROJECTION */}
-      <Section title="glOrtho — Viewing Volume">
-        <p className="explanation">
-          <code>glOrtho</code> defines the rectangle of world space that maps to the visible
-          window. Anything outside is clipped.
-        </p>
-        <OrthoMapping limits={viewportLimits} />
-      </Section>
-
-      {selected && matrix ? (
-        <>
-          <Section title="Selected Matrix (4×4)">
-            <p className="explanation">
-              Composed in conventional <strong>T · R · S</strong> order, then multiplied with
-              every vertex during rendering.
-            </p>
-            <TRSCompositionTrace t={selected.transform} />
-            <Matrix4 m={matrix} />
-          </Section>
-
-          {chain.length > 1 && (
-            <Section title="Matrix Stack">
-              <p className="explanation">
-                Walking from the root down to <code>{selected.name}</code>. Each
-                <code> glPushMatrix</code> stacks a new local frame on top of its parent.
-              </p>
-              <MatrixStack chain={chain} />
-            </Section>
-          )}
-        </>
-      ) : (
-        <div className="empty-state">
-          Select an object to inspect its 4×4 matrix and the matrix stack at draw time.
-        </div>
-      )}
-    </div>
-  );
+/** A titled card, as the old Transforms tab drew them. */
+export function TransformsSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return <Section title={title}>{children}</Section>;
 }

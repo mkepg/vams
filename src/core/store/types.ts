@@ -145,8 +145,6 @@ export interface RuntimeSlice {
   openGroups: InspectorGroupId[];
   /** The group the student opened most recently; the math tab and help follow it. Session only. */
   lastOpenedGroup: InspectorGroupId | null;
-  /** A math tab picked by hand; cleared by the next lesson step or opened group. Session only. */
-  mathTabOverride: CurriculumSection | null;
   /** A journey stage opened by hand; cleared by the next lesson step or opened group. Session only. */
   journeyStageOverride: JourneyStageId | null;
   learnOpen: boolean;
@@ -171,7 +169,6 @@ export interface RuntimeSlice {
   toggleGroup: (id: InspectorGroupId) => void;
   openGroup: (id: InspectorGroupId) => void;
   setOpenGroups: (ids: readonly InspectorGroupId[]) => void;
-  setMathTabOverride: (section: CurriculumSection | null) => void;
   setJourneyStageOverride: (stage: JourneyStageId | null) => void;
   setLearnOpen: (open: boolean) => void;
   /** Shows a panel; also opens the panel if it was hidden. */

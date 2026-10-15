@@ -56,7 +56,7 @@ export default defineConfig({
       // out of the coverage tally per Section 3.10's Table 13 module list.
       exclude: [
         'src/features/code-generation/model/code-diff.ts',
-        'src/features/code-generation/model/useCanvasSize.ts',
+        'src/shared/lib/use-canvas-size.ts',
       ],
       thresholds: {
         lines: 75,

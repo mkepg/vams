@@ -67,8 +67,8 @@ export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (
     const place = resolveFocus(panelId, state.selectedObjectId !== null);
     const panel = place ? railPanelFor(place) : null;
     return panel
-      ? { lessonFocusPanel: panelId, mathTabOverride: null, journeyStageOverride: null, railPanel: panel, railHidden: false }
-      : { lessonFocusPanel: panelId, mathTabOverride: null, journeyStageOverride: null };
+      ? { lessonFocusPanel: panelId, journeyStageOverride: null, railPanel: panel, railHidden: false }
+      : { lessonFocusPanel: panelId, journeyStageOverride: null };
   }),
   setDmaDriverStep: (index) => set({ dmaDriverStep: index }),
   setChangedCodeLines: (lines) => set({ changedCodeLines: lines }),
@@ -77,7 +77,6 @@ export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (
     set({
       pipelineMode: 'Playground',
       activePipelineStage: null,
-      mathTabOverride: null,
       journeyStageOverride: null,
       // Leaving a lesson leaves the plain editor: the demo's collapsed groups open again.
       openGroups: [...DEFAULT_OPEN_GROUPS],
