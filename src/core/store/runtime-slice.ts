@@ -17,6 +17,10 @@ export const createRuntimeSlice: StateCreator<VamsState, [], [], RuntimeSlice> =
   codePane: 'code',
   codeHidden: false,
   codeChangedUnseen: false,
+  codeFoldsOpened: [],
+  explainedLine: null,
+  codeNotes: true,
+  journeyVertex: 0,
 
   setAppMode: (mode) => set({ appMode: mode }),
 
@@ -52,4 +56,12 @@ export const createRuntimeSlice: StateCreator<VamsState, [], [], RuntimeSlice> =
   setCodePane: (pane) => set(pane === 'code' ? { codePane: pane, codeChangedUnseen: false } : { codePane: pane }),
   setCodeHidden: (hidden) => set({ codeHidden: hidden }),
   markCodeChanged: () => set((state) => (state.codePane === 'math' && !state.codeChangedUnseen ? { codeChangedUnseen: true } : {})),
+  toggleCodeFold: (block) => set((state) => ({
+    codeFoldsOpened: state.codeFoldsOpened.includes(block)
+      ? state.codeFoldsOpened.filter((id) => id !== block)
+      : [...state.codeFoldsOpened, block],
+  })),
+  setExplainedLine: (line) => set({ explainedLine: line }),
+  setCodeNotes: (on) => set({ codeNotes: on }),
+  setJourneyVertex: (index) => set({ journeyVertex: Math.max(0, Math.floor(index)) }),
 });

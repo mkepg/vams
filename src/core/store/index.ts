@@ -115,6 +115,14 @@ useVamsStore.subscribe((state, prev) => {
   if (state.railPanel !== 'scene' || state.railHidden) useVamsStore.setState({ railPanel: 'scene', railHidden: false });
 });
 
+// The code folds, the explanation strip and the followed vertex belong to the selected object.
+// Any path that changes the selection (including clearing it) starts the new object fresh.
+useVamsStore.subscribe((state, prev) => {
+  if (state.selectedObjectId === prev.selectedObjectId) return;
+  if (state.codeFoldsOpened.length === 0 && state.explainedLine === null && state.journeyVertex === 0) return;
+  useVamsStore.setState({ codeFoldsOpened: [], explainedLine: null, journeyVertex: 0 });
+});
+
 // Starting a lesson ends the tour. The lesson's focus decides the rail, so the tour leaves it alone.
 useVamsStore.subscribe((state, prev) => {
   if (state.tourStep !== null && state.appMode === 'Lesson' && prev.appMode !== 'Lesson') state.endTour({ restoreRail: false });

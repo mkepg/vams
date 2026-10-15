@@ -157,6 +157,14 @@ export interface RuntimeSlice {
   codeHidden: boolean;
   /** The generated code changed while Math was showing. Session only. */
   codeChangedUnseen: boolean;
+  /** Code folds the student opened by hand; cleared when the selection changes. Session only. */
+  codeFoldsOpened: string[];
+  /** The code line the explanation strip explains. Session only. */
+  explainedLine: number | null;
+  /** The code panel's Notes switch. Starts on; session only. */
+  codeNotes: boolean;
+  /** The selected object's vertex the math journey follows, 0-based. Session only. */
+  journeyVertex: number;
   toggleGroup: (id: InspectorGroupId) => void;
   openGroup: (id: InspectorGroupId) => void;
   setOpenGroups: (ids: readonly InspectorGroupId[]) => void;
@@ -172,6 +180,11 @@ export interface RuntimeSlice {
   setCodeHidden: (hidden: boolean) => void;
   /** Marks the code as changed while Math shows; does nothing while Code shows. */
   markCodeChanged: () => void;
+  /** Opens a fold, or closes it if the student opened it. */
+  toggleCodeFold: (block: string) => void;
+  setExplainedLine: (line: number | null) => void;
+  setCodeNotes: (on: boolean) => void;
+  setJourneyVertex: (index: number) => void;
   setAppMode: (mode: AppMode) => void;
   setActiveSection: (section: CurriculumSection) => void;
   setPipelineMode: (mode: PipelineMode) => void;
