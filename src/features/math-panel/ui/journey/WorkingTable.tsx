@@ -20,8 +20,25 @@ interface WorkingTableProps {
 const NUMERIC = /^([xy] → |NDC |pixel |texel )?[(\d−.,\s)-]+$/;
 export const isProseValue = (value: string) => !NUMERIC.test(value);
 
+interface Section {
+  /** The enclosing group the rows belong to; undefined for the object's own rows. */
+  heading?: string;
+  rows: WorkingRow[];
+}
+
+/** The object's own rows first, then one section per enclosing group, each opened by its heading row. */
+function sectionsOf(rows: readonly WorkingRow[]): Section[] {
+  const sections: Section[] = [{ rows: [] }];
+  for (const row of rows) {
+    if (row.heading !== undefined) sections.push({ heading: row.heading, rows: [] });
+    else sections[sections.length - 1].rows.push(row);
+  }
+  return sections;
+}
+
 /** The open stage's working: Step · Value · Code, the student's inputs in amber, the result last. */
 export default function WorkingTable({ rows, result, onCall, wrapSteps }: WorkingTableProps) {
+  const sections = sectionsOf(rows);
   return (
     <table className={wrapSteps ? 'journey-work journey-work--wrap-steps' : 'journey-work'}>
       <thead>
@@ -31,28 +48,33 @@ export default function WorkingTable({ rows, result, onCall, wrapSteps }: Workin
           <th scope="col">Code</th>
         </tr>
       </thead>
+      {sections.map((section, n) => (
+        <tbody key={n}>
+          {section.heading !== undefined && (
+            <tr className="journey-work__group">
+              <th scope="rowgroup" colSpan={3} title={section.heading || 'group'}>{section.heading || 'group'}</th>
+            </tr>
+          )}
+          {section.rows.map((row, i) => (
+            <tr key={i} className={row.from ? 'is-from' : undefined}>
+              <td className={stepClass(row, !!wrapSteps)}>
+                {row.step.map((part, k) =>
+                  typeof part === 'string' ? part : <span key={k} className="journey-work__in">{part.input}</span>,
+                )}
+              </td>
+              <td className={valueClass(row.value)}>{row.value}</td>
+              <td className="journey-work__call">
+                {row.call && (onCall ? (
+                  <button type="button" className="journey-work__call-link" onClick={() => onCall(row.call!)}>{row.call}</button>
+                ) : (
+                  <code>{row.call}</code>
+                ))}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      ))}
       <tbody>
-        {rows.map((row, i) => row.heading !== undefined ? (
-          <tr key={i} className="journey-work__group">
-            <th scope="colgroup" colSpan={3}>{row.heading}</th>
-          </tr>
-        ) : (
-          <tr key={i} className={row.from ? 'is-from' : undefined}>
-            <td className={stepClass(row, !!wrapSteps)}>
-              {row.step.map((part, k) =>
-                typeof part === 'string' ? part : <span key={k} className="journey-work__in">{part.input}</span>,
-              )}
-            </td>
-            <td className={valueClass(row.value)}>{row.value}</td>
-            <td className="journey-work__call">
-              {row.call && (onCall ? (
-                <button type="button" className="journey-work__call-link" onClick={() => onCall(row.call!)}>{row.call}</button>
-              ) : (
-                <code>{row.call}</code>
-              ))}
-            </td>
-          </tr>
-        ))}
         <tr className="is-result">
           <th scope="row" className="journey-work__step">Result</th>
           <td className={valueClass(result)}>{result}</td>
