@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { vertexJourney, type JourneyScene } from '@/features/math-panel/model/vertex-journey';
 import { assemblyFor, provokingVertex } from '@/entities/scene/model/primitive-assembly';
-import { fmt, int, short } from '@/shared/lib/format-number';
+import { fmt, int, short, whole } from '@/shared/lib/format-number';
 import type { PrimitiveType, SceneNode, TransformState } from '@/core/types/scene';
 import { makeMatrix, multiply, transformPoint, orthoToNdc, ndcToWindow } from '../helpers/matrix';
 
@@ -179,6 +179,9 @@ describe('WB-JOURNEY-09: Numbers read like the mock', () => {
     expect(fmt(-0.17)).toBe('−0.17');
     expect(fmt(-0.001)).toBe('0.00');
     expect(fmt(0.4)).toBe('0.40');
+    expect([0, 1, -1, -0.001].map(whole)).toEqual(['0', '1', '−1', '0']);
+    expect(whole(0.4)).toBe('0.40');
+    expect(whole(1.005)).toBe('1');
     expect(short(1)).toBe('1');
     expect(short(1.6)).toBe('1.6');
     expect(short(-0.85)).toBe('−0.85');

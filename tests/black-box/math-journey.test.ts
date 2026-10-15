@@ -365,3 +365,21 @@ describe('BB-JOURNEY-12: Wording and labels of the follow row, captions and cont
     unmount(host);
   });
 });
+
+describe('BB-JOURNEY-13: Whole numbers read bare and amber marks only the move', () => {
+  it('shows 0 0 1 under the matrix, colours just the two move values, and writes the bounds bare in the formula', async () => {
+    mockTriangle();
+    useVamsStore.setState({ activeSection: 'Transforms' });
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    const cells = [...host.querySelectorAll('.journey-matrix span')].map((el) => el.textContent);
+    expect(cells.slice(6)).toEqual(['0', '0', '1']);
+    expect(cells.slice(0, 2)).toEqual(['0.97', '−0.26']);
+    expect([...host.querySelectorAll('.journey-matrix .is-value')].map((el) => el.textContent)).toEqual(['0.40', '−0.17']);
+    row(host, 'Projected').click();
+    await settle();
+    expect(host.querySelector('.journey-formula')!.textContent).toContain('(1 + 1)');
+    expect(host.querySelector('.journey-formula')!.textContent).toContain('(0.27 + 1)');
+    unmount(host);
+  });
+});

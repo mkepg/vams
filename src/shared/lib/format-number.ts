@@ -17,3 +17,9 @@ export function short(n: number): string {
 export function int(n: number): string {
   return minus(String(Math.round(n) || 0));
 }
+
+/** Bare when it rounds to a whole number at two decimals (0, 1, −1), else as fmt: 0.40. */
+export function whole(n: number): string {
+  const rounded = Number(n.toFixed(2));
+  return Number.isInteger(rounded) ? minus(String(rounded || 0)) : fmt(n);
+}

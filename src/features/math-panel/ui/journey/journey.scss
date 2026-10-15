@@ -177,6 +177,7 @@
 // The working: a table in a dark well, so it never reads as part of the sentence.
 .journey-work {
   width: 100%;
+  max-width: 100%;
   border: 1px solid var(--rule);
   border-radius: var(--radius-s);
   border-collapse: separate;
@@ -188,17 +189,17 @@
 
   th,
   td {
-    padding: 0 5px;
+    padding: 0 4px;
     white-space: nowrap;
     text-align: left;
     vertical-align: middle;
   }
 
   th:first-child,
-  td:first-child { padding-left: 10px; }
+  td:first-child { padding-left: 8px; }
 
   th:last-child,
-  td:last-child { padding-right: 10px; text-align: right; }
+  td:last-child { padding-right: 8px; text-align: right; }
 
   thead th {
     height: 24px;
@@ -211,8 +212,9 @@
 
   tbody tr { height: 27px; }
 
+  // The step gives way first: it wraps when the column is narrow, while Value and Code stay on a line.
   .journey-work__step {
-    min-width: 118px;
+    white-space: normal;
     color: var(--ink-muted);
   }
 

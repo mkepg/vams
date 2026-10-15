@@ -7,7 +7,7 @@ import PipelineMathContent from '../PipelineMathContent';
 import TexturesMathContent from '../TexturesMathContent';
 import { BarycentricMixer, ColorConversion, isLine, PrimitivesSection, StippleBits, VertexTable } from '../PrimitivesMathContent';
 import { buildMatrix4, getAncestorChain, Matrix4, MatrixStack, OrthoMapping, TransformsSection, TRSCompositionTrace } from '../TransformsMathContent';
-import { fmt, short } from '@/shared/lib/format-number';
+import { fmt, short, whole } from '@/shared/lib/format-number';
 import type { JourneyStage, Point } from '../../model/vertex-journey';
 
 /** A labelled picture under the working. */
@@ -34,7 +34,7 @@ function MatrixPicture({ node }: { node: SceneNode }) {
         <div className="journey-matrix" role="img" aria-label="The transform as one matrix">
           {cells.flatMap((rowCells, r) =>
             rowCells.map((v, c) => (
-              <span key={`${r}-${c}`} className={c === 2 && r < 2 ? 'is-value' : undefined}>{fmt(v)}</span>
+              <span key={`${r}-${c}`} className={c === 2 && r < 2 ? 'is-value' : undefined}>{r === 2 ? whole(v) : fmt(v)}</span>
             )),
           )}
         </div>
@@ -44,7 +44,7 @@ function MatrixPicture({ node }: { node: SceneNode }) {
   );
 }
 
-const signed = (a: string, b: number) => (b < 0 ? `${a} + ${fmt(-b)}` : `${a} − ${fmt(b)}`);
+const signed = (a: string, b: number) => (b < 0 ? `${a} + ${whole(-b)}` : `${a} − ${whole(b)}`);
 
 /** glOrtho's formula with the student's numbers in it. */
 function OrthoFormula({ world, limits, ndc }: { world: Point; limits: ViewportLimits; ndc: Point }) {
@@ -52,7 +52,7 @@ function OrthoFormula({ world, limits, ndc }: { world: Point; limits: ViewportLi
     <>
       {axis}' = 2({axis} − {axis === 'x' ? 'l' : 'b'})/({axis === 'x' ? 'r − l' : 't − b'}) − 1
       <br />
-      {'   '}= 2({signed(fmt(v), lo)})/({signed(fmt(hi), lo)}) − 1 = <span className="is-value">{fmt(out)}</span>
+      {'   '}= 2({signed(fmt(v), lo)})/({signed(whole(hi), lo)}) − 1 = <span className="is-value">{fmt(out)}</span>
     </>
   );
   const unit = limits.minX === -1 && limits.maxX === 1 && limits.minY === -1 && limits.maxY === 1;
