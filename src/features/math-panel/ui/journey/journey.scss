@@ -1,6 +1,7 @@
 @use '../../../../shared/styles/tokens' as *;
 
 .journey {
+  container-type: inline-size;
   @include scrollbar;
   flex: 1;
   min-height: 0;
@@ -212,9 +213,8 @@
 
   tbody tr { height: 27px; }
 
-  // The step gives way first: it wraps when the column is narrow, while Value and Code stay on a line.
+  // The step stays on one line; the container queries below shrink the type, then let it wrap.
   .journey-work__step {
-    white-space: normal;
     color: var(--ink-muted);
   }
 
@@ -259,6 +259,20 @@
       color: var(--value);
     }
   }
+}
+
+// The mock's column is 380 px wide, which leaves its table 330 px. Below that the mono cells drop to
+// 11 px so every row still reads on one line; at very narrow widths the step may wrap as a last resort.
+@container (max-width: 379px) {
+  .journey-work {
+    font-size: var(--text-xs);
+
+    tr.is-result .journey-work__step { font-size: var(--text-xs); }
+  }
+}
+
+@container (max-width: 300px) {
+  .journey-work .journey-work__step { white-space: normal; }
 }
 
 .journey-open__pictures {
