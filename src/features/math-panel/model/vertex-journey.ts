@@ -180,29 +180,52 @@ function rgbOf(hex: string): [number, number, number] {
 
 const rgbText = ([r, g, b]: [number, number, number]) => `rgb(${r.toFixed(1)}, ${g.toFixed(1)}, ${b.toFixed(1)})`;
 
-function wrapped(c: number, wrap: TextureWrap): number {
+function wrappedCoord(c: number, wrap: TextureWrap): number {
   return wrap === 'REPEAT' ? c - Math.floor(c) : Math.min(1, Math.max(0, c));
 }
 
 /** The texel a UV reads, before filtering. */
 export function texelOf(uv: UV, size: { width: number; height: number }, wrap: TextureWrap): Point {
   return {
-    x: Math.min(size.width - 1, Math.floor(wrapped(uv.u, wrap) * size.width)),
-    y: Math.min(size.height - 1, Math.floor(wrapped(uv.v, wrap) * size.height)),
+    x: Math.min(size.width - 1, Math.floor(wrappedCoord(uv.u, wrap) * size.width)),
+    y: Math.min(size.height - 1, Math.floor(wrappedCoord(uv.v, wrap) * size.height)),
   };
 }
 
-function colouredStage(node: SceneNode, index: number, scene: JourneyScene): JourneyStage {
+function colouredStage(node: SceneNode, index: number, scene: JourneyScene, pixel: Point): JourneyStage {
+  const at: WorkingRow = { step: ['at pixel'], value: `(${int(pixel.x)}, ${int(pixel.y)})`, call: null, from: true };
+  const mode = node.renderingMode ?? 'IMMEDIATE';
   const uv = node.uvs?.[index];
   if (node.texture && uv && node.uvs!.length === node.vertices.length) {
     const tex = scene.textures.find((t) => t.id === node.texture!.textureId);
     const texel = tex ? texelOf(uv, tex, node.texture.wrap) : null;
     const result = texel ? `texel (${texel.x}, ${texel.y})` : 'texture missing';
-    return { ...stage('coloured', TEXTURED, [], result, null), section: 'Textures' };
+    const wrap = node.texture.wrap;
+    const wu = { u: wrappedCoord(uv.u, wrap), v: wrappedCoord(uv.v, wrap) };
+    const rows: WorkingRow[] = [
+      at,
+      { step: ['UV'], value: `(${fmt(uv.u)}, ${fmt(uv.v)})`, call: mode === 'IMMEDIATE' ? 'glTexCoord2f' : 'glTexCoordPointer' },
+      { step: ['wrap ', { input: wrap }], value: `(${fmt(wu.u)}, ${fmt(wu.v)})`, call: 'glTexParameteri' },
+      ...(tex ? [{ step: [`texture ${tex.width}×${tex.height}`], value: result, call: 'glBindTexture' } as WorkingRow] : []),
+      { step: ['filter ', { input: node.texture.filter }], value: node.texture.filter === 'NEAREST' ? 'that texel alone' : 'a blend of the 4 around it', call: 'glTexParameteri' },
+    ];
+    return { ...stage('coloured', TEXTURED, rows, result, null), section: 'Textures' };
   }
+  const type = node.type as PrimitiveType;
+  const count = node.vertices.length;
   const flat = node.shading === 'FLAT';
-  const source = flat ? provokingVertex(node.type as PrimitiveType, index, node.vertices.length) : index;
-  return stage('coloured', flat ? flatSentence(node.type as PrimitiveType, index, node.vertices.length) : SMOOTH, [], rgbText(rgbOf(node.vertices[source]?.color ?? '#ffffff')), null);
+  const source = flat ? provokingVertex(type, index, count) : index;
+  const members = assemblyFor(type, index, count).members[0] ?? [index];
+  const rgb = rgbOf(node.vertices[index]?.color ?? '#ffffff');
+  const colourCall = mode === 'IMMEDIATE' ? (node.colorMode === 'BYTE' ? 'glColor3ub' : 'glColor3f') : 'glColorPointer';
+  const rows: WorkingRow[] = [
+    at,
+    { step: ['vertex colour'], value: `(${rgb.map((c) => c.toFixed(1)).join(', ')})`, call: colourCall },
+    flat
+      ? { step: ['shading ', { input: 'flat' }], value: `vertex ${source + 1}’s colour`, call: 'glShadeModel' }
+      : { step: ['shading ', { input: 'smooth' }], value: `weights ${members.map((k) => (k === index ? '1' : '0')).join(', ')}`, call: 'glShadeModel' },
+  ];
+  return stage('coloured', flat ? flatSentence(type, index, count) : SMOOTH, rows, rgbText(rgbOf(node.vertices[source]?.color ?? '#ffffff')), null);
 }
 
 // --- The journey ------------------------------------------------------------------------------
@@ -273,7 +296,7 @@ function shapeJourney(node: SceneNode, scene: JourneyScene, vertexIndex: number,
       stage('projected', PROJECTED, projectedRows(world, ndc, scene.viewportLimits), `NDC ${pair(ndc)}`, ndc),
       stage('assembled', assembly.sentence, assembledRows(node, ndc, assembly), assembly.result, null),
       rasterisedStage(ndc, pixel, canvas, scene.reshape ?? true),
-      colouredStage(node, i, scene),
+      colouredStage(node, i, scene, pixel),
     ],
   };
 }
@@ -284,6 +307,11 @@ function textJourney(node: SceneNode, scene: JourneyScene, canvas: CanvasSize): 
   const { rows: moves, end: world } = transformRows(raster, chainOf(node, scene.objects));
   const ndc = ndcOf(world, scene.viewportLimits);
   const pixel = pixelOf(ndc, canvas);
+  const textRgb = rgbOf(node.vertices[0]?.color ?? '#ffffff');
+  const colouredRows: WorkingRow[] = [
+    { step: ['at pixel'], value: `(${int(pixel.x)}, ${int(pixel.y)})`, call: null, from: true },
+    { step: ['text colour'], value: `(${textRgb.map((c) => c.toFixed(1)).join(', ')})`, call: node.colorMode === 'BYTE' ? 'glColor3ub' : 'glColor3f' },
+  ];
   return {
     subject: { kind: 'text', name: node.name },
     stages: [
@@ -292,7 +320,7 @@ function textJourney(node: SceneNode, scene: JourneyScene, canvas: CanvasSize): 
       stage('projected', PROJECTED, projectedRows(world, ndc, scene.viewportLimits), `NDC ${pair(ndc)}`, ndc),
       stage('assembled', TEXT_ASSEMBLED, [], 'bitmap text', null),
       rasterisedStage(ndc, pixel, canvas, scene.reshape ?? true),
-      stage('coloured', `The text takes the colour set by ${node.colorMode === 'BYTE' ? 'glColor3ub' : 'glColor3f'} just before it.`, [], rgbText(rgbOf(node.vertices[0]?.color ?? '#ffffff')), null),
+      stage('coloured', `The text takes the colour set by ${node.colorMode === 'BYTE' ? 'glColor3ub' : 'glColor3f'} just before it.`, colouredRows, rgbText(textRgb), null),
     ],
   };
 }

@@ -1,8 +1,9 @@
+import { useId } from 'react';
 import type { ComponentChildren } from 'preact';
 import { useVamsStore } from '@/core/store';
 import type { JourneyStageId } from '@/core/inspector';
 import type { PrimitiveType, SceneNode, ViewportLimits } from '@/core/types/scene';
-import { primitivesOf } from '@/entities/scene/model/primitive-assembly';
+import { assemblyFor, primitivesOf, provokingVertex } from '@/entities/scene/model/primitive-assembly';
 import BuffersMathContent from '../BuffersMathContent';
 import PipelineMathContent from '../PipelineMathContent';
 import TexturesMathContent from '../TexturesMathContent';
@@ -165,6 +166,56 @@ function ShapeSketch({ node, vertex }: { node: SceneNode; vertex: number }) {
   );
 }
 
+const FILLED: readonly string[] = ['TRIANGLES', 'TRIANGLE_STRIP', 'TRIANGLE_FAN', 'QUADS', 'QUAD_STRIP', 'POLYGON'];
+
+/** The primitive the vertex belongs to, each corner's colour fading in from its corner, the vertex ringed. */
+function FacePicture({ node, vertex }: { node: SceneNode; vertex: number }) {
+  const baseId = useId();
+  const n = node.vertices.length;
+  if (n === 0) return null;
+  const i = Math.min(Math.max(0, vertex), n - 1);
+  const type = node.type as PrimitiveType;
+  const members = assemblyFor(type, i, n).members[0];
+  if (!members || members.length < 3) return null;
+  const box = { left: 6, top: 4, width: 84, height: 72 };
+  const fit = fitInBox(members.map((k) => node.vertices[k]), box);
+  const at = (k: number) => fit.at(node.vertices[k]);
+  const points = members.map((k) => `${at(k).x},${at(k).y}`).join(' ');
+  const flat = node.shading === 'FLAT';
+  const flatColour = node.vertices[provokingVertex(type, i, n)]?.color ?? '#ffffff';
+  const reach = Math.hypot(box.width, box.height);
+  return (
+    <Picture label="Across the face">
+      <div className="journey-picture__box">
+        <svg className="journey-face" width="96" height="80" viewBox="0 0 96 80" role="img" aria-label={`The colour across ${node.name}`}>
+          <defs>
+            {members.map((k) => (
+              <radialGradient key={k} id={`${baseId}-${k}`} cx={at(k).x} cy={at(k).y} r={reach} gradientUnits="userSpaceOnUse">
+                <stop offset="0" stopColor={node.vertices[k].color} />
+                <stop offset="0.85" stopColor={node.vertices[k].color} stopOpacity="0" />
+              </radialGradient>
+            ))}
+          </defs>
+          {flat ? (
+            <polygon points={points} fill={flatColour} />
+          ) : (
+            <>
+              <polygon points={points} className="journey-face__base" />
+              {members.map((k) => <polygon key={k} points={points} fill={`url(#${baseId}-${k})`} />)}
+            </>
+          )}
+          <circle cx={at(i).x} cy={at(i).y} r="4.5" className="journey-face__ring" />
+        </svg>
+        <p className="journey-picture__caption">
+          {flat
+            ? 'With flat shading the whole shape takes one vertex’s colour.'
+            : 'Your vertex sits at a corner, so it keeps its own colour. Pixels further in blend toward the others.'}
+        </p>
+      </div>
+    </Picture>
+  );
+}
+
 interface PicturesProps {
   stage: JourneyStage;
   node: SceneNode | undefined;
@@ -276,6 +327,7 @@ export function StagePictures({ stage, node, deeper, deeperId, world, ndc }: Pic
       const multi = node.vertices.length > 1 && node.vertices.some((v) => v.color !== node.vertices[0].color);
       return (
         <div className="primitives-math">
+          {FILLED.includes(node.type) && <FacePicture node={node} vertex={vertex} />}
           <PrimitivesSection title="Color">
             <ColorConversion hex={node.vertices[0]?.color ?? '#ffffff'} />
           </PrimitivesSection>

@@ -454,3 +454,10 @@
   .journey-sketch__point.is-held { fill: var(--accent-text); }
   .journey-sketch__ring { fill: none; stroke: var(--value); stroke-width: 2; }
 }
+
+.journey-face {
+  flex: none;
+
+  .journey-face__base { fill: var(--paper-sunken); }
+  .journey-face__ring { fill: none; stroke: var(--value); stroke-width: 2; }
+}

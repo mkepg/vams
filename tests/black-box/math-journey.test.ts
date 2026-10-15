@@ -679,3 +679,21 @@ describe('BB-JOURNEY-24: The formula truncates the unrounded value so it never r
     expect(await formulaFor(1)).toContain('· 800 = 800 → 799');
   });
 });
+
+describe('BB-JOURNEY-25: Coloured shows the colour across the face with the vertex ringed', () => {
+  it('matches the mock\'s working and draws the face', async () => {
+    mockTriangle();
+    getState().setJourneyStageOverride('coloured');
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    const rows = [...host.querySelectorAll('table.journey-work tbody tr')].map((tr) => [...tr.children].map((c) => c.textContent));
+    expect(rows.slice(1)).toEqual([
+      ['vertex colour', '(1.0, 0.4, 0.2)', 'glColor3f'],
+      ['shading smooth', 'weights 1, 0, 0', 'glShadeModel'],
+      ['Result', 'rgb(1.0, 0.4, 0.2)', ''],
+    ]);
+    expect(host.querySelector('svg.journey-face .journey-face__ring')).not.toBeNull();
+    expect(host.textContent).toContain('Across the face');
+    unmount(host);
+  });
+});

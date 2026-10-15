@@ -432,3 +432,32 @@ describe('WB-JOURNEY-16: Rasterised says GLUT calls glViewport when there is no 
     expect(sizeRows(j).every((r) => r.linked === true)).toBe(true);
   });
 });
+
+describe('WB-JOURNEY-17: Coloured works the vertex colour and the shading, as the mock does', () => {
+  it('shows the pixel, the colour and the smooth weights; flat names the provoking vertex', () => {
+    const tri = mockTriangle();
+    const j = vertexJourney(scene([tri]), 'Triangle', 0, CANVAS);
+    const px = stage(j, 'rasterised').point!;
+    expect(rowsOf(j, 'coloured')).toEqual([
+      ['at pixel', `(${px.x}, ${px.y})`, null],
+      ['vertex colour', '(1.0, 0.4, 0.2)', 'glColor3f'],
+      ['shading smooth', 'weights 1, 0, 0', 'glShadeModel'],
+    ]);
+    const flat = vertexJourney(scene([{ ...tri, shading: 'FLAT' }]), 'Triangle', 0, CANVAS);
+    expect(rowsOf(flat, 'coloured')[2]).toEqual(['shading flat', 'vertex 3’s colour', 'glShadeModel']);
+  });
+
+  it('works a textured vertex from UV to texel', () => {
+    const quad = node('Quad', 'QUADS', [[0, 0], [1, 0], [1, 1], [0, 1]], {}, {
+      texture: { textureId: 'tex', filter: 'LINEAR', wrap: 'REPEAT' },
+      uvs: [{ u: 0, v: 0 }, { u: 1.25, v: 0 }, { u: 1, v: 1 }, { u: 0, v: 1 }],
+    });
+    const textured: JourneyScene = { ...scene([quad]), textures: [{ id: 'tex', name: 'Bricks', dataUrl: '', width: 64, height: 32 }] };
+    expect(rowsOf(vertexJourney(textured, 'Quad', 1, CANVAS), 'coloured').slice(1)).toEqual([
+      ['UV', '(1.25, 0.00)', 'glTexCoord2f'],
+      ['wrap REPEAT', '(0.25, 0.00)', 'glTexParameteri'],
+      ['texture 64×32', 'texel (16, 0)', 'glBindTexture'],
+      ['filter LINEAR', 'a blend of the 4 around it', 'glTexParameteri'],
+    ]);
+  });
+});
