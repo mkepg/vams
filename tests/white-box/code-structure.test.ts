@@ -9,6 +9,7 @@ import { visibleRows } from '@/features/code-generation/model/code-folds';
 import { diffChangedValues } from '@/features/code-generation/model/value-diff';
 import { diffChangedLines, matchLines } from '@/features/code-generation/model/code-diff';
 import { nextMarks, type MarkSnapshot } from '@/features/code-generation/model/use-value-marks';
+import { explainLine, noteFor, type ExplainScene } from '@/features/code-generation/model/code-explanations';
 import type { CodeRow } from '@/shared/ui/code-viewer/types';
 import type { CallbackRule } from '@/core/types/scene';
 import { addTriangle, addQuad, addPrimitive, getState } from '../helpers/store';
@@ -411,5 +412,112 @@ describe('WB-CODE-20: Only the student\'s own edit is marked', () => {
     expect(nextMarks(before, { ...before, selectionKey: tri.id })).toBe('clear');
     getState().updateObjectTransform(tri.id, { translateX: 0.4 });
     expect(nextMarks(before, { ...before, code: at(800, 600) })).toBe('diff');
+  });
+});
+
+const explainScene = (): ExplainScene => {
+  const s = getState();
+  return { objects: s.objects, viewportLimits: s.viewportLimits, canvasBackgroundColor: s.canvasBackgroundColor, canvas: { width: 800, height: 600 }, textures: s.getAllTextures() };
+};
+
+/** Every generator feature at once: all ten modes of drawing data, every callback kind and every action. */
+function everythingFixture() {
+  fullFixture();
+  const line = addPrimitive('LINE_STRIP', [{ x: -0.8, y: -0.8 }, { x: -0.6, y: -0.6 }, { x: -0.4, y: -0.8 }]);
+  getState().updateLineWidth(line.id, 3);
+  getState().updateLineStipple(line.id, { factor: 2, pattern: 0xF0F0 });
+  const dots = addPrimitive('POINTS', [{ x: 0.8, y: -0.8 }]);
+  getState().updateObjectColorMode(dots.id, 'BYTE');
+  getState().updateObjectShading(dots.id, 'FLAT');
+  const stream = addTriangle(-0.6, 0.6, 0.1);
+  getState().updateRenderingMode(stream.id, 'VBO');
+  getState().updateBufferUsage(stream.id, 'STREAM');
+  const mapped = addQuad(0.6, 0.6, 0.1);
+  getState().updateRenderingMode(mapped.id, 'VBO');
+  getState().updateBufferUsage(mapped.id, 'DYNAMIC');
+  getState().updateUpdateMethod(mapped.id, 'MAP_BUFFER');
+  getState().updateUseIndexed(mapped.id, true);
+  const a = addTriangle(-0.2, -0.5, 0.1);
+  const b = addTriangle(0.2, -0.5, 0.1);
+  getState().createGroup([a.id, b.id]);
+  getState().setCallbackHandler('special', 'onSpecial');
+  getState().addCallbackRule('special', rule(line.id, { trigger: { kind: 'special', key: 'left' }, action: { type: 'rotate', degrees: 5 } }));
+  getState().addCallbackRule('keyboard', rule(dots.id, { trigger: { kind: 'keyboard', key: 's' }, action: { type: 'scale', sx: 1.1, sy: 1.1 } }));
+  getState().addCallbackRule('keyboard', rule(dots.id, { trigger: { kind: 'keyboard', key: 'r' }, action: { type: 'reset' } }));
+  getState().addCallbackRule('keyboard', rule(dots.id, { trigger: { kind: 'keyboard', key: 'c' }, action: { type: 'setColor', color: '#ff0000' } }));
+  getState().addCallbackRule('keyboard', rule(dots.id, { trigger: { kind: 'keyboard', key: ' ' }, action: { type: 'visibility', mode: 'toggle' } }));
+  getState().addCallbackRule('mouse', rule(line.id, { trigger: { kind: 'mouse', button: 'left', state: 'down' }, action: { type: 'moveToPointer' } }));
+  getState().setCallbackHandler('motion', 'onMotion');
+  getState().addCallbackRule('motion', rule(line.id, { trigger: { kind: 'motion' }, action: { type: 'moveToPointer' } }));
+  getState().setCallbackHandler('reshape', 'onReshape');
+  return program();
+}
+
+describe('WB-CODE-22: Every explainable line in every generator format has an explanation', () => {
+  it.each(['keep', 'stretch'] as const)('explains each explainable line, with reshape set to %s', (reshape) => {
+    everythingFixture();
+    getState().setReshapeMode(reshape);
+    const outline = outlineCode(program());
+    const scene = explainScene();
+    outline.lines.forEach((line, i) => {
+      if (!line.explainable) return;
+      const e = explainLine(i, outline, scene);
+      expect(e, `line ${i + 1}: ${line.text}`).not.toBeNull();
+      expect(e!.signature.length, line.text).toBeGreaterThan(0);
+      expect(e!.text, line.text).toMatch(/^[A-Z].*\.$/);
+      expect(`${e!.signature} ${e!.text} ${e!.values.map((v) => v.control).join(' ')}`).not.toMatch(/coming soon|not supported|future|deferred|\b3D\b|lighting/i);
+    });
+  });
+});
+
+describe('WB-CODE-23: Value rows name the state field, its value and its control', () => {
+  it('explains glTranslatef and the state line with the student\'s numbers', () => {
+    const tri = addTriangle(0.4, -0.17, 0.5);
+    getState().updateObjectName(tri.id, 'Triangle');
+    getState().updateObjectTransform(tri.id, { translateX: 0.4, translateY: -0.17, rotate: 15 });
+    const outline = outlineCode(program());
+    const translate = explainLine(lineOf(outline, 'glTranslatef('), outline, explainScene())!;
+    expect(translate.signature).toBe('glTranslatef(x, y, z)');
+    expect(translate.values).toEqual([
+      { arg: 'x', source: 'state_Triangle.x', value: '0.40', control: 'Translate X' },
+      { arg: 'y', source: 'state_Triangle.y', value: '−0.17', control: 'Translate Y' },
+    ]);
+    expect(translate.stage).toBe('transformed');
+    expect(translate.control).toEqual({ label: 'Translate X', group: 'transform', objectId: tri.id });
+    const state = explainLine(lineOf(outline, 'ObjectState state_Triangle'), outline, explainScene())!;
+    expect(state.values.map((v) => `${v.arg}=${v.value}·${v.control}`)).toEqual([
+      'x=0.40·Translate X', 'y=−0.17·Translate Y', 'rotation=15°·Rotate', 'scaleX=1·Scale X', 'scaleY=1·Scale Y',
+    ]);
+    const vertex = explainLine(lineOf(outline, 'glVertex2f('), outline, explainScene())!;
+    expect(vertex.values.map((v) => v.control)).toEqual(['Vertex 1', 'Vertex 1']);
+    expect(vertex.control).toEqual({ label: 'Vertices', group: 'vertices', objectId: tri.id });
+    const clear = explainLine(lineOf(outline, 'glClearColor('), outline, explainScene())!;
+    expect(clear.control).toEqual({ label: 'Background', group: 'background', objectId: null });
+    expect(explainLine(outline.lines.findIndex((l) => l.text === '{'), outline, explainScene())).toBeNull();
+  });
+});
+
+describe('WB-CODE-24: Notes sit only on the key lines of draw functions', () => {
+  it('notes move, turn, the draw call and a bound texture, scale only when it is not 1, 1, and nothing else', () => {
+    const tri = addTriangle(0.4, -0.17, 0.5);
+    getState().updateObjectName(tri.id, 'Triangle');
+    getState().updateObjectTransform(tri.id, { translateX: 0.4, translateY: -0.17, rotate: 15 });
+    let outline = outlineCode(program());
+    const noted = outline.lines.map((_, i) => noteFor(i, outline, explainScene())).map((n, i) => (n ? `${outline.lines[i].text.trim().split('(')[0]}: ${n.map((p) => (typeof p === 'string' ? p : p.value)).join('')}` : null)).filter(Boolean);
+    expect(noted).toEqual([
+      'glTranslatef: move by your X 0.40, Y −0.17',
+      'glRotatef: turn by 15°',
+      'glBegin: every 3 vertices make a triangle',
+    ]);
+    const note = noteFor(lineOf(outline, 'glTranslatef('), outline, explainScene())!;
+    expect(note[1]).toEqual({ value: '0.40', ref: 'state_Triangle.x' });
+    getState().updateObjectTransform(tri.id, { scaleX: 1.5 });
+    outline = outlineCode(program());
+    expect(noteFor(lineOf(outline, 'glScalef('), outline, explainScene())!.map((p) => (typeof p === 'string' ? p : p.value)).join('')).toBe('stretch by 1.5 across, 1 up');
+    expect(noteFor(lineOf(outline, 'glClearColor('), outline, explainScene())).toBeNull();
+    for (const n of outline.lines.map((_, i) => noteFor(i, outline, explainScene())).filter(Boolean)) {
+      const words = n!.map((p) => (typeof p === 'string' ? p : p.value)).join('').split(/\s+/).length;
+      expect(words).toBeLessThanOrEqual(8);
+    }
   });
 });
