@@ -567,5 +567,11 @@ describe('WB-CODE-26: Notes read in plain directions', () => {
     expect(read('glTranslatef(')).toBe('moves Triangle 0.17 down');
     getState().updateObjectTransform(tri.id, { translateX: 0.4, translateY: 0 });
     expect(read('glTranslatef(')).toBe('moves Triangle 0.40 right');
+    getState().updateObjectTransform(tri.id, { translateX: 0.003, translateY: 0.25 });
+    expect(read('glTranslatef(')).toBe('moves Triangle 0.25 up');
+    getState().updateObjectTransform(tri.id, { translateX: 0.003, translateY: -0.004, rotate: 0.001, scaleX: 1.001, scaleY: 1 });
+    expect(read('glTranslatef(')).toBeNull();
+    expect(read('glRotatef(')).toBeNull();
+    expect(read('glScalef(')).toBeNull();
   });
 });

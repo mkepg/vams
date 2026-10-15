@@ -397,20 +397,27 @@ export function noteFor(index: number, outline: CodeOutline, scene: ExplainScene
   const tr = node.transform;
   if (t.startsWith('glTranslatef(')) {
     const { translateX: dx, translateY: dy } = tr;
+    // Zero is judged by what the note would show, so a value that rounds to 0.00 is left out.
+    const moveX = fmt(Math.abs(dx)) !== '0.00';
+    const moveY = fmt(Math.abs(dy)) !== '0.00';
+    if (!moveX && !moveY) return null;
     const parts: NotePart[] = [`moves ${node.name} `];
-    if (dx !== 0) parts.push({ value: fmt(Math.abs(dx)), ref: `state_${code}.x` }, dx > 0 ? ' right' : ' left');
-    if (dx !== 0 && dy !== 0) parts.push(', ');
-    if (dy !== 0) parts.push({ value: fmt(Math.abs(dy)), ref: `state_${code}.y` }, dy > 0 ? ' up' : ' down');
-    return dx === 0 && dy === 0 ? null : parts;
+    if (moveX) parts.push({ value: fmt(Math.abs(dx)), ref: `state_${code}.x` }, dx > 0 ? ' right' : ' left');
+    if (moveX && moveY) parts.push(', ');
+    if (moveY) parts.push({ value: fmt(Math.abs(dy)), ref: `state_${code}.y` }, dy > 0 ? ' up' : ' down');
+    return parts;
   }
   // glRotatef(angle, 0, 0, 1) turns a positive angle anticlockwise.
   if (t.startsWith('glRotatef(')) {
-    if (tr.rotate === 0) return null;
-    return [`turns ${node.name} `, { value: `${short(Math.abs(tr.rotate))}°`, ref: `state_${code}.rotation` }, tr.rotate > 0 ? ' anticlockwise' : ' clockwise'];
+    const angle = short(Math.abs(tr.rotate));
+    if (angle === '0') return null;
+    return [`turns ${node.name} `, { value: `${angle}°`, ref: `state_${code}.rotation` }, tr.rotate > 0 ? ' anticlockwise' : ' clockwise'];
   }
   if (t.startsWith('glScalef(')) {
-    if (tr.scaleX === 1 && tr.scaleY === 1) return null;
-    return [`stretches ${node.name} `, { value: short(tr.scaleX), ref: `state_${code}.scaleX` }, '× across, ', { value: short(tr.scaleY), ref: `state_${code}.scaleY` }, '× up'];
+    const sx = short(tr.scaleX);
+    const sy = short(tr.scaleY);
+    if (sx === '1' && sy === '1') return null;
+    return [`stretches ${node.name} `, { value: sx, ref: `state_${code}.scaleX` }, '× across, ', { value: sy, ref: `state_${code}.scaleY` }, '× up'];
   }
   if (/^gl(Begin|DrawArrays|DrawElements)\(/.test(t)) return [assemblyFor(node.type as PrimitiveType, 0, node.vertices.length).note];
   if (t.startsWith('glBindTexture(')) {

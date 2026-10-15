@@ -30,7 +30,7 @@
     flex: none;
     height: 100%;
     min-height: 0;
-    padding: 0 2px;
+    padding: 0 var(--space-1);
     border: 0;
     border-radius: 0;
     background: transparent;
@@ -70,6 +70,12 @@
     background: var(--accent);
     vertical-align: middle;
   }
+}
+
+// The tabs reach down over the header's 1 px bottom rule, so the open tab's underline sits on it.
+.code-header-left:has(> .code-math-switch),
+.math-header > .code-math-switch {
+  margin-bottom: -1px;
 }
 
 // The hidden column's 30 px edge tab, with its label running down the edge.
