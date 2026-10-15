@@ -65,7 +65,7 @@ The product rules in `AGENTS.md` and [docs/product-plan.md](../product-plan.md) 
 
 14. Glossary
 15. First-visit editor tour (by Oct 28). Complete (2026-10-15) with the editor rail redesign
-16. "Explain this line" for generated code (by Oct 28)
+16. "Explain this line" for generated code (by Oct 28). Complete (2026-10-16) with the code and math rework
 17. Ctrl+K search
 18. Instructor page
 
@@ -74,7 +74,7 @@ The product rules in `AGENTS.md` and [docs/product-plan.md](../product-plan.md) 
 Four projects, in this order. Each has its own spec and plan.
 
 1. **Editor rail redesign:** the rail, its panels, the lesson bar, the Code | Math switch, the first-visit tour (item 15) and the two Run issues most likely to show on stage. Due by the Oct 28 freeze. Complete (2026-10-15): [spec](2026-10-14-editor-rail-design.md), [plan](../plans/2026-10-14-editor-rail.md).
-2. **Code and math rework:** what the code and math panels contain and how they explain it, including item 16. Built straight after the rail merges; whatever misses the Oct 28 freeze waits. The owner's four problems with the panels today:
+2. **Code and math rework:** what the code and math panels contain and how they explain it, including item 16. Built straight after the rail merges; whatever misses the Oct 28 freeze waits. Complete (2026-10-16): [spec](2026-10-15-code-math-rework-design.md), [plan](../plans/2026-10-15-code-math-rework.md). The owner's four problems with the panels today:
    - **The code is a wall.** The student's own part (their shape's draw function and its state) is buried in 60–100 lines of boilerplate.
    - **Lines aren't explained.** A student cannot ask what a line does; the hover notes appear only while the scene is empty.
    - **The math feels disconnected.** The math cards do not clearly relate to what the student just did, or to the code line that uses those numbers.
@@ -191,6 +191,7 @@ The thesis manuscript is final and describes the evaluated build. The overhauled
 12. The use-case and activity diagrams show lessons reached only inside the editor. The site now has a /learn course map, with progress, that opens any lesson in the editor.
 13. §3.4.1 says "there is no concept of playback or event-driven behavior engine in the implementation, nor is there any retained state of the simulation". The editor now has Run: a transient, event-driven state that keeps a temporary copy of each object's state while it runs. It never writes scene state, and the code and math panels still draw from the store. During Run the canvas shows the running program, not the saved scene.
 14. Algorithm 2 ends the program with "callback function skeletons", and §3.4.2's callbacks panel registers names only. Handlers now have generated bodies built from rules, a sixth callback (`glutSpecialFunc`) exists, and Reshape offers two behaviours.
+15. The evaluated build's math panel had one tab per curriculum section, and its code panel tinted the selected object's lines and explained boilerplate only on an empty scene. The math panel is now a vertex journey through six pipeline stages with the student's numbers. The code panel folds everything but the selected object's code and explains any line on request (code and math rework).
 
 The following manuscript descriptions may also be crossed by later sub-projects. When one is, it is added to the list above:
 - The default canvas background `#000000`. Changing it changes generated code and the replay baseline.

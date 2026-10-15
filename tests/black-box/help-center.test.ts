@@ -253,3 +253,14 @@ describe('BB-HELP-08: Help names only places the editor has', () => {
     ]);
   });
 });
+
+describe('BB-HELP-09: Help describes the folded code and the vertex journey', () => {
+  it('explains folds, the strip, notes, the marks and the six stages, and no longer mentions tabs or underlines', () => {
+    const code = JSON.stringify(HELP_TOPICS.find((t) => t.id === 'code-panel'));
+    for (const word of ['fold', 'strip', 'Notes', 'amber', 'Copy always copies the whole program']) expect(code, word).toContain(word);
+    const math = JSON.stringify(HELP_TOPICS.find((t) => t.id === 'math-panel'));
+    for (const stage of ['Stored', 'Transformed', 'Projected', 'Assembled', 'Rasterised', 'Coloured']) expect(math, stage).toContain(stage);
+    const all = JSON.stringify(HELP_TOPICS);
+    expect(all).not.toMatch(/one tab per section|underlined line|the code highlights it/i);
+  });
+});

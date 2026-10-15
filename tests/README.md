@@ -59,8 +59,12 @@ tests/
 │   ├── callbacks.test.ts                 (BB-CB-*: callback rules, handler
 │   │                                        code, names)
 │   ├── run-mode.test.ts                  (BB-RUN-*: the canvas Run state)
-│   └── first-visit-tour.test.ts          (BB-TOUR-*: the first-visit tour's
-│                                            steps, checks and spotlight)
+│   ├── first-visit-tour.test.ts          (BB-TOUR-*: the first-visit tour's
+│   │                                        steps, checks and spotlight)
+│   ├── code-panel.test.ts                (BB-CODE-*: folds, value marks, Find,
+│   │                                        the strip and notes)
+│   └── math-journey.test.ts              (BB-JOURNEY-*: the vertex journey, its
+│                                            stages, the stepper and the links)
 ├── white-box/                    ← Maps to Table 13.
 │   ├── state-management.test.ts          (WB-STATE-*)
 │   ├── matrix-engine.test.ts             (WB-MATRIX-*)
@@ -70,8 +74,12 @@ tests/
 │   ├── code-generation-buffers.test.ts   (WB-GEN-BUF-*)
 │   ├── persistence-manager.test.ts       (WB-PERSIST-*)
 │   ├── error-handling.test.ts            (WB-ERR-*)
-│   └── callbacks-runtime.test.ts         (WB-CB-*: the Run runtime against
-│                                            the generated C++)
+│   ├── callbacks-runtime.test.ts         (WB-CB-*: the Run runtime against
+│   │                                        the generated C++)
+│   ├── code-structure.test.ts            (WB-CODE-*: the outline, folds, value
+│   │                                        diff and explanation catalogue)
+│   └── vertex-journey.test.ts            (WB-JOURNEY-*: each stage's numbers
+│                                            against the reference)
 ├── visual/                       ← Not part of `npm test`.
 │   ├── editor.spec.ts                    (VIS-EDITOR-*: screenshot checks,
 │   │                                        including the rail panels,
@@ -101,7 +109,7 @@ tests/
 ## Running
 
 ```bash
-npm test                # run all 698 tests
+npm test                # run all 832 tests
 npm run test:watch      # watch mode for development
 npm run test:coverage   # also produce tests/reports/coverage/
 npm run test:visual     # editor screenshot checks (Playwright, installed Chrome)
