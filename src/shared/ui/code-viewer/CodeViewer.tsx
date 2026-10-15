@@ -294,7 +294,7 @@ const CodeViewer = memo(function CodeViewer({
           role={canExplain ? 'button' : undefined}
           tabIndex={canExplain ? (line === tabLine ? 0 : -1) : undefined}
           aria-expanded={canExplain ? explained : undefined}
-          aria-controls={canExplain ? stripId : undefined}
+          aria-controls={explained ? stripId : undefined}
           onClick={canExplain ? () => onExplain?.(line) : undefined}
           onKeyDown={canExplain ? onLineKey(line) : undefined}
         >
@@ -400,7 +400,9 @@ const CodeViewer = memo(function CodeViewer({
         {rowList.map((row) => (row.kind === 'line' ? renderLine(row) : renderFold(row)))}
       </div>
 
-      {strip ? (
+      {/* Always mounted, so the first explanation is announced. */}
+      <div className="code-live" aria-live="polite">
+        {strip && (
         <section id={stripId} className="code-strip" aria-label="What this line does">
           <div aria-live="polite" className="code-strip__body">
             <div className="code-strip__head">
@@ -433,8 +435,10 @@ const CodeViewer = memo(function CodeViewer({
             )}
           </div>
         </section>
-      ) : (
-        explainable && <p className="code-hint"><b>Click any line</b> to see what it does.</p>
+        )}
+      </div>
+      {!strip && explainable && explainable.size > 0 && (
+        <p className="code-hint"><b>Click any line</b> to see what it does.</p>
       )}
     </div>
   );

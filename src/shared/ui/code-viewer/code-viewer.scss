@@ -366,3 +366,6 @@
   &:hover { text-decoration: underline; }
   &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 }
+
+// The live region wraps the strip without taking part in the layout.
+.code-live { display: contents; }

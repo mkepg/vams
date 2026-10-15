@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentChildren } from 'preact';
 import { useVamsStore } from '@/core/store';
 import CodeViewer from '@/shared/ui/code-viewer/CodeViewer';
@@ -66,6 +66,15 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
     () => new Set(outline.lines.flatMap((l, i) => (l.explainable && explainLine(i, outline, scene) ? [i] : []))),
     [outline, scene],
   );
+  // explainedLine is a raw index: when the program gains or loses lines, it no longer names the same line.
+  const lineCount = outline.lines.length;
+  const lastCount = useRef(lineCount);
+  useEffect(() => {
+    if (lastCount.current === lineCount) return;
+    lastCount.current = lineCount;
+    if (useVamsStore.getState().explainedLine !== null) setExplainedLine(null);
+  }, [lineCount, setExplainedLine]);
+  const toggleNotes = useCallback(() => setCodeNotes(!useVamsStore.getState().codeNotes), [setCodeNotes]);
   const explained = explainedLine !== null && explainable.has(explainedLine) ? explainedLine : null;
 
   const selected = objects.find((o) => o.id === selectedObjectId);
@@ -151,7 +160,7 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
       strip={strip}
       notes={notes}
       notesOn={codeNotes}
-      onToggleNotes={() => setCodeNotes(!codeNotes)}
+      onToggleNotes={toggleNotes}
     />
   );
 }

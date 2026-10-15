@@ -548,6 +548,7 @@ describe('BB-CODE-23: Explaining a folded line opens its fold; a new selection c
     const host = mount(h(SceneCodePanel, {}));
     await settle();
     const main = currentProgram().split('\n').findIndex((l) => l.includes('glutMainLoop'));
+    expect(lineTexts(host).some((t) => t.includes('glutMainLoop'))).toBe(false);
     getState().setExplainedLine(main);
     await settle();
     expect(lineTexts(host).some((t) => t.includes('glutMainLoop'))).toBe(true);
@@ -558,6 +559,154 @@ describe('BB-CODE-23: Explaining a folded line opens its fold; a new selection c
     await settle();
     expect(host.querySelector('section.code-strip')).toBeNull();
     expect(getState().revealedGroup).toBeNull();
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-24: One explainable line is in the tab order, and aria-expanded follows the explained line', () => {
+  it('moves the single tab stop to the explained line', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(tri.id);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    const stops = () => [...host.querySelectorAll('.code-line.is-explainable')].filter((el) => (el as HTMLElement).tabIndex === 0);
+    const first = host.querySelector('.code-line.is-explainable') as HTMLElement;
+    expect(stops()).toEqual([first]);
+    const translate = lineEl(host, 'glTranslatef(');
+    translate.click();
+    await settle();
+    expect(stops()).toEqual([translate]);
+    const expanded = [...host.querySelectorAll('.code-line.is-explainable')].filter((el) => el.getAttribute('aria-expanded') === 'true');
+    expect(expanded).toEqual([translate]);
+    expect(host.querySelectorAll('.code-line[aria-controls]')).toHaveLength(1);
+    expect(translate.getAttribute('aria-controls')).toBe(host.querySelector('section.code-strip')!.id);
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-25: Enter and Space each open the strip', () => {
+  it('explains the focused line from either key', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(tri.id);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    const translate = lineEl(host, 'glTranslatef(');
+    key(translate, 'Enter');
+    await settle();
+    expect(getState().explainedLine).toBe(Number(translate.getAttribute('data-line')));
+    getState().setExplainedLine(null);
+    await settle();
+    key(translate, ' ');
+    await settle();
+    expect(getState().explainedLine).toBe(Number(translate.getAttribute('data-line')));
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-26: The close button closes the strip and focus returns to the line', () => {
+  it('closes from the cross', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(tri.id);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    const translate = lineEl(host, 'glTranslatef(');
+    translate.click();
+    await settle();
+    (host.querySelector('[aria-label="Close explanation"]') as HTMLButtonElement).click();
+    await settle();
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    expect(host.querySelector('section.code-strip')).toBeNull();
+    expect(document.activeElement).toBe(translate);
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-27: The fold toggle never explains a line', () => {
+  it('ignores a click and a key on the cross of an open block', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(tri.id);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    (host.querySelector('.code-fold[data-block="draw:Square"]') as HTMLButtonElement).click();
+    await settle();
+    const close = host.querySelector('.code-fold-close[data-block="draw:Square"]') as HTMLButtonElement;
+    expect(close.closest('.code-line')).toBeNull();
+    key(close, 'Enter');
+    key(close, ' ');
+    key(close, 'ArrowDown');
+    close.click();
+    await settle();
+    expect(getState().explainedLine).toBeNull();
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-28: A revealed group is cleared by toggling a group and by changing section', () => {
+  it('clears revealedGroup on toggleGroup and setActiveSection', () => {
+    getState().revealGroup('transform');
+    getState().toggleGroup('transform');
+    expect(getState().revealedGroup).toBeNull();
+    getState().revealGroup('appearance');
+    getState().toggleGroup('vertices');
+    expect(getState().revealedGroup).toBeNull();
+    getState().revealGroup('transform');
+    const other = getState().activeSection === 'Textures' ? 'Pipeline' : 'Textures';
+    getState().setActiveSection(other);
+    expect(getState().revealedGroup).toBeNull();
+  });
+});
+
+describe('BB-CODE-29: A revealed group is outlined in Author mode only', () => {
+  it('draws no outline in a lesson', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(tri.id);
+    useVamsStore.setState({ appMode: 'Lesson' });
+    getState().revealGroup('transform');
+    const panel = mount(h(EditorPanel, {}));
+    await settle();
+    expect(panel.querySelector('[data-group="transform"]')!.classList.contains('is-focus')).toBe(false);
+    unmount(panel);
+  });
+});
+
+describe('BB-CODE-30: revealGroup shows the panel the group lives in', () => {
+  it('routes object groups to Scene, callbacks to Callbacks and the rest to Settings', () => {
+    getState().revealGroup('callbacks');
+    expect(getState().railPanel).toBe('callbacks');
+    getState().revealGroup('background');
+    expect(getState().railPanel).toBe('settings');
+    getState().revealGroup('texture');
+    expect(getState().railPanel).toBe('scene');
+    expect(getState().railHidden).toBe(false);
+  });
+});
+
+describe('BB-CODE-31: The strip closes when the program gains lines, and stays for a value edit', () => {
+  it('closes on an added object and keeps the new values after an edit', async () => {
+    const { tri, dot } = mockScene();
+    getState().selectObject(tri.id);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    lineEl(host, 'glTranslatef(').click();
+    await settle();
+    getState().updateObjectTransform(tri.id, { translateX: 0.4 });
+    await settle();
+    expect(host.querySelector('section.code-strip')).not.toBeNull();
+    expect(host.querySelector('section.code-strip')!.textContent).toContain('0.40');
+    useVamsStore.setState({ objects: [...getState().objects, { ...dot, id: 'extra', name: 'Extra' }] });
+    await settle();
+    expect(getState().explainedLine).toBeNull();
+    expect(host.querySelector('section.code-strip')).toBeNull();
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-32: The hint needs an explainable line, and the live region is always mounted', () => {
+  it('shows no hint when nothing is explainable and keeps an empty live region', async () => {
+    const host = mount(h(CodeViewer, { code: SMALL, explainable: new Set<number>() }));
+    await settle();
+    expect(host.querySelector('.code-hint')).toBeNull();
+    expect(host.querySelector('.code-live[aria-live="polite"]')!.childElementCount).toBe(0);
     unmount(host);
   });
 });
