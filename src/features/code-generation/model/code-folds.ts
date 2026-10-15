@@ -28,6 +28,14 @@ function moreLabel(hidden: number[], outline: CodeOutline): string {
  * The rows the code panel shows. `selection` is the selected object's code name, `opened` the
  * blocks the student opened by hand, and `forced` lines that must show: a lesson's highlighted
  * lines, changed values, Find's current match, Run's fired branch and the explained line.
+ *
+ * - A block opened by hand shows every line.
+ * - Otherwise a block shows the selected object's lines (every object's with no selection) and the
+ *   forced lines. A forced line opens only itself, never its whole block.
+ * - A partly open block keeps its frame: a function keeps its comment, signature, braces and the
+ *   blank lines after it; a data block keeps its trailing blank lines.
+ * - Every other run of hidden lines is one `more` row.
+ * - A block with nothing to show is one fold row.
  */
 export function visibleRows(
   outline: CodeOutline,
@@ -44,16 +52,12 @@ export function visibleRows(
       all.forEach((line, k) => rows.push(k === 0 ? { kind: 'line', line, closes: { block: block.id, label: block.label } } : { kind: 'line', line }));
       continue;
     }
-    if (all.some((line) => forcedLines.has(line))) {
-      all.forEach((line) => rows.push({ kind: 'line', line }));
-      continue;
-    }
-    const shown = openKinds.has(block.kind)
-      ? all.filter((line) => {
-          const owner = outline.lines[line].object;
-          return owner !== null && (selection === null || owner === selection);
-        })
-      : [];
+    // A forced line shows as if the selection owned it; the rest of its block stays folded.
+    const shown = all.filter((line) => {
+      if (forcedLines.has(line)) return true;
+      const owner = outline.lines[line].object;
+      return openKinds.has(block.kind) && owner !== null && (selection === null || owner === selection);
+    });
     if (shown.length === 0) {
       rows.push({ kind: 'fold', block: block.id, label: block.label, summary: block.summary, start: block.start, end: block.end });
       continue;

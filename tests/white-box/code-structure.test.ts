@@ -264,17 +264,45 @@ describe('WB-CODE-12: With nothing selected, every object\'s code is open and on
   });
 });
 
-describe('WB-CODE-13: A forced line opens its block; a block opened by hand can be closed', () => {
-  it('opens main for a forced line, and marks the first row of a hand-opened block', () => {
+describe('WB-CODE-13: A forced line shows only itself in a folded block; a block opened by hand can be closed', () => {
+  it('shows the frame of main() and the forced line behind more rows, and marks the first row of a hand-opened block', () => {
     const { outline } = threeShapes();
     const clear = outline.lines.findIndex((l) => l.text.includes('glClearColor('));
     const forced = visibleRows(outline, 'Triangle', [], [clear]);
     expect(shownText(outline, forced)).toContain(outline.lines[clear].text);
     expect(folds(forced)).not.toContain('int main()');
+    expect(shownText(outline, forced)).toContain('int main(int argc, char** argv)');
+    const mainBlock = outline.blocks.find((b) => b.id === 'main')!;
+    const inMain = (r: CodeRow) => (r.kind === 'line' ? r.line : r.start) >= mainBlock.start && (r.kind === 'line' ? r.line : r.start) <= mainBlock.end;
+    const mainRows = forced.filter(inMain);
+    expect(mainRows.some((r) => r.kind === 'more')).toBe(true);
+    const mainShown = mainRows.filter((r): r is Extract<CodeRow, { kind: 'line' }> => r.kind === 'line').map((r) => r.line);
+    expect(mainShown).toContain(clear);
+    expect(mainShown.length).toBeLessThan(mainBlock.end - mainBlock.start + 1);
     const opened = visibleRows(outline, 'Triangle', ['draw:Square'], []);
     const first = opened.find((r) => r.kind === 'line' && r.closes) as Extract<CodeRow, { kind: 'line' }>;
     expect(first.closes).toEqual({ block: 'draw:Square', label: 'void draw_Square()' });
     expect(outline.lines[first.line].text).toBe('void draw_Square()');
+  });
+});
+
+describe('WB-CODE-21: A forced line in an open block shows only itself and folds its neighbours', () => {
+  it('shows the Triangle state line and folds the Square and Dot lines into 2 more objects', () => {
+    const { outline } = threeShapes();
+    const stateLine = outline.lines.findIndex((l) => l.text.startsWith('ObjectState state_Triangle'));
+    const rows = visibleRows(outline, 'Triangle', [], [stateLine]);
+    const stateBlock = outline.blocks.find((b) => b.start <= stateLine && stateLine <= b.end)!;
+    const inBlock = rows.filter((r) => (r.kind === 'line' ? r.line : r.start) >= stateBlock.start && (r.kind === 'line' ? r.line : r.start) <= stateBlock.end);
+    const texts = inBlock.filter((r): r is Extract<CodeRow, { kind: 'line' }> => r.kind === 'line').map((r) => outline.lines[r.line].text);
+    expect(texts.filter((t) => t.startsWith('ObjectState state_'))).toHaveLength(1);
+    expect(texts.some((t) => t.startsWith('ObjectState state_Triangle'))).toBe(true);
+    expect(inBlock.filter((r) => r.kind === 'more').map((r) => (r as { label: string }).label)).toEqual(['2 more objects']);
+    const covered: number[] = [];
+    for (const r of rows) {
+      if (r.kind === 'line') covered.push(r.line);
+      else for (let l = r.start; l <= r.end; l++) covered.push(l);
+    }
+    expect(covered).toEqual(outline.lines.map((_, i) => i));
   });
 });
 

@@ -416,3 +416,18 @@ describe('BB-CODE-17: Run scrolls the fired branch into view', () => {
     }
   });
 });
+
+describe('BB-CODE-18: A changed value opens only its own line; the neighbours stay folded', () => {
+  it('shows Triangle\'s new X and folds Square and Dot into 2 more objects', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(tri.id);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    getState().updateObjectTransform(tri.id, { translateX: 0.4 });
+    await settle();
+    expect([...host.querySelectorAll('.code-value')].map((el) => el.textContent).join('')).toBe('0.4000f');
+    expect(lineTexts(host).some((t) => t.startsWith('ObjectState state_Square'))).toBe(false);
+    expect([...host.querySelectorAll('.code-fold__label')].map((el) => el.textContent)).toContain('2 more objects');
+    unmount(host);
+  });
+});
