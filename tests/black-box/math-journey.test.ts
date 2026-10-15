@@ -513,3 +513,17 @@ describe('BB-JOURNEY-22: Step cells wrap only where a stage allows it', () => {
     unmount(host);
   });
 });
+
+describe('BB-JOURNEY-17: Assembled draws the shape with the followed vertex ringed', () => {
+  it('shows the working and a sketch with one ring', async () => {
+    mockTriangle();
+    getState().setJourneyStageOverride('assembled');
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    expect(openTitle(host)).toBe('Assembled');
+    expect([...host.querySelectorAll('table.journey-work tbody tr')].map((tr) => tr.children[0].textContent)).toEqual(
+      ['from Projected', 'primitive GL_TRIANGLES', 'this vertex', 'Result']);
+    expect(host.querySelectorAll('svg.journey-sketch circle.journey-sketch__ring')).toHaveLength(1);
+    unmount(host);
+  });
+});

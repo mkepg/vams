@@ -223,6 +223,16 @@ function storedRows(node: SceneNode, i: number, stored: Point): WorkingRow[] {
   return rows;
 }
 
+function assembledRows(node: SceneNode, ndc: Point, assembly: ReturnType<typeof assemblyFor>): WorkingRow[] {
+  const mode = node.renderingMode ?? 'IMMEDIATE';
+  const call = mode === 'IMMEDIATE' ? 'glBegin' : node.useIndexed ? 'glDrawElements' : 'glDrawArrays';
+  return [
+    { step: ['from Projected'], value: `NDC ${pair(ndc)}`, call: null, from: true },
+    { step: ['primitive ', { input: `GL_${node.type}` }], value: assembly.note, call },
+    { step: ['this vertex'], value: assembly.result, call: null },
+  ];
+}
+
 function shapeJourney(node: SceneNode, scene: JourneyScene, vertexIndex: number, canvas: CanvasSize): VertexJourney {
   const count = node.vertices.length;
   if (count === 0) return { subject: { kind: 'shape', name: node.name, vertex: 0, count: 0 }, stages: blankStages() };
@@ -244,7 +254,7 @@ function shapeJourney(node: SceneNode, scene: JourneyScene, vertexIndex: number,
         ...moves,
       ], pair(world), world),
       stage('projected', PROJECTED, projectedRows(world, ndc, scene.viewportLimits), `NDC ${pair(ndc)}`, ndc),
-      stage('assembled', assembly.sentence, [], assembly.result, null),
+      stage('assembled', assembly.sentence, assembledRows(node, ndc, assembly), assembly.result, null),
       stage('rasterised', RASTERISED, [], `pixel (${int(pixel.x)}, ${int(pixel.y)})`, pixel),
       colouredStage(node, i, scene),
     ],

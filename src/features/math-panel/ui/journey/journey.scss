@@ -442,3 +442,14 @@
 
   &:hover { text-decoration: underline; }
 }
+
+.journey-sketch {
+  flex: none;
+
+  .journey-sketch__face { fill: none; stroke: var(--ink-faint); stroke-width: 1; }
+  .journey-sketch__face.is-held { fill: var(--accent-tint); stroke: var(--accent-text); }
+  .journey-sketch__edge { stroke: var(--ink-faint); stroke-width: 1.5; }
+  .journey-sketch__edge.is-held { stroke: var(--accent-text); }
+  .journey-sketch__point { fill: var(--ink-faint); }
+  .journey-sketch__ring { fill: none; stroke: var(--value); stroke-width: 2; }
+}

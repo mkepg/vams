@@ -51,6 +51,12 @@ export interface Assembly {
   members: number[][];
 }
 
+/** Every primitive the type makes from `count` vertices, each as its vertices' 0-based indices. */
+export function primitivesOf(type: PrimitiveType, count: number): number[][] {
+  const r = RULES[type];
+  return span(0, r.total(count)).map((j) => r.members(j, count));
+}
+
 export function assemblyFor(type: PrimitiveType, index: number, count: number): Assembly {
   const r = RULES[type];
   const total = r.total(count);

@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { vertexJourney, type JourneyScene } from '@/features/math-panel/model/vertex-journey';
-import { assemblyFor, provokingVertex } from '@/entities/scene/model/primitive-assembly';
+import { assemblyFor, primitivesOf, provokingVertex } from '@/entities/scene/model/primitive-assembly';
 import { fmt, int, short, whole } from '@/shared/lib/format-number';
 import type { PrimitiveType, SceneNode, TransformState } from '@/core/types/scene';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
@@ -319,5 +319,20 @@ describe('WB-JOURNEY-12: An indexed vertex has the index the generator gives it'
   it('names the array as the program does for an object called My Shape', () => {
     const shape = node('My Shape', 'TRIANGLES', [[0, 0], [1, 0], [0, 1]], {}, { renderingMode: 'VERTEX_ARRAY' });
     expect(rowsOf(vertexJourney(scene([shape]), shape.id, 0, CANVAS), 'stored')[1][0]).toBe('in verts_My_Shape');
+  });
+});
+
+describe("WB-JOURNEY-13: Assembled works the rule with the student's primitive type", () => {
+  it("names the draw call for the mode, the rule and the vertex's place", () => {
+    const tri = mockTriangle();
+    expect(rowsOf(vertexJourney(scene([tri]), 'Triangle', 0, CANVAS), 'assembled')).toEqual([
+      ['from Projected', 'NDC (0.27, 0.31)', null],
+      ['primitive GL_TRIANGLES', 'every 3 vertices make a triangle', 'glBegin'],
+      ['this vertex', 'triangle, 1 of 3', null],
+    ]);
+    const indexed = { ...tri, renderingMode: 'VERTEX_ARRAY' as const, useIndexed: true };
+    expect(rowsOf(vertexJourney(scene([indexed]), 'Triangle', 0, CANVAS), 'assembled')[1][2]).toBe('glDrawElements');
+    expect(primitivesOf('TRIANGLE_FAN', 5)).toEqual([[0, 1, 2], [0, 2, 3], [0, 3, 4]]);
+    expect(primitivesOf('LINES', 3)).toEqual([[0, 1]]);
   });
 });

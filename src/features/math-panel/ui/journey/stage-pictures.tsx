@@ -1,7 +1,8 @@
 import type { ComponentChildren } from 'preact';
 import { useVamsStore } from '@/core/store';
 import type { JourneyStageId } from '@/core/inspector';
-import type { SceneNode, ViewportLimits } from '@/core/types/scene';
+import type { PrimitiveType, SceneNode, ViewportLimits } from '@/core/types/scene';
+import { primitivesOf } from '@/entities/scene/model/primitive-assembly';
 import BuffersMathContent from '../BuffersMathContent';
 import PipelineMathContent from '../PipelineMathContent';
 import TexturesMathContent from '../TexturesMathContent';
@@ -72,6 +73,60 @@ function OrthoFormula({ world, limits, ndc }: { world: Point; limits: ViewportLi
   );
 }
 
+/**
+ * Maps some of a shape's vertices into a box `width` × `height` whose top-left is (left, top),
+ * centred and keeping proportions, with y pointing up as in the scene.
+ */
+function fitInBox(vertices: readonly { x: number; y: number }[], box: { left: number; top: number; width: number; height: number }) {
+  const xs = vertices.map((v) => v.x);
+  const ys = vertices.map((v) => v.y);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  const spanX = Math.max(Math.max(...xs) - minX, 1e-6);
+  const spanY = Math.max(Math.max(...ys) - minY, 1e-6);
+  const scale = Math.min(box.width / spanX, box.height / spanY);
+  return {
+    at: (v: { x: number; y: number }) => ({
+      x: box.left + (v.x - minX) * scale + (box.width - spanX * scale) / 2,
+      y: box.top + box.height - (v.y - minY) * scale - (box.height - spanY * scale) / 2,
+    }),
+    /** The drawn size of the fitted vertices. */
+    width: spanX * scale,
+    height: spanY * scale,
+  };
+}
+
+/** The object's shape, small: each primitive outlined, the ones holding the vertex shaded, the vertex ringed. */
+function ShapeSketch({ node, vertex }: { node: SceneNode; vertex: number }) {
+  const n = node.vertices.length;
+  if (n === 0) return null;
+  const fit = fitInBox(node.vertices, { left: 6, top: 6, width: 84, height: 68 });
+  const at = (k: number) => fit.at(node.vertices[k]);
+  const i = Math.min(Math.max(0, vertex), n - 1);
+  const type = node.type as PrimitiveType;
+  const prims = primitivesOf(type, n);
+  const points = (members: number[]) => members.map((k) => `${at(k).x},${at(k).y}`).join(' ');
+  return (
+    <Picture label="Your shape">
+      <div className="journey-picture__box">
+        <svg className="journey-sketch" width="96" height="80" viewBox="0 0 96 80" role="img" aria-label={`${node.name}, with vertex ${i + 1} ringed`}>
+          {prims.map((members, j) => {
+            const holds = members.includes(i);
+            if (type === 'POINTS') return <circle key={j} cx={at(members[0]).x} cy={at(members[0]).y} r="2" className="journey-sketch__point" />;
+            if (members.length === 2) {
+              const [a, b] = members.map(at);
+              return <line key={j} x1={a.x} y1={a.y} x2={b.x} y2={b.y} className={`journey-sketch__edge${holds ? ' is-held' : ''}`} />;
+            }
+            return <polygon key={j} points={points(members)} className={`journey-sketch__face${holds ? ' is-held' : ''}`} />;
+          })}
+          <circle cx={at(i).x} cy={at(i).y} r="4.5" className="journey-sketch__ring" />
+        </svg>
+        <p className="journey-picture__caption">Your vertex is ringed; the {type === 'POINTS' ? 'point it makes is' : 'shapes it belongs to are'} shaded.</p>
+      </div>
+    </Picture>
+  );
+}
+
 interface PicturesProps {
   stage: JourneyStage;
   node: SceneNode | undefined;
@@ -92,6 +147,7 @@ export const DEEPER_LABEL: Partial<Record<JourneyStageId, string>> = {
 export function StagePictures({ stage, node, deeper, deeperId, world }: PicturesProps) {
   const objects = useVamsStore((s) => s.objects);
   const limits = useVamsStore((s) => s.viewportLimits);
+  const vertex = useVamsStore((s) => s.journeyVertex);
   const shape = node && node.type !== 'GROUP' && node.type !== 'TEXT' ? node : undefined;
   switch (stage.id) {
     case 'stored':
@@ -149,6 +205,7 @@ export function StagePictures({ stage, node, deeper, deeperId, world }: Pictures
       if (!shape) return null;
       return (
         <div className="primitives-math">
+          <ShapeSketch node={shape} vertex={vertex} />
           <PrimitivesSection title="Vertices">
             <VertexTable vertices={shape.vertices} />
           </PrimitivesSection>
