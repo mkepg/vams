@@ -6,6 +6,8 @@ import { describe, it, expect } from 'vitest';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { outlineCode, findCallLine, stateFieldAt, type CodeOutline } from '@/features/code-generation/model/code-outline';
 import { visibleRows } from '@/features/code-generation/model/code-folds';
+import { diffChangedValues } from '@/features/code-generation/model/value-diff';
+import { diffChangedLines, matchLines } from '@/features/code-generation/model/code-diff';
 import type { CodeRow } from '@/shared/ui/code-viewer/types';
 import type { CallbackRule } from '@/core/types/scene';
 import { addTriangle, addQuad, addPrimitive, getState } from '../helpers/store';
@@ -300,5 +302,61 @@ describe('WB-CODE-15: Rows cover every line once, in program order', () => {
       }
       expect(covered).toEqual(outline.lines.map((_, i) => i));
     }
+  });
+});
+
+const markedText = (code: string, marks: { line: number; start: number; end: number }[]) =>
+  marks.map((m) => code.split('\n')[m.line].slice(m.start, m.end));
+
+describe('WB-CODE-16: One changed number marks one token', () => {
+  it('marks only the new X on the state line, and a sign change as one token', () => {
+    const tri = addTriangle(0.3, -0.17, 0.5);
+    const before = program();
+    getState().updateObjectTransform(tri.id, { translateX: 0.4 });
+    const after = program();
+    const marks = diffChangedValues(before, after);
+    expect(markedText(after, marks)).toEqual(['0.4000f']);
+    expect(after.split('\n')[marks[0].line]).toMatch(/^ObjectState state_TRIANGLES_1/);
+    getState().updateObjectTransform(tri.id, { translateX: -0.1 });
+    expect(markedText(program(), diffChangedValues(after, program()))).toEqual(['-0.1000f']);
+  });
+});
+
+describe('WB-CODE-17: Moving a vertex marks its coordinates only', () => {
+  it('marks the two numbers of the moved glVertex2f', () => {
+    const tri = addTriangle(0, 0, 0.5);
+    const before = program();
+    const v = getState().objects[0].vertices[0];
+    getState().updateVertexPosition(tri.id, v.id, 0.25, -0.75);
+    const after = program();
+    expect(markedText(after, diffChangedValues(before, after))).toEqual(['0.2500f', '-0.7500f']);
+  });
+});
+
+describe('WB-CODE-18: A line with no counterpart is marked whole', () => {
+  it('marks every line of an added object from its first non-space character', () => {
+    addTriangle(0, 0, 0.5);
+    const before = program();
+    addQuad(0.5, 0.5, 0.2);
+    const after = program();
+    const marks = diffChangedValues(before, after);
+    const lines = after.split('\n');
+    for (const m of marks) {
+      expect(m.start).toBe(lines[m.line].search(/\S/));
+      expect(m.end).toBe(lines[m.line].length);
+    }
+    expect([...new Set(marks.map((m) => m.line))]).toEqual(diffChangedLines(before, after).filter((l) => lines[l].trim() !== ''));
+  });
+});
+
+describe('WB-CODE-19: An identical program marks nothing; matchLines keeps diffChangedLines the same', () => {
+  it('returns no marks, and the matched pairs leave exactly the changed lines', () => {
+    addTriangle();
+    const code = program();
+    expect(diffChangedValues(code, code)).toEqual([]);
+    const a = ['x', 'a', 'b', 'c', 'y'];
+    const b = ['x', 'a', 'B', 'c', 'd', 'y'];
+    expect(matchLines(a, b)).toEqual([[0, 0], [1, 1], [3, 3], [4, 5]]);
+    expect(diffChangedLines(a.join('\n'), b.join('\n'))).toEqual([2, 4]);
   });
 });

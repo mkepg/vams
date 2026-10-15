@@ -3,3 +3,10 @@ export type CodeRow =
   | { kind: 'line'; line: number; closes?: { block: string; label: string } }
   | { kind: 'fold'; block: string; label: string; summary: string; start: number; end: number }
   | { kind: 'more'; block: string; label: string; start: number; end: number };
+
+/** A marked range in one line: the value that just changed, or a Find match. `end` is exclusive. */
+export interface CodeMark {
+  line: number;
+  start: number;
+  end: number;
+}
