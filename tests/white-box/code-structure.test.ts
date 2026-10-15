@@ -575,3 +575,22 @@ describe('WB-CODE-26: Notes read in plain directions', () => {
     expect(read('glScalef(')).toBeNull();
   });
 });
+
+describe('WB-CODE-27: The glViewport line the Rasterised stage names is found in both resize modes', () => {
+  it('is found in the reshape handler once one is registered, and explains NDC to pixels', () => {
+    immediateFixture();
+    expect(findCallLine(outlineCode(program()), null, 'glViewport')).toBeNull();
+    getState().setCallbackHandler('reshape', 'onReshape');
+    for (const mode of ['stretch', 'keep'] as const) {
+      getState().setReshapeMode(mode);
+      const o = outlineCode(program());
+      const at = findCallLine(o, 'TRIANGLES_1', 'glViewport');
+      expect(at, mode).not.toBeNull();
+      expect(o.lines[at!].text).toContain('glViewport(0, 0, width, height);');
+    }
+    const o = outlineCode(program());
+    const note = explainLine(findCallLine(o, null, 'glViewport')!, o, explainScene())!;
+    expect(note.stage).toBe('rasterised');
+    expect(note.text).toContain('window’s pixels');
+  });
+});

@@ -154,8 +154,8 @@ function rasterisedStage(ndc: Point, pixel: Point, canvas: CanvasSize): JourneyS
   const outside = pixel.x < 0 || pixel.y < 0 || pixel.x >= canvas.width || pixel.y >= canvas.height;
   return stage('rasterised', RASTERISED + (outside ? OUTSIDE : ''), [
     { step: ['from Projected'], value: pair(ndc), call: null, from: true },
-    { step: [`width ${canvas.width}`], value: `x → ${int(pixel.x)}`, call: 'glutInitWindowSize' },
-    { step: [`height ${canvas.height}`], value: `y → ${int(pixel.y)}`, call: 'glutInitWindowSize' },
+    { step: [`width ${canvas.width}`], value: `x → ${int(pixel.x)}`, call: 'glViewport' },
+    { step: [`height ${canvas.height}`], value: `y → ${int(pixel.y)}`, call: 'glViewport' },
   ], `pixel (${int(pixel.x)}, ${int(pixel.y)})`, pixel);
 }
 

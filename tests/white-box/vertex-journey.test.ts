@@ -369,8 +369,8 @@ describe("WB-JOURNEY-14: Rasterised maps NDC to the window's pixels, as the refe
     const px = ndcToWindow(stage(j, 'projected').point!, CANVAS);
     expect(rowsOf(j, 'rasterised')).toEqual([
       ['from Projected', '(0.27, 0.31)', null],
-      [`width ${CANVAS.width}`, `x → ${px.x}`, 'glutInitWindowSize'],
-      [`height ${CANVAS.height}`, `y → ${px.y}`, 'glutInitWindowSize'],
+      [`width ${CANVAS.width}`, `x → ${px.x}`, 'glViewport'],
+      [`height ${CANVAS.height}`, `y → ${px.y}`, 'glViewport'],
     ]);
     expect(stage(j, 'rasterised').sentence).not.toContain('outside the window');
   });
