@@ -10,6 +10,8 @@ import { FOCUS_PANEL_IDS, journeyStageFor, type JourneyContext, type JourneyStag
 import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
 import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import MathPanel from '@/features/math-panel/ui/MathPanel';
+import CodeMathColumn from '@/widgets/layout/code-math-column';
+import { ringTarget, FollowRing, pickHandleVertex } from '@/shared/engine/selection-overlay';
 import { addTriangle, getState } from '../helpers/store';
 
 async function settle() {
@@ -380,6 +382,62 @@ describe('BB-JOURNEY-13: Whole numbers read bare and amber marks only the move',
     await settle();
     expect(host.querySelector('.journey-formula')!.textContent).toContain('(1 + 1)');
     expect(host.querySelector('.journey-formula')!.textContent).toContain('(0.27 + 1)');
+    unmount(host);
+  });
+});
+
+describe('BB-JOURNEY-14: A working row\'s GL call opens Code on that line', () => {
+  it('switches to Code, opens the line\'s fold and explains it', async () => {
+    mockTriangle();
+    useVamsStore.setState({ activeSection: 'Transforms', codePane: 'math', codeHidden: false });
+    const host = mount(h(CodeMathColumn, {}));
+    await settle();
+    const call = [...host.querySelectorAll('.journey-work__call-link')].find((b) => b.textContent === 'glTranslatef') as HTMLButtonElement;
+    call.click();
+    await settle();
+    await settle();
+    expect(getState().codePane).toBe('code');
+    expect(getState().explainRequest).toBeNull();
+    expect(host.querySelector('.code-line.is-explained .code-line__text')!.textContent!.trim()).toMatch(/^glTranslatef\(state_Triangle\.x/);
+    expect(host.querySelector('.code-strip__sig')!.textContent).toBe('glTranslatef(x, y, z)');
+    unmount(host);
+  });
+});
+
+describe('BB-JOURNEY-15: The canvas ring marks the followed vertex only while Math shows', () => {
+  it('rings a shape\'s clamped vertex, a text\'s first raster position, nothing for a group, and hides with Code', () => {
+    const shape = { type: 'TRIANGLES', vertices: [{}, {}, {}] };
+    expect(ringTarget(shape, 1, true)).toEqual({ kind: 'vertex', index: 1 });
+    expect(ringTarget(shape, 7, true)).toEqual({ kind: 'vertex', index: 2 });
+    expect(ringTarget(shape, 1, false)).toBeNull();
+    expect(ringTarget({ type: 'TEXT', vertices: [{}], textContent: 'Hi' }, 0, true)).toEqual({ kind: 'raster', x: 0, y: 0 });
+    // Three lines, 0.07 apart and centred: the first starts one line above the origin.
+    expect(ringTarget({ type: 'TEXT', vertices: [{}], textContent: 'a\nb\nc' }, 0, true)).toEqual({ kind: 'raster', x: 0, y: 0.07 });
+    expect(ringTarget({ type: 'GROUP', vertices: [] }, 0, true)).toBeNull();
+    expect(ringTarget(undefined, 0, true)).toBeNull();
+    const ring = new FollowRing();
+    expect(ring.visible).toBe(false);
+    ring.show(10, 20, 0.5);
+    expect([ring.visible, ring.position.x, ring.position.y, ring.scale.x]).toEqual([true, 10, 20, 0.5]);
+    ring.hide();
+    expect(ring.visible).toBe(false);
+  });
+});
+
+describe('BB-JOURNEY-16: Clicking a vertex handle on the canvas follows that vertex', () => {
+  it('follows the pressed handle\'s vertex in the header, and ignores a handle beyond the object\'s vertices', async () => {
+    mockTriangle();
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    // The renderer keeps one handle per vertex and spares beyond them, in vertex order.
+    const handles = [{}, {}, {}, {}];
+    expect(pickHandleVertex(handles, handles[2], 3, getState().setJourneyVertex)).toBe(2);
+    await settle();
+    expect(getState().journeyVertex).toBe(2);
+    expect(host.querySelector('.journey-follow__vertex')!.textContent).toBe('vertex 3 of 3');
+    expect(pickHandleVertex(handles, handles[3], 3, getState().setJourneyVertex)).toBeNull();
+    expect(pickHandleVertex(handles, {}, 3, getState().setJourneyVertex)).toBeNull();
+    expect(getState().journeyVertex).toBe(2);
     unmount(host);
   });
 });

@@ -6,7 +6,7 @@ import { useCanvasSize } from '@/shared/lib/use-canvas-size';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { sanitizeName } from '@/features/code-generation/model/generator/utils';
 import { locateHandlerBranch } from '@/features/code-generation/model/locate-branch';
-import { outlineCode, stateFieldAt } from '@/features/code-generation/model/code-outline';
+import { findCallLine, outlineCode, stateFieldAt } from '@/features/code-generation/model/code-outline';
 import { visibleRows } from '@/features/code-generation/model/code-folds';
 import { useValueMarks } from '@/features/code-generation/model/use-value-marks';
 import { explainLine, noteFor, type ExplainScene } from '@/features/code-generation/model/code-explanations';
@@ -43,6 +43,8 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
   const setJourneyStageOverride = useVamsStore((s) => s.setJourneyStageOverride);
   const revealGroup = useVamsStore((s) => s.revealGroup);
   const selectObject = useVamsStore((s) => s.selectObject);
+  const explainRequest = useVamsStore((s) => s.explainRequest);
+  const requestExplain = useVamsStore((s) => s.requestExplain);
   const canvasSize = useCanvasSize();
 
   // Re-render on uploads:
@@ -80,6 +82,15 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
   const selected = objects.find((o) => o.id === selectedObjectId);
   const selection = selected ? sanitizeName(selected.name) : null;
   const isLessonMode = appMode === 'Lesson';
+
+  // The math named a GL call; explain the selected object's line that makes it.
+  // After the effect above, so a request that arrives with a line-count change is not closed at once.
+  useEffect(() => {
+    if (!explainRequest) return;
+    const line = findCallLine(outline, selection, explainRequest);
+    if (line !== null) setExplainedLine(line);
+    requestExplain(null);
+  }, [explainRequest, outline, selection, setExplainedLine, requestExplain]);
 
   const flashLines = useMemo(
     () => (flashBranch ? locateHandlerBranch(generatedCode, flashBranch.handlerName, flashBranch.trigger) : NO_LINES),

@@ -22,6 +22,7 @@ export const createRuntimeSlice: StateCreator<VamsState, [], [], RuntimeSlice> =
   explainedLine: null,
   codeNotes: true,
   journeyVertex: 0,
+  explainRequest: null,
 
   setAppMode: (mode) => set({ appMode: mode }),
 
@@ -71,5 +72,8 @@ export const createRuntimeSlice: StateCreator<VamsState, [], [], RuntimeSlice> =
   })),
   setExplainedLine: (line) => set({ explainedLine: line }),
   setCodeNotes: (on) => set({ codeNotes: on }),
+  requestExplain: (call) => set(call === null
+    ? { explainRequest: null }
+    : { explainRequest: call, codePane: 'code', codeHidden: false, codeChangedUnseen: false }),
   setJourneyVertex: (index) => set({ journeyVertex: Math.max(0, Math.floor(index)) }),
 });

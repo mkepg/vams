@@ -166,6 +166,10 @@ export interface RuntimeSlice {
   codeNotes: boolean;
   /** The selected object's vertex the math journey follows, 0-based. Session only. */
   journeyVertex: number;
+  /** A GL call the math asked Code to explain; the code panel finds its line and clears this. Session only. */
+  explainRequest: string | null;
+  /** Shows Code and explains the selected object's line that makes this call. */
+  requestExplain: (call: string | null) => void;
   /** A group the student opened from the code's explanation strip; outlined until the selection or the open groups change. Session only. */
   revealedGroup: InspectorGroupId | null;
   /** Shows a group's panel, opens the group and outlines it. */

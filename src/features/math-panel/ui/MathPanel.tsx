@@ -24,6 +24,7 @@ export default function MathPanel({ headerLead, headerTrail, contentInert = fals
   const viewportLimits = useVamsStore((s) => s.viewportLimits);
   const journeyVertex = useVamsStore((s) => s.journeyVertex);
   const setJourneyVertex = useVamsStore((s) => s.setJourneyVertex);
+  const requestExplain = useVamsStore((s) => s.requestExplain);
   const setOverride = useVamsStore((s) => s.setJourneyStageOverride);
   const getAllTextures = useVamsStore((s) => s.getAllTextures);
   const uploaded = useVamsStore((s) => s.uploadedTextures);
@@ -52,7 +53,7 @@ export default function MathPanel({ headerLead, headerTrail, contentInert = fals
       </div>
       <div className="journey" inert={contentInert || undefined}>
         <JourneyFollow subject={journey.subject} onStep={step} />
-        <JourneyTrack journey={journey} open={open} node={node} onOpen={setOverride} />
+        <JourneyTrack journey={journey} open={open} node={node} onOpen={setOverride} onCall={requestExplain} />
       </div>
     </div>
   );

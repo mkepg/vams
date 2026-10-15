@@ -57,6 +57,7 @@ beforeEach(() => {
     revealedGroup: null,
     codeNotes: true,
     journeyVertex: 0,
+    explainRequest: null,
     journeyStageOverride: null,
     appMode: 'Author',
     callbacks: emptyCallbacks(),
