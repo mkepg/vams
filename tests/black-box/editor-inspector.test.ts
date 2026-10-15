@@ -187,13 +187,14 @@ describe('BB-INSP-07: Help opens on the topic for what the student is doing', ()
   });
 });
 
-describe('BB-INSP-08: An empty scene shows the annotated program in every section', () => {
-  it('annotates the boilerplate outside Pipeline too', async () => {
+describe('BB-INSP-08: An empty scene shows the program in every section', () => {
+  it('shows the generated lines outside Pipeline too, with no underlines', async () => {
     useVamsStore.setState({ activeSection: 'Textures', objects: [] });
     const host = mountEl(h(SceneCodePanel, {}));
     try {
       await settle();
-      expect(host.querySelector('.has-annot')).not.toBeNull();
+      expect(host.querySelectorAll('.code-line').length).toBeGreaterThan(0);
+      expect(host.querySelector('.has-annot')).toBeNull();
     } finally {
       unmountEl(host);
     }

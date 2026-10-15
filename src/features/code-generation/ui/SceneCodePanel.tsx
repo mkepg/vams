@@ -4,8 +4,6 @@ import { useVamsStore } from "@/core/store";
 import CodeViewer from '@/shared/ui/code-viewer/CodeViewer';
 import { useCanvasSize } from '@/features/code-generation/model/useCanvasSize';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
-import { sanitizeName } from '@/features/code-generation/model/generator/utils';
-import { GLUT_BOILERPLATE_ANNOTATIONS } from '@/features/code-generation/model/glut-annotations';
 import { resolveChangedLines } from '@/features/code-generation/model/code-diff';
 import { locateHandlerBranch } from '@/features/code-generation/model/locate-branch';
 import type { RuleTrigger } from '@/core/types/scene';
@@ -19,7 +17,6 @@ interface SceneCodePanelProps {
 
 export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }: SceneCodePanelProps = {}) {
   const objects = useVamsStore(s => s.objects);
-  const selectedObjectId = useVamsStore(s => s.selectedObjectId);
   const canvasBackgroundColor = useVamsStore(s => s.canvasBackgroundColor);
   const appMode = useVamsStore(s => s.appMode);
   const callbacks = useVamsStore(s => s.callbacks);
@@ -30,9 +27,6 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
 
   // Re-render on uploads:
   useVamsStore((s) => s.uploadedTextures);
-
-  const selectedObject = objects.find(o => o.id === selectedObjectId);
-  const highlightTarget = selectedObject ? sanitizeName(selectedObject.name) : null;
 
   const generatedCode = useMemo(
     () =>
@@ -49,7 +43,6 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
     [objects, canvasBackgroundColor, callbacks, canvasSize, viewportLimits, getAllTextures],
   );
 
-  const showAnnotations = objects.length === 0;
   const isLessonMode = appMode === 'Lesson';
   const flashLines = useMemo(
     () => (flashBranch ? locateHandlerBranch(generatedCode, flashBranch.handlerName, flashBranch.trigger) : []),
@@ -78,10 +71,9 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
   return (
     <CodeViewer
       code={generatedCode}
-      highlightTarget={highlightTarget}
+      revealLines={changedLines}
+      firedLines={flashLines}
       isLessonMode={isLessonMode}
-      annotations={showAnnotations ? GLUT_BOILERPLATE_ANNOTATIONS : undefined}
-      changedLines={changedLines}
       headerLead={headerLead}
       headerTrail={headerTrail}
     />

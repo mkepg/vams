@@ -116,10 +116,15 @@ $header-height: 3.7rem;
   --warning: #b45309;
   --warning-rgb: 180, 83, 9;
   --warning-strong: #92400e;
-  --code-changed-rgb: 47, 77, 224;
-  --code-changed-light: var(--accent-text);
-  --code-match-rgb: 133, 77, 14;
-  --code-match-light: #854d0e;
+  /* Amber means "your values": a value that just changed, the inputs in the math working, the followed vertex. */
+  --value: #8a4f00;
+  --value-wash: rgba(138, 79, 0, 0.12);
+  /* Run's fired branch in the code. */
+  --run-fired: #15803d;
+  --run-fired-wash: rgba(21, 128, 61, 0.10);
+  /* The quietest readable text (notes, hints, comments, table heads), and line numbers below it. */
+  --ink-dim: #626b85;
+  --line-number: #7d87a1;
   --channel-r: #b91c1c;
   --channel-g: #166534;
   --channel-b: #1d4ed8;
@@ -147,6 +152,8 @@ $header-height: 3.7rem;
   --canvas-plate-line: rgba(230, 232, 236, 0.18);
   --canvas-x: #f87171;
   --canvas-y: #4ade80;
+  /* The followed vertex's ring on the canvas: amber, the same in both themes, as the canvas is dark in both. */
+  --canvas-ring: #fbbf77;
 }
 
 [data-theme='dark'] {
@@ -212,10 +219,12 @@ $header-height: 3.7rem;
   --warning: #b45309;
   --warning-rgb: 180, 83, 9;
   --warning-strong: #92400e;
-  --code-changed-rgb: 71, 98, 245;
-  --code-changed-light: var(--accent-text);
-  --code-match-rgb: 251, 191, 36;
-  --code-match-light: #fbbf24;
+  --value: #fbbf77;
+  --value-wash: rgba(251, 191, 119, 0.16);
+  --run-fired: #4ade80;
+  --run-fired-wash: rgba(74, 222, 128, 0.10);
+  --ink-dim: #7a84a0;
+  --line-number: #5d6680;
   --channel-r: #f87171;
   --channel-g: #4ade80;
   --channel-b: #60a5fa;
@@ -240,6 +249,8 @@ $header-height: 3.7rem;
   --canvas-plate-line: rgba(230, 232, 236, 0.18);
   --canvas-x: #f87171;
   --canvas-y: #4ade80;
+  /* The followed vertex's ring on the canvas: amber, the same in both themes, as the canvas is dark in both. */
+  --canvas-ring: #fbbf77;
 }
 $bg-dark: rgb(var(--bg-dark-rgb));
 $bg-panel: rgb(var(--bg-panel-rgb));
