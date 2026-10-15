@@ -28,28 +28,6 @@
     }
   }
 
-  .math-content {
-    flex: 1;
-    padding: 0.85rem 1rem 1.25rem;
-    overflow-y: auto;
-    color: $text-main;
-    font-size: var(--text-xs);
-    @include scrollbar;
-
-    .empty-state {
-      color: $text-dim;
-      font-style: italic;
-      text-align: center;
-      padding: 1.5rem;
-      border: 1px dashed var(--rule);
-      border-radius: 6px;
-      background-color: rgba(var(--accent-blue-rgb), 0.03);
-      max-width: 80%;
-      line-height: 1.5;
-      margin: auto;
-    }
-  }
-
   .pipeline-math,
   .primitives-math,
   .buffers-math,

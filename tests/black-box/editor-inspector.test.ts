@@ -72,7 +72,7 @@ describe('BB-INSP-02: Each place belongs to a curriculum section', () => {
 });
 
 describe('BB-INSP-03: The context section follows focus, then the opened group, then the section', () => {
-  it('prefers a lesson focus, then the last opened group, then activeSection; a manual tab wins until cleared', () => {
+  it('prefers a lesson focus, then the last opened group, then activeSection; a stage picked by hand wins until cleared', () => {
     const base = { appMode: 'Author' as const, lessonFocusPanel: null, selectedObjectId: null, lastOpenedGroup: null, activeSection: 'Pipeline' as const, journeyStageOverride: null };
     expect(contextSection(base)).toBe('Pipeline');
     expect(contextSection({ ...base, lastOpenedGroup: 'texture' })).toBe('Textures');
@@ -89,7 +89,7 @@ describe('BB-INSP-03: The context section follows focus, then the opened group, 
   });
 });
 
-describe('BB-INSP-04: Groups toggle, remember the last opened one, and clear a manual tab', () => {
+describe('BB-INSP-04: Groups toggle, remember the last opened one, and clear a stage picked by hand', () => {
   it('updates the transient state through store actions', () => {
     const s = () => useVamsStore.getState();
     expect(s().openGroups).toEqual(['transform', 'background', 'viewing-volume', 'texture-library']);

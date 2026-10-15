@@ -276,6 +276,25 @@
     background: none;
   }
 
+  // A card the lesson points at keeps its frame, so the focus stays readable.
+  .math-section.lesson-focused {
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--live);
+    border-radius: var(--radius-m);
+    background: var(--live-tint);
+  }
+
+  .empty-state {
+    margin: 0;
+    padding: 1rem;
+    border: 1px dashed var(--rule);
+    border-radius: var(--radius-s);
+    color: var(--ink-dim);
+    font-style: italic;
+    text-align: center;
+    line-height: 1.5;
+  }
+
   .math-section .math-section-title {
     margin: 0 0 6px;
     font-family: $font-ui;

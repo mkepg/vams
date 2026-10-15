@@ -47,7 +47,7 @@ function Section({ title, children, isFocused }: { title: string; children: Reac
       const timer = setTimeout(() => {
         const el = sectionRef.current;
         if (el) {
-          const scrollParent = el.closest('.math-content') as HTMLElement;
+          const scrollParent = el.closest('.journey') as HTMLElement;
           if (scrollParent) {
             const parentRect = scrollParent.getBoundingClientRect();
             const elRect = el.getBoundingClientRect();

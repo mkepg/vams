@@ -77,6 +77,8 @@ interface PicturesProps {
   node: SceneNode | undefined;
   /** Deeper detail, shown under the pictures when the student opens it. */
   deeper: boolean;
+  /** Id of the deeper-detail region, which the toggle controls. */
+  deeperId: string;
   /** For Projected: where the vertex was before projection. */
   world: Point | null;
 }
@@ -87,13 +89,14 @@ export const DEEPER_LABEL: Partial<Record<JourneyStageId, string>> = {
   projected: 'Viewing volume',
 };
 
-export function StagePictures({ stage, node, deeper, world }: PicturesProps) {
+export function StagePictures({ stage, node, deeper, deeperId, world }: PicturesProps) {
   const objects = useVamsStore((s) => s.objects);
   const limits = useVamsStore((s) => s.viewportLimits);
   const shape = node && node.type !== 'GROUP' && node.type !== 'TEXT' ? node : undefined;
   switch (stage.id) {
     case 'stored':
-      return <BuffersMathContent />;
+      // With nothing selected the follow row already says what to do.
+      return node ? <BuffersMathContent /> : null;
     case 'transformed': {
       if (!node) return null;
       const chain = getAncestorChain(node.id, objects);
@@ -103,14 +106,24 @@ export function StagePictures({ stage, node, deeper, world }: PicturesProps) {
           <MatrixPicture node={node} />
           {chain.length > 1 && (
             <Picture label="Matrix stack">
+              <p className="journey-picture__caption">
+                Walking from the root down to <code>{node.name}</code>. Each
+                <code> glPushMatrix</code> stacks a new local frame on top of its parent.
+              </p>
               <MatrixStack chain={chain} />
             </Picture>
           )}
           {deeper && (
+            <div id={deeperId}>
             <TransformsSection title="Selected Matrix (4×4)">
+              <p className="explanation">
+                Composed in conventional <strong>T · R · S</strong> order, then multiplied with
+                every vertex during rendering.
+              </p>
               <TRSCompositionTrace t={node.transform} />
               <Matrix4 m={buildMatrix4(node.transform)} />
             </TransformsSection>
+            </div>
           )}
         </div>
       );
@@ -120,9 +133,15 @@ export function StagePictures({ stage, node, deeper, world }: PicturesProps) {
         <div className="transforms-math">
           {world && stage.point && <OrthoFormula world={world} limits={limits} ndc={stage.point} />}
           {(deeper || !node) && (
+            <div id={deeperId}>
             <TransformsSection title="glOrtho — Viewing Volume">
+              <p className="explanation">
+                <code>glOrtho</code> defines the rectangle of world space that maps to the visible
+                window. Anything outside is clipped.
+              </p>
               <OrthoMapping limits={limits} />
             </TransformsSection>
+            </div>
           )}
         </div>
       );
@@ -139,7 +158,7 @@ export function StagePictures({ stage, node, deeper, world }: PicturesProps) {
             </PrimitivesSection>
           )}
           {isLine(shape.type) && (
-            <p className="journey-picture__caption">Each line is drawn {short(shape.lineWidth ?? 1)} pixels wide, set by glLineWidth.</p>
+            <p className="journey-picture__caption">Each line is drawn {short(shape.lineWidth ?? 1)} {(shape.lineWidth ?? 1) === 1 ? 'pixel' : 'pixels'} wide, set by glLineWidth.</p>
           )}
           {shape.type === 'POINTS' && (
             <p className="journey-picture__caption">Each point is drawn 8 pixels wide, set by glPointSize.</p>

@@ -143,7 +143,7 @@ export interface RuntimeSlice {
   cursorWorld: { x: number; y: number } | null;
   /** Inspector groups that are open. Session only. */
   openGroups: InspectorGroupId[];
-  /** The group the student opened most recently; the math tab and help follow it. Session only. */
+  /** The group the student opened most recently; the journey stage and help follow it. Session only. */
   lastOpenedGroup: InspectorGroupId | null;
   /** A journey stage opened by hand; cleared by the next lesson step or opened group. Session only. */
   journeyStageOverride: JourneyStageId | null;

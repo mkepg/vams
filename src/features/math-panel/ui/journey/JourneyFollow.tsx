@@ -21,11 +21,13 @@ export default function JourneyFollow({ subject, onStep }: JourneyFollowProps) {
       {subject.kind === 'shape' && subject.count > 0 ? (
         <>
           <button type="button" className="journey-follow__step" aria-label="Previous vertex" onClick={() => onStep(-1)}>‹</button>
-          <span className="journey-follow__vertex" aria-live="polite">vertex {subject.vertex + 1} of {subject.count}</span>
+          <span className="journey-follow__vertex" aria-live="polite" aria-atomic="true">vertex {subject.vertex + 1} of {subject.count}</span>
           <button type="button" className="journey-follow__step" aria-label="Next vertex" onClick={() => onStep(1)}>›</button>
         </>
       ) : (
-        <span className="journey-follow__vertex" aria-live="polite">raster position</span>
+        <span className="journey-follow__vertex" aria-live="polite" aria-atomic="true">
+          {subject.kind === 'text' ? 'raster position' : 'no vertices'}
+        </span>
       )}
     </div>
   );

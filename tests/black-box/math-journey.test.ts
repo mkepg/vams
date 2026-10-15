@@ -287,3 +287,81 @@ describe('BB-JOURNEY-10: Nothing selected, a group, and Run', () => {
     unmount(host);
   });
 });
+
+describe('BB-JOURNEY-11: Focus follows a stage the student opens, and only that', () => {
+  it('moves focus to the open heading on a row click, Back and Next, but not on a group or selection change', async () => {
+    mockTriangle();
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    const title = () => host.querySelector('.journey-open__title button');
+    row(host, 'Projected').click();
+    await settle();
+    expect(openTitle(host)).toBe('Projected');
+    expect(document.activeElement).toBe(title());
+    (host.querySelector('.journey-open__next') as HTMLButtonElement).click();
+    await settle();
+    expect(openTitle(host)).toBe('Assembled');
+    expect(document.activeElement).toBe(title());
+    (host.querySelector('.journey-open__back') as HTMLButtonElement).click();
+    await settle();
+    expect(openTitle(host)).toBe('Projected');
+    expect(document.activeElement).toBe(title());
+    (document.activeElement as HTMLElement).blur();
+    getState().toggleGroup('texture');
+    await settle();
+    expect(openTitle(host)).toBe('Coloured');
+    expect(document.activeElement).not.toBe(title());
+    unmount(host);
+  });
+});
+
+describe('BB-JOURNEY-12: Wording and labels of the follow row, captions and controls', () => {
+  it('announces the vertex whole, says nothing of a raster position for an empty shape, and singularises a 1 pixel line', async () => {
+    const id = mockTriangle();
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    expect(host.querySelector('.journey-follow__vertex')!.getAttribute('aria-atomic')).toBe('true');
+    row(host, 'Assembled').click();
+    await settle();
+    useVamsStore.setState({ objects: getState().objects.map((o) => (o.id === id ? { ...o, type: 'LINES' as const, lineWidth: 1 } : o)) });
+    await settle();
+    expect(host.textContent).toContain('drawn 1 pixel wide');
+    useVamsStore.setState({ objects: getState().objects.map((o) => (o.id === id ? { ...o, vertices: [] } : o)) });
+    await settle();
+    expect(host.querySelector('.journey-follow')!.textContent).not.toContain('raster position');
+    for (const b of host.querySelectorAll('.journey-open__back, .journey-open__next')) {
+      expect(b.querySelector('[aria-hidden="true"]'), b.textContent ?? '').not.toBeNull();
+    }
+    unmount(host);
+  });
+
+  it('keeps the cards\' explanations and links the deeper toggle to its region', async () => {
+    mockTriangle();
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    row(host, 'Transformed').click();
+    await settle();
+    const toggle = host.querySelector('.journey-open__deeper') as HTMLButtonElement;
+    expect(toggle.querySelector('[aria-hidden="true"]')).not.toBeNull();
+    toggle.click();
+    await settle();
+    const controls = (host.querySelector('.journey-open__deeper') as HTMLElement).getAttribute('aria-controls')!;
+    expect(host.querySelector(`#${CSS.escape(controls)}`)).not.toBeNull();
+    expect(host.textContent).toContain('Composed in conventional');
+    row(host, 'Projected').click();
+    await settle();
+    (host.querySelector('.journey-open__deeper') as HTMLButtonElement).click();
+    await settle();
+    expect(host.textContent).toContain('defines the rectangle of world space');
+    unmount(host);
+  });
+
+  it('shows one prompt, not two, for the Stored stage with nothing selected', async () => {
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    row(host, 'Stored').click();
+    await settle();
+    expect(host.textContent).not.toContain('Select a primitive');
+    unmount(host);
+  });
+});
