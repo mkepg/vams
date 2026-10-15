@@ -450,6 +450,12 @@ function everythingFixture() {
   getState().setCallbackHandler('motion', 'onMotion');
   getState().addCallbackRule('motion', rule(line.id, { trigger: { kind: 'motion' }, action: { type: 'moveToPointer' } }));
   getState().setCallbackHandler('reshape', 'onReshape');
+  const painted = addQuad(0.1, 0.8, 0.1);
+  getState().attachTexture(painted.id, getState().getAllTextures()[0].id);
+  getState().addCallbackRule('keyboard', rule(painted.id, { trigger: { kind: 'keyboard', key: 'h' }, action: { type: 'visibility', mode: 'hide' } }));
+  getState().addCallbackRule('keyboard', rule(painted.id, { trigger: { kind: 'keyboard', key: 'v' }, action: { type: 'visibility', mode: 'show' } }));
+  getState().setCallbackHandler('idle', 'onIdle');
+  getState().addCallbackRule('idle', rule(painted.id, { trigger: { kind: 'idle' }, action: { type: 'rotate', degrees: 1 } }));
   return program();
 }
 
@@ -489,7 +495,7 @@ describe('WB-CODE-23: Value rows name the state field, its value and its control
       'x=0.40·Translate X', 'y=−0.17·Translate Y', 'rotation=15°·Rotate', 'scaleX=1·Scale X', 'scaleY=1·Scale Y',
     ]);
     const vertex = explainLine(lineOf(outline, 'glVertex2f('), outline, explainScene())!;
-    expect(vertex.values.map((v) => v.control)).toEqual(['Vertex 1', 'Vertex 1']);
+    expect(vertex.values.map((v) => v.control)).toEqual(['Vertex 0 X', 'Vertex 0 Y']);
     expect(vertex.control).toEqual({ label: 'Vertices', group: 'vertices', objectId: tri.id });
     const clear = explainLine(lineOf(outline, 'glClearColor('), outline, explainScene())!;
     expect(clear.control).toEqual({ label: 'Background', group: 'background', objectId: null });
@@ -519,5 +525,26 @@ describe('WB-CODE-24: Notes sit only on the key lines of draw functions', () => 
       const words = n!.map((p) => (typeof p === 'string' ? p : p.value)).join('').split(/\s+/).length;
       expect(words).toBeLessThanOrEqual(8);
     }
+  });
+});
+
+describe('WB-CODE-25: Textured and buffered draw calls are noted, and a line width reads differently from its reset', () => {
+  it('notes the bound texture and the array draw call, and tells a width of 1 from its reset', () => {
+    const quad = addQuad(0, 0, 0.3);
+    getState().attachTexture(quad.id, getState().getAllTextures()[0].id);
+    const tex = getState().getAllTextures()[0].name;
+    const vbo = addTriangle(0.5, 0.5, 0.2);
+    getState().updateRenderingMode(vbo.id, 'VBO');
+    const stripLine = addPrimitive('LINE_STRIP', [{ x: -0.8, y: -0.8 }, { x: -0.6, y: -0.6 }]);
+    getState().updateLineWidth(stripLine.id, 1);
+    const outline = outlineCode(program());
+    const scene = explainScene();
+    const text = (n: ReturnType<typeof noteFor>) => n!.map((p) => (typeof p === 'string' ? p : p.value)).join('');
+    expect(text(noteFor(lineOf(outline, 'glBindTexture('), outline, scene))).toBe(`paint with ${tex}`);
+    expect(text(noteFor(lineOf(outline, 'glDrawArrays('), outline, scene))).toBe('every 3 vertices make a triangle');
+    const set = outline.lines.findIndex((l) => l.text.includes('glLineWidth(1.00f)'));
+    const reset = outline.lines.findIndex((l) => l.text.includes('glLineWidth(1.0f)'));
+    expect(explainLine(set, outline, scene)!.text).toMatch(/^Sets how thick/);
+    expect(explainLine(reset, outline, scene)!.text).toMatch(/^Puts the line width back/);
   });
 });

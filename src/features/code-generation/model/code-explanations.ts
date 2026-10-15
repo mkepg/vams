@@ -94,6 +94,10 @@ function fieldRow(arg: string, code: string, field: TransformField, node: SceneN
   return { arg, source: `state_${code}.${field}`, value, control };
 }
 
+/** The generator writes a set width with two decimals and the reset after the object as `1.0f`. */
+const lineWidthText = (t: string) =>
+  t.startsWith('glLineWidth(1.0f)') ? 'Puts the line width back to 1 pixel for the next object.' : 'Sets how thick lines are drawn, in pixels.';
+
 const RULE_OF = (type: string) => assemblyFor(type as PrimitiveType, 0, 1).note;
 
 const ARRAYS: Record<string, { what: string; stage: JourneyStageId; control: [string, InspectorGroupId] }> = {
@@ -253,8 +257,8 @@ const ENTRIES: Entry[] = [
       };
     },
   },
-  { test: /\bglShadeModel\((GL_\w+)\)/, explain: (m, ctx) => ({ ...plain('glShadeModel(mode)', 'Chooses how colour fills each shape: GL_SMOOTH blends the vertex colours across it, GL_FLAT gives each point, line or triangle the colour of one of its vertices.', 'coloured', link('Appearance', 'appearance', objectOf(ctx))), values: [{ arg: 'mode', source: 'shading', value: m[1], control: 'Appearance' }] }) },
-  { test: /\bglLineWidth\(([\d.]+)f\)/, explain: (m, ctx) => ({ ...plain('glLineWidth(width)', Number(m[1]) === 1 && ctx.t.startsWith('glLineWidth(1.0f)') && ctx.outline.lines.slice(0, ctx.index).some((l) => l.object === ctx.line.object && /glLineWidth\(/.test(l.text)) ? 'Puts the line width back to 1 pixel for the next object.' : 'Sets how thick lines are drawn, in pixels.', 'assembled', link('Line width', 'appearance', objectOf(ctx))), values: [{ arg: 'width', source: 'line width', value: short(Number(m[1])), control: 'Line width' }] }) },
+  { test: /\bglShadeModel\((GL_\w+)\)/, explain: (m, ctx) => ({ ...plain('glShadeModel(mode)', 'Chooses how colour fills each shape: GL_SMOOTH blends the vertex colours across it, GL_FLAT gives each point, line, triangle, quad or polygon the colour of one of its vertices.', 'coloured', link('Appearance', 'appearance', objectOf(ctx))), values: [{ arg: 'mode', source: 'shading', value: m[1], control: 'Appearance' }] }) },
+  { test: /\bglLineWidth\(([\d.]+)f\)/, explain: (m, ctx) => ({ ...plain('glLineWidth(width)', lineWidthText(ctx.t), 'assembled', link('Line width', 'appearance', objectOf(ctx))), values: [{ arg: 'width', source: 'line width', value: short(Number(m[1])), control: 'Line width' }] }) },
   { test: /\bglEnable\(GL_LINE_STIPPLE\)/, explain: (_m, ctx) => plain('glEnable(GL_LINE_STIPPLE)', 'Turns on the dash pattern for the lines that follow.', 'assembled', link('Line stipple', 'appearance', objectOf(ctx))) },
   { test: /\bglLineStipple\((\d+), (0x[0-9A-F]+)\)/, explain: (m, ctx) => ({ ...plain('glLineStipple(factor, pattern)', 'Sets the dash pattern: each of the 16 bits is a dash or a gap, and each bit lasts factor pixels.', 'assembled', link('Line stipple', 'appearance', objectOf(ctx))), values: [{ arg: 'factor', source: 'stipple factor', value: m[1], control: 'Stipple factor' }, { arg: 'pattern', source: 'stipple pattern', value: m[2], control: 'Line stipple' }] }) },
   { test: /\bglDisable\(GL_LINE_STIPPLE\)/, explain: () => plain('glDisable(GL_LINE_STIPPLE)', 'Turns the dash pattern off again for the next object.', 'assembled') },
@@ -294,8 +298,8 @@ const ENTRIES: Entry[] = [
         signature: 'glVertex2f(x, y)',
         text: 'Sends one vertex at (x, y), in the object’s own coordinates. It takes the colour set just before it.',
         values: [
-          { arg: 'x', source: `vertex ${n}`, value: num(m[1]), control: `Vertex ${n}` },
-          { arg: 'y', source: `vertex ${n}`, value: num(m[2]), control: `Vertex ${n}` },
+          { arg: 'x', source: `vertex ${n}`, value: num(m[1]), control: `Vertex ${n - 1} X` },
+          { arg: 'y', source: `vertex ${n}`, value: num(m[2]), control: `Vertex ${n - 1} Y` },
         ],
         stage: 'stored',
         control: link('Vertices', 'vertices', objectOf(ctx)),
