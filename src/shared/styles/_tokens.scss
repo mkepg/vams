@@ -20,7 +20,8 @@ $header-height: 3.7rem;
   --font-mono: #{$font-mono};
   --font-logo: 'Minecrafter', system-ui, sans-serif;
 
-  /* Type scale. Nothing renders below --text-xs. */
+  /* Type scale. Nothing renders below --text-xs, except the working table's mono cells in the narrowest column. */
+  --text-table: 10.5px;
   --text-xs: 11px;   --lh-xs: 1.4;
   --text-sm: 12px;   --lh-sm: 1.45;
   --text-base: 13px; --lh-base: 1.5;

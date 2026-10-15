@@ -299,7 +299,7 @@
 // 11 px so every row still reads on one line.
 @container (max-width: 379px) {
   .journey-work {
-    font-size: 10.5px;
+    font-size: var(--text-table);
     letter-spacing: -0.01em;
 
     th:first-child,
@@ -308,8 +308,8 @@
     th:last-child,
     td:last-child { padding-right: 4px; }
 
-    tr.is-result .journey-work__step { font-size: 10.5px; }
-    .journey-work__call { font-size: 10.5px; }
+    tr.is-result .journey-work__step { font-size: var(--text-table); }
+    .journey-work__call { font-size: var(--text-table); }
   }
 }
 

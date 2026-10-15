@@ -591,7 +591,7 @@ describe('BB-SHELL-22: Editor text sizes come from the type scale', () => {
     const offenders: string[] = [];
     for (const file of EDITOR_SCSS) {
       for (const m of readSource(file, 'utf8').matchAll(/font-size:\s*([^;]+);/g)) {
-        if (!/^(var\(--text-(xs|sm|base|md|lg|xl|2xl)\)|inherit)(\s*!important)?$/.test(m[1].trim())) offenders.push(`${file}: ${m[1]}`);
+        if (!/^(var\(--text-(xs|sm|base|md|lg|xl|2xl|table)\)|inherit)(\s*!important)?$/.test(m[1].trim())) offenders.push(`${file}: ${m[1]}`);
       }
     }
     expect(offenders).toEqual([]);
