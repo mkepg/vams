@@ -80,8 +80,9 @@ tests/
 │   │                                        per-machine baselines that are
 │   │                                        not committed)
 │   ├── learn.spec.ts                     (VIS-LEARN-*: the /learn course map)
-│   └── about.spec.ts                     (VIS-ABOUT-*: the /about page at
-│                                            1280 and 390, citation tabs)
+│   ├── about.spec.ts                     (VIS-ABOUT-*: the /about page at
+│   │                                        1280 and 390, citation tabs)
+│   └── code-math.spec.ts                 (VIS-CM-*: the code panel and the math journey in the approved mocks' scene)
 ├── algorithm/                    ← Maps to §3.10.3 Algorithm Validation.
 │   ├── algorithm-1-global-matrix.test.ts        (ALG-1-*)
 │   ├── algorithm-2-code-generation.test.ts      (ALG-2-*)
