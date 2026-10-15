@@ -195,3 +195,29 @@ describe('WB-JOURNEY-09: Numbers read like the mock', () => {
     expect(text).not.toMatch(/coming soon|not supported|future|deferred|\b3D\b|lighting/i);
   });
 });
+
+describe('WB-JOURNEY-10: Flat shading names the primitive and its vertex; text names its colour call; pixels stay in the window', () => {
+  const flat = (type: SceneNode['type'], n: number) =>
+    node('Flat', type, Array.from({ length: n }, (_, i) => [i * 0.1, 0] as [number, number]), {}, { shading: 'FLAT' });
+  const colourSentence = (obj: SceneNode, i: number) => stage(vertexJourney(scene([obj]), obj.id, i, CANVAS), 'coloured').sentence;
+
+  it('says which primitive takes which vertex\'s colour', () => {
+    expect(colourSentence(flat('TRIANGLES', 6), 4)).toBe('With flat shading, each triangle takes the colour of one of its vertices: triangle 2 takes vertex 6\'s.');
+    expect(colourSentence(flat('QUAD_STRIP', 6), 2)).toBe('With flat shading, each quad takes the colour of one of its vertices: quad 1 takes vertex 4\'s.');
+    expect(colourSentence(flat('POLYGON', 5), 3)).toBe('With flat shading, the polygon takes vertex 1\'s colour.');
+    expect(colourSentence(flat('POINTS', 3), 1)).toBe('With flat shading, each point keeps its own colour.');
+  });
+
+  it('names glColor3ub for byte-colour text and glColor3f otherwise', () => {
+    const text = node('Hi', 'TEXT', [[0, 0]], {}, { textContent: 'Hi' });
+    expect(colourSentence(text, 0)).toContain('glColor3f');
+    expect(colourSentence({ ...text, colorMode: 'BYTE' }, 0)).toContain('glColor3ub');
+  });
+
+  it('keeps a vertex on the window edge inside the last pixel', () => {
+    const edge = node('Edge', 'POINTS', [[1, -1]]);
+    const j = vertexJourney(scene([edge]), 'Edge', 0, CANVAS);
+    expect(stage(j, 'rasterised').result).toBe('pixel (585, 0)');
+    expect(ndcToWindow({ x: 1, y: 1 }, CANVAS)).toEqual({ x: 586, y: 500 });
+  });
+});

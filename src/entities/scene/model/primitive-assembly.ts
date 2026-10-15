@@ -37,6 +37,8 @@ function list(numbers: number[]): string {
 }
 
 export interface Assembly {
+  /** The primitive's name: point, line, triangle, quad or polygon. */
+  noun: string;
   /** What the closed Assembled row shows. */
   result: string;
   /** The open stage's sentence. */
@@ -56,17 +58,18 @@ export function assemblyFor(type: PrimitiveType, index: number, count: number): 
   const members = primitives.map((j) => r.members(j, count));
   const capitalised = r.rule[0].toUpperCase() + r.rule.slice(1);
   if (primitives.length === 0) {
-    return { result: 'not drawn', sentence: `${capitalised}; this vertex is left over, so it is not drawn.`, note: r.note, primitives, members };
+    return { noun: r.noun, result: 'not drawn', sentence: `${capitalised}; this vertex is left over, so it is not drawn.`, note: r.note, primitives, members };
   }
   if (primitives.length === 1) {
     const j = primitives[0];
     const own = members[0];
     if (own.length === 1) {
-      return { result: `${r.noun} ${j + 1} of ${total}`, sentence: `${capitalised}; this is ${r.noun} ${j + 1}.`, note: r.note, primitives, members };
+      return { noun: r.noun, result: `${r.noun} ${j + 1} of ${total}`, sentence: `${capitalised}; this is ${r.noun} ${j + 1}.`, note: r.note, primitives, members };
     }
     const at = own.indexOf(index) + 1;
     const which = total > 1 ? ` ${j + 1}` : '';
     return {
+      noun: r.noun,
       result: `${r.noun}${which}, ${r.part === 'end' ? 'end ' : ''}${at} of ${own.length}`,
       sentence: `${capitalised}; this is ${r.part} ${at} of ${r.noun} ${j + 1}.`,
       note: r.note,
@@ -75,7 +78,7 @@ export function assemblyFor(type: PrimitiveType, index: number, count: number): 
     };
   }
   const numbers = list(primitives.map((j) => j + 1));
-  return { result: `${r.plural} ${numbers}`, sentence: `${capitalised}; this vertex is in ${r.plural} ${numbers}.`, note: r.note, primitives, members };
+  return { noun: r.noun, result: `${r.plural} ${numbers}`, sentence: `${capitalised}; this vertex is in ${r.plural} ${numbers}.`, note: r.note, primitives, members };
 }
 
 /**

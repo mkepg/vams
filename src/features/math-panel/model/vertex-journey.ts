@@ -69,7 +69,6 @@ const TRANSFORMED = 'Scale, rotate and move act on the vertex in the reverse of 
 const PROJECTED = 'Your viewing volume is squeezed into a −1 to 1 box on each axis, called normalised device coordinates (NDC).';
 const RASTERISED = 'NDC is stretched to the window’s pixels, counted from the bottom-left corner as OpenGL does.';
 const SMOOTH = 'With smooth shading, each pixel inside the shape mixes the vertex colours by how close it is to each one.';
-const FLAT = 'With flat shading, the whole shape takes the colour of one vertex.';
 const TEXTURED = 'Each pixel reads its colour from the texture, at the UV the vertices carry.';
 const TEXT_STORED = 'The text starts at its raster position, set by glRasterPos2f in the text’s own coordinates.';
 const TEXT_ASSEMBLED = 'Text is drawn as bitmap characters at this position, not assembled from vertices.';
@@ -84,6 +83,16 @@ const STORED_BY_MODE = {
 const VBO_REFRESHED = 'Your vertex was copied to a buffer on the GPU in init(), and update_buffers() copies it again every frame; drawing reads it from there.';
 
 const pair = (p: Point) => `(${fmt(p.x)}, ${fmt(p.y)})`;
+
+/** Flat shading: each primitive takes one of its own vertices' colour, so name the first primitive this vertex is in. */
+function flatSentence(type: PrimitiveType, index: number, count: number): string {
+  const a = assemblyFor(type, index, count);
+  if (type === 'POINTS') return 'With flat shading, each point keeps its own colour.';
+  if (a.primitives.length === 0) return 'With flat shading, each shape takes the colour of one of its vertices; this vertex is not drawn.';
+  const taken = provokingVertex(type, index, count) + 1;
+  if (type === 'POLYGON') return `With flat shading, the polygon takes vertex ${taken}'s colour.`;
+  return `With flat shading, each ${a.noun} takes the colour of one of its vertices: ${a.noun} ${a.primitives[0] + 1} takes vertex ${taken}'s.`;
+}
 
 function stage(id: JourneyStageId, sentence: string, rows: WorkingRow[], result: string | null, point: Point | null): JourneyStage {
   const info = STAGE_INFO[id];
@@ -129,7 +138,9 @@ function ndcOf(p: Point, v: ViewportLimits): Point {
 }
 
 function pixelOf(n: Point, c: CanvasSize): Point {
-  return { x: Math.floor(((n.x + 1) / 2) * c.width), y: Math.floor(((n.y + 1) / 2) * c.height) };
+  // A vertex exactly on the far edge still lands in the last pixel: pixels run 0 to size − 1.
+  const at = (v: number, size: number) => Math.min(size - 1, Math.floor(((v + 1) / 2) * size));
+  return { x: at(n.x, c.width), y: at(n.y, c.height) };
 }
 
 function projectedRows(world: Point, ndc: Point, v: ViewportLimits): WorkingRow[] {
@@ -164,12 +175,13 @@ function colouredStage(node: SceneNode, index: number, scene: JourneyScene): Jou
   const uv = node.uvs?.[index];
   if (node.texture && uv && node.uvs!.length === node.vertices.length) {
     const tex = scene.textures.find((t) => t.id === node.texture!.textureId);
-    const result = tex ? `texel (${texelOf(uv, tex, node.texture.wrap).x}, ${texelOf(uv, tex, node.texture.wrap).y})` : 'texture missing';
+    const texel = tex ? texelOf(uv, tex, node.texture.wrap) : null;
+    const result = texel ? `texel (${texel.x}, ${texel.y})` : 'texture missing';
     return { ...stage('coloured', TEXTURED, [], result, null), section: 'Textures' };
   }
   const flat = node.shading === 'FLAT';
   const source = flat ? provokingVertex(node.type as PrimitiveType, index, node.vertices.length) : index;
-  return stage('coloured', flat ? FLAT : SMOOTH, [], rgbText(rgbOf(node.vertices[source]?.color ?? '#ffffff')), null);
+  return stage('coloured', flat ? flatSentence(node.type as PrimitiveType, index, node.vertices.length) : SMOOTH, [], rgbText(rgbOf(node.vertices[source]?.color ?? '#ffffff')), null);
 }
 
 // --- The journey ------------------------------------------------------------------------------
@@ -216,7 +228,7 @@ function textJourney(node: SceneNode, scene: JourneyScene, canvas: CanvasSize): 
       stage('projected', PROJECTED, projectedRows(world, ndc, scene.viewportLimits), `NDC ${pair(ndc)}`, ndc),
       stage('assembled', TEXT_ASSEMBLED, [], 'bitmap text', null),
       stage('rasterised', RASTERISED, [], `pixel (${int(pixel.x)}, ${int(pixel.y)})`, pixel),
-      stage('coloured', 'The text takes the colour set by glColor3f just before it.', [], rgbText(rgbOf(node.vertices[0]?.color ?? '#ffffff')), null),
+      stage('coloured', `The text takes the colour set by ${node.colorMode === 'BYTE' ? 'glColor3ub' : 'glColor3f'} just before it.`, [], rgbText(rgbOf(node.vertices[0]?.color ?? '#ffffff')), null),
     ],
   };
 }
