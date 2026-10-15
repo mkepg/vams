@@ -469,3 +469,38 @@ describe('BB-JOURNEY-21: The draw call in the Buffers card wraps inside its box'
     expect(block).not.toMatch(/nowrap|overflow-x:\s*auto/);
   });
 });
+
+describe('BB-JOURNEY-22: Step cells wrap only where a stage allows it', () => {
+  function groupedTriangle() {
+    const id = mockTriangle();
+    const tri = getState().objects[0];
+    const group = { ...tri, id: 'grp', name: 'Group 1', type: 'GROUP' as const, parentId: null, children: [id], vertices: [], transform: { ...tri.transform, scaleX: 1.5, scaleY: 2 } };
+    useVamsStore.setState({ objects: [group, { ...tri, parentId: 'grp', renderingMode: 'VBO', bufferUsage: 'DYNAMIC' }] });
+    getState().selectObject(id);
+  }
+
+  it('keeps every Transformed step on one line, grouped or not', async () => {
+    groupedTriangle();
+    useVamsStore.setState({ activeSection: 'Transforms' });
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    expect(openTitle(host)).toBe('Transformed');
+    const steps = [...host.querySelectorAll('table.journey-work td.journey-work__step')];
+    expect(steps.some((c) => c.textContent!.startsWith('Group 1: '))).toBe(true);
+    expect(host.querySelector('table.journey-work')!.classList.contains('journey-work--wrap-steps')).toBe(false);
+    expect(steps.every((c) => c.className === 'journey-work__step')).toBe(true);
+    unmount(host);
+  });
+
+  it('lets Stored wrap its steps and marks the long one', async () => {
+    groupedTriangle();
+    useVamsStore.setState({ activeSection: 'Buffers' });
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    expect(openTitle(host)).toBe('Stored');
+    expect(host.querySelector('table.journey-work')!.classList.contains('journey-work--wrap-steps')).toBe(true);
+    const long = [...host.querySelectorAll('td.journey-work__step.is-long')].map((c) => c.textContent);
+    expect(long).toEqual(['refreshed every frame, usage GL_DYNAMIC_DRAW']);
+    unmount(host);
+  });
+});

@@ -213,11 +213,12 @@
 
   tbody tr { height: 27px; }
 
-  // A step stays on one line while the column has room and wraps only when it does not, so Value and Code never leave the column.
+  // A step stays on one line, except a long one and any step in Stored, whose rows are wordy.
   td.journey-work__step {
-    white-space: normal;
     color: var(--ink-muted);
   }
+
+  &.journey-work--wrap-steps td.journey-work__step { white-space: normal; }
 
   // Prose values ("no buffer holds it") wrap so Step and Code always stay inside the column.
   td.journey-work__value.is-prose {
@@ -278,17 +279,13 @@
 }
 
 // The mock's column is 380 px wide, which leaves its table 330 px. Below that the mono cells drop to
-// 11 px so every row still reads on one line; at very narrow widths the step may wrap as a last resort.
+// 11 px so every row still reads on one line.
 @container (max-width: 379px) {
   .journey-work {
     font-size: var(--text-xs);
 
     tr.is-result .journey-work__step { font-size: var(--text-xs); }
   }
-}
-
-@container (max-width: 300px) {
-  .journey-work .journey-work__step { white-space: normal; }
 }
 
 .journey-open__pictures {
