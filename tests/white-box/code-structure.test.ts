@@ -1,0 +1,220 @@
+/**
+ * WHITE-BOX TEST SUITE — WB-CODE
+ * Reading the generated program's structure: the outline, the folds, changed values and the explanation catalogue.
+ */
+import { describe, it, expect } from 'vitest';
+import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
+import { outlineCode, findCallLine, stateFieldAt, type CodeOutline } from '@/features/code-generation/model/code-outline';
+import type { CallbackRule } from '@/core/types/scene';
+import { addTriangle, addQuad, getState } from '../helpers/store';
+
+const program = () => {
+  const s = getState();
+  return generateCodeFromState(
+    { objects: s.objects, canvasBackgroundColor: s.canvasBackgroundColor, callbacks: s.callbacks, viewportLimits: s.viewportLimits, textures: s.getAllTextures() },
+    { width: 800, height: 600 },
+  );
+};
+const rule = (objectId: string, over: Partial<CallbackRule> = {}): CallbackRule => ({
+  id: `r-${Math.random()}`, objectId, trigger: { kind: 'keyboard', key: 'd' }, action: { type: 'translate', dx: 0.1, dy: 0 }, ...over,
+});
+
+/** One triangle in immediate mode. */
+export function immediateFixture() {
+  const tri = addTriangle(0.4, -0.17, 0.5);
+  getState().updateObjectTransform(tri.id, { rotate: 15 });
+  return { tri, code: program() };
+}
+/** Every structure the generator writes: vertex arrays, an indexed textured quad, a dynamic VBO, text, a group, three handlers. */
+export function fullFixture() {
+  const tri = addTriangle(0.4, -0.17, 0.5);
+  const quad = addQuad(-0.3, 0.3, 0.2);
+  getState().updateRenderingMode(quad.id, 'VERTEX_ARRAY');
+  getState().updateUseIndexed(quad.id, true);
+  getState().attachTexture(quad.id, getState().getAllTextures()[0].id);
+  getState().updateRenderingMode(tri.id, 'VBO');
+  getState().updateBufferUsage(tri.id, 'DYNAMIC');
+  getState().addTextObject('Hi', 0.1, 0.2);
+  const text = getState().objects[0];
+  getState().setCallbackHandler('keyboard', 'onKey');
+  getState().addCallbackRule('keyboard', rule(tri.id));
+  getState().setCallbackHandler('mouse', 'onMouse');
+  getState().setCallbackHandler('idle', 'onIdle');
+  return { tri, quad, text, code: program() };
+}
+/** Two shapes in a group, a text shown and hidden by a rule, and a reshape that keeps proportions. */
+export function groupFixture() {
+  const a = addTriangle(-0.4, 0, 0.2);
+  const b = addQuad(0.4, 0, 0.2);
+  getState().createGroup([a.id, b.id]);
+  const group = getState().objects.find((o) => o.type === 'GROUP')!;
+  getState().addTextObject('Hi', 0, 0.6);
+  const text = getState().objects[0];
+  getState().setCallbackHandler('keyboard', 'onKey');
+  getState().addCallbackRule('keyboard', rule(text.id, { action: { type: 'visibility', mode: 'toggle' } }));
+  getState().setCallbackHandler('mouse', 'onMouse');
+  getState().addCallbackRule('mouse', rule(a.id, { trigger: { kind: 'mouse', button: 'left', state: 'down' }, action: { type: 'moveToPointer' } }));
+  getState().setCallbackHandler('reshape', 'onReshape');
+  return { a, b, group, text, code: program() };
+}
+
+const kinds = (o: CodeOutline) => o.blocks.map((b) => b.kind);
+const lineOf = (o: CodeOutline, needle: string) => o.lines.findIndex((l) => l.text.includes(needle));
+const ownerOf = (o: CodeOutline, needle: string) => o.lines[lineOf(o, needle)].object;
+
+describe('WB-CODE-01: An immediate-mode program reads as its blocks in order', () => {
+  it('finds includes, the struct, state, declarations, the draw function, draw, display, init and main', () => {
+    const { code } = immediateFixture();
+    const o = outlineCode(code);
+    expect(kinds(o)).toEqual(['includes', 'struct', 'state', 'declarations', 'draw-object', 'draw', 'display', 'init', 'main']);
+    expect(o.blocks.find((b) => b.kind === 'draw-object')!.id).toBe('draw:TRIANGLES_1');
+    expect(o.objects).toEqual(['TRIANGLES_1']);
+  });
+});
+
+describe('WB-CODE-02: Every structure the generator writes has its block', () => {
+  it('finds buffer data, both handle lists, update_buffers, each handler, the idle wrapper and init', () => {
+    const o = outlineCode(fullFixture().code);
+    for (const kind of ['buffer-data', 'vbo-handles', 'texture-handles', 'update-buffers', 'idle', 'init'] as const) {
+      expect(kinds(o), kind).toContain(kind);
+    }
+    expect(o.blocks.filter((b) => b.kind === 'handler').map((b) => b.id)).toEqual(['handler:onKey', 'handler:onMouse', 'handler:onIdle']);
+    const { code } = groupFixture();
+    const g = outlineCode(code);
+    expect(kinds(g)).toContain('view');
+    expect(kinds(g)).toContain('window-to-world');
+    expect(g.blocks.map((b) => b.id)).toContain('handler:onReshape');
+  });
+});
+
+describe('WB-CODE-03: The blocks tile the whole program', () => {
+  it('gives every line exactly one block, in order, with no gaps', () => {
+    for (const { code } of [immediateFixture(), fullFixture(), groupFixture()]) {
+      const o = outlineCode(code);
+      expect(o.lines).toHaveLength(code.split('\n').length);
+      expect(o.blocks[0].start).toBe(0);
+      expect(o.blocks[o.blocks.length - 1].end).toBe(o.lines.length - 1);
+      for (let k = 1; k < o.blocks.length; k++) expect(o.blocks[k].start).toBe(o.blocks[k - 1].end + 1);
+      for (const block of o.blocks) {
+        for (let l = block.start; l <= block.end; l++) expect(o.lines[l].block).toBe(block.id);
+      }
+    }
+  });
+});
+
+describe('WB-CODE-04: Each line knows the object it belongs to', () => {
+  it('owns state, buffers, draw functions, init and update segments, and inline text; leaves boilerplate unowned', () => {
+    const o = outlineCode(fullFixture().code);
+    expect(ownerOf(o, 'ObjectState state_QUADS_1')).toBe('QUADS_1');
+    expect(ownerOf(o, 'GLfloat verts_QUADS_1[]')).toBe('QUADS_1');
+    expect(ownerOf(o, 'GLuint vbo_TRIANGLES_1 = 0;')).toBe('TRIANGLES_1');
+    expect(ownerOf(o, 'GLuint tex_QUADS_1 = 0;')).toBe('QUADS_1');
+    expect(ownerOf(o, 'glDrawElements(GL_QUADS')).toBe('QUADS_1');
+    expect(ownerOf(o, '// TRIANGLES_1 — upload to GPU')).toBe('TRIANGLES_1');
+    expect(ownerOf(o, 'glGenBuffers(1, &cbo_TRIANGLES_1)')).toBe('TRIANGLES_1');
+    expect(ownerOf(o, '// QUADS_1 — texture object')).toBe('QUADS_1');
+    expect(ownerOf(o, 'glTexImage2D(')).toBe('QUADS_1');
+    expect(ownerOf(o, 'glBufferSubData(')).toBe('TRIANGLES_1');
+    expect(ownerOf(o, 'glRasterPos2f(')).toBe('TEXT_1');
+    expect(ownerOf(o, 'glutBitmapCharacter(')).toBe('TEXT_1');
+    const call = o.lines.findIndex((l) => l.text === '    draw_TRIANGLES_1();');
+    expect(o.lines[call].object).toBeNull();
+    expect(ownerOf(o, '// --- Texture setup ---')).toBeNull();
+    expect(ownerOf(o, 'state_TRIANGLES_1.x += 0.10f;')).toBeNull();
+    expect(ownerOf(o, 'glutMainLoop()')).toBeNull();
+  });
+});
+
+describe('WB-CODE-05: Only lines that do something are explainable', () => {
+  it('marks calls, declarations, state, branches and functions; never braces, blanks or comments', () => {
+    const o = outlineCode(fullFixture().code);
+    const explainable = (needle: string) => o.lines[lineOf(o, needle)].explainable;
+    for (const yes of ['#include <GL/glew.h>', 'struct ObjectState {', 'ObjectState state_TEXT_1', 'GLfloat colors_QUADS_1[]',
+      'GLuint cbo_TRIANGLES_1 = 0;', 'void draw_QUADS_1();', 'void draw_QUADS_1()', 'glTranslatef(state_QUADS_1.x', "case 'd':",
+      'state_TRIANGLES_1.x += 0.10f;', 'stbi_load(', 'if (glewInit() != GLEW_OK) {', 'void onMouse(int button', '    draw();', 'int main(']) {
+      expect(explainable(yes), yes).toBe(true);
+    }
+    for (const no of ['// --- Global State ---', '    // QUADS_1 — texture object', 'return 0;', 'int width, height, channels;']) {
+      expect(explainable(no), no).toBe(false);
+    }
+    expect(o.lines.filter((l) => /^\s*[{}]\s*$/.test(l.text) || l.text.trim() === '').every((l) => !l.explainable)).toBe(true);
+  });
+});
+
+describe('WB-CODE-06: Groups and hidden text own their inline segments in draw()', () => {
+  it('gives the group its frame and its children\'s calls, and the guarded text its if block', () => {
+    const o = outlineCode(groupFixture().code);
+    const drawBlock = o.blocks.find((b) => b.kind === 'draw')!;
+    const inDraw = o.lines.slice(drawBlock.start, drawBlock.end + 1);
+    const groupLines = inDraw.filter((l) => l.object === 'Group_1').map((l) => l.text.trim());
+    expect(groupLines).toContain('glTranslatef(state_Group_1.x, state_Group_1.y, 0.0f);');
+    expect(groupLines).toContain('draw_TRIANGLES_1();');
+    expect(groupLines).toContain('draw_QUADS_1();');
+    const textLines = inDraw.filter((l) => l.object === 'TEXT_1').map((l) => l.text.trim());
+    expect(textLines[0]).toBe('if (state_TEXT_1.visible) {');
+    expect(textLines[textLines.length - 1]).toBe('}');
+    expect(o.objects).toEqual(expect.arrayContaining(['Group_1', 'TEXT_1', 'TRIANGLES_1', 'QUADS_1']));
+  });
+});
+
+describe('WB-CODE-07: Fold labels are names; summaries are plain sentences', () => {
+  it('labels functions by signature and data blocks by name, and keeps the banned words out', () => {
+    const o = outlineCode(fullFixture().code);
+    const label = (id: string) => o.blocks.find((b) => b.id === id)!.label;
+    expect(label('includes')).toBe('#include …');
+    expect(label('struct')).toBe('struct ObjectState …');
+    expect(label('main')).toBe('int main()');
+    expect(label('draw:QUADS_1')).toBe('void draw_QUADS_1()');
+    expect(label('handler:onKey')).toBe('void onKey()');
+    expect(o.blocks.find((b) => b.id === 'main')!.summary).toBe('Opens the window, registers the callbacks and starts GLUT.');
+    for (const b of o.blocks) {
+      expect(b.summary.length, b.id).toBeGreaterThan(0);
+      expect(b.summary).not.toMatch(/coming soon|not supported|future|deferred|\b3D\b|lighting/i);
+    }
+  });
+});
+
+describe('WB-CODE-08: The parser pins the generator formats it relies on', () => {
+  it('reads CRLF text the same, and puts every marker line in the block that owns it', () => {
+    const { code } = fullFixture();
+    expect(outlineCode(code.replace(/\n/g, '\r\n')).blocks).toEqual(outlineCode(code).blocks);
+    const o = outlineCode(code);
+    const blockOf = (l: number) => o.blocks.find((b) => b.id === o.lines[l].block)!.kind;
+    o.lines.forEach((l, i) => {
+      if (/^void draw_\w+\(\)$/.test(l.text)) expect(blockOf(i)).toBe('draw-object');
+      if (/^ObjectState state_/.test(l.text)) expect(blockOf(i)).toBe('state');
+      if (/^GL(float|uint) (verts|colors|uvs|indices)_/.test(l.text)) expect(blockOf(i)).toBe('buffer-data');
+      if (l.text.startsWith('    glutMainLoop')) expect(blockOf(i)).toBe('main');
+      if (l.text.startsWith('    glGenTextures')) expect(blockOf(i)).toBe('init');
+    });
+  });
+});
+
+describe('WB-CODE-09: Sanitised names still own their lines', () => {
+  it('matches "My Shape" as My_Shape and "class" as class_obj', () => {
+    const shape = addTriangle();
+    getState().updateObjectName(shape.id, 'My Shape');
+    const other = addQuad(0.5, 0.5, 0.2);
+    getState().updateObjectName(other.id, 'class');
+    const o = outlineCode(program());
+    expect(o.objects).toEqual(expect.arrayContaining(['My_Shape', 'class_obj']));
+    expect(o.blocks.map((b) => b.id)).toEqual(expect.arrayContaining(['draw:My_Shape', 'draw:class_obj']));
+    expect(ownerOf(o, 'ObjectState state_My_Shape')).toBe('My_Shape');
+  });
+});
+
+describe('WB-CODE-10: findCallLine and stateFieldAt', () => {
+  it('finds a call in the object\'s own code first, then anywhere; names the state field under a column', () => {
+    const { code } = immediateFixture();
+    const o = outlineCode(code);
+    const translate = findCallLine(o, 'TRIANGLES_1', 'glTranslatef')!;
+    expect(o.lines[translate].text).toContain('glTranslatef(state_TRIANGLES_1.x');
+    expect(o.lines[findCallLine(o, 'TRIANGLES_1', 'glOrtho')!].text).toContain('glOrtho(');
+    expect(findCallLine(o, null, 'glNothing')).toBeNull();
+    const state = o.lines[lineOf(o, 'ObjectState state_TRIANGLES_1')].text;
+    expect(stateFieldAt(state, state.indexOf('0.4000f'))).toBe('state_TRIANGLES_1.x');
+    expect(stateFieldAt(state, state.indexOf('15.0000f'))).toBe('state_TRIANGLES_1.rotation');
+    expect(stateFieldAt(state, 0)).toBeNull();
+    expect(stateFieldAt('    glEnd();', 4)).toBeNull();
+  });
+});
