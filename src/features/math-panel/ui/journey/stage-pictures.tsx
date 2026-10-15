@@ -82,7 +82,9 @@ function PixelFormula({ ndc, pixel, canvas }: { ndc: Point; pixel: Point; canvas
   const line = (axis: 'x' | 'y', v: number, size: number, out: number) => {
     // The unrounded value, then the pixel it falls in; the arrow is dropped when they read the same.
     const raw = ((v + 1) / 2) * size;
-    const rawText = Number.isInteger(Number(raw.toFixed(1))) ? int(raw) : short1(raw);
+    // Truncated, not rounded, so the shown value never crosses into the next pixel.
+    const cut = Math.floor(raw * 10) / 10;
+    const rawText = Number.isInteger(cut) ? int(cut) : short1(cut);
     return (
     <>
       {axis} = ({axis} + 1) / 2 · {axis === 'x' ? 'width' : 'height'}

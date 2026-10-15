@@ -581,7 +581,7 @@ describe('BB-JOURNEY-18: Rasterised keeps the pointer readout in every Pipeline 
     expect(host.textContent).toContain('The formula, with your numbers');
     // The canvas is 800 × 600 when no canvas wrapper is mounted.
     expect(formula(host)).toContain('= (0.27 + 1) / 2 · 800 = 508.2 → 508');
-    expect(formula(host)).toContain('= (0.31 + 1) / 2 · 600 = 393.9 → 393');
+    expect(formula(host)).toContain('= (0.31 + 1) / 2 · 600 = 393.8 → 393');
     unmount(host);
     useVamsStore.setState({ pipelineMode: 'Playground', activePipelineStage: null });
   });
@@ -646,5 +646,36 @@ describe('BB-JOURNEY-19: The glViewport link exists only when a reshape handler 
     expect(host.querySelector('.code-strip__sig')!.textContent).toBe('glViewport(x, y, width, height)');
     unmount(host);
     getState().setCallbackHandler('reshape', '');
+  });
+});
+
+describe('BB-JOURNEY-24: The formula truncates the unrounded value so it never reads as the next pixel', () => {
+  const formulaFor = async (x: number) => {
+    mockTriangle();
+    const obj = getState().objects[0];
+    useVamsStore.setState({
+      objects: [{ ...obj, transform: { translateX: 0, translateY: 0, rotate: 0, scaleX: 1, scaleY: 1 }, vertices: [{ id: 'v0', x, y: 0, color: '#ffffff' }] }],
+    });
+    getState().setJourneyVertex(0);
+    getState().setJourneyStageOverride('rasterised');
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    const text = host.querySelector('.journey-formula')!.textContent!;
+    unmount(host);
+    return text;
+  };
+
+  it('reads 372.9 → 372 for a raw 372.96, not 373', async () => {
+    expect(await formulaFor(-0.0676)).toContain('· 800 = 372.9 → 372');
+  });
+
+  it('reads −0.1 → −1 for a raw −0.04, not 0', async () => {
+    expect(await formulaFor(-1.0001)).toContain('· 800 = −0.1 → −1');
+  });
+
+  it('reads a whole raw value bare, and the +1 edge as 800 → 799', async () => {
+    expect(await formulaFor(0)).toContain('· 800 = 400');
+    expect(await formulaFor(0)).not.toContain('400 →');
+    expect(await formulaFor(1)).toContain('· 800 = 800 → 799');
   });
 });
