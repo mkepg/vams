@@ -11,6 +11,9 @@ import { useVamsStore } from '@/core/store';
 import SceneCodePanel from '@/features/code-generation/ui/SceneCodePanel';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { EditorPanel } from '@/widgets/layout/editor-column';
+import LessonBar from '@/features/lesson-engine/ui/LessonBar';
+import { loadProjectData } from '@/features/scene-library';
+import { buildProjectFile } from '@/entities/project/model/project-io';
 import { addPrimitive, addTriangle, addQuad, getState } from '../helpers/store';
 
 describe('BB-CODE-01: The code panel state starts calm and is never saved', () => {
@@ -712,6 +715,52 @@ describe('BB-CODE-32: The hint needs an explainable line, and the live region is
     await settle();
     expect(host.querySelector('.code-hint')).toBeNull();
     expect(host.querySelector('.code-live[aria-live="polite"]')!.childElementCount).toBe(0);
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-33: A lesson starting, Back, and opening a scene mark no values; a forward step does', () => {
+  const buttonNamed = (host: HTMLElement, text: string) =>
+    [...host.querySelectorAll('button')].find((b) => b.textContent?.trim() === text) as HTMLButtonElement;
+  const marked = (host: HTMLElement) => [...host.querySelectorAll('.code-value')].map((el) => el.textContent);
+
+  it('marks nothing at lesson start and after Back, and marks the translate a forward step changes', async () => {
+    mockScene();
+    const host = mount(h('div', {}, h(LessonBar, {}), h(SceneCodePanel, {})));
+    await settle();
+    useVamsStore.setState({ activeSection: 'Transforms' });
+    getState().setActiveLesson('transforms-demo-1');
+    getState().setAppMode('Lesson');
+    await settle();
+    expect(marked(host)).toEqual([]);
+    buttonNamed(host, 'Next').click();
+    await settle();
+    expect(marked(host)).toEqual(['0.4000f']);
+    buttonNamed(host, 'Next').click();
+    await settle();
+    buttonNamed(host, 'Back').click();
+    await settle();
+    expect(marked(host)).toEqual([]);
+    getState().clearLessonState();
+    getState().setAppMode('Author');
+    await settle();
+    expect(marked(host)).toEqual([]);
+    unmount(host);
+  });
+
+  it('marks nothing when a saved scene is opened', async () => {
+    mockScene();
+    const data = buildProjectFile(getState()).data;
+    useVamsStore.setState({ objects: [], selectedObjectId: null });
+    addTriangle(-0.5, -0.5, 0.2);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    loadProjectData(data);
+    await settle();
+    expect(lineTexts(host)).toContain('void draw_Triangle()');
+    expect(marked(host)).toEqual([]);
+    const options = (useVamsStore as unknown as { persist: { getOptions: () => { partialize: (s: unknown) => object } } }).persist.getOptions();
+    expect(Object.keys(options.partialize(getState()))).not.toContain('sceneSwapSeq');
     unmount(host);
   });
 });

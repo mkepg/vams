@@ -206,6 +206,8 @@ export function useLessonRunner(): LessonRunner {
         selectedObjectId: null,
         interactionMode: 'SELECT',
       });
+      // The rebuilt scene is not the student's edit: the code panel marks none of its values.
+      store.markSceneSwap();
 
       // Replay every step BEFORE the current one to recreate the pre-state.
       for (let i = 0; i < currentStepIndex; i++) {

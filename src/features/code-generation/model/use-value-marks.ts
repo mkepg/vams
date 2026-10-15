@@ -12,9 +12,9 @@ export interface MarkSnapshot {
 
 /**
  * What a new render does to the value marks. Only the student's own edit is marked (`diff`).
- * A canvas resize (only glutInitWindowSize changes) and a lesson starting or ending (`swapKey`)
- * are not the student's edit, and neither is a new selection with no code change: they `clear`
- * the marks and mark nothing.
+ * A canvas resize (only glutInitWindowSize changes) and a whole-scene swap (`swapKey`: a lesson
+ * starting or ending, a lesson's rebuild on Back or a jump, an opened scene) are not the student's
+ * edit, and neither is a new selection with no code change: they `clear` the marks and mark nothing.
  */
 export function nextMarks(prev: MarkSnapshot | null, next: MarkSnapshot): 'keep' | 'clear' | 'diff' {
   if (!prev) return 'keep';

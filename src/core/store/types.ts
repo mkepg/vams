@@ -170,6 +170,10 @@ export interface RuntimeSlice {
   explainRequest: string | null;
   /** Shows Code and explains the selected object's line that makes this call. */
   requestExplain: (call: string | null) => void;
+  /** Counts whole-scene swaps the student did not make (a lesson's rebuild, opening a scene); a change marks no values. Session only. */
+  sceneSwapSeq: number;
+  /** Records a whole-scene swap, so the code panel marks no values for it. */
+  markSceneSwap: () => void;
   /** A group the student opened from the code's explanation strip; outlined until the selection or the open groups change. Session only. */
   revealedGroup: InspectorGroupId | null;
   /** Shows a group's panel, opens the group and outlines it. */

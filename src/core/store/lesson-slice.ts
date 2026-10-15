@@ -104,6 +104,8 @@ export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (
         ? { codePane: state.codeViewBeforeLesson.pane, codeHidden: state.codeViewBeforeLesson.hidden, codeChangedUnseen: false }
         : {}),
       codeViewBeforeLesson: null,
+      // The student's own scene coming back is not an edit.
+      sceneSwapSeq: state.sceneSwapSeq + 1,
     });
   },
 });

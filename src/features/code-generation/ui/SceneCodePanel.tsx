@@ -29,6 +29,7 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
   const canvasBackgroundColor = useVamsStore((s) => s.canvasBackgroundColor);
   const appMode = useVamsStore((s) => s.appMode);
   const activeLessonId = useVamsStore((s) => s.activeLessonId);
+  const sceneSwapSeq = useVamsStore((s) => s.sceneSwapSeq);
   const callbacks = useVamsStore((s) => s.callbacks);
   const changedCodeLines = useVamsStore((s) => s.changedCodeLines);
   const viewportLimits = useVamsStore((s) => s.viewportLimits);
@@ -96,7 +97,7 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
     () => (flashBranch ? locateHandlerBranch(generatedCode, flashBranch.handlerName, flashBranch.trigger) : NO_LINES),
     [flashBranch, generatedCode],
   );
-  const { marks, key: marksKey } = useValueMarks(generatedCode, canvasSize, `${appMode}:${activeLessonId ?? ''}`, selectedObjectId);
+  const { marks, key: marksKey } = useValueMarks(generatedCode, canvasSize, `${appMode}:${activeLessonId ?? ''}:${sceneSwapSeq}`, selectedObjectId);
   const [findLine, setFindLine] = useState<number | null>(null);
   const lessonLines = isLessonMode ? changedCodeLines : NO_LINES;
 
