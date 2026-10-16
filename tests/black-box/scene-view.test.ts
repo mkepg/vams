@@ -29,6 +29,33 @@ afterEach(() => {
   window.history.replaceState(null, '', '/');
 });
 
+/** Loads the store and the view fresh, as a new page load at this width and address does. */
+async function loadView(seed: string | null, width: number) {
+  vi.resetModules();
+  // happy-dom has no 2D canvas, and a fresh module copy has lost the setup file's stand-in for the sample textures.
+  vi.doMock('@/features/textures/lib/sample-textures', () => ({ getSampleTextures: () => [] }));
+  localStorage.removeItem(STORAGE_KEY);
+  const first = await import('@/core/store');
+  const { buildSharePayload: build, encodeShare: encode } = await import('@/entities/project/model/share');
+  const s = first.useVamsStore.getState();
+  const data = encode(build({ sceneName: 'Shared', objects: [], callbacks: s.callbacks, viewportLimits: s.viewportLimits, canvasBackgroundColor: s.canvasBackgroundColor, textures: [] }));
+  vi.resetModules();
+  localStorage.removeItem(STORAGE_KEY);
+  if (seed !== null) localStorage.setItem(STORAGE_KEY, seed);
+  Object.defineProperty(window, 'innerWidth', { value: width, configurable: true });
+  window.history.replaceState(null, '', `/app#s=${data}`);
+  const { default: View } = await import('@/pages/editor/ui/SceneViewApp');
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  render(h(View, {}), host);
+  await settle();
+  return () => {
+    render(null, host);
+    host.remove();
+    Object.defineProperty(window, 'innerWidth', { value: 1024, configurable: true });
+  };
+}
+
 describe('BB-VIEW-01: A phone sees the shared scene and its code', () => {
   it('shows the name, the window and the generated C++', async () => {
     window.history.replaceState(null, '', `/app#s=${carried()}`);
@@ -47,24 +74,17 @@ describe('BB-VIEW-01: A phone sees the shared scene and its code', () => {
 });
 
 describe('BB-VIEW-02: The view writes nothing to the visitor’s storage', () => {
-  it('leaves localStorage untouched and shows no canvas while loading', async () => {
-    const data = carried();
-    localStorage.setItem(STORAGE_KEY, '{"state":{"sceneName":"Mine"},"version":11}');
+  it('leaves localStorage untouched through an edit, and shows no canvas while loading', async () => {
+    const SEEDED = '{"state":{"sceneName":"Mine"},"version":11}';
+    const done = await loadView(SEEDED, 390);
+    const { useVamsStore: store } = await import('@/core/store');
     const writes = vi.spyOn(Storage.prototype, 'setItem');
-    window.history.replaceState(null, '', `/app#s=${data}`);
-    const host = document.createElement('div');
-    document.body.appendChild(host);
-    render(h(SceneViewApp, {}), host);
-    expect(host.querySelector('.canvas-wrapper')).toBeNull();
-    await settle();
-    expect(host.querySelector('.canvas-wrapper')).not.toBeNull();
-    useVamsStore.getState().renameScene('Changed in the view');
+    store.getState().renameScene('Changed in the view');
     await settle();
     expect(writes.mock.calls.filter(([key]) => key === STORAGE_KEY)).toEqual([]);
-    expect(localStorage.getItem(STORAGE_KEY)).toBe('{"state":{"sceneName":"Mine"},"version":11}');
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(SEEDED);
     writes.mockRestore();
-    render(null, host);
-    host.remove();
+    done();
   });
 });
 
@@ -98,5 +118,29 @@ describe('BB-VIEW-04: The view offers the editor anyway, and copies its link', (
     expect(writeText).toHaveBeenCalledWith(window.location.href);
     render(null, host);
     host.remove();
+  });
+});
+
+describe('BB-VIEW-05: Loading the view leaves the visitor’s saved editor as it was', () => {
+  const SAVED = '{"state":{"sceneName":"Mine","sceneBackup":{"objects":[]}},"version":9}';
+  it('keeps an existing saved entry byte for byte', async () => {
+    const done = await loadView(SAVED, 390);
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(SAVED);
+    done();
+  });
+
+  it('creates no entry for a first-time visitor', async () => {
+    const done = await loadView(null, 390);
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+    done();
+  });
+
+  it('still saves in the editor at a normal width', async () => {
+    const done = await loadView(null, 1280);
+    const { useVamsStore: store } = await import('@/core/store');
+    store.getState().renameScene('Kept');
+    await settle();
+    expect(localStorage.getItem(STORAGE_KEY)).toContain('Kept');
+    done();
   });
 });

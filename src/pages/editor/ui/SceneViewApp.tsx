@@ -1,6 +1,5 @@
 import './scene-view.scss';
 import { useEffect, useState } from 'react';
-import { createJSONStorage, type StateStorage } from 'zustand/middleware';
 import { Toaster } from 'sonner';
 import { useVamsStore } from '@/core/store';
 import { copyLink, resolveSharedScene, SHARE_MESSAGES } from '@/features/share';
@@ -15,13 +14,6 @@ import Logo from '@/shared/ui/logo';
 import { useCanvasSize } from '@/shared/lib/use-canvas-size';
 import { getActiveTheme, subscribeTheme, toEditorTheme, useSiteTheme } from '@/shared/lib/theme';
 import { editorAnywayUrl, parseShareLink } from '../model/share-link';
-
-/** This page only shows a shared scene: nothing it loads may reach the visitor's own saved editor. */
-const NO_STORAGE: StateStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
-function keepStorageUntouched() {
-  useVamsStore.persist.setOptions({ storage: createJSONStorage(() => NO_STORAGE) });
-}
-keepStorageUntouched();
 
 type Pane = 'scene' | 'code';
 type ViewState = { status: 'loading' } | { status: 'ready'; name: string } | { status: 'error'; message: string };
@@ -56,7 +48,6 @@ function SharedScene({ pane }: { pane: Pane }) {
 
 export default function SceneViewApp() {
   const [view, setView] = useState<ViewState>(() => {
-    keepStorageUntouched();
     return parseShareLink(window.location.pathname, window.location.hash)
       ? { status: 'loading' }
       : { status: 'error', message: SHARE_MESSAGES.damaged };

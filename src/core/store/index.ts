@@ -17,6 +17,7 @@ import { createHelpSlice } from '@/core/store/help-slice';
 import { createTourSlice } from '@/core/store/tour-slice';
 import { createSceneIdentitySlice } from '@/entities/project/model/scene-identity-slice';
 import { reportCorruptSave } from '@/core/store/recovery-signal';
+import { isSceneViewLoad } from '@/shared/lib/scene-view-load';
 
 enableMapSet();
 export const STORAGE_KEY = 'vams-storage';
@@ -39,6 +40,10 @@ const safeStorage: StateStorage = {
     }
   },
 };
+
+/** The phone scene view only shows a shared scene: it neither reads nor writes the visitor's saved editor. */
+const NO_STORAGE: StateStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+const pageStorage: StateStorage = isSceneViewLoad() ? NO_STORAGE : safeStorage;
 
 export const useVamsStore = create<VamsState>()(
   persist(
@@ -65,7 +70,7 @@ export const useVamsStore = create<VamsState>()(
       name: STORAGE_KEY,
       version: 11,
       migrate: (persisted, version) => migratePersistedState(persisted, version) as never,
-      storage: createJSONStorage(() => safeStorage),
+      storage: createJSONStorage(() => pageStorage),
       onRehydrateStorage: () => {
         return (rehydratedState, error) => {
           if (error) {

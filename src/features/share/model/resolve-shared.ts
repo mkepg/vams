@@ -1,9 +1,9 @@
 import { decodeShare, readSharePayload, type SharedScene } from '@/entities/project/model/share';
+import type { ShareLink } from '@/shared/lib/scene-view-load';
 import { isShareId } from '@/shared/lib/share-schema';
 import { fetchStoredShare } from './share-api';
 
-/** What a shared link points at: a scene carried in the hash, or one stored on the server. */
-export type ShareLink = { kind: 'carried'; data: string } | { kind: 'stored'; id: string };
+export type { ShareLink };
 
 export const SHARE_MESSAGES = {
   missing: 'That shared scene has expired or can’t be found. Ask for a new link.',
