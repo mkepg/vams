@@ -398,7 +398,7 @@ describe('BB-LINK-21: /s/<id> is a route of the site', () => {
     const source = readFileSync('src/app/SiteApp.tsx', 'utf8');
     expect(source).toMatch(/<Route path="\/s\/:id" component=\{EditorPage\} \/>/);
     const redirects = readFileSync('public/_redirects', 'utf8');
-    expect(redirects).toMatch(/^\/s\/\*\s+\/app\s+200$/m);
+    expect(redirects).toMatch(/^\/s\/\*\s+\/app\/\s+200$/m);
   });
 });
 

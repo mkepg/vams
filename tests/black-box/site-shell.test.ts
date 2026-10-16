@@ -615,7 +615,9 @@ describe('BB-SITE-35: The old Netlify address forwards to the live site', () => 
       .split(/\r?\n/)
       .filter((line) => line.trim() && !line.trim().startsWith('#'))
       .map((line) => line.trim().split(/\s+/));
-    expect(rules).toEqual([['/s/*', '/app', '200']]);
+    // The target ends in a slash: Pages serves dist/app/index.html at /app/ and redirects /app there,
+    // and a redirect would drop the /s/<id> the editor reads.
+    expect(rules).toEqual([['/s/*', '/app/', '200']]);
   });
 });
 

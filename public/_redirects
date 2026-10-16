@@ -1,1 +1,2 @@
-/s/*  /app  200
+# Stored share links: serve the editor document; the editor reads /s/<id> from the address.
+/s/*  /app/  200
