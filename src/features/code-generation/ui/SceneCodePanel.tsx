@@ -135,9 +135,20 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
     const e = explainLine(explained, outline, scene);
     if (!e) return null;
     const links: CodeStrip['links'] = [];
+    // The math follows the selected object: the line's control names it, else the line's owner does.
+    const owner = outline.lines[explained]?.object;
+    const lineObjectId = e.control?.objectId ?? (owner ? objects.find((o) => sanitizeName(o.name) === owner)?.id ?? null : null);
     if (e.stage) {
       const stage = e.stage;
-      links.push({ label: `See the math: ${JOURNEY_STAGE_TITLES[stage]}`, onSelect: () => { setJourneyStageOverride(stage); setCodePane('math'); } });
+      links.push({
+        label: `See the math: ${JOURNEY_STAGE_TITLES[stage]}`,
+        onSelect: () => {
+          // Select first: a new selection resets the followed vertex, then the stage opens.
+          if (lineObjectId && lineObjectId !== selectedObjectId) selectObject(lineObjectId);
+          setJourneyStageOverride(stage);
+          setCodePane('math');
+        },
+      });
     }
     if (e.control) {
       const { group, objectId, label } = e.control;
@@ -151,7 +162,7 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
       });
     }
     return { signature: e.signature, text: e.text, values: e.values, links };
-  }, [explained, outline, scene, selectedObjectId, selectObject, revealGroup, setCodePane, setJourneyStageOverride]);
+  }, [explained, outline, scene, objects, selectedObjectId, selectObject, revealGroup, setCodePane, setJourneyStageOverride]);
 
   return (
     <CodeViewer

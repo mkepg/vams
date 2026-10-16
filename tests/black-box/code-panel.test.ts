@@ -11,6 +11,7 @@ import { useVamsStore } from '@/core/store';
 import SceneCodePanel from '@/features/code-generation/ui/SceneCodePanel';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { EditorPanel } from '@/widgets/layout/editor-column';
+import CodeMathColumn from '@/widgets/layout/code-math-column';
 import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import { loadProjectData } from '@/features/scene-library';
 import { buildProjectFile } from '@/entities/project/model/project-io';
@@ -761,6 +762,26 @@ describe('BB-CODE-33: A lesson starting, Back, and opening a scene mark no value
     expect(marked(host)).toEqual([]);
     const options = (useVamsStore as unknown as { persist: { getOptions: () => { partialize: (s: unknown) => object } } }).persist.getOptions();
     expect(Object.keys(options.partialize(getState()))).not.toContain('sceneSwapSeq');
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-34: See the math selects the line\'s object first, as Open does', () => {
+  it('selects Triangle from its glTranslatef line with nothing selected, and the journey works its vertex', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(null);
+    useVamsStore.setState({ codePane: 'code', codeHidden: false });
+    const host = mount(h(CodeMathColumn, {}));
+    await settle();
+    lineEl(host, 'glTranslatef(state_Triangle').click();
+    await settle();
+    const see = [...host.querySelectorAll('.code-strip__link')].find((a) => a.textContent === 'See the math: Transformed') as HTMLButtonElement;
+    see.click();
+    await settle();
+    expect(getState().selectedObjectId).toBe(tri.id);
+    expect(getState().codePane).toBe('math');
+    expect(getState().journeyStageOverride).toBe('transformed');
+    expect(host.querySelector('table.journey-work')).not.toBeNull();
     unmount(host);
   });
 });
