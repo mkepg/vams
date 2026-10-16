@@ -5,6 +5,9 @@ import { hasUploads, type SharePayload } from './share-payload';
 /** A link that carries its scene stays short enough for a QR code read off a projector. */
 export const MAX_CARRIED_URL = 1000;
 
+/** The longest carried data read at all; deflate's ratio limit then bounds what it inflates to. */
+export const MAX_CARRIED_DATA = 4000;
+
 function toBase64Url(bytes: Uint8Array): string {
   let binary = '';
   for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
@@ -23,7 +26,7 @@ export function encodeShare(p: SharePayload): string {
 
 /** The JSON a link carries, or null when the data is damaged. */
 export function decodeShare(data: string): unknown | null {
-  if (!data || !/^[A-Za-z0-9_-]+$/.test(data)) return null;
+  if (!data || data.length > MAX_CARRIED_DATA || !/^[A-Za-z0-9_-]+$/.test(data)) return null;
   try {
     return JSON.parse(strFromU8(inflateSync(fromBase64Url(data))));
   } catch {

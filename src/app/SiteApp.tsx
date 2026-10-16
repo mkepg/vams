@@ -20,7 +20,10 @@ function logRenderError(error: unknown) {
 }
 
 export default function SiteApp() {
-  useEffect(() => followSystemTheme(), []);
+  useEffect(() => {
+    syncDocumentTitle(window.location.pathname);
+    return followSystemTheme();
+  }, []);
   return (
     <LocationProvider>
       <ErrorBoundary onError={logRenderError}>

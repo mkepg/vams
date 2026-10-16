@@ -18,7 +18,7 @@ import { addQuad, addTriangle } from '../helpers/store';
 import { parseShareLink, shouldShowSceneView, editorAnywayUrl, PHONE_MAX_WIDTH } from '@/pages/editor/model/share-link';
 import { openSharedScene } from '@/pages/editor/model/open-shared';
 import { SHARE_MESSAGES } from '@/features/share';
-import { buildSharePayload, encodeShare } from '@/entities/project/model/share';
+import { buildSharePayload, encodeShare, MAX_CARRIED_DATA } from '@/entities/project/model/share';
 import { readFileSync } from 'node:fs';
 import { sanitizeProjectData } from '@/entities/project/model/project-io';
 import { PRESET_LINKS, presetHref } from '@/entities/project/model/preset-links';
@@ -399,5 +399,27 @@ describe('BB-LINK-21: /s/<id> is a route of the site', () => {
     expect(source).toMatch(/<Route path="\/s\/:id" component=\{EditorPage\} \/>/);
     const redirects = readFileSync('public/_redirects', 'utf8');
     expect(redirects).toMatch(/^\/s\/\*\s+\/app\s+200$/m);
+  });
+});
+
+describe('BB-LINK-22: Damaged or oversized links fail with a message and never throw', () => {
+  afterEach(() => setSceneLibraryForTests(null));
+  it('returns a link for a malformed percent escape and words it as missing', async () => {
+    expect(() => parseShareLink('/s/%E0%A4%A', '')).not.toThrow();
+    expect(parseShareLink('/s/%E0%A4%A', '')).toEqual({ kind: 'stored', id: '%E0%A4%A' });
+    setSceneLibraryForTests(createMemoryLibrary());
+    const errors = vi.spyOn(toast, 'error');
+    await openSharedScene({ kind: 'stored', id: '%E0%A4%A' }, { openLibrary: () => {} });
+    expect(errors).toHaveBeenLastCalledWith(SHARE_MESSAGES.missing);
+    errors.mockRestore();
+  });
+  it('rejects carried data over the cap before inflating it', async () => {
+    expect(MAX_CARRIED_DATA).toBe(4000);
+    setSceneLibraryForTests(createMemoryLibrary());
+    const ok = encodeShare(sharedPayload());
+    const errors = vi.spyOn(toast, 'error');
+    await openSharedScene({ kind: 'carried', data: ok + 'A'.repeat(MAX_CARRIED_DATA) }, { openLibrary: () => {} });
+    expect(errors).toHaveBeenLastCalledWith(SHARE_MESSAGES.damaged);
+    errors.mockRestore();
   });
 });

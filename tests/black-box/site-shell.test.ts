@@ -646,3 +646,10 @@ describe('BB-SITE-38: A stored share link has the editor’s title and metadata'
     expect(findRouteMeta('/s').title).not.toBe('VAMS Editor');
   });
 });
+
+describe('BB-SITE-39: The tab title follows the route on first load', () => {
+  it('syncs the title from the address once when the site mounts', () => {
+    const source = readFileSync('src/app/SiteApp.tsx', 'utf8');
+    expect(source).toMatch(/useEffect\(\(\) => \{\s*syncDocumentTitle\(window\.location\.pathname\);/);
+  });
+});

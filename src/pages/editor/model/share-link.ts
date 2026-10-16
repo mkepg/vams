@@ -5,7 +5,7 @@ export const PHONE_MAX_WIDTH = 960;
 
 export function parseShareLink(pathname: string, hash: string): ShareLink | null {
   const stored = /^\/s\/([^/]+)\/?$/.exec(pathname);
-  if (stored) return { kind: 'stored', id: decodeURIComponent(stored[1]) };
+  if (stored) return { kind: 'stored', id: safeDecode(stored[1]) };
   const carried = /^#s=(.+)$/.exec(hash);
   return carried ? { kind: 'carried', data: carried[1] } : null;
 }
@@ -27,4 +27,13 @@ export function editorAnywayUrl(loc: LocationLike): string {
   const params = new URLSearchParams(loc.search);
   params.set('editor', '1');
   return `${loc.pathname}?${params.toString()}${loc.hash}`;
+}
+
+/** A malformed escape is kept as typed; it then fails the id check and is worded as a missing scene. */
+function safeDecode(text: string): string {
+  try {
+    return decodeURIComponent(text);
+  } catch {
+    return text;
+  }
 }
