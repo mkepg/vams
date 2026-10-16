@@ -90,7 +90,8 @@ tests/
 │   ├── learn.spec.ts                     (VIS-LEARN-*: the /learn course map)
 │   ├── about.spec.ts                     (VIS-ABOUT-*: the /about page at
 │   │                                        1280 and 390, citation tabs)
-│   └── code-math.spec.ts                 (VIS-CM-*: the code panel and the math journey in the approved mocks' scene)
+│   ├── code-math.spec.ts                 (VIS-CM-*: the code panel and the math journey in the approved mocks' scene)
+│   └── share.spec.ts                     (VIS-SHARE-*: the Share dialog at 1280 and the phone scene view at 390)
 ├── algorithm/                    ← Maps to §3.10.3 Algorithm Validation.
 │   ├── algorithm-1-global-matrix.test.ts        (ALG-1-*)
 │   ├── algorithm-2-code-generation.test.ts      (ALG-2-*)
