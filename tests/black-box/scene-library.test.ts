@@ -620,3 +620,21 @@ describe('BB-LIB-25: Renaming the working scene in My scenes renames it in the e
     expect((await library.get('mine'))?.name).toBe('Renamed');
   });
 });
+
+describe('BB-LIB-27: Starting a lesson right after an edit still saves that edit', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('writes the pre-lesson scene to the working entry', async () => {
+    vi.useFakeTimers();
+    const lib = createMemoryLibrary();
+    useVamsStore.setState({ sceneId: 'mine', sceneName: 'Mine' });
+    startAutosave(lib);
+    addTriangle();
+    useVamsStore.setState({ activeLessonId: 'transforms-demo-1', appMode: 'Lesson', objects: [] });
+    await drainAutosave(async () => expect(await lib.list()).toHaveLength(1));
+    const [saved] = await lib.list();
+    expect(saved).toMatchObject({ id: 'mine', name: 'Mine' });
+    expect(saved.file!.data.objects).toHaveLength(1);
+    useVamsStore.setState({ activeLessonId: null, appMode: 'Author' });
+  });
+});

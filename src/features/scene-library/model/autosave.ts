@@ -67,7 +67,12 @@ export function startSceneAutosave({ delay = AUTOSAVE_DELAY, library = getSceneL
     if (!changed(state, prev)) return;
     // Another scene opened: the previous scene's last edit goes to its own entry now.
     if (state.sceneId !== prev.sceneId && pending) flush();
-    if (inLesson(state) || !worthSaving(state)) {
+    if (inLesson(state)) {
+      // What is waiting is the scene from before the lesson: save it now.
+      flush();
+      return;
+    }
+    if (!worthSaving(state)) {
       // Nothing worth saving now: drop the snapshot of the edit that was taken back.
       if (timer) clearTimeout(timer);
       timer = null;
