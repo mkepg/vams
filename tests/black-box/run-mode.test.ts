@@ -442,3 +442,21 @@ describe('BB-RUN-17: Run off says why on the canvas', () => {
     host.remove();
   });
 });
+
+describe('BB-RUN-18: The Run note sits in the window bar, clear of the frame', () => {
+  it('is placed from the header by the stage padding and the frame, not hung under the button', async () => {
+    const { readFileSync } = await import('node:fs');
+    const scss = readFileSync('src/features/callbacks/ui/run-overlay.scss', 'utf8');
+    const start = scss.indexOf('.run-plate {');
+    const rule = scss.slice(start, scss.indexOf('&__link', start));
+    expect(rule).toMatch(/top:\s*calc\(100% \+ 1px \+ var\(--stage-pad/);
+    expect(rule).toMatch(/right:\s*calc\(var\(--stage-pad/);
+    expect(rule).toMatch(/height:\s*22px/);
+    expect(rule).toMatch(/var\(--paper-raised\)/);
+    expect(rule).not.toMatch(/var\(--space-1\)\);\s*\n\s*right:\s*0/);
+    const pane = readFileSync('src/widgets/canvas/canvas-pane.scss', 'utf8');
+    expect(pane).toMatch(/--stage-pad:\s*14px/);
+    const header = pane.slice(pane.indexOf('.canvas-header {'), pane.indexOf('&__title'));
+    expect(header).toMatch(/position:\s*relative/);
+  });
+});

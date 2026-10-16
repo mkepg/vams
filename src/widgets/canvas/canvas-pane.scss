@@ -1,6 +1,7 @@
 @use '../../shared/styles/tokens' as *;
 
 .canvas-pane {
+  --stage-pad: 14px;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -12,6 +13,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  position: relative;
   height: 36px;
   padding: 0 10px;
   flex-shrink: 0;
@@ -46,7 +48,7 @@
   flex: 1;
   min-height: 0;
   display: flex;
-  padding: 14px;
+  padding: var(--stage-pad);
   background-color: var(--stage-bg);
   background-image: radial-gradient(var(--stage-dot) 1px, transparent 1px);
   background-size: 14px 14px;
@@ -54,5 +56,5 @@
   &--bare { padding: 0; background-image: none; }
   &__frame { flex: 1; display: flex; min-width: 0; min-height: 0; }
   // Away under an illustration: still laid out, so the canvas keeps its size.
-  &__frame--away { visibility: hidden; position: absolute; inset: 14px; pointer-events: none; }
+  &__frame--away { visibility: hidden; position: absolute; inset: var(--stage-pad); pointer-events: none; }
 }

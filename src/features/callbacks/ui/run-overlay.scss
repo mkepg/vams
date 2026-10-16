@@ -1,30 +1,35 @@
 @use '../../../shared/styles/tokens' as *;
 
 .run-control {
-  position: relative;
   display: flex;
   align-items: center;
 }
 
-// Why Run is off, hanging under the button in the panel's own paper.
+// Why Run is off. The host header is the positioning context (--stage-pad is
+// the gap between it and the window frame), so the note sits in the window
+// bar's empty right end, in the panel's own paper, clear of the frame.
 .run-plate {
   position: absolute;
-  top: calc(100% + var(--space-1));
-  right: 0;
+  top: calc(100% + 1px + var(--stage-pad, 14px) + 1px + 3px);
+  right: calc(var(--stage-pad, 14px) + 1px + 10px);
   z-index: 40;
-  width: max-content;
-  max-width: 220px;
+  box-sizing: border-box;
+  height: 22px;
+  max-width: calc(100% - 220px);
   margin: 0;
-  padding: var(--space-1) var(--space-2);
+  padding: 0 var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
   border: 1px solid var(--rule);
   border-radius: var(--radius-s);
   background: var(--paper-raised);
   color: var(--ink);
-  box-shadow: var(--window-shadow);
   font-size: var(--text-xs);
-  line-height: 1.4;
-  text-align: right;
-  white-space: normal;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
   &__link {
     padding: 0;
