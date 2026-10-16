@@ -20,7 +20,7 @@ While designing Share the owner asked for two more changes in the same pass (202
 | Who Share is for | Both: students sharing their scenes, and the expo audience |
 | What a phone shows | A read-only scene view: the scene drawn in its window and the generated C++, with a note that editing needs a computer |
 | Uploaded images | Carried by a stored short link on Cloudflare (Workers KV, free plan, no card) |
-| Which shares are stored | Only those that need it: scenes with uploaded images, or too big for a scannable QR. Other scenes get a link that carries the scene itself |
+| Which shares are stored | Only those that need it: scenes with uploaded images, or too big for a scannable QR. Other scenes get a link that carries the scene itself. Replaced: every scene is stored, see Amendments after review, checkpoint 2 |
 | How long stored shares last | 90 days |
 | Large images | Shrunk in the shared copy to at most 512 px on the longest side; a stored scene is at most 1 MB |
 | Opening a link on a computer | Straight into the editor; any work in progress is backed up to My scenes first |
@@ -43,7 +43,7 @@ Each is a call the owner did not make in so many words. The cost if wrong is bes
 3. **A link carries the scene when the whole URL is at most 1,000 characters.** Past that, the QR gets too dense to scan off a projector. Cost: one constant.
 4. **Phones are told apart by width:** a window narrower than 960 px gets the scene view, which is the editor's own minimum width. Cost: one constant.
 5. **Stored ids are 8 random base62 characters** (about 2 × 10¹⁴ ids), from `crypto.getRandomValues`. Cost: one constant.
-6. **Abuse limits:** at most 10 new shares per minute per visitor, through Cloudflare's rate-limiting binding for Workers. The function stores nothing but the scene: no IP address, no account. If the binding turns out to be unavailable on the free plan, a Cloudflare WAF rate-limiting rule on `/api/share` does the same job. Cost: one config block.
+6. **Abuse limits** (replaced by the setup amendment: Pages has no rate-limit binding): at most 10 new shares per minute per visitor, through Cloudflare's rate-limiting binding for Workers. The function stores nothing but the scene: no IP address, no account. If the binding turns out to be unavailable on the free plan, a Cloudflare WAF rate-limiting rule on `/api/share` does the same job. Cost: one config block.
 7. **Saving a new scene name is a persisted-store change**, so the store version goes from 9 to 10 with a migration that gives an existing save the name "Untitled scene" and a new My scenes entry id. Nobody's saved scene is lost. Cost: one migration step.
 8. **The pipeline lesson views** (the pipeline diagram, vector vs raster) are explanations, not the program's output, so they sit on the stage without the window frame. Cost: a wrapper class.
 9. **The window's inner size is the canvas size** everywhere it is used: `glutInitWindowSize`, the journey's Rasterised stage and the follow ring. The canvas is about 30 px smaller each way than today. Cost: none in logic; the visual baselines are retaken.
@@ -92,6 +92,8 @@ Layout, left to right: **logo · File · Learn · | scene name · save state** �
   - View: Coordinate axes, Gridlines, Coordinate tracker (today's checkboxes);
   - Keyboard shortcuts.
 
+  Amended: the View items moved to the canvas header and Settings keeps Theme and Keyboard shortcuts (checkpoint 1).
+
   The separate theme button is removed.
 - **Help (?)** as today.
 - **Share** is the bar's one cobalt button, with its icon and the word.
@@ -114,7 +116,7 @@ Every icon button is a quiet 30 px square; Learn and File are quiet text buttons
 
 ### During Run
 
-The bar stays inert as today. Share is disabled too.
+The bar stays inert as today. Share is disabled too. Amended: a disabled-looking Run now answers a click and explains itself (checkpoint 1).
 
 ## 3. Canvas window
 
@@ -125,13 +127,13 @@ A 36 px header, aligned with the side panels' headers so one line runs across th
 - **Left:** "Canvas", then the viewing volume in mono, `x −1…1 · y −1…1`, from `viewportLimits`. This replaces the "Viewport: (-1, 1)" plate, which showed only the x range.
 - **Right:**
   - the cursor readout `X 0.42  Y −0.18`, shown only when the coordinate tracker is on;
-  - Run, or Stop while running. Its "Add a shape to run your program" tip hangs below the button and no longer covers the scene.
+  - Run, or Stop while running. Its "Add a shape to run your program" tip hangs below the button and no longer covers the scene. Amended: the tip is replaced by a panel opened on click, and the header gains a View menu (checkpoint 1).
 - **While placing vertices,** the header's middle reads "Click to place a vertex · Enter finish · Backspace undo · Esc cancel" with `<kbd>` keys. This replaces the banner that floated on the scene.
 
 ### Stage and window
 
 - **The stage** is the area under the header: the theme's sunken surface with a faint dot grid, and 14 px of padding.
-- **The window** fills the stage: 8 px corner radius, a 1 px border, a soft shadow. Every value comes from tokens, in both themes.
+- **The window** fills the stage: 8 px corner radius, a 1 px border, a soft shadow. Every value comes from tokens, in both themes. Amended: the window floats, moves and resizes (checkpoint 1).
 - **Title bar:** 26–28 px, quiet ink.
   - On the left, "VAMS Preview", the title the generated `glutCreateWindow` gives the window.
   - On the right, the size in mono, for example `586 × 610`, the values the generated `glutInitWindowSize` uses.
@@ -181,11 +183,11 @@ A shared scene is a versioned payload, `{ v: 1, name, objects, callbacks, viewpo
   - Errors return JSON `{ error }` with 400 (bad payload), 413 (too large), 429 (rate limited) or 503 (storage unavailable or over the daily limit).
 - **`GET /api/share/<id>`** returns the payload, or 404 when it is missing or expired.
 - **`/s/<id>`** is served the app (a `_redirects` rewrite to the `/app` document). The app then fetches `/api/share/<id>`.
-- **Configuration:** `wrangler.toml` holds the KV binding and the rate-limit binding. Creating the namespace needs the owner's Cloudflare login once (`wrangler login`); everything after that is scripted.
+- **Configuration:** `wrangler.toml` holds the KV binding (the rate-limit binding was dropped, see the setup amendment). Creating the namespace needs the owner's Cloudflare login once (`wrangler login`); everything after that is scripted.
 
 ### When storing fails
 
-A share that needs storing can fail: offline, rate-limited, over the free daily limit, or with the server down.
+A share that needs storing can fail: offline, rate-limited, over the free daily limit, or with the server down. Amended: every share is stored, so this applies to every scene (checkpoint 2).
 
 - If the scene, without its uploaded images, fits a carrying link, that link is used. An amber note says the uploaded images are left out.
 - Otherwise the dialog says "Couldn't make a link right now." and offers Save project file.
@@ -232,7 +234,7 @@ A window 960 px wide or wider (ruling 4) opens both link kinds straight into the
 A window narrower than 960 px gets the scene view, a read-only page:
 
 - **Top:** the logo and the scene's name. The theme follows the device and can be toggled.
-- **The scene:** the canvas window from §3 ("VAMS Preview" and its size), fitted to the screen's width, drawing the scene with the editor's renderer.
+- **The scene:** the canvas window from §3 ("VAMS Preview" and its size), fitted to the screen's width, drawing the scene with the editor's renderer. Amended: the window keeps its 4:3 shape (checkpoint 2).
 - **Code:** a "Scene | Code" switch shows the generated C++, read-only, with the code panel's colouring and a Copy button. The code is built by the same pure generator from the shared scene.
 - **Closing note:** "Editing needs a computer. Open this link there." It has **Copy link** and a quiet "Open in the editor anyway", which opens the editor as on a computer.
 - **Storage:** the view never writes. The visitor's own saved scene, My scenes and progress stay untouched, because the view renders from the shared payload alone, outside the persisted store.
@@ -289,3 +291,28 @@ Each new test takes the next free number in its file.
   - CodeMirror 6 goes under "Below the line";
   - two divergences are added: the editor now uses a server-side function for sharing, and the canvas is drawn as a framed program window.
 - **tests/README.md:** the new files and the count.
+
+## Amendments after review
+
+The owner reviewed the build at two points and during setup, and changed the design below. Where the sections above say otherwise, this section wins.
+
+### Checkpoint 1 (2026-10-16)
+
+- **A quieter grid, with a Grid numbers option (store version 11).** The grid draws minor lines, five between each labelled line, so the labelled lines stand out. The numbers sit inside the canvas, and a Grid numbers option hides them. It is off whenever Coordinate axes is off. Saves older than version 11 get the option switched on. Reason: the full-strength grid and the edge labels competed with the scene.
+- **A movable window, in style D, with real GLUT semantics.** The program window floats, centred on the stage. Its title bar moves it, and its right edge, bottom edge and corner resize it. The scene stretches to fill the window, as GLUT's default viewport does, and `glutInitWindowSize` shows the new size. Minimise, maximise and restore work, double-clicking the title bar maximises, and the close button stops a running program and leaves a chip on the stage that brings the window back, as does Run. The generated code gains no `glutInitWindowPosition` line, because moving the window must not change the program. Reason: a frame that behaves like a window teaches what GLUT's window calls do.
+- **The View menu beside Run; Settings keeps Theme and Keyboard shortcuts.** The four view options (Coordinate axes, Gridlines, Grid numbers, Coordinate tracker) sit in the canvas header, next to what they change. Reason: they describe the canvas, and the top bar's Settings was the wrong place to look.
+- **Run explains itself on click.** When Run can't start it looks dimmed but responds. A small panel says "Run needs a callback" with an Open Callbacks button, or "Add a shape first" with an Add a shape button. The in-window note is removed. Reason: a disabled control cannot say why, and a note inside the program window looked like part of the program.
+
+### Checkpoint 2 (2026-10-17)
+
+- **Always the short stored link.** Share stores every scene, with or without uploaded images, and shows `/s/<id>`. The carried link `/app#s=...` is the fallback when storing fails; with uploaded images it leaves them out, and if even that is too long the dialog offers Save project file. Reason: the carried link's QR code is version 23 (113 modules) and reads from about a third of the distance of a stored link's (version 3, 33 modules), which matters on a stage.
+- **The phone view stays 4:3.** The scene view keeps the window's shape. Reason: filling the screen would stretch the scene.
+
+### Setup
+
+- **No rate-limit binding.** Cloudflare Pages doesn't support one, and the site has no zone of its own for a WAF rule. The free plan's daily KV write limit caps storage instead, and the function returns 503 when it is reached.
+- **The `/app/` rewrite target.** `public/_redirects` rewrites `/s/*` to `/app/`. The trailing slash matters: `/app` would redirect and lose the id.
+
+### Closing look
+
+- **The Try it QR code takes the right half in stage mode,** up to 460 px, so it can be scanned from the back of a room. Below 1100 px wide it sits under the preset links.
