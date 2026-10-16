@@ -3788,7 +3788,7 @@ With the owner's go-ahead: `npx wrangler@4 kv namespace create SHARES`. Note the
 
 Read Cloudflare's current docs for rate limiting in Pages Functions (the Workers rate-limiting binding and its `wrangler.toml` form).
 - If Pages Functions support the binding, add it to `wrangler.toml` as `SHARE_LIMITER` with `limit = 10` and `period = 60`.
-- If they don't, ask the owner to add one WAF rate-limiting rule for `/api/share` (POST, 10 requests per minute per IP, block for a minute) in the dashboard. Record which one was done in the ledger.
+- If they don't, ask the owner to add one WAF rate-limiting rule for `/api/share` (POST, 10 requests per minute per IP, block for a minute) in the dashboard. Note in the commit message which one was done.
 
 - [ ] **Step 4: Write `wrangler.toml`**
 
@@ -4155,4 +4155,4 @@ git commit -m "docs: help, product plan, roadmap and divergences for the top bar
   - Task 15: BB-HELP-10.
   - Visual: VIS-SHARE-01 to 03.
 
-  Each was the next free number on 2026-10-16. An earlier task's fix round that takes a number shifts the later ones, and the shift is ledgered.
+  Each was the next free number on 2026-10-16. A number taken earlier by a fix shifts the later ones to the next free number.
