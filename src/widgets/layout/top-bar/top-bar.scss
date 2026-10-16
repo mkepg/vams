@@ -20,12 +20,23 @@
     &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
   }
 
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    flex: 1;
+  }
+
   &__actions {
     display: flex;
     align-items: center;
     gap: 4px;
     margin-left: auto;
+    flex-shrink: 0;
   }
+
+  &__share { display: contents; }
 
   &__sep {
     width: 1px;
@@ -33,6 +44,9 @@
     margin: 0 6px;
     background: var(--chrome-sep);
   }
+
+  .vbtn--quiet { height: 30px; min-height: 30px; }
+  .vbtn--quiet.vbtn--icon { width: 30px; min-width: 30px; }
 
   .vbtn__icon svg { width: 17px; height: 17px; }
 }

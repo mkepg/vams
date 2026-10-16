@@ -305,7 +305,7 @@ describe('BB-SHELL-09: The File menu lists the project actions in order', () => 
     const host = mount(h(FileMenu, {}));
     await openMenu(host, 'File');
     expect(menuItems(host)).toEqual([
-      'New workspace', 'My scenes…', 'Open project file…', 'Save project file', 'Export C++ code', 'Export scene JSON',
+      'New workspace', 'My scenes…', 'Open project file…', 'Save project file', 'Export C++ code',
     ]);
     expect(host.querySelectorAll('[role="separator"]')).toHaveLength(2);
     chooseItem(host, 'My scenes…');
@@ -321,7 +321,7 @@ describe('BB-SHELL-10: In Lesson mode the File menu only saves and exports', () 
     useVamsStore.setState({ appMode: 'Lesson' });
     const host = mount(h(FileMenu, {}));
     await openMenu(host, 'File');
-    expect(menuItems(host)).toEqual(['Save project file', 'Export C++ code', 'Export scene JSON']);
+    expect(menuItems(host)).toEqual(['Save project file', 'Export C++ code']);
     unmount(host);
     useVamsStore.setState({ appMode: 'Author' });
   });
@@ -353,14 +353,14 @@ describe('BB-SHELL-11: Opening a project file asks first when the scene has work
 describe('BB-SHELL-12: The settings menu toggles view options and opens shortcuts', () => {
   it('menuitemcheckbox entries reflect and toggle state', async () => {
     const host = mount(h(EditorPreferencesMenu, {}));
-    await openMenu(host, 'View settings');
+    await openMenu(host, 'Settings');
     const grid = [...host.querySelectorAll('[role="menuitemcheckbox"]')].find((el) => el.textContent?.includes('Gridlines'))!;
     const before = useVamsStore.getState().axisVisibility.showGridlines;
     expect(grid.getAttribute('aria-checked')).toBe(String(before));
     (grid as HTMLElement).click();
     await settle();
     expect(useVamsStore.getState().axisVisibility.showGridlines).toBe(!before);
-    await openMenu(host, 'View settings');
+    await openMenu(host, 'Settings');
     chooseItem(host, 'Keyboard shortcuts');
     await settle();
     expect(useVamsStore.getState().activeHelpTopicId).toBe('shortcuts');
