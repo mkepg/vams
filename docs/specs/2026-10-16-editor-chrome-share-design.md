@@ -312,6 +312,15 @@ The owner reviewed the build at two points and during setup, and changed the des
 
 - **No rate-limit binding.** Cloudflare Pages doesn't support one, and the site has no zone of its own for a WAF rule. The free plan's daily KV write limit caps storage instead, and the function returns 503 when it is reached.
 - **The `/app/` rewrite target.** `public/_redirects` rewrites `/s/*` to `/app/`. The trailing slash matters: `/app` would redirect and lose the id.
+- **The 1 GB store and the 90-day expiry stay (owner, 2026-10-17).** A day of 1 MB spam could fill the free plan's 1 GB of KV storage and keep new stored links failing until entries expire. It costs nothing. While the store is full, Share falls back to a link that carries the scene, so only uploaded images are lost from new links. An unchanged scene reuses its stored link within a session rather than writing a copy. If the store ever fills, empty it from the repository root:
+
+  ```bash
+  npx wrangler@4 kv key list --binding SHARES --remote > keys.json
+  npx wrangler@4 kv bulk delete --binding SHARES --remote --force keys.json
+  ```
+
+- **No read before the write.** The function writes a new id without checking it first: KV caches a "not found" read at the edge for about a minute, which would make a brand-new link read as expired. With 62⁸ ids a collision is negligible.
+- **Requests time out after 8 seconds.** Storing and fetching a shared scene count as offline after 8 s, so the dialog and the scene view fall back rather than wait on stalled Wi-Fi.
 
 ### Closing look
 
