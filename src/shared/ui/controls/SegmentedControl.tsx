@@ -6,6 +6,8 @@ export interface SegmentOption<T extends string> {
   value: T;
   label: string;
   title?: string;
+  /** Rendered before the label, such as an icon. */
+  icon?: ComponentChildren;
   /** Rendered after the label, such as a status dot. */
   adornment?: ComponentChildren;
 }
@@ -76,6 +78,7 @@ export function SegmentedControl<T extends string>({
           className={option.value === value ? 'vseg__option is-on' : 'vseg__option'}
           onClick={() => onChange(option.value)}
         >
+          {option.icon}
           {option.label}
           {option.adornment}
         </button>

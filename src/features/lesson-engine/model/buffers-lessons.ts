@@ -63,7 +63,7 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
       },
       {
         pane: 'math',
-        narration: "Look at the math panel's CPU → GPU Traffic timeline. The data still travels every frame — but now in one batched send instead of vertex-by-vertex.",
+        narration: "Look at the traffic timeline in Math's Stored stage. The data still travels every frame — but now in one batched send instead of vertex-by-vertex.",
         waitForUser: true,
       },
     ],
@@ -98,7 +98,7 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
       },
       {
         pane: 'math',
-        narration: "Look at the math panel's CPU → GPU Traffic timeline — only frame 1 lights up green. The GPU keeps the data; subsequent frames are pure draw calls.",
+        narration: "Look at the traffic timeline in the Stored stage — only frame 1 lights up green. The GPU keeps the data; subsequent frames are pure draw calls.",
         waitForUser: true,
       },
       {
@@ -172,7 +172,7 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
       },
       {
         pane: 'math',
-        narration: "Look at the math panel's traffic timeline to see the difference. STATIC is one green cell. DYNAMIC is sparse blue. STREAM is solid orange. The hint matches the actual data transfer cost.",
+        narration: "Look at the Stored stage's traffic timeline to see the difference. STATIC is one green cell. DYNAMIC is sparse blue. STREAM is solid orange. The hint matches the actual data transfer cost.",
         waitForUser: true,
       },
     ],
@@ -214,7 +214,7 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
       },
       {
         pane: 'math',
-        narration: "The function body is completely different. Instead of pushing bytes, we ask the driver for a raw pointer into GPU memory and write through it. The math panel just lit up with a Mapping diagram — that's the lifecycle we'll walk through now.",
+        narration: "The function body is completely different. Instead of pushing bytes, we ask the driver for a raw pointer into GPU memory and write through it. Math's Stored stage now shows a Mapping diagram — that's the lifecycle we'll walk through now.",
         waitForUser: true,
       },
       {
@@ -348,7 +348,7 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
       },
       {
         pane: 'math',
-        narration: "Brilliant! Look at Array vs Indexed in the math panel — the indexed version stores 4 vertices plus 6 indices instead of 6 full vertices. The code panel now uses glDrawElements.",
+        narration: "Brilliant! Look at Array vs Indexed in the Stored stage — the indexed version stores 4 vertices plus 6 indices instead of 6 full vertices. The code panel now uses glDrawElements.",
         waitForUser: true,
       },
     ],

@@ -6,6 +6,7 @@ import type { TourBaseline, TourSlice, VamsState } from '@/core/store/types';
 export const TOUR_STEP_COUNT = 6;
 const BUILD = 0;
 const CHANGE = 2;
+const UNDERSTAND = 3;
 
 /** The object the Change step works on: the selection, else the triangle built in step 1, else the first shape. */
 function changeTarget(state: VamsState, buildIds: readonly string[]): SceneNode | undefined {
@@ -32,6 +33,8 @@ function enterStep(state: VamsState, index: number): Partial<VamsState> {
       ...(target && target.id !== state.selectedObjectId ? { selectedObjectId: target.id, selectedVertexId: null } : {}),
     };
   }
+  // Changing X opens no group (Transform starts open), so the Understand step opens the stage its caption names.
+  if (index === UNDERSTAND) return { tourStep: index, tourStepBaseline: baseline, journeyStageOverride: 'transformed' };
   return { tourStep: index, tourStepBaseline: baseline };
 }
 
@@ -81,6 +84,7 @@ export const createTourSlice: StateCreator<VamsState, [], [], TourSlice> = (set,
       tourStep: null,
       tourStepBaseline: null,
       railBeforeTour: null,
+      journeyStageOverride: null,
       ...(restoreRail && state.railBeforeTour ? { railPanel: state.railBeforeTour } : {}),
     });
   },

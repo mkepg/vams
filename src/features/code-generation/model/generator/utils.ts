@@ -1,11 +1,4 @@
-import { CPP_KEYWORDS } from '@/core/callbacks/cpp-keywords';
-
-export const sanitizeName = (name: string): string => {
-  let sanitized = name.replace(/[^a-zA-Z0-9_]/g, '_');
-  if (/^[0-9]/.test(sanitized)) sanitized = '_' + sanitized;
-  if (CPP_KEYWORDS.has(sanitized)) sanitized = sanitized + '_obj';
-  return sanitized;
-};
+export { sanitizeName } from '@/shared/lib/sanitize-name';
 
 /** Float color emission: `glColor3f(r, g, b)` with values in [0, 1]. */
 export const hexToGlColor = (hex: string): string => {

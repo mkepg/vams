@@ -495,9 +495,9 @@ describe('BB-PANEL-20: The UV Editor has a typed table of texture coordinates', 
     await settle();
     expect(hints(host)).toContain('glTexCoord2f(u, v)');
     expect(host.querySelector('caption')!.textContent).toBe('Texture coordinates');
-    const u0 = fieldNamed(host, 'Vertex 0 U')!;
+    const u0 = fieldNamed(host, 'Vertex 1 U')!;
     expect(u0).not.toBeNull();
-    expect(fieldNamed(host, 'Vertex 0 V')).not.toBeNull();
+    expect(fieldNamed(host, 'Vertex 1 V')).not.toBeNull();
     typeInto(u0, '0.25');
     await settle();
     const uvs = useVamsStore.getState().objects.find((o) => o.id === quad.id)!.uvs!;
@@ -542,7 +542,7 @@ describe('BB-PANEL-22: The Vertices panel edits glVertex2f positions with one un
     expect(host.querySelectorAll('tbody tr')).toHaveLength(3);
     useVamsStore.setState({ past: [], future: [] });
     const before = useVamsStore.getState().past.length;
-    typeInto(fieldNamed(host, 'Vertex 0 X')!, '0.25');
+    typeInto(fieldNamed(host, 'Vertex 1 X')!, '0.25');
     await settle();
     const moved = useVamsStore.getState().objects.find((o) => o.id === tri.id)!;
     expect(moved.vertices[0].x).toBeCloseTo(0.25);

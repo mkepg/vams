@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { ComponentChildren } from 'preact';
-import { PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { PanelRightClose, PanelRightOpen, SquareCode, SquareFunction } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import type { CodePane } from '@/core/store/types';
 import SceneCodePanel from '@/features/code-generation/ui/SceneCodePanel';
@@ -58,17 +58,18 @@ export default function CodeMathColumn() {
     );
   }
 
-  const options: { value: CodePane; label: string; adornment?: ComponentChildren }[] = [
+  const options: { value: CodePane; label: string; icon: ComponentChildren; adornment?: ComponentChildren }[] = [
     {
       value: 'code',
       label: 'Code',
+      icon: <SquareCode size={16} strokeWidth={1.75} aria-hidden="true" />,
       adornment: unseen ? (
         <span className="code-math-switch__dot">
           <span className="sr-only">Code changed</span>
         </span>
       ) : undefined,
     },
-    { value: 'math', label: 'Math' },
+    { value: 'math', label: 'Math', icon: <SquareFunction size={16} strokeWidth={1.75} aria-hidden="true" /> },
   ];
   const lead = (
     <div className="code-math-switch" data-tour-anchor="code-switch">

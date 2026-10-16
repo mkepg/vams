@@ -1,379 +1,445 @@
 import './code-viewer.scss';
-import { memo, useMemo, useState, useEffect, useRef } from 'react';
+import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { ComponentChildren } from 'preact';
-import { TbCopy, TbCheck } from 'react-icons/tb';
-import { Search, X, Info } from 'lucide-react';
-import { Button } from '@/shared/ui/controls';
-import type { CodeAnnotation } from '@/features/code-generation/model/glut-annotations';
+import { X } from 'lucide-react';
+import { tokenizeLine } from './tokenize';
+import type { CodeMark, CodeNote, CodeRow, CodeStrip } from './types';
 
-interface CodeViewerProps {
+export interface CodeViewerProps {
   code: string;
-  highlightTarget?: string | null;
+  /** The rows to show; every line when omitted. */
+  rows?: readonly CodeRow[];
+  /** A fold or "more" row was opened, or a block opened by hand was closed. */
+  onToggleFold?: (block: string) => void;
+  /** The values that just changed. */
+  marks?: readonly CodeMark[];
+  /** Changes with every new edit, so the marks' fade starts again. */
+  marksKey?: number;
+  /** Lines to scroll into view when they change: a lesson's highlighted lines, else the changed values. */
+  revealLines?: readonly number[];
+  /** Run's fired branch. */
+  firedLines?: readonly number[];
+  /** Find's current match is on this line; null when Find is empty or closed. */
+  onFindLine?: (line: number | null) => void;
   isLessonMode?: boolean;
-  annotations?: CodeAnnotation[];
-  changedLines?: number[];
   /** Replaces the language and line count at the start of the header, such as the column's switch. */
   headerLead?: ComponentChildren;
   /** Rendered at the end of the header, after Copy. */
   headerTrail?: ComponentChildren;
+  /** Lines the student can click to have explained. */
+  explainable?: ReadonlySet<number>;
+  /** The line the strip explains. */
+  explainedLine?: number | null;
+  /** A line was chosen to explain; null closes the strip. */
+  onExplain?: (line: number | null) => void;
+  /** The open explanation, shown under the code. */
+  strip?: CodeStrip | null;
+  /** Notes under their lines. */
+  notes?: ReadonlyMap<number, CodeNote>;
+  notesOn?: boolean;
+  onToggleNotes?: () => void;
 }
 
-const KEYWORDS = new Set([
-  'void', 'int', 'float', 'double', 'char', 'bool', 'const', 'static',
-  'struct', 'class', 'return', 'if', 'else', 'for', 'while', 'do',
-  'switch', 'case', 'break', 'continue', 'true', 'false', 'nullptr',
-  'unsigned', 'signed', 'short', 'long', 'auto', 'using', 'namespace',
-  'reinterpret_cast', 'sizeof', 'new', 'delete',
-]);
+interface Overlay {
+  start: number;
+  end: number;
+  cls: string;
+}
 
-const GL_PREFIXES = ['GL_', 'GLUT_'];
+interface Segment {
+  text: string;
+  cls: string;
+}
 
-function tokenizeLine(line: string): Array<{ t: string; k: string }> {
-  const out: Array<{ t: string; k: string }> = [];
-  let i = 0;
-  const n = line.length;
-
-  while (i < n) {
-    const ch = line[i];
-
-    if (i === 0 && /^\s*#/.test(line)) { out.push({ t: line, k: 'pp' }); return out; }
-    if (ch === '/' && line[i + 1] === '/') { out.push({ t: line.slice(i), k: 'comment' }); return out; }
-
-    if (ch === '"') {
-      let j = i + 1;
-      while (j < n && line[j] !== '"') { if (line[j] === '\\') j++; j++; }
-      out.push({ t: line.slice(i, j + 1), k: 'string' }); i = j + 1; continue;
+/** Splits a line's tokens at the overlay edges, so a mark or a Find match can cover part of a token. */
+export function lineSegments(text: string, overlays: readonly Overlay[]): Segment[] {
+  const out: Segment[] = [];
+  let pos = 0;
+  for (const token of tokenizeLine(text)) {
+    const start = pos;
+    const end = pos + token.t.length;
+    const cuts = new Set([start, end]);
+    for (const o of overlays) {
+      if (o.start > start && o.start < end) cuts.add(o.start);
+      if (o.end > start && o.end < end) cuts.add(o.end);
     }
-    if (ch === "'") {
-      let j = i + 1;
-      while (j < n && line[j] !== "'") { if (line[j] === '\\') j++; j++; }
-      out.push({ t: line.slice(i, j + 1), k: 'string' }); i = j + 1; continue;
+    const edges = [...cuts].sort((a, b) => a - b);
+    for (let k = 0; k < edges.length - 1; k++) {
+      const a = edges[k];
+      const b = edges[k + 1];
+      const extra = overlays.filter((o) => o.start <= a && o.end >= b).map((o) => o.cls);
+      out.push({ text: text.slice(a, b), cls: [`tk-${token.k}`, ...extra].join(' ') });
     }
-
-    if (/[0-9]/.test(ch) || (ch === '.' && /[0-9]/.test(line[i + 1] || ''))) {
-      const m = line.slice(i).match(/^[0-9]*\.?[0-9]+(e[+-]?[0-9]+)?[fFlLuU]*/);
-      if (m) { out.push({ t: m[0], k: 'num' }); i += m[0].length; continue; }
-    }
-
-    if (/[A-Za-z_]/.test(ch)) {
-      const m = line.slice(i).match(/^[A-Za-z_][A-Za-z0-9_]*/);
-      if (m) {
-        const tok = m[0];
-        let kind = 'ident';
-        if (KEYWORDS.has(tok)) kind = 'kw';
-        else if (GL_PREFIXES.some((p) => tok.startsWith(p))) kind = 'const';
-        else if (tok.startsWith('gl') && tok.length > 2 && /[A-Z]/.test(tok[2])) kind = 'glfn';
-        else if (tok.startsWith('glut') && tok.length > 4) kind = 'glfn';
-        else if (line[i + tok.length] === '(') kind = 'fn';
-        else if (tok === tok.toUpperCase() && tok.length > 1) kind = 'const';
-        out.push({ t: tok, k: kind });
-        i += tok.length; continue;
-      }
-    }
-
-    if (/[{}()[\];,.:]/.test(ch)) { out.push({ t: ch, k: 'punct' }); i++; continue; }
-    if (/[+\-*/%=<>!&|^~?]/.test(ch)) {
-      let j = i + 1;
-      while (j < n && /[+\-*/%=<>!&|^~?]/.test(line[j])) j++;
-      out.push({ t: line.slice(i, j), k: 'op' }); i = j; continue;
-    }
-
-    out.push({ t: ch, k: 'ws' }); i++;
+    pos = end;
   }
   return out;
 }
 
-const TokenizedLine = memo(function TokenizedLine({ line }: { line: string }) {
-  const tokens = useMemo(() => tokenizeLine(line), [line]);
+const LineText = memo(function LineText({ text, overlays }: { text: string; overlays: readonly Overlay[] }) {
+  const parts = useMemo(() => lineSegments(text, overlays), [text, overlays]);
   return (
     <>
-      {tokens.map((tok, i) => (
-        <span key={i} className={`tk tk-${tok.k}`}>{tok.t}</span>
+      {parts.map((p, i) => (
+        <span key={i} className={p.cls}>{p.text}</span>
       ))}
     </>
   );
 });
 
-const CodeViewer = memo(function CodeViewer({
-  code, highlightTarget, isLessonMode, annotations, changedLines, headerLead, headerTrail,
-}: CodeViewerProps) {
-  const [copied, setCopied] = useState(false);
-  const [search, setSearch] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
-  const searchRef = useRef<HTMLInputElement>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const lineElsRef = useRef<Map<number, HTMLDivElement>>(new Map());
+const NO_OVERLAYS: readonly Overlay[] = [];
 
-  const lines = useMemo(() => code.split('\n'), [code]);
-  const lineCount = lines.length;
+function byLine<T extends { line: number }>(items: readonly T[] | undefined): Map<number, T[]> {
+  const map = new Map<number, T[]>();
+  for (const item of items ?? []) map.set(item.line, [...(map.get(item.line) ?? []), item]);
+  return map;
+}
+
+const CodeViewer = memo(function CodeViewer({
+  code, rows, onToggleFold, marks, marksKey = 0, revealLines, firedLines, onFindLine, isLessonMode,
+  headerLead, headerTrail, explainable, explainedLine, onExplain, strip, notes, notesOn, onToggleNotes,
+}: CodeViewerProps) {
+  const baseId = useId();
+  const [copied, setCopied] = useState(false);
+  const [findOpen, setFindOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [current, setCurrent] = useState(0);
+  const findRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const lineEls = useRef<Map<number, HTMLDivElement>>(new Map());
+  const searchRef = useRef<HTMLDivElement>(null);
+  const findWordRef = useRef<HTMLButtonElement>(null);
+  // Focus follows a keyboard toggle: the control that was pressed is replaced, so its twin takes focus.
+  const focusAfter = useRef<{ selector: string } | null>(null);
+  const refocusFind = useRef(false);
+
+  const lines = useMemo(() => code.replace(/\r\n/g, '\n').split('\n'), [code]);
+  const rowList = useMemo<readonly CodeRow[]>(() => rows ?? lines.map((_, line) => ({ kind: 'line', line })), [rows, lines]);
+
+  const matches = useMemo<CodeMark[]>(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    const out: CodeMark[] = [];
+    lines.forEach((text, line) => {
+      const low = text.toLowerCase();
+      for (let at = low.indexOf(q); at >= 0; at = low.indexOf(q, at + q.length)) out.push({ line, start: at, end: at + q.length });
+    });
+    return out;
+  }, [lines, query]);
+  const index = matches.length === 0 ? -1 : Math.min(current, matches.length - 1);
+  const currentMatch = index >= 0 ? matches[index] : null;
+
+  // The parent opens the fold around the current match.
+  const findLine = currentMatch?.line ?? null;
+  useEffect(() => {
+    onFindLine?.(findLine);
+  }, [findLine, onFindLine]);
+
+  useEffect(() => {
+    if (findOpen) requestAnimationFrame(() => findRef.current?.focus());
+    else if (refocusFind.current) {
+      refocusFind.current = false;
+      findWordRef.current?.focus();
+    }
+  }, [findOpen]);
+
+  // The row that took the place of a pressed fold or ▾ gets the focus the press had.
+  useEffect(() => {
+    const pending = focusAfter.current;
+    if (!pending) return;
+    focusAfter.current = null;
+    scrollRef.current?.querySelector<HTMLElement>(pending.selector)?.focus();
+  }, [rowList]);
+
+  // Bring the current match into view once its fold has opened.
+  useEffect(() => {
+    if (!currentMatch) return;
+    const raf = requestAnimationFrame(() => lineEls.current.get(currentMatch.line)?.scrollIntoView?.({ block: 'nearest' }));
+    return () => cancelAnimationFrame(raf);
+  }, [currentMatch, rowList]);
+
+  // Scroll a lesson's highlighted lines, or the changed values, into view: centred when they fit, else from the top.
+  useEffect(() => {
+    if (!revealLines || revealLines.length === 0) return;
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    const top = Math.min(...revealLines);
+    const bottom = Math.max(...revealLines);
+    const raf = requestAnimationFrame(() => {
+      const el = lineEls.current.get(top);
+      if (!el || !scroller.contains(el)) return;
+      const scrollerRect = scroller.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const elTop = scroller.scrollTop + (elRect.top - scrollerRect.top);
+      const endEl = lineEls.current.get(bottom);
+      const height = endEl ? endEl.getBoundingClientRect().bottom - elRect.top : elRect.height;
+      let target = elTop - scroller.clientHeight / 2 + height / 2;
+      const withPadding = elTop - 24;
+      if (height > scroller.clientHeight * 0.7 || target > withPadding) target = withPadding;
+      const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      scroller.scrollTo({ top: Math.max(0, target), left: 0, behavior: reduced ? 'auto' : 'smooth' });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [revealLines, code]);
+
+  const stripId = `${baseId}-strip`;
+  const shownLines = useMemo(
+    () => rowList.flatMap((r) => (r.kind === 'line' && explainable?.has(r.line) ? [r.line] : [])),
+    [rowList, explainable],
+  );
+  const tabLine = explainedLine != null && shownLines.includes(explainedLine) ? explainedLine : shownLines[0];
+
+  const moveTo = (from: number, delta: 1 | -1) => {
+    const next = shownLines[shownLines.indexOf(from) + delta];
+    if (next === undefined) return;
+    lineEls.current.get(next)?.focus();
+    if (explainedLine != null) onExplain?.(next);
+  };
+
+  const onLineKey = (line: number) => (e: KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onExplain?.(line);
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      moveTo(line, e.key === 'ArrowDown' ? 1 : -1);
+    } else if (e.key === 'Escape' && explainedLine != null) {
+      e.preventDefault();
+      onExplain?.(null);
+    }
+  };
+
+  // The explained line scrolls into view, as when it was chosen from the math.
+  useEffect(() => {
+    if (explainedLine == null) return;
+    const raf = requestAnimationFrame(() => lineEls.current.get(explainedLine)?.scrollIntoView?.({ block: 'nearest' }));
+    return () => cancelAnimationFrame(raf);
+  }, [explainedLine]);
+
+  const closeStrip = () => {
+    const line = explainedLine;
+    onExplain?.(null);
+    // The close button leaves with the strip; the line keeps the focus.
+    if (line != null) requestAnimationFrame(() => lineEls.current.get(line)?.focus());
+  };
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) { console.error('Failed to copy text: ', err); }
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
   };
 
-  useEffect(() => {
-    if (searchOpen) requestAnimationFrame(() => searchRef.current?.focus());
-  }, [searchOpen]);
+  const closeFind = () => {
+    refocusFind.current = !!searchRef.current?.contains(document.activeElement);
+    setQuery('');
+    setCurrent(0);
+    setFindOpen(false);
+  };
 
-  const highlightedLines = useMemo(() => {
-    const highlighted = new Set<number>();
-    if (!highlightTarget) return highlighted;
-    let inDrawBlock = false;
-    let inConfigBlock = false;
-    
-    // Per-object identifier prefixes emitted by the code generator.
-    // Keep these in sync with generator/buffers.ts and generator/textures.ts.
-    // `uvs_*` is the per-vertex UV array, `uvbo_*` its VBO handle (textured VBO mode).
-    const targetRegex = new RegExp(`\\b(draw|state|verts|colors|indices|uvs|vbo|cbo|ebo|uvbo|tex)_${highlightTarget}\\b`);
-    const configOpRegex = new RegExp(`\\b(vbo|cbo|ebo|uvbo|verts|colors|indices|uvs|tex)_${highlightTarget}\\b`);
-    
-    lines.forEach((line, index) => {
-      const trimmed = line.trim();
-      if (trimmed === `void draw_${highlightTarget}()`) inDrawBlock = true;
-      
-      if (inDrawBlock) {
-        highlighted.add(index);
-        if (trimmed === '}' && line.startsWith('}')) inDrawBlock = false;
-      } else if (inConfigBlock) {
-        if (trimmed === '') {
-          inConfigBlock = false; // Config setups/updates always end with a blank line
-        } else {
-          highlighted.add(index);
-        }
-      } else if (targetRegex.test(line)) {
-        highlighted.add(index);
-        // Include the preceding explanatory comment if it exists
-        if (index > 0 && lines[index - 1].trim().startsWith('//')) {
-          highlighted.add(index - 1);
-        }
-        if (line.startsWith('    ') && configOpRegex.test(line)) {
-          inConfigBlock = true;
-        }
-      }
-    });
-    return highlighted;
-  }, [lines, highlightTarget]);
+  const marksByLine = useMemo(() => byLine(marks), [marks]);
+  const matchesByLine = useMemo(() => byLine(matches), [matches]);
+  const fired = useMemo(() => new Set(firedLines ?? []), [firedLines]);
 
-  const searchMatches = useMemo(() => {
-    if (!search.trim()) return new Set<number>();
-    const q = search.toLowerCase();
-    const m = new Set<number>();
-    lines.forEach((line, i) => { if (line.toLowerCase().includes(q)) m.add(i); });
-    return m;
-  }, [lines, search]);
+  const overlaysFor = (line: number): readonly Overlay[] => {
+    const lineMarks = marksByLine.get(line);
+    const lineMatches = matchesByLine.get(line);
+    if (!lineMarks && !lineMatches) return NO_OVERLAYS;
+    return [
+      ...(lineMarks ?? []).map((m) => ({ start: m.start, end: m.end, cls: 'code-value' })),
+      ...(lineMatches ?? []).map((m) => ({ start: m.start, end: m.end, cls: m === currentMatch ? 'code-find is-current' : 'code-find' })),
+    ];
+  };
 
-  const changedSet = useMemo(() => {
-    if (!changedLines || changedLines.length === 0) return new Set<number>();
-    return new Set(changedLines);
-  }, [changedLines]);
+  const toggleFromKey = (block: string, twin: 'code-fold-close' | 'code-fold', pressed: HTMLElement) => {
+    if (document.activeElement === pressed) focusAfter.current = { selector: `.${twin}[data-block="${block}"]` };
+    onToggleFold?.(block);
+  };
 
-  const annotationByLine = useMemo(() => {
-    const map = new Map<number, CodeAnnotation>();
-    if (!annotations || annotations.length === 0) return map;
+  const renderLine = (row: Extract<CodeRow, { kind: 'line' }>) => {
+    const { line } = row;
+    const text = lines[line] ?? '';
+    const changed = marksByLine.has(line);
+    const canExplain = explainable?.has(line) ?? false;
+    const explained = explainedLine === line;
+    const note = notes?.get(line);
+    const classes = [
+      'code-line', changed ? 'is-changed' : '', fired.has(line) ? 'is-fired' : '',
+      canExplain ? 'is-explainable' : '', explained ? 'is-explained' : '',
+    ].filter(Boolean).join(' ');
+    return (
+      // A changed line remounts on each edit, so its fade starts again.
+      <div key={changed ? `${line}:${marksKey}` : `${line}`} className="code-row">
+        {/* ▾ is the line's sibling, never inside it: the line itself is a button. */}
+        {row.closes && (
+          <button
+            type="button"
+            className="code-fold-close"
+            aria-label={`Fold ${row.closes.label}`}
+            data-block={row.closes.block}
+            onClick={(e) => toggleFromKey(row.closes!.block, 'code-fold', e.currentTarget)}
+          >
+            ▾
+          </button>
+        )}
+        <div
+          ref={(el) => {
+            if (el) lineEls.current.set(line, el);
+            else lineEls.current.delete(line);
+          }}
+          className={classes}
+          data-line={line}
+          role={canExplain ? 'button' : undefined}
+          tabIndex={canExplain ? (line === tabLine ? 0 : -1) : undefined}
+          aria-expanded={canExplain ? explained : undefined}
+          aria-controls={explained ? stripId : undefined}
+          onClick={canExplain ? () => onExplain?.(line) : undefined}
+          onKeyDown={canExplain ? onLineKey(line) : undefined}
+        >
+          <span className="code-line__num" aria-hidden="true">{line + 1}</span>
+          <span className="code-line__text">{text ? <LineText text={text} overlays={overlaysFor(line)} /> : ' '}</span>
+        </div>
+        {notesOn && note && (
+          <div className="code-note">
+            <span className="code-line__num" aria-hidden="true" />
+            <span className="code-note__indent" aria-hidden="true">{text.match(/^\s*/)![0]}</span>
+            <span className="code-note__text">
+              {note.map((part, k) =>
+                part.changed === undefined ? (
+                  <span key={k}>{part.text}</span>
+                ) : (
+                  <b key={k} className={`code-note__value${part.changed ? ' is-changed' : ''}`}>{part.text}</b>
+                ),
+              )}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
-    lines.forEach((line, idx) => {
-      const trimmed = line.trim();
-      if (!trimmed) return;
-      for (const a of annotations) {
-        if (a.pattern.test(trimmed)) {
-          if (!map.has(idx)) map.set(idx, a);
-          break;
-        }
-      }
-    });
-    return map;
-  }, [lines, annotations]);
-
-  useEffect(() => {
-    if (!changedLines || changedLines.length === 0) return;
-    const scroller = scrollAreaRef.current;
-    if (!scroller) return;
-
-    const topIdx = Math.min(...changedLines);
-    const target = lineElsRef.current.get(topIdx);
-    if (!target) return;
-
-    const raf = requestAnimationFrame(() => {
-      const el = lineElsRef.current.get(topIdx);
-      if (!el || !scroller.contains(el)) return;
-
-      const scrollerRect = scroller.getBoundingClientRect();
-      const elRect = el.getBoundingClientRect();
-      const elTopWithinScroller =
-        scroller.scrollTop + (elRect.top - scrollerRect.top);
-
-      const viewportH = scroller.clientHeight;
-      const regionEnd = Math.max(...changedLines);
-      const regionEndEl = lineElsRef.current.get(regionEnd);
-      const regionHeight =
-        regionEndEl
-          ? regionEndEl.getBoundingClientRect().bottom - elRect.top
-          : elRect.height;
-
-      let targetTop = elTopWithinScroller - (viewportH / 2) + (regionHeight / 2);
-
-      const topWithPadding = elTopWithinScroller - 24;
-      if (regionHeight > viewportH * 0.7 || targetTop > topWithPadding) {
-        targetTop = topWithPadding;
-      }
-
-      const prefersReduced =
-        typeof window !== 'undefined' &&
-        window.matchMedia &&
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-      // A highlighted line starts at its GL call, so its start is always shown.
-      scroller.scrollTo({
-        top: Math.max(0, targetTop),
-        left: 0,
-        behavior: prefersReduced ? 'auto' : 'smooth',
-      });
-    });
-
-    return () => cancelAnimationFrame(raf);
-  }, [changedLines, code]);
-
-  const stats = useMemo(() => {
-    const bytes = new Blob([code]).size;
-    return { lines: lineCount, bytes };
-  }, [code, lineCount]);
-
-  const changeBadgeCount = changedSet.size;
-  // The header has room for one chip: the lesson's change count, else the focus target, else the hover hint.
-  const showBadge = isLessonMode && changeBadgeCount > 0;
-  const showFocus = !showBadge && !!highlightTarget;
-  const showHint = !showBadge && !highlightTarget && annotationByLine.size > 0;
+  const renderFold = (row: Exclude<CodeRow, { kind: 'line' }>) => {
+    const tipId = row.kind === 'fold' ? `${baseId}-fold-${row.start}` : undefined;
+    return (
+      <div key={`${row.kind}:${row.block}:${row.start}`} className={`code-fold-row code-fold-row--${row.kind}`}>
+        <button
+          type="button"
+          className="code-fold"
+          aria-expanded="false"
+          aria-describedby={tipId}
+          data-block={row.block}
+          onClick={(e) => toggleFromKey(row.block, 'code-fold-close', e.currentTarget)}
+        >
+          <span className="code-line__num" aria-hidden="true">{row.start + 1}</span>
+          <span className="code-fold__arrow" aria-hidden="true">▸ </span>
+          <span className="code-fold__label">{row.label}</span>
+        </button>
+        {row.kind === 'fold' && (
+          <span id={tipId} role="tooltip" className="code-fold__summary">{row.summary}</span>
+        )}
+      </div>
+    );
+  };
 
   return (
-    <div className={`code-viewer-container ${isLessonMode ? 'lesson-mode' : ''}`}>
+    <div className={`code-viewer-container${isLessonMode ? ' lesson-mode' : ''}`}>
       <div className="code-header">
         <div className="code-header-left">
           {headerLead ?? (
             <>
               <span className="code-lang">C++</span>
-              <span className="code-stat">· OpenGL 1.5 · {stats.lines} lines</span>
+              <span className="code-stat">· OpenGL 1.5 · {lines.length} lines</span>
             </>
-          )}
-
-          {showHint && (
-            <span className="code-annot-hint" title="Hover an underlined line for an explanation">
-              <Info size={11} />
-              <span>hover lines for notes</span>
-            </span>
-          )}
-
-          {showBadge && (
-            <span
-              className="code-change-badge"
-              title="Lines updated in this step"
-              aria-label={`${changeBadgeCount} line${changeBadgeCount === 1 ? '' : 's'} updated in this step`}
-            >
-              <span className="change-dot" aria-hidden />
-              <span>updated · {changeBadgeCount}</span>
-            </span>
-          )}
-
-          {showFocus && (
-            <span className="code-focus" title={`Highlighting: ${highlightTarget}`}>
-              focus: <code>{highlightTarget}</code>
-            </span>
           )}
         </div>
-
         <div className="code-header-right">
-          {!isLessonMode && (
-            <>
-              {searchOpen ? (
-                <div className="code-search">
-                  <Search size={12} />
-                  <input
-                    ref={searchRef}
-                    value={search}
-                    onChange={(e) => setSearch(e.currentTarget.value)}
-                    placeholder="Find in code…"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Escape') { setSearch(''); setSearchOpen(false); }
-                    }}
-                  />
-                  {search && <span className="search-count">{searchMatches.size}</span>}
-                  <button
-                    type="button"
-                    className="search-close"
-                    onClick={() => { setSearch(''); setSearchOpen(false); }}
-                    title="Close search"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              ) : (
-                <Button variant="quiet" iconOnly label="Find" icon={<Search size={13} />} onClick={() => setSearchOpen(true)} />
-              )}
-            </>
+          {onToggleNotes && (
+            <button type="button" className="code-word" aria-pressed={!!notesOn} onClick={onToggleNotes}>Notes</button>
           )}
-
-          <Button
-            variant="quiet"
-            className={`copy-button ${copied ? 'copied' : ''}`}
-            onClick={handleCopy}
-            title="Copy code"
-            icon={copied ? <TbCheck size={14} /> : <TbCopy size={14} />}
-          >
-            {copied ? 'Copied' : 'Copy'}
-          </Button>
+          {!isLessonMode && (findOpen ? (
+            <div className="code-search" role="search" ref={searchRef}>
+              <input
+                ref={findRef}
+                value={query}
+                aria-label="Find in code"
+                placeholder="Find in code…"
+                onInput={(e) => {
+                  setQuery(e.currentTarget.value);
+                  setCurrent(0);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.preventDefault();
+                    closeFind();
+                  } else if (e.key === 'Enter' && matches.length > 0) {
+                    e.preventDefault();
+                    setCurrent((index + (e.shiftKey ? matches.length - 1 : 1)) % matches.length);
+                  }
+                }}
+              />
+              {query && (
+                <span className="code-search__count" aria-live="polite">
+                  {matches.length === 0 ? '0' : `${index + 1}/${matches.length}`}
+                </span>
+              )}
+              <button type="button" className="code-search__close" aria-label="Close find" onClick={closeFind}>
+                <X size={12} aria-hidden="true" />
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="code-word" ref={findWordRef} onClick={() => setFindOpen(true)}>Find</button>
+          ))}
+          <button type="button" className="code-word" onClick={handleCopy}>{copied ? 'Copied' : 'Copy'}</button>
           {headerTrail}
         </div>
       </div>
 
-      <div className="code-content" ref={scrollAreaRef}>
-        <div className="line-numbers" aria-hidden="true">
-          {Array.from({ length: lineCount }, (_, i) => (
-            <div
-              key={i}
-              className={`line-num
-                ${highlightedLines.has(i) ? 'highlight' : ''}
-                ${searchMatches.has(i) ? 'match' : ''}
-                ${changedSet.has(i) ? 'changed' : ''}`}
-            >
-              {i + 1}
-            </div>
-          ))}
-        </div>
-
-        <pre>
-          {lines.map((line, i) => {
-            const annotation = annotationByLine.get(i);
-            const isChanged = changedSet.has(i);
-
-            return (
-              <div
-                key={i}
-                ref={(el) => {
-                  if (el) lineElsRef.current.set(i, el);
-                  else lineElsRef.current.delete(i);
-                }}
-                className={`code-line
-                  ${highlightedLines.has(i) ? 'highlight' : ''}
-                  ${searchMatches.has(i) ? 'match' : ''}
-                  ${annotation ? 'has-annot' : ''}
-                  ${isChanged ? 'changed' : ''}`}
-              >
-                {isChanged && <span className="change-marker" aria-hidden />}
-                {line ? <TokenizedLine line={line} /> : ' '}
-                {annotation && (
-                  <span className="code-annot" role="tooltip">
-                    <span className="annot-title">{annotation.title}</span>
-                    <span className="annot-desc">{annotation.description}</span>
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </pre>
+      <div className="code-content" ref={scrollRef}>
+        {rowList.map((row) => (row.kind === 'line' ? renderLine(row) : renderFold(row)))}
       </div>
+
+      {/* Always mounted, so the first explanation is announced. */}
+      <div className="code-live" aria-live="polite">
+        {strip && (
+        <section id={stripId} className="code-strip" aria-label="What this line does">
+          <div className="code-strip__body">
+            <div className="code-strip__head">
+              <code className="code-strip__sig">{strip.signature}</code>
+              <button type="button" className="code-strip__close" aria-label="Close explanation" onClick={closeStrip}>
+                <X size={12} aria-hidden="true" />
+              </button>
+            </div>
+            <p className="code-strip__text">{strip.text}</p>
+            {strip.values.length > 0 && (
+              <table className="code-strip__values">
+                <caption>Your values</caption>
+                <tbody>
+                  {strip.values.map((v) => (
+                    <tr key={v.arg}>
+                      <th scope="row">{v.arg}</th>
+                      <td>{v.source} = <span className="code-strip__value">{v.value}</span></td>
+                      <td>{v.control ?? ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {strip.links.length > 0 && (
+              <div className="code-strip__links">
+                {strip.links.map((l) => (
+                  <button key={l.label} type="button" className="code-strip__link" onClick={l.onSelect}>{l.label}</button>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+        )}
+      </div>
+      {!strip && explainable && explainable.size > 0 && (
+        <p className="code-hint"><b>Click any line</b> to see what it does.</p>
+      )}
     </div>
   );
 });

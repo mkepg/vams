@@ -1,13 +1,9 @@
 import type { SceneNode, Vertex } from '@/core/types/scene';
 import type { UV } from '@/core/types/textures';
+import { deduplicate, hasTexture } from '@/entities/scene/model/vertex-dedup';
 import { sanitizeName, getGlPrimitive } from './utils';
 function isPrimitive(o: SceneNode): boolean {
   return o.type !== 'GROUP' && o.type !== 'TEXT';
-}
-// True when the object has a texture AND a UV per vertex — the gate the
-// renderer uses to actually emit texture-mapping calls.
-function hasTexture(o: SceneNode): boolean {
-  return !!(o.texture && o.uvs && o.uvs.length === o.vertices.length);
 }
 function bufferUsageMacro(o: SceneNode): string {
   switch (o.bufferUsage) {
@@ -16,34 +12,6 @@ function bufferUsageMacro(o: SceneNode): string {
     case 'STATIC':
     default:        return 'GL_STATIC_DRAW';
   }
-}
-function deduplicate(
-  o: SceneNode,
-): { uniqueVerts: Vertex[]; uniqueUvs: UV[] | null; indices: number[] } | null {
-  if (!o.useIndexed) return null;
-  const textured = hasTexture(o);
-  const uniqueVerts: Vertex[] = [];
-  const uniqueUvs: UV[] = [];
-  const indices: number[] = [];
-  const keyToIndex = new Map<string, number>();
-  for (let i = 0; i < o.vertices.length; i++) {
-    const v = o.vertices[i];
-    const uv = textured ? o.uvs![i] : null;
-    // UV is part of the dedup key when present — two corners at the same (x,y)
-    // with the same color but different UVs are genuinely different vertices.
-    const key = uv
-      ? `${v.x.toFixed(6)}|${v.y.toFixed(6)}|${v.color}|${uv.u.toFixed(6)}|${uv.v.toFixed(6)}`
-      : `${v.x.toFixed(6)}|${v.y.toFixed(6)}|${v.color}`;
-    let idx = keyToIndex.get(key);
-    if (idx === undefined) {
-      idx = uniqueVerts.length;
-      uniqueVerts.push(v);
-      if (uv) uniqueUvs.push(uv);
-      keyToIndex.set(key, idx);
-    }
-    indices.push(idx);
-  }
-  return { uniqueVerts, uniqueUvs: textured ? uniqueUvs : null, indices };
 }
 function effectiveVerts(o: SceneNode): Vertex[] {
   return deduplicate(o)?.uniqueVerts ?? o.vertices;

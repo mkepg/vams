@@ -6,19 +6,18 @@
   display: flex;
   flex-direction: column;
   background-color: var(--paper);
-  /* A stronger line than the panel rules: code above, the math behind it below. */
-  border-top: 1px solid var(--rule-strong);
 
   .math-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 6px;
-    min-height: 32px;
-    padding: 0 12px;
-    background-color: var(--paper-sunken);
-    border-bottom: 1px solid $border-color;
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+    height: 36px;
+    min-height: 36px;
+    padding: 0 10px;
+    background-color: var(--paper);
+    border-bottom: 1px solid var(--rule);
     flex-shrink: 0;
 
     .math-title {
@@ -26,28 +25,6 @@
       font-size: var(--text-xs);
       color: var(--ink);
       font-weight: 700;
-    }
-  }
-
-  .math-content {
-    flex: 1;
-    padding: 0.85rem 1rem 1.25rem;
-    overflow-y: auto;
-    color: $text-main;
-    font-size: var(--text-xs);
-    @include scrollbar;
-
-    .empty-state {
-      color: $text-dim;
-      font-style: italic;
-      text-align: center;
-      padding: 1.5rem;
-      border: 1px dashed var(--rule);
-      border-radius: 6px;
-      background-color: rgba(var(--accent-blue-rgb), 0.03);
-      max-width: 80%;
-      line-height: 1.5;
-      margin: auto;
     }
   }
 

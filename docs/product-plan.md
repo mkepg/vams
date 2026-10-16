@@ -93,14 +93,14 @@ This behavior is enforced at a single, well-defined point in the section-switchi
 
 ### Goals
 
-1. The application has a stable workspace layout: a scene and inspector column on the left, a 2D canvas in the center, and a right column containing a code panel and a math panel.
+1. The application has a stable workspace layout: a scene and inspector column on the left, a 2D canvas in the center, and a right column containing a code panel and a math panel, shown one at a time.
 2. Application state is organized into clearly owned slices with no overlapping responsibility.
 3. The code generator produces deterministic, section-appropriate OpenGL output from scene state.
 4. The renderer displays 2D primitives correctly on the canvas.
 5. Undo/redo and project save/load work end-to-end and are preserved through all subsequent changes.
 6. The lesson engine can run a scripted, narrated, multi-step demo with scene mutations and success checks.
 7. The Learn drawer moves between curriculum sections with the correct state semantics defined above.
-8. The math panel has one tab per curriculum section and follows the control the student is using.
+8. The math panel is a vertex journey: it follows one vertex of the selected object through six pipeline stages (Stored, Transformed, Projected, Assembled, Rasterised, Coloured) with the student's numbers, and opens the stage that matches the control the student is using.
 
 ### Application State
 
@@ -126,7 +126,7 @@ The workspace has a top bar and three working regions:
 
   The rail opens on Add for an empty scene and on Scene otherwise, and selecting an object always switches it to Scene. Hide is temporary: any rail click, selection or lesson step shows the panel again. Below 1100 px the panel opens as a drawer over the canvas, beside the rail.
 - **Canvas**: central 2D viewport. Displays the scene. Supports mouse interaction for object placement, selection, vertex editing, and navigation. Run sits in its top-right corner and, when it is off, says why on the canvas.
-- **Code and math column**: right sidebar showing one pane at a time, switched by a Code / Math control. A dot on Code marks a code change made while Math shows. The whole column can be hidden to a thin edge tab.
+- **Code and math column**: right sidebar showing one pane at a time, switched by a Code / Math control. A dot on Code marks a code change made while Math shows. The whole column can be hidden to a thin edge tab. The math pane is the vertex journey: a track of the six stages, each showing its result, with one open to its step-by-step working and its pictures. An amber ring marks the followed vertex on the canvas while Math shows.
 
 While a lesson is active, a lesson bar runs along the bottom of the canvas with the title, the step, the narration, what an exercise is waiting for, and Back, Next and Exit; it folds to a slim strip. The step's control is opened in its rail panel and outlined in the live editor; demos also dim the other groups, exercises only outline, and a section's last exercise gives no focus. The top bar's Learn button opens the course map: the five sections in pipeline order, each section's demos and exercises, and the student's progress, stored in the browser.
 
@@ -137,9 +137,9 @@ A first-visit tour, started from the welcome dialog or the Help Center, spotligh
 The code generator takes the current scene state and produces a complete, valid OpenGL 1.x / GLUT program as text. Key requirements:
 
 - Output is deterministic. The same scene state always produces the same code.
-- The full scene is always shown. There is no partial or per-object view.
-- When a scene mutation changes the generated output, the changed lines briefly animate to draw the student's eye.
-- The selected object's corresponding code lines are visually distinguished.
+- The full scene is always shown. There is no partial or per-object view. In the code panel a folded block shows as one row, and Copy always gives the whole program.
+- When a scene mutation changes the generated output, the changed values are marked.
+- The selected object's code is unfolded and the rest of the program is folded to one line per block. Any line can be explained on request, and short notes sit under the key lines of the selected object's draw function. Folds, notes and explanations are panel UI: the generated program does not contain them.
 - The generator never emits deferred symbols (see Appendix C).
 
 The generated program structure includes at minimum: includes/setup, global declarations, an `init()` function for one-time setup, a `display()` callback, and a `main()` function with GLUT initialization.
@@ -337,7 +337,7 @@ For indexed primitives (e.g., polygons rendered as triangle fans), the code gene
 
 ### Buffer Flow Visualization
 
-During relevant demo steps, the math panel displays a visual diagram showing data transfer between CPU and GPU over a simulated frame timeline. The diagram adapts based on the active usage hint:
+During relevant demo steps, the math panel's Stored stage displays a visual diagram showing data transfer between CPU and GPU over a simulated frame timeline. The diagram adapts based on the active usage hint:
 
 - **Static** — one transfer on the first frame; no subsequent transfers.
 - **Dynamic** — transfers on occasional frames.
@@ -347,7 +347,7 @@ This diagram is used across multiple demos and is parameterized by the transfer 
 
 ### Direct Memory Access Visualization
 
-During the `glMapBuffer` demo, the math panel displays a diagram of a buffer as a row of cells representing vertex data, with a pointer arrow indicating the mapped pointer position. The diagram updates step by step as the demo narrates mapping, writing, and unmapping. The vertex update is reflected in the viewport as a real scene mutation — no interpreter is involved.
+During the `glMapBuffer` demo, the math panel's Stored stage displays a diagram of a buffer as a row of cells representing vertex data, with a pointer arrow indicating the mapped pointer position. The diagram updates step by step as the demo narrates mapping, writing, and unmapping. The vertex update is reflected in the viewport as a real scene mutation — no interpreter is involved.
 
 ### Demos (minimum 4)
 
@@ -400,9 +400,9 @@ Covers: `glTranslatef`, `glRotatef`, `glScalef`, `glPushMatrix`/`glPopMatrix`, `
 ### Workspace Configuration
 
 - **Inspector:** all prior tools + the Transform group (transform gizmo mode toggle (translate / rotate / scale) + numeric transform inputs for the selected object), and the glOrtho editor (left, right, bottom, top) under Viewing volume in scene settings.
-- **Viewport:** selected object shows a transform gizmo appropriate to the current mode (translate arrows, rotate ring, scale handles). A matrix stack panel appears as a compact overlay when in the Transforms section.
+- **Viewport:** selected object shows a transform gizmo appropriate to the current mode (translate arrows, rotate ring, scale handles). The matrix stack appears in the math panel's Transformed stage.
 - **Code Panel:** generated code includes `glMatrixMode`, `glLoadIdentity`, and per-object `glPushMatrix`/transform calls/`glPopMatrix` sequences. The `glOrtho` call appears at the top of `display()`.
-- **Math Panel:** 4×4 matrix display of the selected object's transform, matrix composition trace, and the glOrtho mapping equation.
+- **Math Panel:** the Transformed stage works the selected object's transform step by step and shows it as one matrix, with the full 4×4, the composition trace and the matrix stack; the Projected stage shows the glOrtho mapping with the student's numbers.
 
 ### Transform Gizmo Behavior
 
@@ -420,7 +420,7 @@ The transform model exposes independent X and Y scale. The transform inputs pane
 
 ### Matrix Stack Visualization
 
-The matrix stack panel is a compact vertical list of matrices derived from the selected object's ancestor chain. It shows what the `glPushMatrix`/`glPopMatrix` calls in the generated code would produce at the point where the selected object is drawn. The stack is synthetic — it reflects the scene hierarchy, not a running interpreter.
+The matrix stack panel is a compact vertical list of matrices derived from the selected object's ancestor chain. It shows what the `glPushMatrix`/`glPopMatrix` calls in the generated code would produce at the point where the selected object is drawn. The stack is synthetic — it reflects the scene hierarchy, not a running interpreter. It appears in the math panel's Transformed stage.
 
 ### glOrtho Editor
 

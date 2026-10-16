@@ -24,6 +24,8 @@ export { isSceneEmpty } from '@/entities/project/model/scene-empty';
  */
 export function loadProjectData(data: VamsProjectData): number {
   useVamsStore.setState({ ...toStorePatchFromProject(data), theme: toEditorTheme(getActiveTheme()) }, false);
+  // An opened scene is not the student's edit: its code is not marked as changed.
+  useVamsStore.getState().markSceneSwap();
   const state = useVamsStore.getState();
   const known = new Set(state.getAllTextures().map((t) => t.id));
   let detached = 0;

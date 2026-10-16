@@ -11,7 +11,7 @@ import {
   contextSection,
   OBJECT_GROUPS,
   SETTINGS_GROUPS,
-  mathTabFor,
+  journeyStageFor,
   railPanelFor,
   resolveFocus,
   sectionForPlace,
@@ -27,7 +27,7 @@ afterEach(() => {
     activeSection: 'Pipeline',
     openGroups: [...DEFAULT_OPEN_GROUPS],
     lastOpenedGroup: null,
-    mathTabOverride: null,
+    journeyStageOverride: null,
     learnOpen: false,
   });
 });
@@ -72,40 +72,40 @@ describe('BB-INSP-02: Each place belongs to a curriculum section', () => {
 });
 
 describe('BB-INSP-03: The context section follows focus, then the opened group, then the section', () => {
-  it('prefers a lesson focus, then the last opened group, then activeSection; a manual tab wins until cleared', () => {
-    const base = { appMode: 'Author' as const, lessonFocusPanel: null, selectedObjectId: null, lastOpenedGroup: null, activeSection: 'Pipeline' as const, mathTabOverride: null };
+  it('prefers a lesson focus, then the last opened group, then activeSection; a stage picked by hand wins until cleared', () => {
+    const base = { appMode: 'Author' as const, lessonFocusPanel: null, selectedObjectId: null, lastOpenedGroup: null, activeSection: 'Pipeline' as const, journeyStageOverride: null };
     expect(contextSection(base)).toBe('Pipeline');
     expect(contextSection({ ...base, lastOpenedGroup: 'texture' })).toBe('Textures');
     expect(contextSection({ ...base, appMode: 'Lesson', lessonFocusPanel: 'buffers-panel', selectedObjectId: 'x', lastOpenedGroup: 'texture' })).toBe('Buffers');
-    expect(mathTabFor({ ...base, lastOpenedGroup: 'texture', mathTabOverride: 'Transforms' })).toBe('Transforms');
+    expect(journeyStageFor({ ...base, lastOpenedGroup: 'texture', journeyStageOverride: 'transformed' })).toBe('transformed');
   });
 
   it('ignores a group opened before the lesson: a lesson step without focus shows the current section', () => {
-    const lesson = { appMode: 'Lesson' as const, lessonFocusPanel: null, selectedObjectId: null, lastOpenedGroup: 'texture-library' as const, activeSection: 'Transforms' as const, mathTabOverride: null };
+    const lesson = { appMode: 'Lesson' as const, lessonFocusPanel: null, selectedObjectId: null, lastOpenedGroup: 'texture-library' as const, activeSection: 'Transforms' as const, journeyStageOverride: null };
     expect(contextSection(lesson)).toBe('Transforms');
-    expect(mathTabFor(lesson)).toBe('Transforms');
+    expect(journeyStageFor(lesson)).toBe('transformed');
     // A focus id with no place in the editor counts as no focus.
     expect(contextSection({ ...lesson, lessonFocusPanel: 'nope' })).toBe('Transforms');
   });
 });
 
-describe('BB-INSP-04: Groups toggle, remember the last opened one, and clear a manual tab', () => {
+describe('BB-INSP-04: Groups toggle, remember the last opened one, and clear a stage picked by hand', () => {
   it('updates the transient state through store actions', () => {
     const s = () => useVamsStore.getState();
     expect(s().openGroups).toEqual(['transform', 'background', 'viewing-volume', 'texture-library']);
-    s().setMathTabOverride('Textures');
+    s().setJourneyStageOverride('coloured');
     s().toggleGroup('buffers');
     expect(s().openGroups).toContain('buffers');
     expect(s().lastOpenedGroup).toBe('buffers');
-    expect(s().mathTabOverride).toBeNull();
+    expect(s().journeyStageOverride).toBeNull();
     s().toggleGroup('buffers');
     expect(s().openGroups).not.toContain('buffers');
     s().setOpenGroups(['texture']);
     s().openGroup('texture');
     expect(s().openGroups).toEqual(['texture']);
-    s().setMathTabOverride('Buffers');
+    s().setJourneyStageOverride('stored');
     s().setLessonFocusPanel('object-transform');
-    expect(s().mathTabOverride).toBeNull();
+    expect(s().journeyStageOverride).toBeNull();
     s().setActiveSection('Textures');
     expect(s().openGroups).toEqual(['transform', 'background', 'viewing-volume', 'texture-library']);
     expect(s().lastOpenedGroup).toBeNull();
@@ -147,24 +147,24 @@ function unmountEl(host: HTMLElement) {
   host.remove();
 }
 
-describe('BB-INSP-06: The math panel has one tab per section and follows the student', () => {
-  it('names the five tabs, follows the opened group, and holds a manual pick until the next group', async () => {
+describe('BB-INSP-06: The math panel is the journey and follows the student', () => {
+  it('has no section tabs, opens the stage of the opened group, and holds a stage picked by hand until the next group', async () => {
     const host = mountEl(h(MathPanel, {}));
     try {
       await settle();
-      const tabs = () => [...host.querySelectorAll('[role="tab"]')];
-      const selected = () => host.querySelector('[role="tab"][aria-selected="true"]')!.textContent;
-      expect(tabs().map((t) => t.textContent)).toEqual(['Pipeline', 'Primitives', 'Buffers', 'Transforms', 'Textures']);
-      expect(selected()).toBe('Pipeline');
+      const open = () => host.querySelector('.journey-open__title')!.textContent;
+      expect(host.querySelector('[role="tablist"]')).toBeNull();
+      expect(host.querySelectorAll('li.journey-stage')).toHaveLength(6);
+      expect(open()).toBe('Rasterised');
       useVamsStore.getState().toggleGroup('buffers');
       await settle();
-      expect(selected()).toBe('Buffers');
-      (tabs()[3] as HTMLButtonElement).click();
+      expect(open()).toBe('Stored');
+      ([...host.querySelectorAll('.journey-stage__row')].find((b) => b.textContent?.startsWith('Transformed')) as HTMLButtonElement).click();
       await settle();
-      expect(selected()).toBe('Transforms');
+      expect(open()).toBe('Transformed');
       useVamsStore.getState().toggleGroup('texture');
       await settle();
-      expect(selected()).toBe('Textures');
+      expect(open()).toBe('Coloured');
     } finally {
       unmountEl(host);
     }
@@ -187,13 +187,15 @@ describe('BB-INSP-07: Help opens on the topic for what the student is doing', ()
   });
 });
 
-describe('BB-INSP-08: An empty scene shows the annotated program in every section', () => {
-  it('annotates the boilerplate outside Pipeline too', async () => {
+describe('BB-INSP-08: An empty scene shows the folded program in every section', () => {
+  it('folds the boilerplate outside Pipeline too, with no underlines', async () => {
     useVamsStore.setState({ activeSection: 'Textures', objects: [] });
     const host = mountEl(h(SceneCodePanel, {}));
     try {
       await settle();
-      expect(host.querySelector('.has-annot')).not.toBeNull();
+      expect(host.querySelector('.code-fold')).not.toBeNull();
+      expect(host.querySelector('.has-annot')).toBeNull();
+      expect(host.querySelector('.code-hint')!.textContent).toBe('Click any line to see what it does.');
     } finally {
       unmountEl(host);
     }

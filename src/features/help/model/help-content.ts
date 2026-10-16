@@ -91,7 +91,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { kind: 'heading', text: 'Code and math' },
       {
         kind: 'paragraph',
-        text: 'The right column shows one thing at a time. Code is the C++ program generated from your scene; Math is the numbers behind it, with one tab per section. A dot on Code means the code changed while you were reading Math. Hide code and math folds the column to a thin tab at the edge; click the tab to bring it back.',
+        text: 'The right column shows one thing at a time. Code is the C++ program generated from your scene; Math follows one vertex of the selected shape through the pipeline, with your numbers. A dot on Code means the code changed while you were reading Math. Hide code and math folds the column to a thin tab at the edge; click the tab to bring it back.',
       },
       { kind: 'heading', text: 'Learn: the course map' },
       {
@@ -491,7 +491,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'list',
         items: [
-          'Select — click a row to select that object and edit it in the inspector below the list (the code highlights it too).',
+          'Select — click a row to select that object and edit it in the inspector below the list (its code opens in Code).',
           'Rename — double-click a name, or press F2 with a row selected.',
           'Duplicate or Delete — from the Scene toolbar; a delete can be undone.',
           'Show or hide — toggle an object’s visibility without deleting it.',
@@ -563,31 +563,42 @@ export const HELP_TOPICS: HelpTopic[] = [
     id: 'code-panel',
     category: 'panels',
     title: 'The Code Panel',
-    summary: 'How the generated OpenGL/C++ reflects your scene.',
-    keywords: ['code', 'generated', 'c++', 'opengl', 'copy', 'highlight', 'display', 'init'],
+    summary: 'The generated OpenGL C++, folded to the object you are working on, with any line explained on request.',
+    keywords: ['code', 'generated', 'c++', 'opengl', 'copy', 'fold', 'notes', 'explain', 'display', 'init'],
     blocks: [
       {
         kind: 'paragraph',
-        text: 'The Code side of the right column shows complete, valid OpenGL 1.5 C++ generated from your scene. It updates instantly as you edit, so you can connect each visual change to the code that produces it.',
+        text: 'The Code side of the right column shows the complete OpenGL 1.5 C++ program for your scene. It updates the moment you edit, so every change you make has a line you can point to.',
       },
-      { kind: 'heading', text: 'Reading the structure' },
-      {
-        kind: 'definitions',
-        items: [
-          { term: 'init()', description: 'One-time setup: VBO uploads and texture loading are hoisted here.' },
-          { term: 'display()', description: 'The draw callback, re-run every frame; this is where your geometry is rendered.' },
-          { term: '_vams_idle()', description: 'The function GLUT calls every frame. It updates buffers that change and calls your idle handler (added when either is needed).' },
-          { term: 'main()', description: 'GLUT setup: create the window, register callbacks, enter the main loop.' },
-        ],
-      },
-      { kind: 'heading', text: 'Working with the panel' },
+      { kind: 'heading', text: 'Folds follow your selection' },
       {
         kind: 'list',
         items: [
-          'Select an object — the lines responsible for it are highlighted.',
-          'Use the find box to search within the code.',
-          'Hover an underlined line for a short explanation of the call.',
-          'Click Copy to copy the whole program.',
+          'The selected object’s code is open: its state line, its buffer data, its draw function and its setup in init(). The rest of the program folds to one row per block, such as ▸ int main().',
+          'With nothing selected, every object’s code is open and only the setup code folds.',
+          'Click a folded row, or press Enter on it, to open it; hover it to read what the block does. A block you open stays open until you select something else.',
+          'Line numbers are the real program’s, and Copy always copies the whole program.',
+        ],
+      },
+      { kind: 'heading', text: 'Reading a line' },
+      {
+        kind: 'list',
+        items: [
+          'Click any line, or press Enter on it, to see what it does in the strip at the bottom: the call, what it does, your values and the controls that set them.',
+          'From the strip, See the math opens the journey stage that works those numbers, and Open shows the control in its panel.',
+          'Arrow Up and Arrow Down move between lines while the strip is open; Escape closes it.',
+          'Short notes under the key lines of a draw function say what they do with your numbers. Notes in the header hides or shows them.',
+        ],
+      },
+      { kind: 'heading', text: 'What the marks mean' },
+      {
+        kind: 'table',
+        headers: ['Mark', 'Meaning'],
+        rows: [
+          ['A value in amber, fading', 'The value your last edit changed. Its line number stays amber until the next change.'],
+          ['A line on a lighter background', 'The line the strip is explaining.'],
+          ['An outline around text', 'A Find match. Enter and Shift+Enter move between matches.'],
+          ['A green bar', 'The callback branch Run just fired.'],
         ],
       },
       {
@@ -601,27 +612,39 @@ export const HELP_TOPICS: HelpTopic[] = [
     id: 'math-panel',
     category: 'panels',
     title: 'The Math Panel',
-    summary: 'Live mathematical breakdowns, one tab per section, that follow what you are doing.',
-    keywords: ['math', 'formula', 'breakdown', 'barycentric', 'matrix', 'memory', 'interpolation'],
+    summary: 'One vertex of your shape, followed with your numbers from where you typed it to the pixel it lands on.',
+    keywords: ['math', 'journey', 'vertex', 'matrix', 'ndc', 'pixel', 'barycentric', 'memory', 'interpolation'],
     blocks: [
       {
         kind: 'paragraph',
-        text: 'Switch the right column to Math to see the numbers behind what you see. It has one tab per section, and the tab follows what you are doing: during a lesson, the control the step opens, otherwise the current section; outside a lesson, the inspector group you opened last, otherwise the current section. Pick a tab yourself at any time; your pick holds until the next lesson step or the next group you open.',
+        text: 'Switch the right column to Math to follow one vertex of the selected shape through the six stages OpenGL takes it through, with your own numbers. An amber ring marks the vertex on the canvas.',
       },
-      { kind: 'heading', text: 'What the tabs show' },
       {
         kind: 'table',
-        headers: ['Section', 'Math shown'],
+        headers: ['Stage', 'What happens', 'Section'],
         rows: [
-          ['Primitives', 'Color float ↔ byte conversion; barycentric color interpolation; stipple pattern; vertex table'],
-          ['Buffers', 'Memory footprint; array vs indexed byte comparison; interleaved layout; buffer flow timeline'],
-          ['Transforms', 'The selected object’s transform matrix; the matrix stack; the glOrtho mapping'],
+          ['Stored', 'Where the vertex is kept: sent directly, in an array, or in a GPU buffer', 'Buffers'],
+          ['Transformed', 'Scaled, rotated and moved by your transform, then by each group around it', 'Transforms'],
+          ['Projected', 'Fitted into the −1 to 1 box by glOrtho', 'Transforms'],
+          ['Assembled', 'Joined with its neighbours by the primitive type', 'Primitives'],
+          ['Rasterised', 'Mapped to a pixel in the window', 'Pipeline'],
+          ['Coloured', 'Given its colour, or its texel for a textured shape', 'Primitives, Textures'],
+        ],
+      },
+      { kind: 'heading', text: 'Using the journey' },
+      {
+        kind: 'list',
+        items: [
+          'Every stage shows its result. One is open with its working: each step, its value and the GL call that does it, with your inputs in amber.',
+          'The open stage follows what you are doing: the group you open, or in a lesson the control the step points at. Click any stage to open it yourself; your pick holds until the next lesson step or the next group you open.',
+          'Use ‹ and › beside the vertex count, or click one of the shape’s vertex handles on the canvas, to follow another vertex.',
+          'Click a GL call in the working to see its line in Code.',
         ],
       },
       {
         kind: 'callout',
         tone: 'tip',
-        text: 'Select an object first — most breakdowns describe the current selection, so they update the moment you pick a different shape or edit a value.',
+        text: 'Select a shape first. With nothing selected, each stage says what it does, and the viewing volume and the pointer readout still work.',
       },
     ],
     related: ['code-panel', 'section-primitives', 'section-buffers', 'section-transforms'],

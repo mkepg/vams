@@ -78,7 +78,7 @@ export const TRANSFORMS_LESSONS: Record<string, Lesson> = {
       {
         pane: 'math',
         narration:
-          'Every transform is represented as a 4×4 matrix. We’ve added a quad to the scene. Watch the math panel on the right to see its matrix update.',
+          'Every transform is represented as a 4×4 matrix. We’ve added a quad to the scene. Watch the Transformed stage in Math to see its matrix update.',
         focusPanel: 'scene-hierarchy',
         action: (state) => {
           state.addCustomObject('QUADS', [{x: -0.4, y: -0.4}, {x: 0.4, y: -0.4}, {x: 0.4, y: 0.4}, {x: -0.4, y: 0.4}]);
@@ -159,7 +159,7 @@ export const TRANSFORMS_LESSONS: Record<string, Lesson> = {
       {
         pane: 'math',
         narration:
-          'We’ve selected the red quad for you. The math panel’s Matrix Stack shows the stack at draw time: identity at the bottom, the Group’s frame on top of that, then the quad on top.',
+          'We’ve selected the red quad for you. The Transformed stage’s matrix stack shows the stack at draw time: identity at the bottom, the Group’s frame on top of that, then the quad on top.',
         focusPanel: 'scene-hierarchy',
         action: (state) => {
           const quad = state.objects.find((o) => o.type === 'QUADS');

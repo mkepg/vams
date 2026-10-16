@@ -16,8 +16,3 @@ export function contextSection(s: ContextState): CurriculumSection {
   if (s.lastOpenedGroup) return GROUP_SECTION[s.lastOpenedGroup];
   return s.activeSection;
 }
-
-/** A tab the student picked by hand wins until the next lesson step or opened group clears it. */
-export function mathTabFor(s: ContextState & Pick<VamsState, 'mathTabOverride'>): CurriculumSection {
-  return s.mathTabOverride ?? contextSection(s);
-}

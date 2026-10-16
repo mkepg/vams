@@ -6,7 +6,7 @@ import { resolveFocus } from '@/core/inspector';
 import { LESSON_REGISTRY } from './lesson-registry';
 import { markLessonComplete, recordLessonLeft } from './progress';
 import { focusStyleFor } from './guidance';
-import { useCanvasSize } from '@/features/code-generation/model/useCanvasSize';
+import { useCanvasSize } from '@/shared/lib/use-canvas-size';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { resolveChangedLines } from '@/features/code-generation/model/code-diff';
 
@@ -190,6 +190,7 @@ export function useLessonRunner(): LessonRunner {
 
       const focus = effectiveFocus(lesson, currentStep);
       store.setLessonFocusPanel(focus);
+      store.setJourneyStageOverride(currentStep.mathStage ?? null);
       selectForFocus(focus);
       store.setDmaDriverStep(currentStep.dmaStep ?? null);
     } else {
@@ -205,6 +206,8 @@ export function useLessonRunner(): LessonRunner {
         selectedObjectId: null,
         interactionMode: 'SELECT',
       });
+      // The rebuilt scene is not the student's edit: the code panel marks none of its values.
+      store.markSceneSwap();
 
       // Replay every step BEFORE the current one to recreate the pre-state.
       for (let i = 0; i < currentStepIndex; i++) {
@@ -221,6 +224,7 @@ export function useLessonRunner(): LessonRunner {
 
       const focus = effectiveFocus(lesson, currentStep);
       store.setLessonFocusPanel(focus);
+      store.setJourneyStageOverride(currentStep.mathStage ?? null);
       selectForFocus(focus);
       store.setDmaDriverStep(currentStep.dmaStep ?? null);
     }

@@ -1,5 +1,6 @@
 import type { VamsState } from '@/core/store/types';
 import type { CurriculumSection } from '@/core/store/types';
+import type { JourneyStageId } from '@/core/inspector/journey-stage';
 import type { CodeChangeFocus } from '@/features/code-generation/model/code-diff';
 
 export type ExerciseWidget =
@@ -36,6 +37,9 @@ export interface LessonStep {
   task?: string;
   /** Which side of the code column the step is about. Without it, a step that highlights code shows Code. */
   pane?: 'code' | 'math';
+
+  /** The journey stage the step is about, when the step's focus would open another one. */
+  mathStage?: JourneyStageId;
 
   /**
    * Drives the Direct Memory Access pointer diagram in the Buffers math panel.

@@ -13,7 +13,7 @@ import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
 import WelcomeCard from '@/features/onboarding/ui/WelcomeCard';
 import FirstVisitTour from '@/features/first-visit-tour';
 import { runController } from '@/features/callbacks/model/run-controller';
-import { sanitizeName } from '@/features/code-generation/model/generator/utils';
+import { sanitizeName } from '@/shared/lib/sanitize-name';
 import { startLesson } from '@/features/lesson-engine/model/start-lesson';
 import { readProgress } from '@/features/lesson-engine/model/progress';
 import { firstLessonToStudy } from '@/features/lesson-engine/model/catalog';

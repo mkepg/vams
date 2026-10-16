@@ -4,7 +4,7 @@ import { Container, FederatedPointerEvent, Mesh } from "pixi.js";
 import { useVamsStore } from "@/core/store";
 import { createDrawable } from "@/shared/engine/pixi/primitives";
 import { renderBridge } from "@/shared/engine/render-bridge";
-import type { SelectionOverlay } from "@/shared/engine/selection-overlay";
+import { FollowRing, pickHandleVertex, ringTarget, type SelectionOverlay } from "@/shared/engine/selection-overlay";
 import type { SceneNode } from "@/core/types/scene";
 
 interface UseSceneRendererProps {
@@ -42,6 +42,15 @@ export function useSceneRenderer({
   const builtForAppRef = useRef<PIXI.Application | null>(null);
   const vertexOverlayRef = useRef<Container | null>(null);
   const handleGraphicsRef = useRef<HandleGraphics[]>([]);
+  const ringRef = useRef<FollowRing | null>(null);
+  const showsMath = useVamsStore((s) => s.codePane === 'math' && !s.codeHidden);
+  const journeyVertex = useVamsStore((s) => s.journeyVertex);
+  const showsMathRef = useRef(showsMath);
+  const journeyVertexRef = useRef(journeyVertex);
+  useEffect(() => {
+    showsMathRef.current = showsMath;
+    journeyVertexRef.current = journeyVertex;
+  }, [showsMath, journeyVertex]);
   const overriddenRef = useRef<Set<string>>(new Set());
   const objects = useVamsStore((s) => s.objects);
   const selectedObjectId = useVamsStore((s) => s.selectedObjectId);
@@ -138,6 +147,11 @@ export function useSceneRenderer({
     vertexOverlay.zIndex = 10001;
     world.addChild(vertexOverlay);
     vertexOverlayRef.current = vertexOverlay;
+    vertexOverlay.sortableChildren = true;
+    const ring = new FollowRing();
+    ring.zIndex = 1;
+    vertexOverlay.addChild(ring);
+    ringRef.current = ring;
     const tickerFn = () => {
       const runHides = renderBridge.editorOverlaysHidden();
       overlay.setSuppressed(runHides);
@@ -150,10 +164,11 @@ export function useSceneRenderer({
         const layer = vertexOverlayRef.current;
         const container = containersRef.current.get(prevSelectedObjectIdRef.current);
         const obj = objectsRef.current.find(o => o.id === prevSelectedObjectIdRef.current);
+        const target = ringTarget(obj, journeyVertexRef.current, showsMathRef.current);
+        const worldScale = Math.abs(world.scale.x);
+        const inverseScale = worldScale > 0 ? 1 / worldScale : 1;
         if (layer && container && obj && obj.type !== 'GROUP' && obj.type !== 'TEXT') {
           layer.visible = true;
-          const worldScale = Math.abs(world.scale.x);
-          const inverseScale = worldScale > 0 ? 1 / worldScale : 1;
           while (handleGraphicsRef.current.length < obj.vertices.length) {
             const g = new PIXI.Graphics() as HandleGraphics;
             g.eventMode = 'static';
@@ -166,6 +181,8 @@ export function useSceneRenderer({
               e.stopPropagation();
               const idx = handleGraphicsRef.current.indexOf(g);
               const currentObj = objectsRef.current.find(o => o.id === prevSelectedObjectIdRef.current);
+              // Clicking a vertex handle also chooses the vertex the math follows.
+              pickHandleVertex(handleGraphicsRef.current, g, currentObj?.vertices.length ?? 0, useVamsStore.getState().setJourneyVertex);
               if (currentObj && currentObj.vertices[idx]) {
                 vertexDragRef.current = {
                   objectId: currentObj.id,
@@ -195,7 +212,21 @@ export function useSceneRenderer({
               g.visible = false;
             }
           });
+          if (target?.kind === 'vertex') {
+            const v = obj.vertices[target.index];
+            const at = world.toLocal(container.toGlobal({ x: v.x, y: v.y }));
+            ringRef.current?.show(at.x, at.y, inverseScale);
+          } else {
+            ringRef.current?.hide();
+          }
+        } else if (layer && container && obj && target?.kind === 'raster') {
+          // Text has no handles; the ring marks its first line's raster position.
+          layer.visible = true;
+          handleGraphicsRef.current.forEach((g) => { g.visible = false; });
+          const at = world.toLocal(container.toGlobal({ x: target.x, y: target.y }));
+          ringRef.current?.show(at.x, at.y, inverseScale);
         } else if (layer) {
+          ringRef.current?.hide();
           layer.visible = false;
         }
       } else if (vertexOverlayRef.current) {
@@ -210,6 +241,7 @@ export function useSceneRenderer({
         vertexOverlayRef.current.destroy({ children: true });
         vertexOverlayRef.current = null;
       }
+      ringRef.current = null;
       handleGraphicsRef.current = [];
     };
   }, [pixiReady, appRef, overlayRef, worldRef]);

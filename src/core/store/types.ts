@@ -1,4 +1,5 @@
 import type { InspectorGroupId } from '@/core/inspector/groups';
+import type { JourneyStageId } from '@/core/inspector/journey-stage';
 import type {
   PrimitiveType,
   SceneNode,
@@ -134,6 +135,19 @@ export type RailPanel = 'add' | 'scene' | 'settings' | 'callbacks';
 /** What the right column shows. */
 export type CodePane = 'code' | 'math';
 
+/** What the math asked Code to explain: a GL call, and which of its lines when there are several. */
+export interface ExplainRequest {
+  call: string;
+  /** The code name of the object whose line it is, when that is not the selection (an enclosing group). */
+  owner?: string;
+  /** The nth call (0-based) between the owner's glBegin and glEnd: immediate mode makes one per vertex. */
+  nth?: number;
+  /** Text the line also contains, such as MIN_FILTER. */
+  contains?: string;
+  /** The block the line is in, such as update-buffers. */
+  block?: string;
+}
+
 export interface RuntimeSlice {
   appMode: AppMode;
   activeSection: CurriculumSection;
@@ -142,10 +156,10 @@ export interface RuntimeSlice {
   cursorWorld: { x: number; y: number } | null;
   /** Inspector groups that are open. Session only. */
   openGroups: InspectorGroupId[];
-  /** The group the student opened most recently; the math tab and help follow it. Session only. */
+  /** The group the student opened most recently; the journey stage and help follow it. Session only. */
   lastOpenedGroup: InspectorGroupId | null;
-  /** A math tab picked by hand; cleared by the next lesson step or opened group. Session only. */
-  mathTabOverride: CurriculumSection | null;
+  /** A journey stage opened by hand; cleared by the next lesson step or opened group. Session only. */
+  journeyStageOverride: JourneyStageId | null;
   learnOpen: boolean;
   /** The panel the rail shows. Session only. */
   railPanel: RailPanel;
@@ -157,10 +171,30 @@ export interface RuntimeSlice {
   codeHidden: boolean;
   /** The generated code changed while Math was showing. Session only. */
   codeChangedUnseen: boolean;
+  /** Code folds the student opened by hand; cleared when the selection changes. Session only. */
+  codeFoldsOpened: string[];
+  /** The code line the explanation strip explains. Session only. */
+  explainedLine: number | null;
+  /** The code panel's Notes switch. Starts on; session only. */
+  codeNotes: boolean;
+  /** The selected object's vertex the math journey follows, 0-based. Session only. */
+  journeyVertex: number;
+  /** A GL call the math asked Code to explain; the code panel finds its line and clears this. Session only. */
+  explainRequest: ExplainRequest | null;
+  /** Shows Code and explains the line that makes this call: the selected object's, unless the request names another. */
+  requestExplain: (request: ExplainRequest | string | null) => void;
+  /** Counts whole-scene swaps the student did not make (a lesson's rebuild, opening a scene); a change marks no values. Session only. */
+  sceneSwapSeq: number;
+  /** Records a whole-scene swap, so the code panel marks no values for it. */
+  markSceneSwap: () => void;
+  /** A group the student opened from the code's explanation strip; outlined until the selection or the open groups change. Session only. */
+  revealedGroup: InspectorGroupId | null;
+  /** Shows a group's panel, opens the group and outlines it. */
+  revealGroup: (group: InspectorGroupId) => void;
   toggleGroup: (id: InspectorGroupId) => void;
   openGroup: (id: InspectorGroupId) => void;
   setOpenGroups: (ids: readonly InspectorGroupId[]) => void;
-  setMathTabOverride: (section: CurriculumSection | null) => void;
+  setJourneyStageOverride: (stage: JourneyStageId | null) => void;
   setLearnOpen: (open: boolean) => void;
   /** Shows a panel; also opens the panel if it was hidden. */
   setRailPanel: (panel: RailPanel) => void;
@@ -172,6 +206,11 @@ export interface RuntimeSlice {
   setCodeHidden: (hidden: boolean) => void;
   /** Marks the code as changed while Math shows; does nothing while Code shows. */
   markCodeChanged: () => void;
+  /** Opens a fold, or closes it if the student opened it. */
+  toggleCodeFold: (block: string) => void;
+  setExplainedLine: (line: number | null) => void;
+  setCodeNotes: (on: boolean) => void;
+  setJourneyVertex: (index: number) => void;
   setAppMode: (mode: AppMode) => void;
   setActiveSection: (section: CurriculumSection) => void;
   setPipelineMode: (mode: PipelineMode) => void;

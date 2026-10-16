@@ -35,13 +35,12 @@
       font-family: $font-mono;
       font-size: var(--text-xs);
       color: $text-main;
-      white-space: nowrap;
-      overflow-x: auto;
-      overflow-y: hidden;
+      // The call wraps inside its box at any column width, so none of it is hidden.
+      white-space: normal;
+      overflow-wrap: anywhere;
+      line-height: 1.4;
       flex: 1;
       min-width: 0;
-      scrollbar-width: none;
-      &::-webkit-scrollbar { display: none; }
     }
 
     .bm-current-call-sub {

@@ -63,7 +63,7 @@ export default function CustomShapeBuilderPanel() {
       numeric: true,
       render: (v, i) => (
         <NumberField
-          label={`Vertex ${i} X`}
+          label={`Vertex ${i + 1} X`}
           hideTag
           value={v.x}
           step={0.1}
@@ -78,7 +78,7 @@ export default function CustomShapeBuilderPanel() {
       numeric: true,
       render: (v, i) => (
         <NumberField
-          label={`Vertex ${i} Y`}
+          label={`Vertex ${i + 1} Y`}
           hideTag
           value={v.y}
           step={0.1}

@@ -298,24 +298,20 @@ describe('BB-TOUR-06: Undo and redo never leave a step done', () => {
   });
 });
 
-describe('BB-TOUR-07: During the tour the code flashes the lines an edit changes', () => {
-  it('marks the ObjectState line when X changes, and nothing outside the tour', async () => {
+describe('BB-TOUR-07: During the tour the code marks the value an edit changes', () => {
+  it('marks the new X on the ObjectState line, not the glTranslatef line', async () => {
     const triangle = addTriangle();
     const host = mount(h(SceneCodePanel, {}));
     await settle();
-    getState().updateObjectTransform(triangle.id, { translateX: 0.4 });
-    await settle();
-    expect(host.querySelectorAll('.code-line.changed')).toHaveLength(0);
     getState().startTour();
     await settle();
     getState().updateObjectTransform(triangle.id, { translateX: 0.7 });
     await settle();
-    const changed = [...host.querySelectorAll('.code-line.changed')].map((el) => el.textContent ?? '');
+    const changed = [...host.querySelectorAll('.code-line.is-changed')].map((el) => el.textContent ?? '');
     expect(changed.some((line) => line.includes('ObjectState state_'))).toBe(true);
     expect(changed.some((line) => line.includes('glTranslatef'))).toBe(false);
+    expect([...host.querySelectorAll('.code-value')].map((el) => el.textContent)).toEqual(['0.7000f']);
     getState().endTour();
-    await settle();
-    expect(host.querySelectorAll('.code-line.changed')).toHaveLength(0);
     unmount(host);
   });
 });

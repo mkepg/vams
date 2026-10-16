@@ -304,7 +304,7 @@ describe('BB-RUN-12: The code panel flashes the branch that fired', () => {
     setup();
     const host = mount(h(SceneCodePanel, { flashBranch: { handlerName: 'onKey', trigger: { kind: 'keyboard', key: 'd' }, seq: 1 } }));
     await settle();
-    const changed = [...host.querySelectorAll('.code-line.changed')].map((el) => el.textContent?.trim());
+    const changed = [...host.querySelectorAll('.code-line.is-fired .code-line__text')].map((el) => el.textContent?.trim());
     expect(changed).toEqual(expect.arrayContaining(["case 'd':", "case 'D':", 'break;']));
     render(null, host);
     host.remove();
