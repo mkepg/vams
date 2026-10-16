@@ -8,7 +8,7 @@ import { useVamsStore } from '@/core/store';
 import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { carriedLink, buildSharePayload, MAX_CARRIED_URL } from '@/entities/project/model/share';
 import { createStoredShare } from '@/features/share/model/share-api';
-import { prepareShare, ShareButton, ShareDialog, useShareDialog, type ShareResult } from '@/features/share';
+import { clearShareMemory, prepareShare, ShareButton, ShareDialog, useShareDialog, type ShareResult } from '@/features/share';
 import { SHARE_ORIGIN } from '@/shared/lib/share-origin';
 import { addTriangle, getState } from '../helpers/store';
 
@@ -59,6 +59,7 @@ function overLimit() {
 const STORED = { ok: true as const, id: 'k3x9q2Ab', expiresAt: '2027-01-14T00:00:00.000Z' };
 
 beforeEach(() => {
+  clearShareMemory();
   vi.mocked(createStoredShare).mockResolvedValue(STORED);
 });
 
@@ -205,5 +206,25 @@ describe('BB-SHARE-10: In a lesson the dialog says who can open the link once', 
     expect(dialog.textContent!.split('Anyone with the link opens this lesson.').length - 1).toBe(1);
     expect(dialog.querySelector('.share-dialog__lead')).toBeNull();
     unmount(host);
+  });
+});
+
+describe('BB-SHARE-11: An unchanged scene reuses its stored link', () => {
+  it('stores once for the same scene and again after a change', async () => {
+    const store = vi.fn(async () => STORED);
+    const scene = input();
+    const first = await prepareShare(scene, { store, shrink });
+    const second = await prepareShare({ ...scene }, { store, shrink });
+    expect(store).toHaveBeenCalledTimes(1);
+    expect(second).toEqual(first);
+    await prepareShare({ ...scene, sceneName: 'Moons' }, { store, shrink });
+    expect(store).toHaveBeenCalledTimes(2);
+  });
+  it('does not remember a failed store', async () => {
+    const store = vi.fn(async () => ({ ok: false as const, reason: 'offline' as const }));
+    const scene = input();
+    await prepareShare(scene, { store, shrink });
+    await prepareShare(scene, { store, shrink });
+    expect(store).toHaveBeenCalledTimes(2);
   });
 });

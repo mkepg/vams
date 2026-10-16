@@ -13,8 +13,9 @@ export async function onRequestPost({ request, env }: { request: Request; env: S
   const check = checkPayload(text);
   if (!check.ok) return json({ error: check.error }, check.status);
   try {
-    let id = newShareId();
-    for (let i = 0; i < 3 && (await env.SHARES.get(id)) !== null; i++) id = newShareId();
+    // No read before the write: KV caches a "not found" answer at the edge, which would hide the new link for about a minute.
+    // With 62^8 ids a collision is negligible.
+    const id = newShareId();
     await env.SHARES.put(id, text, { expirationTtl: TTL_SECONDS, metadata: { createdAt: Date.now() } });
     return json({ id, expiresAt: new Date(Date.now() + TTL_SECONDS * 1000).toISOString() }, 201);
   } catch {

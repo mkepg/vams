@@ -10,7 +10,9 @@ import { MAX_PAYLOAD_BYTES, newShareId, TTL_SECONDS, type KvLike, type ShareEnv 
 class MemoryKv implements KvLike {
   entries = new Map<string, { value: string; ttl?: number }>();
   failPut = false;
+  gets: string[] = [];
   async get(key: string) {
+    this.gets.push(key);
     return this.entries.get(key)?.value ?? null;
   }
   async put(key: string, value: string, options?: { expirationTtl?: number }) {
@@ -106,5 +108,14 @@ describe('WB-SHAREFN-07: Ids are 8 base62 characters, uniformly drawn', () => {
     // 255, 254 and 248 are skipped; then 0→0, 1→1, 2→2, 61→z, 62→0, 63→1, 124→0, 247→z.
     expect(newShareId(feed([255, 254, 248, 0, 1, 2, 61, 62, 63, 124, 247]))).toBe('012z010z');
     expect(newShareId()).toMatch(/^[0-9A-Za-z]{8}$/);
+  });
+});
+
+describe('WB-SHAREFN-08: Storing a share never reads the store first', () => {
+  it('writes the new id without a get, so no missing-key read is cached for it', async () => {
+    const kv = new MemoryKv();
+    expect((await post({ SHARES: kv }, payload())).status).toBe(201);
+    expect(kv.gets).toEqual([]);
+    expect(kv.entries.size).toBe(1);
   });
 });

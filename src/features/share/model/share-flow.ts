@@ -19,6 +19,13 @@ export interface ShareDeps {
   shrink?: (p: SharePayload) => ReturnType<typeof shrinkPayloadImages>;
 }
 
+/** The last stored link of this page session, keyed by the exact payload. Memory only, so a reload starts clean. */
+let lastStored: { key: string; result: Extract<ShareResult, { kind: 'stored' }> } | null = null;
+
+export function clearShareMemory(): void {
+  lastStored = null;
+}
+
 /** Chooses and makes the link: the lesson's, or a short stored one for any scene; a link that carries the scene when storing fails. */
 export async function prepareShare(input: ShareInput, deps: ShareDeps = {}): Promise<ShareResult> {
   if (input.lesson) return { kind: 'lesson', url: lessonLink(input.lesson.id), title: input.lesson.title };
@@ -31,11 +38,16 @@ export async function prepareShare(input: ShareInput, deps: ShareDeps = {}): Pro
     if (url.length > MAX_CARRIED_URL) return { kind: 'failed' };
     return uploads ? { kind: 'fallback', url } : { kind: 'carried', url };
   };
+  const key = JSON.stringify(payload);
+  if (lastStored?.key === key) return lastStored.result;
   try {
     const { payload: small, shrunk } = await shrink(payload);
     if (payloadBytes(small) > MAX_STORED_BYTES) return fallback();
     const stored = await store(small);
-    return stored.ok ? { kind: 'stored', url: storedLink(stored.id), expiresAt: stored.expiresAt, shrunk } : fallback();
+    if (!stored.ok) return fallback();
+    const result: Extract<ShareResult, { kind: 'stored' }> = { kind: 'stored', url: storedLink(stored.id), expiresAt: stored.expiresAt, shrunk };
+    lastStored = { key, result };
+    return result;
   } catch {
     return fallback();
   }

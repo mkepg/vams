@@ -11,7 +11,7 @@ import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { SHARE_ORIGIN } from '@/shared/lib/share-origin';
 import { checkShareShape, isShareId, MAX_NAME_LENGTH, MAX_OBJECTS } from '@/shared/lib/share-schema';
 import { fitWithin, shrinkPayloadImages, SHARE_IMAGE_MAX } from '@/features/share/model/shrink-image';
-import { createStoredShare, fetchStoredShare } from '@/features/share/model/share-api';
+import { createStoredShare, fetchStoredShare, SHARE_REQUEST_TIMEOUT_MS } from '@/features/share/model/share-api';
 import { qrSvg } from '@/shared/lib/qr';
 import { addTriangle, getState } from '../helpers/store';
 
@@ -206,7 +206,7 @@ describe('WB-SHARE-12: Fetching a stored share reports each outcome', () => {
   it('returns the payload, or missing, offline or unavailable', async () => {
     const ok = vi.fn(async () => new Response('{"v":1}', { status: 200 }));
     expect(await fetchStoredShare('k3x9q2Ab', ok)).toEqual({ ok: true, payload: { v: 1 } });
-    expect(ok).toHaveBeenCalledWith('/api/share/k3x9q2Ab');
+    expect(ok).toHaveBeenCalledWith('/api/share/k3x9q2Ab', expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(await fetchStoredShare('k3x9q2Ab', vi.fn(async () => new Response('', { status: 404 })))).toEqual({ ok: false, reason: 'missing' });
     expect(await fetchStoredShare('k3x9q2Ab', vi.fn(async () => new Response('', { status: 500 })))).toEqual({ ok: false, reason: 'unavailable' });
     expect(await fetchStoredShare('k3x9q2Ab', vi.fn(async () => new Response('not json', { status: 200 })))).toEqual({ ok: false, reason: 'unavailable' });
@@ -222,5 +222,37 @@ describe('WB-SHARE-13: QR codes are SVG, dark on white, and deterministic', () =
     expect(svg).toMatch(/<path fill="#000" d="M/);
     expect(qrSvg('https://vams.pages.dev')).toBe(svg);
     expect(qrSvg('https://vams.pages.dev/s/k3x9q2Ab')).not.toBe(svg);
+  });
+});
+
+describe('WB-SHARE-14: A stalled request gives up after the timeout and reads as offline', () => {
+  /** A fetch that never answers, and rejects only when its signal aborts, as a real one does. */
+  const stalled = () =>
+    vi.fn((_url: unknown, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+    })) as unknown as typeof fetch;
+  it('uses an 8 second limit', () => {
+    expect(SHARE_REQUEST_TIMEOUT_MS).toBe(8000);
+  });
+  it('createStoredShare and fetchStoredShare both return offline', async () => {
+    vi.useFakeTimers();
+    try {
+      const stored = createStoredShare(sceneWith([]), stalled());
+      const fetched = fetchStoredShare('k3x9q2Ab', stalled());
+      await vi.advanceTimersByTimeAsync(SHARE_REQUEST_TIMEOUT_MS);
+      expect(await stored).toEqual({ ok: false, reason: 'offline' });
+      expect(await fetched).toEqual({ ok: false, reason: 'offline' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('clears the timer once the request settles', async () => {
+    vi.useFakeTimers();
+    try {
+      await fetchStoredShare('k3x9q2Ab', vi.fn(async () => new Response('{"v":1}', { status: 200 })));
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

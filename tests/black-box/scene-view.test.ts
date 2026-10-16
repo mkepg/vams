@@ -144,3 +144,26 @@ describe('BB-VIEW-05: Loading the view leaves the visitor’s saved editor as it
     done();
   });
 });
+
+describe('BB-VIEW-06: A load that throws still ends in a message', () => {
+  it('shows the unavailable message when the shared scene cannot be resolved', async () => {
+    vi.resetModules();
+    vi.doMock('@/widgets/canvas/VamsCanvas', () => ({ default: () => h('div', { class: 'canvas-wrapper' }) }));
+    vi.doMock('@/features/share/model/resolve-shared', async (importOriginal) => ({
+      ...(await importOriginal<typeof import('@/features/share/model/resolve-shared')>()),
+      resolveSharedScene: () => Promise.reject(new Error('boom')),
+    }));
+    window.history.replaceState(null, '', '/s/k3x9q2Ab');
+    const { default: View } = await import('@/pages/editor/ui/SceneViewApp');
+    const { SHARE_MESSAGES } = await import('@/features/share');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    render(h(View, {}), host);
+    await settle();
+    expect(host.textContent).not.toContain('Opening the scene');
+    expect(host.textContent).toContain(SHARE_MESSAGES.unavailable);
+    render(null, host);
+    host.remove();
+    vi.doUnmock('@/features/share/model/resolve-shared');
+  });
+});

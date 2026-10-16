@@ -64,15 +64,17 @@ export default function SceneViewApp() {
   useEffect(() => {
     const link = parseShareLink(window.location.pathname, window.location.hash);
     if (!link) return;
-    void resolveSharedScene(link).then((r) => {
-      if (!r.ok) {
-        setView({ status: 'error', message: r.message });
-        return;
-      }
-      loadProjectData(r.scene.data, { sceneId: '', sceneName: r.scene.name });
-      useVamsStore.setState({ selectedObjectId: null, appMode: 'Author', activeLessonId: null });
-      setView({ status: 'ready', name: r.scene.name });
-    });
+    void resolveSharedScene(link)
+      .then((r) => {
+        if (!r.ok) {
+          setView({ status: 'error', message: r.message });
+          return;
+        }
+        loadProjectData(r.scene.data, { sceneId: '', sceneName: r.scene.name });
+        useVamsStore.setState({ selectedObjectId: null, appMode: 'Author', activeLessonId: null });
+        setView({ status: 'ready', name: r.scene.name });
+      })
+      .catch(() => setView({ status: 'error', message: SHARE_MESSAGES.unavailable }));
   }, []);
 
   const anyway = editorAnywayUrl(window.location);
