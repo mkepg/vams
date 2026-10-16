@@ -47,7 +47,7 @@ export function buildSharePayload(src: ShareSource): SharePayload {
   };
 }
 
-export const isUpload = (t: ShareTexture): t is Exclude<ShareTexture, { sample: true }> => !('sample' in t);
+export const isUpload = (t: ShareTexture): t is Exclude<ShareTexture, { sample: true }> => (t as { sample?: unknown }).sample !== true;
 export const hasUploads = (p: SharePayload): boolean => p.textures.some(isUpload);
 
 /** The payload with its uploaded images left out; objects that used them open untextured. */

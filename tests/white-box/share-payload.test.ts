@@ -9,7 +9,7 @@ import {
 } from '@/entities/project/model/share';
 import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { SHARE_ORIGIN } from '@/shared/lib/share-origin';
-import { checkShareShape, isShareId } from '@/shared/lib/share-schema';
+import { checkShareShape, isShareId, MAX_NAME_LENGTH, MAX_OBJECTS } from '@/shared/lib/share-schema';
 import { addTriangle, getState } from '../helpers/store';
 
 const LIMITS = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
@@ -130,5 +130,33 @@ describe('WB-SHARE-08: The shared schema checks structure and ids', () => {
     expect(checkShareShape(null)).not.toBeNull();
     expect(isShareId('k3x9q2Ab')).toBe(true);
     expect(isShareId('../etc')).toBe(false);
+  });
+});
+
+describe('WB-SHARE-09: Boundaries the server relies on', () => {
+  const base = () => JSON.parse(JSON.stringify(sceneWith(['sample-bricks'])));
+  it('pins id length and character class', () => {
+    expect(isShareId('abcdefg')).toBe(false);
+    expect(isShareId('abcdefghi')).toBe(false);
+    expect(isShareId('abcdefg-')).toBe(false);
+    expect(isShareId('abcdefgh')).toBe(true);
+  });
+  it('pins the object and name limits', () => {
+    const p = base();
+    expect(checkShareShape({ ...p, objects: new Array(MAX_OBJECTS).fill({}) })).toBeNull();
+    expect(checkShareShape({ ...p, objects: new Array(MAX_OBJECTS + 1).fill({}) })).not.toBeNull();
+    expect(checkShareShape({ ...p, name: 'x'.repeat(MAX_NAME_LENGTH) })).toBeNull();
+    expect(checkShareShape({ ...p, name: 'x'.repeat(MAX_NAME_LENGTH + 1) })).not.toBeNull();
+  });
+  it('reads a samples-only scene with no uploads and rejects a null texture', () => {
+    const p = base();
+    expect(readSharePayload(p)!.data.uploadedTextures).toEqual([]);
+    expect(checkShareShape({ ...p, textures: [null] })).not.toBeNull();
+    expect(readSharePayload({ ...p, textures: [null] })).toBeNull();
+  });
+  it('keeps a texture marked sample:false as an upload', () => {
+    const p = { ...base(), textures: [{ id: 'up-1', sample: false, name: 'Photo', dataUrl: upload.dataUrl, width: 800, height: 600 }] };
+    expect(checkShareShape(p)).toBeNull();
+    expect(readSharePayload(p)!.data.uploadedTextures.map((t) => t.id)).toEqual(['up-1']);
   });
 });
