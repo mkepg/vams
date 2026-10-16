@@ -135,6 +135,19 @@ export type RailPanel = 'add' | 'scene' | 'settings' | 'callbacks';
 /** What the right column shows. */
 export type CodePane = 'code' | 'math';
 
+/** What the math asked Code to explain: a GL call, and which of its lines when there are several. */
+export interface ExplainRequest {
+  call: string;
+  /** The code name of the object whose line it is, when that is not the selection (an enclosing group). */
+  owner?: string;
+  /** The nth call (0-based) between the owner's glBegin and glEnd: immediate mode makes one per vertex. */
+  nth?: number;
+  /** Text the line also contains, such as MIN_FILTER. */
+  contains?: string;
+  /** The block the line is in, such as update-buffers. */
+  block?: string;
+}
+
 export interface RuntimeSlice {
   appMode: AppMode;
   activeSection: CurriculumSection;
@@ -167,9 +180,9 @@ export interface RuntimeSlice {
   /** The selected object's vertex the math journey follows, 0-based. Session only. */
   journeyVertex: number;
   /** A GL call the math asked Code to explain; the code panel finds its line and clears this. Session only. */
-  explainRequest: string | null;
-  /** Shows Code and explains the selected object's line that makes this call. */
-  requestExplain: (call: string | null) => void;
+  explainRequest: ExplainRequest | null;
+  /** Shows Code and explains the line that makes this call: the selected object's, unless the request names another. */
+  requestExplain: (request: ExplainRequest | string | null) => void;
   /** Counts whole-scene swaps the student did not make (a lesson's rebuild, opening a scene); a change marks no values. Session only. */
   sceneSwapSeq: number;
   /** Records a whole-scene swap, so the code panel marks no values for it. */

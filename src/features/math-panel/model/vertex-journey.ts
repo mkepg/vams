@@ -1,4 +1,4 @@
-import type { CurriculumSection } from '@/core/store/types';
+import type { CurriculumSection, ExplainRequest } from '@/core/store/types';
 import { JOURNEY_STAGES, JOURNEY_STAGE_TITLES, type JourneyStageId } from '@/core/inspector/journey-stage';
 import type { PrimitiveType, ResizeMode, SceneNode, TransformState, ViewportLimits } from '@/core/types/scene';
 import { keepProportionsView } from '@/core/callbacks/reshape-view';
@@ -22,6 +22,8 @@ export interface WorkingRow {
   value: string;
   /** The GL call that performs the step, or null. */
   call: string | null;
+  /** Which line makes the call, when the selected object's first one is not it. */
+  target?: Omit<ExplainRequest, 'call'>;
   /** The first row: where the value came from. */
   from?: boolean;
   /** A heading row, not a step: it names the enclosing group whose rows follow, and has no step, value or call. */
@@ -136,13 +138,15 @@ function transformRows(start: Point, chain: readonly SceneNode[]): { rows: Worki
   chain.forEach((node, depth) => {
     const t: TransformState = node.transform;
     if (depth > 0) rows.push({ heading: node.name, step: [], value: '', call: null });
+    // An enclosing group's calls are on the group's own lines.
+    const target = depth > 0 ? { target: { owner: sanitizeName(node.name) } } : {};
     p = { x: p.x * t.scaleX, y: p.y * t.scaleY };
-    rows.push({ step: ['scale ', { input: short(t.scaleX) }, ', ', { input: short(t.scaleY) }], value: pair(p), call: 'glScalef' });
+    rows.push({ step: ['scale ', { input: short(t.scaleX) }, ', ', { input: short(t.scaleY) }], value: pair(p), call: 'glScalef', ...target });
     const r = (t.rotate * Math.PI) / 180;
     p = { x: p.x * Math.cos(r) - p.y * Math.sin(r), y: p.x * Math.sin(r) + p.y * Math.cos(r) };
-    rows.push({ step: ['rotate ', { input: `${short(t.rotate)}°` }], value: pair(p), call: 'glRotatef' });
+    rows.push({ step: ['rotate ', { input: `${short(t.rotate)}°` }], value: pair(p), call: 'glRotatef', ...target });
     p = { x: p.x + t.translateX, y: p.y + t.translateY };
-    rows.push({ step: ['move ', { input: fmt(t.translateX) }, ', ', { input: fmt(t.translateY) }], value: pair(p), call: 'glTranslatef' });
+    rows.push({ step: ['move ', { input: fmt(t.translateX) }, ', ', { input: fmt(t.translateY) }], value: pair(p), call: 'glTranslatef', ...target });
   });
   return { rows, end: p };
 }
@@ -239,10 +243,12 @@ function colouredStage(node: SceneNode, index: number, scene: JourneyScene, pixe
     const wu = { u: wrappedCoord(uv.u, wrap), v: wrappedCoord(uv.v, wrap) };
     const rows: WorkingRow[] = [
       at,
-      { step: ['UV'], value: `(${fmt(uv.u)}, ${fmt(uv.v)})`, call: mode === 'IMMEDIATE' ? 'glTexCoord2f' : 'glTexCoordPointer' },
+      mode === 'IMMEDIATE'
+        ? { step: ['UV'], value: `(${fmt(uv.u)}, ${fmt(uv.v)})`, call: 'glTexCoord2f', target: { nth: index } }
+        : { step: ['UV'], value: `(${fmt(uv.u)}, ${fmt(uv.v)})`, call: 'glTexCoordPointer' },
       { step: ['wrap ', { input: wrap }], value: `(${fmt(wu.u)}, ${fmt(wu.v)})`, call: 'glTexParameteri' },
       ...(sized ? [{ step: [`texture ${sized.width}×${sized.height}`], value: result, call: 'glBindTexture' } as WorkingRow] : []),
-      { step: ['filter ', { input: node.texture.filter }], value: node.texture.filter === 'NEAREST' ? 'that texel alone' : 'a blend of the 4 around it', call: 'glTexParameteri' },
+      { step: ['filter ', { input: node.texture.filter }], value: node.texture.filter === 'NEAREST' ? 'that texel alone' : 'a blend of the 4 around it', call: 'glTexParameteri', target: { contains: 'MIN_FILTER' } },
     ];
     return { ...stage('coloured', TEXTURED, rows, result, null), section: 'Textures' };
   }
@@ -259,7 +265,7 @@ function colouredStage(node: SceneNode, index: number, scene: JourneyScene, pixe
   const shadingValue = !drawn ? 'not drawn' : flat ? `vertex ${source + 1}’s colour` : `weights ${weights}`;
   const rows: WorkingRow[] = [
     at,
-    { step: ['vertex colour'], value: rgbArgs(colourHex, mode === 'IMMEDIATE' && node.colorMode === 'BYTE'), call: colourCall },
+    { step: ['vertex colour'], value: rgbArgs(colourHex, mode === 'IMMEDIATE' && node.colorMode === 'BYTE'), call: colourCall, ...(mode === 'IMMEDIATE' ? { target: { nth: index } } : {}) },
     { step: ['shading ', { input: flat ? 'flat' : 'smooth' }], value: shadingValue, call: 'glShadeModel' },
   ];
   if (!drawn) return stage('coloured', flat ? flatSentence(type, index, count) : SMOOTH, rows, 'not drawn', null);
@@ -277,7 +283,7 @@ function arrayIndex(node: SceneNode, i: number): { index: number; unique: number
 function storedRows(node: SceneNode, i: number, stored: Point): WorkingRow[] {
   const from: WorkingRow = { step: ['typed in Vertices'], value: pair(stored), call: null, from: true };
   const mode = node.renderingMode ?? 'IMMEDIATE';
-  if (mode === 'IMMEDIATE') return [from, { step: ['sent by glVertex2f'], value: 'no buffer holds it', call: 'glVertex2f' }];
+  if (mode === 'IMMEDIATE') return [from, { step: ['sent by glVertex2f'], value: 'no buffer holds it', call: 'glVertex2f', target: { nth: i } }];
   const code = sanitizeName(node.name);
   const { index, unique } = arrayIndex(node, i);
   const rows: WorkingRow[] = [from];
@@ -290,7 +296,7 @@ function storedRows(node: SceneNode, i: number, stored: Point): WorkingRow[] {
     } else {
       // update_buffers() sends the data again every frame (generator/buffers.ts).
       const refresh = usage === 'STREAM' ? 'glBufferData' : node.updateMethod === 'MAP_BUFFER' ? 'glMapBuffer' : 'glBufferSubData';
-      rows.push({ step: ['refreshed every frame, usage ', hint], value: `vbo_${code} on the GPU`, call: refresh });
+      rows.push({ step: ['refreshed every frame, usage ', hint], value: `vbo_${code} on the GPU`, call: refresh, target: { block: 'update-buffers' } });
     }
     rows.push({ step: [`in vbo_${code}`], value: `index ${index}`, call: 'glBindBuffer' });
   } else {
@@ -329,7 +335,9 @@ function shapeJourney(node: SceneNode, scene: JourneyScene, vertexIndex: number,
     stages: [
       stage('stored', storedSentence, storedRows(node, i, stored), pair(stored), stored),
       stage('transformed', TRANSFORMED, [
-        { step: ['from Stored'], value: pair(stored), call: mode === 'IMMEDIATE' ? 'glVertex2f' : 'glVertexPointer', from: true },
+        mode === 'IMMEDIATE'
+          ? { step: ['from Stored'], value: pair(stored), call: 'glVertex2f', target: { nth: i }, from: true }
+          : { step: ['from Stored'], value: pair(stored), call: 'glVertexPointer', from: true },
         ...moves,
       ], pair(world), world),
       projectedStage(world, ndc, view),

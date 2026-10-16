@@ -73,9 +73,9 @@ export const createRuntimeSlice: StateCreator<VamsState, [], [], RuntimeSlice> =
   })),
   setExplainedLine: (line) => set({ explainedLine: line }),
   setCodeNotes: (on) => set({ codeNotes: on }),
-  requestExplain: (call) => set(call === null
+  requestExplain: (request) => set(request === null
     ? { explainRequest: null }
-    : { explainRequest: call, codePane: 'code', codeHidden: false, codeChangedUnseen: false }),
+    : { explainRequest: typeof request === 'string' ? { call: request } : request, codePane: 'code', codeHidden: false, codeChangedUnseen: false }),
   markSceneSwap: () => set((state) => ({ sceneSwapSeq: state.sceneSwapSeq + 1 })),
   setJourneyVertex: (index) => set({ journeyVertex: Math.max(0, Math.floor(index)) }),
 });

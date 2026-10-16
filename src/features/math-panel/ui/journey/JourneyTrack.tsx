@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { JourneyStageId } from '@/core/inspector';
+import type { ExplainRequest } from '@/core/store/types';
 import type { SceneNode } from '@/core/types/scene';
 import type { VertexJourney } from '../../model/vertex-journey';
 import WorkingTable from './WorkingTable';
@@ -11,7 +12,7 @@ interface JourneyTrackProps {
   node: SceneNode | undefined;
   onOpen: (stage: JourneyStageId) => void;
   /** A working row's GL call was chosen (Task 15). */
-  onCall?: (call: string) => void;
+  onCall?: (request: ExplainRequest) => void;
 }
 
 /** Every stage is a row on a vertical line; exactly one is open with its working. */

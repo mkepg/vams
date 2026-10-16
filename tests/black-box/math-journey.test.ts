@@ -729,3 +729,54 @@ describe('BB-JOURNEY-26: With a Keep proportions reshape handler, Projected work
     getState().setCallbackHandler('reshape', '');
   });
 });
+
+describe('BB-JOURNEY-27: A group row\'s GL call opens the group\'s line, not the child\'s', () => {
+  it('opens glScalef(state_Group_1…) from the group\'s scale row, with the group\'s value in the strip', async () => {
+    const tri = addTriangle();
+    getState().updateObjectName(tri.id, 'Tri');
+    getState().addCustomObject('QUADS', [{ x: 0.3, y: 0.3 }, { x: 0.7, y: 0.3 }, { x: 0.7, y: 0.7 }, { x: 0.3, y: 0.7 }]);
+    const quad = getState().objects[0];
+    getState().createGroup([tri.id, quad.id]);
+    const group = getState().objects.find((o) => o.type === 'GROUP')!;
+    getState().updateObjectTransform(group.id, { scaleX: 2, scaleY: 2 });
+    getState().selectObject(tri.id);
+    useVamsStore.setState({ activeSection: 'Transforms', codePane: 'math', codeHidden: false });
+    const host = mount(h(CodeMathColumn, {}));
+    await settle();
+    const scales = [...host.querySelectorAll('.journey-work__call-link')].filter((b) => b.textContent === 'glScalef') as HTMLButtonElement[];
+    expect(scales).toHaveLength(2);
+    scales[1].click();
+    await settle();
+    await settle();
+    expect(host.querySelector('.code-line.is-explained .code-line__text')!.textContent!.trim()).toMatch(/^glScalef\(state_Group_1\.scaleX/);
+    expect(host.querySelector('section.code-strip')!.textContent).toContain('state_Group_1.scaleX');
+    unmount(host);
+  });
+});
+
+describe('BB-JOURNEY-28: A vertex row\'s GL call opens the followed vertex\'s line', () => {
+  const explainedText = (host: HTMLElement) => host.querySelector('.code-line.is-explained .code-line__text')!.textContent!.trim();
+  const clickCall = async (host: HTMLElement, call: string) => {
+    ([...host.querySelectorAll('.journey-work__call-link')].find((b) => b.textContent === call) as HTMLButtonElement).click();
+    await settle();
+    await settle();
+  };
+
+  it('opens vertex 3\'s glVertex2f from Stored and its glColor3f from Coloured', async () => {
+    mockTriangle();
+    useVamsStore.setState({ codePane: 'math', codeHidden: false });
+    getState().setJourneyVertex(2);
+    getState().setJourneyStageOverride('stored');
+    const host = mount(h(CodeMathColumn, {}));
+    await settle();
+    expect(host.querySelector('.journey-follow__vertex')!.textContent).toBe('vertex 3 of 3');
+    await clickCall(host, 'glVertex2f');
+    expect(explainedText(host)).toBe('glVertex2f(0.5000f, -0.5000f);');
+    getState().setJourneyStageOverride('coloured');
+    useVamsStore.setState({ codePane: 'math' });
+    await settle();
+    await clickCall(host, 'glColor3f');
+    expect(explainedText(host)).toBe('glColor3f(0.33f, 0.87f, 0.53f);');
+    unmount(host);
+  });
+});

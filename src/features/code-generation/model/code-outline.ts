@@ -4,6 +4,8 @@
  * the WB-CODE tests instead of breaking silently. The generator itself does not change.
  */
 
+import type { ExplainRequest } from '@/core/store/types';
+
 export type BlockKind =
   | 'includes' | 'struct' | 'state' | 'view' | 'buffer-data' | 'vbo-handles' | 'texture-handles'
   | 'declarations' | 'draw-object' | 'draw' | 'update-buffers' | 'display' | 'window-to-world'
@@ -287,14 +289,45 @@ export function outlineCode(code: string): CodeOutline {
   return { lines, blocks, objects };
 }
 
-export function findCallLine(outline: CodeOutline, object: string | null, call: string): number | null {
-  const calls = (l: OutlineLine) => l.text.includes(`${call}(`);
-  if (object !== null) {
-    const own = outline.lines.findIndex((l) => l.object === object && calls(l));
+/**
+ * The line that makes a call: the owner's (the request's, else `object`), narrowed by the request's
+ * block, contained text and nth vertex call. A narrowing that matches nothing falls back to the
+ * owner's first call, then to the first call in the program.
+ */
+export function findCallLine(outline: CodeOutline, object: string | null, target: ExplainRequest | string): number | null {
+  const t = typeof target === 'string' ? { call: target } : target;
+  const owner = t.owner ?? object;
+  const calls = (l: OutlineLine) => l.text.includes(`${t.call}(`);
+  const narrowed = (l: OutlineLine) => calls(l) && (!t.contains || l.text.includes(t.contains)) && (!t.block || l.block === t.block);
+  if (owner !== null) {
+    if (t.nth !== undefined) {
+      const at = nthBetweenBeginEnd(outline, owner, calls, t.nth);
+      if (at !== null) return at;
+    }
+    const own = outline.lines.findIndex((l) => l.object === owner && narrowed(l));
     if (own >= 0) return own;
+    const first = outline.lines.findIndex((l) => l.object === owner && calls(l));
+    if (first >= 0) return first;
   }
-  const any = outline.lines.findIndex(calls);
-  return any >= 0 ? any : null;
+  const any = outline.lines.findIndex(narrowed);
+  if (any >= 0) return any;
+  const fallback = outline.lines.findIndex(calls);
+  return fallback >= 0 ? fallback : null;
+}
+
+/** The nth matching line between the owner's glBegin and glEnd, where immediate mode makes one call per vertex. */
+function nthBetweenBeginEnd(outline: CodeOutline, owner: string, calls: (l: OutlineLine) => boolean, nth: number): number | null {
+  let inside = false;
+  let seen = 0;
+  for (let i = 0; i < outline.lines.length; i++) {
+    const l = outline.lines[i];
+    if (l.object !== owner) continue;
+    const text = l.text.trim();
+    if (text.startsWith('glBegin(')) inside = true;
+    else if (text.startsWith('glEnd(')) inside = false;
+    else if (inside && calls(l) && seen++ === nth) return i;
+  }
+  return null;
 }
 
 /** The ObjectState fields in initialiser order (generator/state.ts). */

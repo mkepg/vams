@@ -1,3 +1,4 @@
+import type { ExplainRequest } from '@/core/store/types';
 import type { WorkingRow } from '../../model/vertex-journey';
 
 const valueClass = (value: string) => (isProseValue(value) ? 'journey-work__value is-prose' : 'journey-work__value');
@@ -11,7 +12,7 @@ interface WorkingTableProps {
   rows: readonly WorkingRow[];
   result: string;
   /** A row's GL call was chosen: Code opens on that line. Plain text when omitted. */
-  onCall?: (call: string) => void;
+  onCall?: (request: ExplainRequest) => void;
   /** Stored's rows are wordy ("refreshed every frame…"), so its steps may wrap; every other stage keeps one line per step. */
   wrapSteps?: boolean;
 }
@@ -65,7 +66,7 @@ export default function WorkingTable({ rows, result, onCall, wrapSteps }: Workin
               <td className={valueClass(row.value)}>{row.value}</td>
               <td className="journey-work__call">
                 {row.call && (onCall && row.linked !== false ? (
-                  <button type="button" className="journey-work__call-link" onClick={() => onCall(row.call!)}>{row.call}</button>
+                  <button type="button" className="journey-work__call-link" onClick={() => onCall({ call: row.call!, ...row.target })}>{row.call}</button>
                 ) : (
                   <code>{row.call}</code>
                 ))}

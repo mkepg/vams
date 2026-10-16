@@ -614,3 +614,28 @@ describe('WB-CODE-28: The glOrtho strip shows the volume the Keep proportions re
     expect(plain.values.map((v) => v.value)).toEqual(['−1.00', '1.00', '−1.00', '1.00']);
   });
 });
+
+describe('WB-CODE-29: A call target names its owner, its nth vertex line, a text it contains and its block', () => {
+  it('finds the group\'s line, the nth vertex call inside glBegin, MIN_FILTER and update_buffers()', () => {
+    const tri = addTriangle();
+    getState().updateObjectName(tri.id, 'Tri');
+    const quad = addQuad(0.5, 0.5, 0.2);
+    getState().createGroup([tri.id, quad.id]);
+    getState().updateRenderingMode(quad.id, 'VBO');
+    getState().updateBufferUsage(quad.id, 'STREAM');
+    getState().attachTexture(tri.id, 'sample-bricks');
+    getState().setCallbackHandler('keyboard', 'onKey');
+    getState().addCallbackRule('keyboard', rule(tri.id, { action: { type: 'setColor', color: '#ff0000' } }));
+    const o = outlineCode(program());
+    const text = (at: number | null) => o.lines[at!].text.trim();
+    expect(text(findCallLine(o, 'Tri', { call: 'glScalef', owner: 'Group_1' }))).toMatch(/^glScalef\(state_Group_1\./);
+    expect(text(findCallLine(o, 'Tri', { call: 'glVertex2f', nth: 2 }))).toBe('glVertex2f(0.0000f, 0.6667f);');
+    expect(text(findCallLine(o, 'Tri', { call: 'glTexCoord2f', nth: 1 }))).toBe('glTexCoord2f(1.0000f, 0.0000f);');
+    expect(text(findCallLine(o, 'Tri', { call: 'glColor3f', nth: 0 }))).toBe('if (!state_Tri.useColor) glColor3f(1.00f, 1.00f, 1.00f);');
+    expect(text(findCallLine(o, 'Tri', { call: 'glTexParameteri', contains: 'MIN_FILTER' }))).toContain('GL_TEXTURE_MIN_FILTER');
+    expect(o.lines[findCallLine(o, 'QUADS_1', { call: 'glBufferData', block: 'update-buffers' })!].block).toBe('update-buffers');
+    // A target that matches nothing more specific falls back to the owner's first call.
+    expect(text(findCallLine(o, 'Tri', { call: 'glVertex2f', nth: 9 }))).toBe('glVertex2f(-0.5000f, -0.3333f);');
+    expect(findCallLine(o, 'Tri', 'glTranslatef')).toBe(findCallLine(o, 'Tri', { call: 'glTranslatef' }));
+  });
+});
