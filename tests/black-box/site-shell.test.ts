@@ -655,3 +655,16 @@ describe('BB-SITE-39: The tab title follows the route on first load', () => {
     expect(source).toMatch(/useEffect\(\(\) => \{\s*syncDocumentTitle\(window\.location\.pathname\);/);
   });
 });
+
+describe('BB-SITE-40: The Try it slide carries a QR code to the site', () => {
+  it('prerenders an SVG code beside the written address', async () => {
+    const { renderToString } = await import('preact-render-to-string');
+    const { h } = await import('preact');
+    const { default: TryItSection } = await import('@/pages/home/ui/sections/TryItSection');
+    const html = renderToString(h(TryItSection, {}));
+    expect(html).toContain('class="qr-code try-qr__code"');
+    expect(html).toMatch(/role="img" aria-label="QR code for vams\.pages\.dev"/);
+    expect(html).toMatch(/<svg[^>]+viewBox="0 0 \d+ \d+"/);
+    expect(html).toContain('vams.pages.dev');
+  });
+});

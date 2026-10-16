@@ -1,5 +1,7 @@
 import { PRESET_LINKS, presetHref } from '@/entities/project/model/preset-links';
 import { TRY_IT } from '@/pages/home/model/content';
+import QrCode from '@/shared/ui/qr/QrCode';
+import { SHARE_ORIGIN } from '@/shared/lib/share-origin';
 import SectionHeading from './SectionHeading';
 
 export default function TryItSection() {
@@ -19,7 +21,10 @@ export default function TryItSection() {
           ))}
         </ul>
       </nav>
-      <p className="try-url">{TRY_IT.displayUrl}</p>
+      <figure className="try-qr">
+        <QrCode text={SHARE_ORIGIN} label={`QR code for ${TRY_IT.displayUrl}`} size={168} className="try-qr__code" />
+        <figcaption className="try-url">{TRY_IT.displayUrl}</figcaption>
+      </figure>
       <p className="try-note">{TRY_IT.note}</p>
     </section>
   );

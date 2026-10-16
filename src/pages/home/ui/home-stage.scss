@@ -106,6 +106,9 @@ html.stage {
 
   /* Try it: the closing slide mirrors the hero, and the address is the one thing to copy down. */
   .home-section--try .home-section__title { font-size: 4.25rem; }
+  /* Sized in CSS so the code scans from the back of a room. */
+  .try-qr { justify-self: start; gap: var(--space-6); }
+  .try-qr__code { width: min(34vh, 320px) !important; height: min(34vh, 320px) !important; }
   .try-url { justify-self: start; font-size: 2rem; border-bottom-width: 2px; }
   .try-note { font-size: 1.3rem; }
 }

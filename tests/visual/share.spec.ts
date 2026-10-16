@@ -69,3 +69,19 @@ for (const theme of ['dark', 'light'] as const) {
     await context.close();
   });
 }
+
+for (const theme of ['dark', 'light'] as const) {
+  test(`VIS-SHARE-03: Try it slide with its QR code in stage mode, ${theme}, 1280 x 720`, async ({ page }) => {
+    await page.addInitScript((t) => window.localStorage.setItem('vams-theme', t), theme);
+    await page.goto('/?stage');
+    await page.keyboard.press('End');
+    const slide = page.locator('#try');
+    await expect(slide).toBeInViewport({ ratio: 0.9 });
+    await expect(slide.locator('.try-qr__code svg')).toBeVisible();
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+    });
+    await page.waitForTimeout(600);
+    await expect(page).toHaveScreenshot(`try-it-qr-${theme}-1280.png`);
+  });
+}
