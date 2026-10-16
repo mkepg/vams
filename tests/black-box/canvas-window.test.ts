@@ -66,10 +66,10 @@ describe('BB-CANVAS-03: Placing vertices puts the keys in the header', () => {
     useVamsStore.setState({ interactionMode: 'VERTEX_PLACE' });
     await settle();
     const hint = host.querySelector('.canvas-header__hint')!;
-    expect(hint.textContent).toBe('Click to place a vertex · Enter finish · Backspace undo · Esc cancel');
+    expect(hint.textContent).toBe('Click to place · Enter finish · Backspace undo · Esc cancel');
     expect([...hint.querySelectorAll('kbd')].map((k) => k.textContent)).toEqual(['Enter', 'Backspace', 'Esc']);
     expect(host.querySelector('.canvas-header__volume')).toBeNull();
-    expect(hint.getAttribute('title')).toBe('Click to place a vertex · Enter finish · Backspace undo · Esc cancel');
+    expect(hint.getAttribute('title')).toBe('Click to place · Enter finish · Backspace undo · Esc cancel');
     unmount(host);
   });
 });

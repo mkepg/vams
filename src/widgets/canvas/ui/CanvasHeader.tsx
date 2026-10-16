@@ -15,8 +15,8 @@ export default function CanvasHeader() {
         <span className="canvas-header__volume">{`x ${short(v.minX)}…${short(v.maxX)} · y ${short(v.minY)}…${short(v.maxY)}`}</span>
       )}
       {placing && (
-        <span className="canvas-header__hint" role="status" title="Click to place a vertex · Enter finish · Backspace undo · Esc cancel">
-          Click to place a vertex · <kbd>Enter</kbd> finish · <kbd>Backspace</kbd> undo · <kbd>Esc</kbd> cancel
+        <span className="canvas-header__hint" role="status" title="Click to place · Enter finish · Backspace undo · Esc cancel">
+          Click to place · <kbd>Enter</kbd> finish · <kbd>Backspace</kbd> undo · <kbd>Esc</kbd> cancel
         </span>
       )}
       <span className="canvas-header__spacer" />
