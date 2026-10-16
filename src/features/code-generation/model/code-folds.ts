@@ -26,10 +26,11 @@ function moreLabel(hidden: number[], outline: CodeOutline): string {
 
 /**
  * The rows the code panel shows. `selection` is the selected object's code name, `opened` the
- * blocks the student opened by hand, and `forced` lines that must show: a lesson's highlighted
+ * blocks the student opened by hand, `closed` the blocks they folded by hand, and `forced` lines that must show: a lesson's highlighted
  * lines, changed values, Find's current match, Run's fired branch and the explained line.
  *
  * - A block opened by hand shows every line.
+ * - A block folded by hand shows only the forced lines, even when the selection owns it.
  * - Otherwise a block shows the selected object's lines (every object's with no selection) and the
  *   forced lines. A forced line opens only itself, never its whole block.
  * - A partly open block keeps its frame: a function keeps its comment, signature, braces and the
@@ -42,21 +43,29 @@ export function visibleRows(
   selection: string | null,
   opened: readonly string[],
   forced: readonly number[],
+  closed: readonly string[] = [],
 ): CodeRow[] {
   const rows: CodeRow[] = [];
   const forcedLines = new Set(forced);
   const openKinds = selection === null ? OPEN_FOR_NOTHING : OPEN_FOR_SELECTION;
   for (const block of outline.blocks) {
     const all = range(block.start, block.end);
+    // The first line of an open block carries the toggle that folds it again.
+    let toggled = false;
+    const lineRow = (line: number): CodeRow => {
+      if (toggled || closed.includes(block.id)) return { kind: 'line', line };
+      toggled = true;
+      return { kind: 'line', line, closes: { block: block.id, label: block.label } };
+    };
     if (opened.includes(block.id)) {
-      all.forEach((line, k) => rows.push(k === 0 ? { kind: 'line', line, closes: { block: block.id, label: block.label } } : { kind: 'line', line }));
+      all.forEach((line) => rows.push(lineRow(line)));
       continue;
     }
     // A forced line shows as if the selection owned it; the rest of its block stays folded.
     const shown = all.filter((line) => {
       if (forcedLines.has(line)) return true;
       const owner = outline.lines[line].object;
-      return openKinds.has(block.kind) && owner !== null && (selection === null || owner === selection);
+      return !closed.includes(block.id) && openKinds.has(block.kind) && owner !== null && (selection === null || owner === selection);
     });
     if (shown.length === 0) {
       rows.push({ kind: 'fold', block: block.id, label: block.label, summary: block.summary, start: block.start, end: block.end });
@@ -65,7 +74,7 @@ export function visibleRows(
     const visible = new Set([...shown, ...frameLines(block, outline)]);
     for (let k = 0; k < all.length; ) {
       if (visible.has(all[k])) {
-        rows.push({ kind: 'line', line: all[k] });
+        rows.push(lineRow(all[k]));
         k += 1;
         continue;
       }

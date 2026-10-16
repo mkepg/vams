@@ -173,6 +173,8 @@ export interface RuntimeSlice {
   codeChangedUnseen: boolean;
   /** Code folds the student opened by hand; cleared when the selection changes. Session only. */
   codeFoldsOpened: string[];
+  /** Code blocks the student folded by hand, including ones the selection had opened; cleared when the selection changes. Session only. */
+  codeFoldsClosed: string[];
   /** The code line the explanation strip explains. Session only. */
   explainedLine: number | null;
   /** The code panel's Notes switch. Starts on; session only. */
@@ -208,6 +210,8 @@ export interface RuntimeSlice {
   markCodeChanged: () => void;
   /** Opens a fold, or closes it if the student opened it. */
   toggleCodeFold: (block: string) => void;
+  /** Folds a block however it was opened, keeping only the lines that must show. */
+  foldCodeBlock: (block: string) => void;
   setExplainedLine: (line: number | null) => void;
   setCodeNotes: (on: boolean) => void;
   setJourneyVertex: (index: number) => void;

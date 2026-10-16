@@ -34,7 +34,9 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
   const changedCodeLines = useVamsStore((s) => s.changedCodeLines);
   const viewportLimits = useVamsStore((s) => s.viewportLimits);
   const opened = useVamsStore((s) => s.codeFoldsOpened);
+  const closed = useVamsStore((s) => s.codeFoldsClosed);
   const toggleCodeFold = useVamsStore((s) => s.toggleCodeFold);
+  const foldCodeBlock = useVamsStore((s) => s.foldCodeBlock);
   const getAllTextures = useVamsStore((s) => s.getAllTextures);
   const explainedLine = useVamsStore((s) => s.explainedLine);
   const setExplainedLine = useVamsStore((s) => s.setExplainedLine);
@@ -103,8 +105,15 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
 
   const rows = useMemo(() => {
     const forced = [...lessonLines, ...marks.map((m) => m.line), ...flashLines, ...(findLine === null ? [] : [findLine]), ...(explained === null ? [] : [explained])];
-    return visibleRows(outline, selection, opened, forced);
-  }, [outline, selection, opened, lessonLines, marks, flashLines, findLine, explained]);
+    return visibleRows(outline, selection, opened, forced, closed);
+  }, [outline, selection, opened, closed, lessonLines, marks, flashLines, findLine, explained]);
+
+  // A block whose first line shows its ▾ is open, whoever opened it: that toggle folds it, any other opens it.
+  const openBlocks = useMemo(() => new Set(rows.flatMap((r) => (r.kind === 'line' && r.closes ? [r.closes.block] : []))), [rows]);
+  const onToggleFold = useCallback(
+    (block: string) => (openBlocks.has(block) ? foldCodeBlock(block) : toggleCodeFold(block)),
+    [openBlocks, foldCodeBlock, toggleCodeFold],
+  );
 
   // What scrolls into view: Run's fired branch, else a lesson's highlight, else the changed values.
   const revealLines = useMemo(() => {
@@ -168,7 +177,7 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
     <CodeViewer
       code={generatedCode}
       rows={rows}
-      onToggleFold={toggleCodeFold}
+      onToggleFold={onToggleFold}
       marks={marks}
       marksKey={marksKey}
       revealLines={revealLines}

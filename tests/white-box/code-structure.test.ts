@@ -281,7 +281,7 @@ describe('WB-CODE-13: A forced line shows only itself in a folded block; a block
     expect(mainShown).toContain(clear);
     expect(mainShown.length).toBeLessThan(mainBlock.end - mainBlock.start + 1);
     const opened = visibleRows(outline, 'Triangle', ['draw:Square'], []);
-    const first = opened.find((r) => r.kind === 'line' && r.closes) as Extract<CodeRow, { kind: 'line' }>;
+    const first = opened.find((r) => r.kind === 'line' && r.closes?.block === 'draw:Square') as Extract<CodeRow, { kind: 'line' }>;
     expect(first.closes).toEqual({ block: 'draw:Square', label: 'void draw_Square()' });
     expect(outline.lines[first.line].text).toBe('void draw_Square()');
   });
@@ -647,5 +647,26 @@ describe('WB-CODE-30: glMatrixMode(GL_PROJECTION) maps the viewing volume to NDC
     const e = explainLine(lineOf(o, 'glMatrixMode(GL_PROJECTION)'), o, explainScene())!;
     expect(e.text).toContain('maps the viewing volume to the −1 to 1 box (NDC)');
     expect(e.text).not.toContain('to the window');
+  });
+});
+
+describe('WB-CODE-31: A block folded by hand shows only its forced lines, and keeps no ▾ of its own', () => {
+  it('folds a selection-opened block to one fold row, or to its forced line and more rows', () => {
+    const { outline } = threeShapes();
+    const open = visibleRows(outline, 'Triangle', [], []);
+    expect(open.some((r) => r.kind === 'line' && r.closes?.block === 'draw:Triangle')).toBe(true);
+    const closed = visibleRows(outline, 'Triangle', [], [], ['draw:Triangle']);
+    expect(folds(closed)).toContain('void draw_Triangle()');
+    expect(closed.some((r) => r.kind === 'line' && r.closes?.block === 'draw:Triangle')).toBe(false);
+    const block = outline.blocks.find((b) => b.id === 'draw:Triangle')!;
+    const forcedLine = block.start + 2;
+    const kept = visibleRows(outline, 'Triangle', [], [forcedLine], ['draw:Triangle']);
+    const keptLines = kept.filter((r): r is Extract<CodeRow, { kind: 'line' }> => r.kind === 'line').map((r) => r.line);
+    expect(keptLines).toContain(forcedLine);
+    expect(kept.some((r) => r.kind === 'more' && r.block === 'draw:Triangle')).toBe(true);
+    expect(kept.some((r) => r.kind === 'line' && r.closes?.block === 'draw:Triangle')).toBe(false);
+    // Opened by hand, the block has exactly one ▾, on its first line.
+    const hand = visibleRows(outline, 'Triangle', ['draw:Square'], []);
+    expect(hand.filter((r) => r.kind === 'line' && r.closes?.block === 'draw:Square')).toHaveLength(1);
   });
 });

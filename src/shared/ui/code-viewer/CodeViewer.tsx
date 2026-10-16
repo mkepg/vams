@@ -9,7 +9,7 @@ export interface CodeViewerProps {
   code: string;
   /** The rows to show; every line when omitted. */
   rows?: readonly CodeRow[];
-  /** A fold or "more" row was opened, or a block opened by hand was closed. */
+  /** A fold or "more" row was opened, or an open block's ▾ was pressed. */
   onToggleFold?: (block: string) => void;
   /** The values that just changed. */
   marks?: readonly CodeMark[];
@@ -253,8 +253,11 @@ const CodeViewer = memo(function CodeViewer({
     ];
   };
 
-  const toggleFromKey = (block: string, twin: 'code-fold-close' | 'code-fold', pressed: HTMLElement) => {
-    if (document.activeElement === pressed) focusAfter.current = { selector: `.${twin}[data-block="${block}"]` };
+  // The toggle is replaced by its twin in the same column, so the twin takes the focus the press had.
+  const toggleFromKey = (block: string, pressed: HTMLElement) => {
+    if (document.activeElement === pressed) {
+      focusAfter.current = { selector: `.code-fold[data-block="${block}"], .code-fold-toggle[data-block="${block}"]` };
+    }
     onToggleFold?.(block);
   };
 
@@ -272,17 +275,20 @@ const CodeViewer = memo(function CodeViewer({
     return (
       // A changed line remounts on each edit, so its fade starts again.
       <div key={changed ? `${line}:${marksKey}` : `${line}`} className="code-row">
-        {/* ▾ is the line's sibling, never inside it: the line itself is a button. */}
+        {/* The gutter is the line's sibling, never inside it: the line itself is a button. It sits over the line's reserved fold column. */}
         {row.closes && (
-          <button
-            type="button"
-            className="code-fold-close"
-            aria-label={`Fold ${row.closes.label}`}
-            data-block={row.closes.block}
-            onClick={(e) => toggleFromKey(row.closes!.block, 'code-fold', e.currentTarget)}
-          >
-            ▾
-          </button>
+          <div className="code-gutter">
+            <button
+              type="button"
+              className="code-fold-toggle"
+              aria-expanded="true"
+              aria-label={`Fold ${row.closes.label}`}
+              data-block={row.closes.block}
+              onClick={(e) => toggleFromKey(row.closes!.block, e.currentTarget)}
+            >
+              ▾
+            </button>
+          </div>
         )}
         <div
           ref={(el) => {
@@ -299,11 +305,13 @@ const CodeViewer = memo(function CodeViewer({
           onKeyDown={canExplain ? onLineKey(line) : undefined}
         >
           <span className="code-line__num" aria-hidden="true">{line + 1}</span>
+          <span className="code-line__fold" aria-hidden="true" />
           <span className="code-line__text">{text ? <LineText text={text} overlays={overlaysFor(line)} /> : ' '}</span>
         </div>
         {notesOn && note && (
           <div className="code-note">
             <span className="code-line__num" aria-hidden="true" />
+            <span className="code-line__fold" aria-hidden="true" />
             <span className="code-note__indent" aria-hidden="true">{text.match(/^\s*/)![0]}</span>
             <span className="code-note__text">
               {note.map((part, k) =>
@@ -328,12 +336,13 @@ const CodeViewer = memo(function CodeViewer({
           type="button"
           className="code-fold"
           aria-expanded="false"
+          aria-label={`Unfold ${row.label}`}
           aria-describedby={tipId}
           data-block={row.block}
-          onClick={(e) => toggleFromKey(row.block, 'code-fold-close', e.currentTarget)}
+          onClick={(e) => toggleFromKey(row.block, e.currentTarget)}
         >
           <span className="code-line__num" aria-hidden="true">{row.start + 1}</span>
-          <span className="code-fold__arrow" aria-hidden="true">▸ </span>
+          <span className="code-fold__arrow code-line__fold" aria-hidden="true">▸</span>
           <span className="code-fold__label">{row.label}</span>
         </button>
         {row.kind === 'fold' && (

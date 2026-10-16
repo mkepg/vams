@@ -126,7 +126,7 @@ describe('BB-CODE-03: A folded block shows its name, its real line number and it
     render(h(CodeViewer, { code: SMALL, rows: open, onToggleFold }), host);
     await settle();
     expect(host.querySelectorAll('.code-line')).toHaveLength(5);
-    const close = host.querySelector('.code-fold-close') as HTMLButtonElement;
+    const close = host.querySelector(".code-fold-toggle") as HTMLButtonElement;
     expect(close.getAttribute('aria-label')).toBe('Fold int main()');
     close.click();
     expect(onToggleFold).toHaveBeenLastCalledWith('main');
@@ -313,7 +313,7 @@ describe('BB-CODE-13: A fold opened by hand stays open until the selection chang
     await settle();
     expect(getState().codeFoldsOpened).toEqual(['draw:Square']);
     expect(lineTexts(host)).toContain('void draw_Square()');
-    (host.querySelector('.code-fold-close[data-block="draw:Square"]') as HTMLButtonElement).click();
+    (host.querySelector('.code-fold-toggle[data-block="draw:Square"]') as HTMLButtonElement).click();
     await settle();
     expect(foldLabels(host)).toContain('void draw_Square()');
     squareFold().click();
@@ -372,7 +372,7 @@ describe('BB-CODE-16: Keyboard focus survives opening and closing a fold, and cl
     squareFold().focus();
     squareFold().click();
     await settle();
-    const close = host.querySelector('.code-fold-close[data-block="draw:Square"]') as HTMLButtonElement;
+    const close = host.querySelector('.code-fold-toggle[data-block="draw:Square"]') as HTMLButtonElement;
     expect(document.activeElement).toBe(close);
     close.focus();
     close.click();
@@ -638,7 +638,7 @@ describe('BB-CODE-27: The fold toggle never explains a line', () => {
     await settle();
     (host.querySelector('.code-fold[data-block="draw:Square"]') as HTMLButtonElement).click();
     await settle();
-    const close = host.querySelector('.code-fold-close[data-block="draw:Square"]') as HTMLButtonElement;
+    const close = host.querySelector('.code-fold-toggle[data-block="draw:Square"]') as HTMLButtonElement;
     expect(close.closest('.code-line')).toBeNull();
     key(close, 'Enter');
     key(close, ' ');
@@ -782,6 +782,144 @@ describe('BB-CODE-34: See the math selects the line\'s object first, as Open doe
     expect(getState().codePane).toBe('math');
     expect(getState().journeyStageOverride).toBe('transformed');
     expect(host.querySelector('table.journey-work')).not.toBeNull();
+    unmount(host);
+  });
+});
+
+const toggleOf = (host: HTMLElement, block: string) =>
+  host.querySelector(`.code-fold[data-block="${block}"], .code-fold-toggle[data-block="${block}"]`) as HTMLButtonElement;
+
+describe('BB-CODE-35: An unfolded block folds back with a ▾ in the column the ▸ was in, and focus stays on it', () => {
+  it('replaces the ▸ with a ▾ in the fold column, folds on click and keeps the focus on the toggle', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(tri.id);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    const folded = toggleOf(host, 'draw:Square');
+    expect(folded.classList.contains('code-fold')).toBe(true);
+    expect(folded.querySelector('.code-fold__arrow')!.textContent).toBe('▸');
+    expect(folded.querySelector('.code-fold__arrow')!.classList.contains('code-line__fold')).toBe(true);
+    folded.focus();
+    folded.click();
+    await settle();
+    const open = toggleOf(host, 'draw:Square');
+    expect(open.classList.contains('code-fold-toggle')).toBe(true);
+    expect(open.textContent).toBe('▾');
+    expect(document.activeElement).toBe(open);
+    // The ▾ is in the gutter that overlays the line's fold column, never over its number.
+    const row = open.closest('.code-row')!;
+    const line = row.querySelector('.code-line')!;
+    expect([...line.children].map((c) => c.className)).toEqual(['code-line__num', 'code-line__fold', 'code-line__text']);
+    expect(open.closest('.code-gutter')!.parentElement).toBe(row);
+    expect(line.contains(open)).toBe(false);
+    open.click();
+    await settle();
+    expect(getState().codeFoldsOpened).toEqual([]);
+    expect(foldLabels(host)).toContain('void draw_Square()');
+    expect(document.activeElement).toBe(toggleOf(host, 'draw:Square'));
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-36: A block the selection opened folds with one click, and the fold resets on a new selection', () => {
+  it('folds the selected draw function, records it as closed by hand and starts fresh on the next selection', async () => {
+    const { tri, square } = mockScene();
+    getState().selectObject(tri.id);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    expect(foldLabels(host)).not.toContain('void draw_Triangle()');
+    toggleOf(host, 'draw:Triangle').click();
+    await settle();
+    expect(getState().codeFoldsClosed).toEqual(['draw:Triangle']);
+    expect(getState().codeFoldsOpened).toEqual([]);
+    expect(foldLabels(host)).toContain('void draw_Triangle()');
+    toggleOf(host, 'draw:Triangle').click();
+    await settle();
+    expect(getState().codeFoldsClosed).toEqual([]);
+    expect(foldLabels(host)).not.toContain('void draw_Triangle()');
+    toggleOf(host, 'draw:Triangle').click();
+    await settle();
+    getState().selectObject(square.id);
+    getState().selectObject(tri.id);
+    await settle();
+    expect(getState().codeFoldsClosed).toEqual([]);
+    expect(foldLabels(host)).not.toContain('void draw_Triangle()');
+    const options = (useVamsStore as unknown as { persist: { getOptions: () => { partialize: (s: unknown) => object } } }).persist.getOptions();
+    expect(Object.keys(options.partialize(getState()))).not.toContain('codeFoldsClosed');
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-37: Folding a block that holds a forced line keeps that line, and the focus stays on a toggle', () => {
+  it('returns main to its changed line plus its more rows, with a hand-opened block folding too', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(tri.id);
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    getState().setCanvasBackgroundColor('#ff0000');
+    await settle();
+    expect(lineTexts(host).some((t) => t.includes('glClearColor(1.00f, 0.00f, 0.00f'))).toBe(true);
+    getState().toggleCodeFold('main');
+    await settle();
+    const handOpen = toggleOf(host, 'main');
+    handOpen.focus();
+    handOpen.click();
+    await settle();
+    expect(getState().codeFoldsClosed).toEqual(['main']);
+    expect(getState().codeFoldsOpened).toEqual([]);
+    expect(lineTexts(host).some((t) => t.includes('glClearColor(1.00f, 0.00f, 0.00f'))).toBe(true);
+    expect(host.querySelector('.code-fold-row--more .code-fold[data-block="main"]')).not.toBeNull();
+    expect(document.activeElement).toBe(toggleOf(host, 'main'));
+    expect(document.activeElement).not.toBe(document.body);
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-38: A three-digit line number is never covered by the toggle', () => {
+  it('keeps the ▾ in its own gutter, beside the number, with a fold column on every row', async () => {
+    const code = Array.from({ length: 120 }, (_, i) => `line_${i};`).join('\n');
+    const rows: CodeRow[] = [
+      { kind: 'line', line: 99, closes: { block: 'b', label: 'void b()' } },
+      { kind: 'line', line: 100 },
+      { kind: 'fold', block: 'c', label: 'void c()', summary: 'c', start: 101, end: 110 },
+    ];
+    const host = mount(h(CodeViewer, { code, rows }));
+    await settle();
+    const toggle = host.querySelector('.code-fold-toggle') as HTMLButtonElement;
+    const row = toggle.closest('.code-row')!;
+    expect(row.querySelector('.code-line__num')!.textContent).toBe('100');
+    expect(toggle.closest('.code-line__num')).toBeNull();
+    expect(toggle.closest('.code-gutter')).not.toBeNull();
+    expect(toggle.closest('.code-line')).toBeNull();
+    for (const r of host.querySelectorAll('.code-line')) expect(r.querySelector('.code-line__fold')).not.toBeNull();
+    expect(host.querySelector('.code-fold .code-line__fold')).not.toBeNull();
+    const css = readFileSync('src/shared/ui/code-viewer/code-viewer.scss', 'utf8');
+    expect(css).not.toContain('code-fold-close');
+    expect(css).toMatch(/\.code-gutter\s*{[^}]*left:\s*\$num-col/);
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-39: Each toggle is a button with aria-expanded and a label that names its block', () => {
+  it('reads Unfold when folded and Fold when open, and leaves Enter and Space to the native button', async () => {
+    const onToggleFold = vi.fn();
+    const fold: CodeRow = { kind: 'fold', block: 'main', label: 'int main()', summary: 's', start: 0, end: 4 };
+    const host = mount(h(CodeViewer, { code: SMALL, rows: [fold], onToggleFold }));
+    await settle();
+    const folded = host.querySelector('.code-fold') as HTMLButtonElement;
+    expect(folded.tagName).toBe('BUTTON');
+    expect(folded.getAttribute('aria-expanded')).toBe('false');
+    expect(folded.getAttribute('aria-label')).toBe('Unfold int main()');
+    const open: CodeRow[] = [0, 1].map((line) => (line === 0 ? { kind: 'line', line, closes: { block: 'main', label: 'int main()' } } : { kind: 'line', line }));
+    render(h(CodeViewer, { code: SMALL, rows: open, onToggleFold }), host);
+    await settle();
+    const toggle = host.querySelector('.code-fold-toggle') as HTMLButtonElement;
+    expect(toggle.tagName).toBe('BUTTON');
+    expect(toggle.type).toBe('button');
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(toggle.getAttribute('aria-label')).toBe('Fold int main()');
+    expect(key(toggle, 'Enter').defaultPrevented).toBe(false);
+    expect(key(toggle, ' ').defaultPrevented).toBe(false);
     unmount(host);
   });
 });

@@ -53,6 +53,7 @@ beforeEach(() => {
     codeHidden: false,
     codeChangedUnseen: false,
     codeFoldsOpened: [],
+    codeFoldsClosed: [],
     explainedLine: null,
     revealedGroup: null,
     codeNotes: true,
