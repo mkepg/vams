@@ -83,7 +83,12 @@ export function useCanvasInteraction({
   useEffect(() => {
     const app = appRef.current;
     if (!app || !pixiReady) return;
-    const onResize = () => applyViewportTransform();
+    // PixiJS only queues its own resize for the next frame, so app.screen would still hold the
+    // old size here. Resize now, then fit the viewport to the new size.
+    const onResize = () => {
+      app.resize?.();
+      applyViewportTransform();
+    };
     window.addEventListener("resize", onResize);
     if (readOnly) {
       return () => window.removeEventListener("resize", onResize);

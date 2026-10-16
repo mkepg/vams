@@ -212,3 +212,25 @@ describe('BB-CANVAS-07: A read-only canvas takes no pointer or key input', () =>
     useVamsStore.getState().cancelCustomShape();
   });
 });
+
+describe('BB-CANVAS-08: The viewport refits as soon as the canvas box changes size', () => {
+  it('resizes the renderer before fitting, so a hidden panel never leaves the scene drawn for the old size', async () => {
+    const screen = { width: 100, height: 100 };
+    const position = { x: 0, y: 0 };
+    const stage = { eventMode: 'none', on: () => {}, off: () => {}, hitArea: null as unknown };
+    // PixiJS only queues its own resize; app.resize() applies the new size at once.
+    const app = { current: { stage, screen, resize: () => Object.assign(screen, { width: 300, height: 200 }) } };
+    const world = { current: { scale: { set: () => {} }, position: { set: (x: number, y: number) => Object.assign(position, { x, y }) } } };
+    function ResizeProbe() {
+      useCanvasInteraction({ pixiReady: true, appRef: app as never, worldRef: world as never, canvasRef: { current: null }, readOnly: true });
+      return null;
+    }
+    useVamsStore.setState({ viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 } } as never);
+    const host = mount(h(ResizeProbe, {}));
+    await settle();
+    window.dispatchEvent(new Event('resize'));
+    // The origin sits at the centre of the new 300 × 200 box.
+    expect(position).toEqual({ x: 150, y: 100 });
+    unmount(host);
+  });
+});

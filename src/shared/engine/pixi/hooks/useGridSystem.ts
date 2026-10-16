@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Application, Container, Graphics, Text, TextStyle } from "pixi.js";
 import { useVamsStore } from "@/core/store";
-import { insetLabel } from "../grid-labels";
+import { insetLabel, tickRange } from "../grid-labels";
 interface UseGridSystemProps {
   pixiReady: boolean;
   appRef: React.MutableRefObject<Application | null>;
@@ -83,20 +83,18 @@ export function useGridSystem({
       const endX = Math.max(topLeft.x, bottomRight.x);
       const startY = Math.min(topLeft.y, bottomRight.y);
       const endY = Math.max(topLeft.y, bottomRight.y);
-      const startTickX = Math.ceil(startX / niceStep) * niceStep;
-      const endTickX = Math.floor(endX / niceStep) * niceStep;
-      const startTickY = Math.ceil(startY / niceStep) * niceStep;
-      const endTickY = Math.floor(endY / niceStep) * niceStep;
+      const ticksX = tickRange(startX, endX, niceStep);
+      const ticksY = tickRange(startY, endY, niceStep);
       if (axisVisibility.showGridlines) {
         g.setStrokeStyle({ width: 1, color: 0xffffff, alpha: 0.1 });
-        for (let x = startTickX; x <= endTickX; x += niceStep) {
+        for (const x of ticksX) {
           const screenPos = world.toGlobal({ x, y: 0 });
           if (screenPos.x >= -1 && screenPos.x <= screenWidth + 1) {
             g.moveTo(screenPos.x, 0);
             g.lineTo(screenPos.x, screenHeight);
           }
         }
-        for (let y = startTickY; y <= endTickY; y += niceStep) {
+        for (const y of ticksY) {
           const screenPos = world.toGlobal({ x: 0, y });
           if (screenPos.y >= -1 && screenPos.y <= screenHeight + 1) {
             g.moveTo(0, screenPos.y);
@@ -117,18 +115,18 @@ export function useGridSystem({
         }
         g.stroke();
         g.setStrokeStyle({ width: 1, color: 0xffffff, alpha: 0.45 });
-        for (let x = startTickX; x <= endTickX; x += niceStep) {
+        for (const x of ticksX) {
           const sx = world.toGlobal({ x, y: 0 }).x;
           g.moveTo(sx, originScreen.y - 3);
           g.lineTo(sx, originScreen.y + 3);
         }
-        for (let y = startTickY; y <= endTickY; y += niceStep) {
+        for (const y of ticksY) {
           const sy = world.toGlobal({ x: 0, y }).y;
           g.moveTo(originScreen.x - 3, sy);
           g.lineTo(originScreen.x + 3, sy);
         }
         g.stroke();
-        for (let x = startTickX; x <= endTickX; x += niceStep) {
+        for (const x of ticksX) {
           if (Math.abs(x) < niceStep / 10) continue;
           const screenPos = world.toGlobal({ x, y: 0 });
           const screenX = screenPos.x;
@@ -144,7 +142,7 @@ export function useGridSystem({
             }
           }
         }
-        for (let y = startTickY; y <= endTickY; y += niceStep) {
+        for (const y of ticksY) {
           if (Math.abs(y) < niceStep / 10) continue;
           const screenPos = world.toGlobal({ x: 0, y });
           const screenX = originScreen.x;
