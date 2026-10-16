@@ -14,6 +14,7 @@ import { generateCodeFromState } from '@/features/code-generation/model/generate
 import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { runController } from '@/features/callbacks';
 import { registerFakeRenderer } from '../helpers/fake-renderer';
+import { useCanvasInteraction } from '@/features/scene-interaction/model/useCanvasInteraction';
 import { addTriangle } from '../helpers/store';
 
 async function settle() {
@@ -67,6 +68,8 @@ describe('BB-CANVAS-03: Placing vertices puts the keys in the header', () => {
     const hint = host.querySelector('.canvas-header__hint')!;
     expect(hint.textContent).toBe('Click to place a vertex · Enter finish · Backspace undo · Esc cancel');
     expect([...hint.querySelectorAll('kbd')].map((k) => k.textContent)).toEqual(['Enter', 'Backspace', 'Esc']);
+    expect(host.querySelector('.canvas-header__volume')).toBeNull();
+    expect(hint.getAttribute('title')).toBe('Click to place a vertex · Enter finish · Backspace undo · Esc cancel');
     unmount(host);
   });
 });
@@ -117,6 +120,16 @@ describe('BB-CANVAS-04: The window title bar reads what the program sets', () =>
     fire();
     await settle();
     expect(host.querySelector('output')!.textContent).toBe('586x610');
+    w = 0;
+    tall = 400;
+    fire();
+    await settle();
+    expect(host.querySelector('output')!.textContent).toBe('586x610');
+    w = 586;
+    tall = 0;
+    fire();
+    await settle();
+    expect(host.querySelector('output')!.textContent).toBe('586x610');
     w = 700;
     tall = 400;
     fire();
@@ -158,5 +171,44 @@ describe('BB-CANVAS-06: Run sits in the header and turns into Stop', () => {
     expect(host.querySelector('.run-button')).not.toBeNull();
     unmount(host);
     unregister();
+  });
+});
+
+function InteractionProbe({ readOnly, on }: { readOnly: boolean; on: (event: string) => void }) {
+  const stage = { eventMode: 'none', on: (e: string) => on(e), off: () => {}, hitArea: null as unknown };
+  const app = { current: { stage, screen: { width: 100, height: 100 } } };
+  useCanvasInteraction({
+    pixiReady: true,
+    appRef: app as never,
+    worldRef: { current: null },
+    canvasRef: { current: null },
+    readOnly,
+  });
+  return null;
+}
+
+describe('BB-CANVAS-07: A read-only canvas takes no pointer or key input', () => {
+  it('ignores Escape, Enter and stage pointerdown while placing, where an editable one reacts', async () => {
+    const key = (k: string) => window.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
+    const prepare = () => useVamsStore.setState({ interactionMode: 'VERTEX_PLACE', pendingShapeType: 'GL_TRIANGLES', pendingMinVertices: 3, pendingVertices: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }] } as never);
+    prepare();
+    const before = useVamsStore.getState().objects.length;
+    const bound = vi.fn();
+    let host = mount(h(InteractionProbe, { readOnly: true, on: bound }));
+    await settle();
+    key('Enter');
+    key('Escape');
+    expect(bound).not.toHaveBeenCalled();
+    expect(useVamsStore.getState().objects.length).toBe(before);
+    expect(useVamsStore.getState().interactionMode).toBe('VERTEX_PLACE');
+    unmount(host);
+    const editableBound = vi.fn();
+    host = mount(h(InteractionProbe, { readOnly: false, on: editableBound }));
+    await settle();
+    expect(editableBound).toHaveBeenCalledWith('pointerdown');
+    key('Enter');
+    expect(useVamsStore.getState().objects.length).toBe(before + 1);
+    unmount(host);
+    useVamsStore.getState().cancelCustomShape();
   });
 });

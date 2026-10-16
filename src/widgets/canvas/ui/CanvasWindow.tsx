@@ -14,12 +14,12 @@ export default function CanvasWindow({ size, running, children }: CanvasWindowPr
     <div className="canvas-window">
       <div className="canvas-window__bar">
         <span className="canvas-window__title">{PROGRAM_WINDOW_TITLE}</span>
+        <span className="canvas-window__size">{`${size.width} × ${size.height}`}</span>
         {running && (
           <span className="canvas-window__running">
             <span className="canvas-window__dot" aria-hidden="true" />running
           </span>
         )}
-        <span className="canvas-window__size">{`${size.width} × ${size.height}`}</span>
       </div>
       <div className="canvas-window__body">{children}</div>
     </div>

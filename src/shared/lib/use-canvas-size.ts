@@ -11,8 +11,8 @@ export function useCanvasSize(): CanvasSize {
     const updateSize = (target: Element) => {
       const width = Math.floor(target.clientWidth);
       const height = Math.floor(target.clientHeight);
-      // A 0 by 0 read means the box is not laid out right now; keep the last real size.
-      if (width === 0 && height === 0) return;
+      // A read with a zero side means the box is not laid out right now; keep the last real size.
+      if (width === 0 || height === 0) return;
       setCanvasSize({ width, height });
     };
     updateSize(el);

@@ -38,7 +38,7 @@ export function RunControl() {
     );
   }
   // A Pipeline illustration replaces the canvas; there is nothing to run, so Run steps aside.
-  if (block === "illustration") return null;
+  if (block === 'illustration') return null;
   return (
     <div className="run-control" data-tour-anchor="run">
       <Button
@@ -54,12 +54,12 @@ export function RunControl() {
       </Button>
       {block && (
         <p id={plateId} className="run-plate">
-          {block === "empty" ? (
+          {block === 'empty' ? (
             RUN_EMPTY_REASON
           ) : (
             <>
-              {RUN_NO_CALLBACK_REASON}{" "}
-              <button type="button" className="run-plate__link" onClick={() => setRailPanel("callbacks")}>
+              {RUN_NO_CALLBACK_REASON}{' '}
+              <button type="button" className="run-plate__link" onClick={() => setRailPanel('callbacks')}>
                 {RUN_OPEN_CALLBACKS}
               </button>
             </>

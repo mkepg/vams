@@ -23,8 +23,8 @@
     color: var(--ink);
   }
   &__title { font-weight: 500; }
-  &__running { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-muted); }
+  &__running { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; color: var(--ink-muted); }
   &__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--run-fired); }
-  &__size { margin-left: auto; font-family: $font-mono; color: var(--ink-muted); }
+  &__size { font-family: $font-mono; color: var(--ink-muted); }
   &__body { position: relative; flex: 1; min-height: 0; }
 }
