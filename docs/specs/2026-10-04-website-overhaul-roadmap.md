@@ -23,7 +23,7 @@ The overhaul has three goals:
 | Visual direction | **Ink + Cobalt** (replaced Drafting Vellum on 2026-10-07): flat neutral surfaces, 1px dividers, one cobalt accent used only for active and selected things. Type: Bricolage Grotesque (UI and headlines), JetBrains Mono (code). See [the visual identity spec](2026-10-07-visual-identity-design.md) |
 | Themes | `dark` and `light`. A first visit follows the operating system; the toggle overrides it and is remembered. One choice is shared by the site and the editor |
 | Logo | The pixel wordmark: "VAMS" in Minecrafter, yellow with a black outline and a cyan offset shadow. A pixel "V" is the favicon |
-| Framework | Preact + Vite. preact-iso routing; the editor is lazy-loaded on `/app`; content pages are prerendered at build time with per-page metadata. Next.js was considered and rejected: migration risk before the expo, and no server needs |
+| Framework | Preact + Vite. preact-iso routing; the editor is lazy-loaded on `/app`; content pages are prerendered at build time with per-page metadata. Next.js was considered and rejected: migration risk before the expo, and no server needs at the time. Sharing later added one Pages Function and one KV namespace for shared scenes ([editor chrome and sharing](2026-10-16-editor-chrome-share-design.md)) |
 | Pages | Home `/`, editor `/app`, About `/about`, Learn `/learn`, Guide `/guide`. The header links only finished pages |
 | Accessibility | WCAG 2.2 AA in every sub-project |
 | Analytics | None for now |
@@ -53,7 +53,7 @@ The product rules in `AGENTS.md` and [docs/product-plan.md](../product-plan.md) 
 
 ### Should
 
-8. Shareable scene links and QR code
+8. Shareable scene links and QR code. Complete (2026-10-17) with the editor chrome and sharing project
 9. Example gallery of curated scenes
 10. `/learn` page (replaces the SP4 Learn hub): the course map outside the editor, reusing the Learn drawer's course data and progress. By Nov 2. The Guide page follows it. Complete (2026-10-10): [spec](2026-10-10-learn-page-design.md), [plan](../plans/2026-10-10-learn-page.md)
 11. Polish the demo lesson(s)
@@ -79,7 +79,7 @@ Four projects, in this order. Each has its own spec and plan.
    - **Lines aren't explained.** A student cannot ask what a line does; the hover notes appear only while the scene is empty.
    - **The math feels disconnected.** The math cards do not clearly relate to what the student just did, or to the code line that uses those numbers.
    - **The math is just numbers.** The cards show results (a matrix, a table) but not the working: how a vertex goes from the student's values to the screen, step by step.
-3. **Share link and QR code** (item 8).
+3. **Share link and QR code** (item 8). Complete (2026-10-17): [spec](2026-10-16-editor-chrome-share-design.md), [plan](../plans/2026-10-16-editor-chrome-share.md). It also redesigned the top bar and drew the canvas as the program's window.
 4. **Lesson content:** more, deeper and better lessons, including item 11 and the `task` and `pane` text the lesson bar uses. Lesson data may land until Nov 2. The owner's concern, in their words: "I feel a lack of content for each lesson, it lacks quantity and quality as well as depth." Item 11 also covers tidying the lessons shown on stage.
 
 ### Below the line
@@ -89,6 +89,7 @@ These don't start before the expo:
 - SP6 editor behaviour changes, starting with a walkthrough. Ideas are parked until then.
 - SP7, the full curriculum expansion.
 - Analytics.
+- Switch the code panel to CodeMirror 6, only if time allows after the expo (owner, 2026-10-16). The panel's folds were fixed in place first.
 
 New ideas join this list in priority order.
 
@@ -192,6 +193,9 @@ The thesis manuscript is final and describes the evaluated build. The overhauled
 13. §3.4.1 says "there is no concept of playback or event-driven behavior engine in the implementation, nor is there any retained state of the simulation". The editor now has Run: a transient, event-driven state that keeps a temporary copy of each object's state while it runs. It never writes scene state, and the code and math panels still draw from the store. During Run the canvas shows the running program, not the saved scene.
 14. Algorithm 2 ends the program with "callback function skeletons", and §3.4.2's callbacks panel registers names only. Handlers now have generated bodies built from rules, a sixth callback (`glutSpecialFunc`) exists, and Reshape offers two behaviours.
 15. The evaluated build's math panel had one tab per curriculum section, and its code panel tinted the selected object's lines and explained boilerplate only on an empty scene. The math panel is now a vertex journey through six pipeline stages with the student's numbers. The code panel folds everything but the selected object's code and explains any line on request (code and math rework).
+
+16. The manuscript describes a client-only web application. Sharing a scene stores it through one server-side Pages Function in a key-value store, which keeps a shared scene for 90 days.
+17. The manuscript's canvas is a plain drawing area. The canvas is now drawn as the program's window, titled as the generated program titles it, under a header holding the viewing volume, the cursor, the View menu and Run. The window can be moved, resized, minimised and closed like a desktop window.
 
 The following manuscript descriptions may also be crossed by later sub-projects. When one is, it is added to the list above:
 - The default canvas background `#000000`. Changing it changes generated code and the replay baseline.

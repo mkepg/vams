@@ -41,7 +41,7 @@ export const ABOUT_COPY = {
     { term: 'Offline', text: 'After your first visit VAMS works without internet, and in Chrome or Edge you can install it as an app.' },
     {
       term: 'Your work',
-      text: 'Your scene and your lesson progress stay in this browser between visits. My scenes keeps named scenes and your last five backups. To move work to another computer, save a project file.',
+      text: 'Your scene and your lesson progress stay in your browser between visits, unless you share one: a shared scene is stored for 90 days. My scenes keeps named scenes and your last five backups. To move work to another computer, save a project file.',
     },
     { term: 'Found a problem?', text: 'Open an issue on GitHub', href: ISSUES_URL },
   ],
