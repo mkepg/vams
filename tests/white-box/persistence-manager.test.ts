@@ -174,3 +174,35 @@ describe('WB-PERSIST-08: Browser storage version 8 migrates to version 9', () =>
     expect((migratePersistedState({ objects: [], sceneBackup: null }, 8) as { sceneBackup: unknown }).sceneBackup).toBeNull();
   });
 });
+
+describe('WB-PERSIST-09: Browser storage version 9 migrates to version 10', () => {
+  it('names an old save "Untitled scene" and leaves its id for rehydration to assign', () => {
+    const out = migratePersistedState({ objects: [], callbacks: emptyCallbacks() }, 9) as { sceneName: unknown; sceneId: unknown };
+    expect(out.sceneName).toBe('Untitled scene');
+    expect(out.sceneId).toBe('');
+    const kept = migratePersistedState({ objects: [], sceneName: 'Mine', sceneId: 'abc' }, 9) as { sceneName: unknown; sceneId: unknown };
+    expect(kept).toMatchObject({ sceneName: 'Mine', sceneId: 'abc' });
+  });
+});
+
+describe('WB-PERSIST-10: The store saves the scene identity at version 10', () => {
+  it('persists sceneId and sceneName', () => {
+    const options = useVamsStore.persist.getOptions();
+    expect(options.version).toBe(10);
+    useVamsStore.setState({ sceneId: 'id-1', sceneName: 'Solar system' });
+    const saved = options.partialize!(useVamsStore.getState()) as Record<string, unknown>;
+    expect(saved.sceneId).toBe('id-1');
+    expect(saved.sceneName).toBe('Solar system');
+  });
+});
+
+describe('WB-PERSIST-11: ensureSceneId gives a migrated save an id once', () => {
+  it('fills an empty id and keeps an existing one', () => {
+    useVamsStore.setState({ sceneId: '' });
+    useVamsStore.getState().ensureSceneId();
+    const first = useVamsStore.getState().sceneId;
+    expect(first).not.toBe('');
+    useVamsStore.getState().ensureSceneId();
+    expect(useVamsStore.getState().sceneId).toBe(first);
+  });
+});

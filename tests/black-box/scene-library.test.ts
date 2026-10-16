@@ -13,6 +13,8 @@ import {
   createMemoryLibrary,
   getSceneLibrary,
   normalizeSceneName,
+  sceneIdentity,
+  sceneNameFromFile,
   setSceneLibraryForTests,
   UNTITLED_SCENE,
   type SceneEntry,
@@ -384,5 +386,26 @@ describe('BB-LIB-16: A full browser storage does not break the dialog', () => {
     expect(useVamsStore.getState().objects.map((o) => o.id)).toEqual([tri.id]);
     expect(buttonNamed(host, 'Save')?.disabled).toBe(false);
     unmount(host);
+  });
+});
+
+describe('BB-LIB-17: The working scene has a name the student can change', () => {
+  it('normalises names as My scenes does, and makes fresh identities', () => {
+    const s = useVamsStore.getState();
+    s.renameScene('  Solar system  ');
+    expect(useVamsStore.getState().sceneName).toBe('Solar system');
+    s.renameScene('   ');
+    expect(useVamsStore.getState().sceneName).toBe(UNTITLED_SCENE);
+    s.renameScene('x'.repeat(120));
+    expect(useVamsStore.getState().sceneName).toHaveLength(80);
+    const a = sceneIdentity();
+    const b = sceneIdentity('Orbit');
+    expect(a.sceneName).toBe(UNTITLED_SCENE);
+    expect(b.sceneName).toBe('Orbit');
+    expect(a.sceneId).not.toBe(b.sceneId);
+    expect(sceneIdentity('Kept', 'id-9').sceneId).toBe('id-9');
+    expect(sceneNameFromFile('solar-system.vams')).toBe('solar-system');
+    expect(sceneNameFromFile('scene.JSON')).toBe('scene');
+    expect(sceneNameFromFile('.vams')).toBe(UNTITLED_SCENE);
   });
 });

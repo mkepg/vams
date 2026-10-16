@@ -15,6 +15,7 @@ import { createCallbacksSlice } from '@/core/store/callbacks-slice';
 import { createTextureSlice } from '@/core/store/texture-slice';
 import { createHelpSlice } from '@/core/store/help-slice';
 import { createTourSlice } from '@/core/store/tour-slice';
+import { createSceneIdentitySlice } from '@/entities/project/model/scene-identity-slice';
 import { reportCorruptSave } from '@/core/store/recovery-signal';
 
 enableMapSet();
@@ -54,6 +55,7 @@ export const useVamsStore = create<VamsState>()(
       ...createTextureSlice(...a),
       ...createHelpSlice(...a),
       ...createTourSlice(...a),
+      ...createSceneIdentitySlice(...a),
       resetProject: () => {
         localStorage.removeItem(STORAGE_KEY);
         window.location.reload();
@@ -61,7 +63,7 @@ export const useVamsStore = create<VamsState>()(
     }),
     {
       name: STORAGE_KEY,
-      version: 9,
+      version: 10,
       migrate: (persisted, version) => migratePersistedState(persisted, version) as never,
       storage: createJSONStorage(() => safeStorage),
       onRehydrateStorage: () => {
@@ -82,6 +84,7 @@ export const useVamsStore = create<VamsState>()(
           // A lesson backup that survived a reload means the page reloaded mid-lesson:
           // put the student's own scene back and leave the lesson.
           if (rehydratedState?.sceneBackup) rehydratedState.clearLessonState();
+          rehydratedState?.ensureSceneId();
           rehydratedState?.pickOpeningPanel();
         };
       },
@@ -97,6 +100,8 @@ export const useVamsStore = create<VamsState>()(
         callbacks: state.callbacks,
         uploadedTextures: state.uploadedTextures,
         hasSeenWelcome: state.hasSeenWelcome,
+        sceneId: state.sceneId,
+        sceneName: state.sceneName,
         sceneBackup: state.sceneBackup,
         callbacksBackup: state.callbacksBackup,
         canvasBackgroundColorBackup: state.canvasBackgroundColorBackup,

@@ -299,6 +299,17 @@ export interface HelpSlice {
 
 export type { TextureSlice } from './texture-slice';
 
+export interface SceneIdentitySlice {
+  /** The working scene's own My scenes entry. Empty only until a migrated save is rehydrated. */
+  sceneId: string;
+  /** The working scene's name, shown in the top bar. */
+  sceneName: string;
+  /** Rename the working scene; names follow My scenes' rules. */
+  renameScene: (name: string) => void;
+  /** Give a save migrated from version 9 its own My scenes id. */
+  ensureSceneId: () => void;
+}
+
 export type VamsState = SceneSlice &
   InteractionSlice &
   ViewportSlice &
@@ -310,4 +321,5 @@ export type VamsState = SceneSlice &
   CallbacksSlice &
   HelpSlice &
   TourSlice &
+  SceneIdentitySlice &
   import('./texture-slice').TextureSlice;

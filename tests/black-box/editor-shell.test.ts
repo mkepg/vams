@@ -781,13 +781,13 @@ describe('BB-SHELL-29: A lesson step switches the rail to its panel and opens it
 });
 
 describe('BB-SHELL-30: The rail and the code column are never saved', () => {
-  it('keeps them out of the saved editor data, which stays at version 9', () => {
+  it('keeps them out of the saved editor data, which stays at version 10', () => {
     const s = () => useVamsStore.getState();
     s().setRailPanel('callbacks');
     s().setCodePane('math');
     s().setCodeHidden(true);
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
-    expect(saved.version).toBe(9);
+    expect(saved.version).toBe(10);
     for (const key of ['railPanel', 'railHidden', 'codePane', 'codeHidden', 'codeChangedUnseen']) {
       expect(saved.state).not.toHaveProperty(key);
     }
