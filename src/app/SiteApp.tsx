@@ -29,6 +29,7 @@ export default function SiteApp() {
           <Route path="/learn" component={LearnPage} />
           <Route path="/about" component={AboutPage} />
           <Route path="/app" component={EditorPage} />
+          <Route path="/s/:id" component={EditorPage} />
           <Route default component={NotFoundPage} />
         </Router>
       </ErrorBoundary>

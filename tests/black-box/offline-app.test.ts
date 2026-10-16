@@ -161,3 +161,10 @@ describe('BB-PWA-09: The /about document is cached under its clean URL', () => {
     expect(manifest.map((entry) => entry.url)).toEqual(['about/index.html', 'about']);
   });
 });
+
+describe('BB-PWA-10: Share API requests never fall back to a cached page', () => {
+  it('denies /api/ navigations', () => {
+    const deny = buildPwaOptions().workbox!.navigateFallbackDenylist!;
+    expect(deny.some((r) => r.test('/api/share/k3x9q2Ab'))).toBe(true);
+  });
+});

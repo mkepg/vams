@@ -48,7 +48,9 @@ export const ROUTES: readonly RouteMeta[] = [
 ];
 
 export function findRouteMeta(pathname: string): RouteMeta {
-  const clean = pathname.replace(/\/+$/, '') || '/';
+  const trimmed = pathname.replace(/\/+$/, '') || '/';
+  // A stored share link opens in the editor, so it has the editor's title and metadata.
+  const clean = trimmed.startsWith('/s/') ? '/app' : trimmed;
   const match = ROUTES.find((route) => route.path === clean);
   if (match) return match;
   const notFound = ROUTES.find((route) => route.path === '/404');

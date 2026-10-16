@@ -638,3 +638,11 @@ describe('BB-SITE-37: Netlify publishes only the forwarding site, and only when 
     expect(toml).toMatch(/ignore\s*=\s*"git diff --quiet \$CACHED_COMMIT_REF \$COMMIT_REF -- netlify\.toml deploy\/netlify-forward"/);
   });
 });
+
+describe('BB-SITE-38: A stored share link has the editor’s title and metadata', () => {
+  it('maps /s/<id> to the /app route', () => {
+    expect(findRouteMeta('/s/k3x9q2Ab')).toBe(findRouteMeta('/app'));
+    expect(findRouteMeta('/s/k3x9q2Ab/').title).toBe('VAMS Editor');
+    expect(findRouteMeta('/s').title).not.toBe('VAMS Editor');
+  });
+});

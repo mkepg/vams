@@ -57,7 +57,7 @@ export function buildPwaOptions(): Partial<VitePWAOptions> {
       ignoreURLParametersMatching: [/.*/],
       manifestTransforms: [routeDocumentsTransform],
       navigateFallback: '/404/index.html',
-      navigateFallbackDenylist: [/^\/sitemap\.xml$/, /^\/robots\.txt$/],
+      navigateFallbackDenylist: [/^\/api\//, /^\/sitemap\.xml$/, /^\/robots\.txt$/],
       cleanupOutdatedCaches: true,
       maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
     },
