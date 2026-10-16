@@ -1,6 +1,7 @@
 import type { CurriculumSection } from '@/core/store/types';
 import { JOURNEY_STAGES, JOURNEY_STAGE_TITLES, type JourneyStageId } from '@/core/inspector/journey-stage';
-import type { PrimitiveType, SceneNode, TransformState, ViewportLimits } from '@/core/types/scene';
+import type { PrimitiveType, ResizeMode, SceneNode, TransformState, ViewportLimits } from '@/core/types/scene';
+import { keepProportionsView } from '@/core/callbacks/reshape-view';
 import type { TextureAsset, TextureWrap, UV } from '@/core/types/textures';
 import { assemblyFor, provokingVertex } from '@/entities/scene/model/primitive-assembly';
 import { deduplicate } from '@/entities/scene/model/vertex-dedup';
@@ -38,6 +39,8 @@ export interface JourneyStage {
   /** What the closed row shows, and the working's last row. Null when there is nothing to follow. */
   result: string | null;
   point: Point | null;
+  /** Projected: the volume glOrtho receives, and whether a Keep proportions reshape handler widened it. */
+  volume?: { limits: ViewportLimits; widened: boolean };
 }
 
 export type JourneySubject =
@@ -57,6 +60,8 @@ export interface JourneyScene {
   textures: readonly TextureAsset[];
   /** Whether the program has a reshape handler (the generator emits one). Unset reads as true. */
   reshape?: boolean;
+  /** The reshape handler's choice: Keep proportions widens the viewing volume to the window's shape. Unset reads as stretch. */
+  resize?: ResizeMode;
 }
 
 export interface CanvasSize {
@@ -75,6 +80,7 @@ export const STAGE_INFO: Record<JourneyStageId, { title: string; section: Curric
 
 const TRANSFORMED = 'Scale, rotate and move act on the vertex in the reverse of the order they appear in the code.';
 const PROJECTED = 'Your viewing volume is squeezed into a −1 to 1 box on each axis, called normalised device coordinates (NDC).';
+const WIDENED = ' The reshape callback first widened your viewing volume to match the window’s shape.';
 const RASTERISED = 'NDC is stretched to the window’s pixels, counted from the bottom-left corner as OpenGL does.';
 const SMOOTH = 'With smooth shading, each pixel inside the shape mixes the vertex colours by how close it is to each one.';
 const TEXTURED = 'Each pixel reads its colour from the texture, at the UV the vertices carry.';
@@ -164,12 +170,35 @@ function rasterisedStage(ndc: Point, pixel: Point, canvas: CanvasSize, reshape: 
   ], `pixel (${int(pixel.x)}, ${int(pixel.y)})`, pixel);
 }
 
-function projectedRows(world: Point, ndc: Point, v: ViewportLimits): WorkingRow[] {
-  return [
+/** The volume glOrtho receives: a Keep proportions reshape handler widens one axis to the window's shape first. */
+interface ProgramView {
+  limits: ViewportLimits;
+  widenedX: boolean;
+  widenedY: boolean;
+}
+
+function programView(scene: JourneyScene, canvas: CanvasSize): ProgramView {
+  const v = scene.viewportLimits;
+  if (!(scene.reshape ?? true) || scene.resize !== 'keep') return { limits: v, widenedX: false, widenedY: false };
+  const limits = keepProportionsView(v, canvas.width, canvas.height);
+  // Only a real change counts: the program prints four decimals.
+  const moved = (a: number, b: number) => Math.abs(a - b) > 5e-5;
+  return { limits, widenedX: moved(limits.minX, v.minX) || moved(limits.maxX, v.maxX), widenedY: moved(limits.minY, v.minY) || moved(limits.maxY, v.maxY) };
+}
+
+/** The student's own bounds are amber; widened ones are the program's, so they are plain. */
+const bounds = (min: number, max: number, widened: boolean): StepPart[] =>
+  widened ? [`${short(min)}…${short(max)}`] : [{ input: short(min) }, '…', { input: short(max) }];
+
+function projectedStage(world: Point, ndc: Point, view: ProgramView): JourneyStage {
+  const v = view.limits;
+  const rows: WorkingRow[] = [
     { step: ['from Transformed'], value: pair(world), call: null, from: true },
-    { step: ['volume x ', { input: short(v.minX) }, '…', { input: short(v.maxX) }], value: `x → ${fmt(ndc.x)}`, call: 'glOrtho' },
-    { step: ['volume y ', { input: short(v.minY) }, '…', { input: short(v.maxY) }], value: `y → ${fmt(ndc.y)}`, call: 'glOrtho' },
+    { step: ['volume x ', ...bounds(v.minX, v.maxX, view.widenedX)], value: `x → ${fmt(ndc.x)}`, call: 'glOrtho' },
+    { step: ['volume y ', ...bounds(v.minY, v.maxY, view.widenedY)], value: `y → ${fmt(ndc.y)}`, call: 'glOrtho' },
   ];
+  const widened = view.widenedX || view.widenedY;
+  return { ...stage('projected', PROJECTED + (widened ? WIDENED : ''), rows, `NDC ${pair(ndc)}`, ndc), volume: { limits: v, widened } };
 }
 
 // --- Colour -----------------------------------------------------------------------------------
@@ -289,7 +318,8 @@ function shapeJourney(node: SceneNode, scene: JourneyScene, vertexIndex: number,
   const v = node.vertices[i];
   const stored = { x: v.x, y: v.y };
   const { rows: moves, end: world } = transformRows(stored, chainOf(node, scene.objects));
-  const ndc = ndcOf(world, scene.viewportLimits);
+  const view = programView(scene, canvas);
+  const ndc = ndcOf(world, view.limits);
   const pixel = pixelOf(ndc, canvas);
   const mode = node.renderingMode ?? 'IMMEDIATE';
   const storedSentence = mode === 'VBO' && (node.bufferUsage ?? 'STATIC') !== 'STATIC' ? VBO_REFRESHED : STORED_BY_MODE[mode];
@@ -302,7 +332,7 @@ function shapeJourney(node: SceneNode, scene: JourneyScene, vertexIndex: number,
         { step: ['from Stored'], value: pair(stored), call: mode === 'IMMEDIATE' ? 'glVertex2f' : 'glVertexPointer', from: true },
         ...moves,
       ], pair(world), world),
-      stage('projected', PROJECTED, projectedRows(world, ndc, scene.viewportLimits), `NDC ${pair(ndc)}`, ndc),
+      projectedStage(world, ndc, view),
       stage('assembled', assembly.sentence, assembledRows(node, ndc, assembly), assembly.result, null),
       rasterisedStage(ndc, pixel, canvas, scene.reshape ?? true),
       colouredStage(node, i, scene, pixel),
@@ -314,7 +344,8 @@ function textJourney(node: SceneNode, scene: JourneyScene, canvas: CanvasSize): 
   // generator/render.ts centres the lines around the origin; the first line starts highest.
   const raster = { x: 0, y: firstRasterY(node.textContent ?? '') };
   const { rows: moves, end: world } = transformRows(raster, chainOf(node, scene.objects));
-  const ndc = ndcOf(world, scene.viewportLimits);
+  const view = programView(scene, canvas);
+  const ndc = ndcOf(world, view.limits);
   const pixel = pixelOf(ndc, canvas);
   const textHex = node.vertices[0]?.color ?? '#ffffff';
   const textRgb = rgbOf(textHex);
@@ -327,7 +358,7 @@ function textJourney(node: SceneNode, scene: JourneyScene, canvas: CanvasSize): 
     stages: [
       stage('stored', TEXT_STORED, [{ step: ['raster position'], value: pair(raster), call: 'glRasterPos2f', from: true }], pair(raster), raster),
       stage('transformed', TRANSFORMED, [{ step: ['from Stored'], value: pair(raster), call: 'glRasterPos2f', from: true }, ...moves], pair(world), world),
-      stage('projected', PROJECTED, projectedRows(world, ndc, scene.viewportLimits), `NDC ${pair(ndc)}`, ndc),
+      projectedStage(world, ndc, view),
       stage('assembled', TEXT_ASSEMBLED, [], 'bitmap text', null),
       rasterisedStage(ndc, pixel, canvas, scene.reshape ?? true),
       stage('coloured', `The text takes the colour set by ${node.colorMode === 'BYTE' ? 'glColor3ub' : 'glColor3f'} just before it.`, colouredRows, rgbText(textRgb), null),

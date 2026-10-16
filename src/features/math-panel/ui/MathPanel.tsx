@@ -30,14 +30,15 @@ export default function MathPanel({ headerLead, headerTrail, contentInert = fals
   const getAllTextures = useVamsStore((s) => s.getAllTextures);
   const uploaded = useVamsStore((s) => s.uploadedTextures);
   const reshape = useVamsStore((s) => isCallbackValid(s.callbacks, 'reshape'));
+  const resize = useVamsStore((s) => s.callbacks.reshape.resize);
   const open = useVamsStore(journeyStageFor);
   const canvas = useCanvasSize();
 
   const journey = useMemo(
-    () => vertexJourney({ objects, viewportLimits, textures: getAllTextures(), reshape }, selectedObjectId, journeyVertex, canvas),
+    () => vertexJourney({ objects, viewportLimits, textures: getAllTextures(), reshape, resize }, selectedObjectId, journeyVertex, canvas),
     // getAllTextures is stable; uploads change `uploaded`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [objects, viewportLimits, selectedObjectId, journeyVertex, canvas, uploaded, reshape],
+    [objects, viewportLimits, selectedObjectId, journeyVertex, canvas, uploaded, reshape, resize],
   );
   const node = objects.find((o) => o.id === selectedObjectId);
 

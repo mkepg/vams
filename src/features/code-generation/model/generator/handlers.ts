@@ -3,6 +3,7 @@ import type {
   RuleAction, RuleCallbackKind, RuleTrigger, SceneNode, SpecialKey, ViewportLimits,
 } from '@/core/types/scene';
 import { CALLBACK_KINDS, RULE_KINDS, isCallbackValid } from '@/core/callbacks/callbacks-model';
+import { keepProportionsStart } from '@/core/callbacks/reshape-view';
 import { sanitizeName } from './utils';
 
 /**
@@ -124,10 +125,7 @@ function reshapeBody(resize: ResizeMode, limits: ViewportLimits): string[] {
       '    glutPostRedisplay();',
     ];
   }
-  const cx = (limits.minX + limits.maxX) / 2;
-  const cy = (limits.minY + limits.maxY) / 2;
-  const halfW = (limits.maxX - limits.minX) / 2;
-  const halfH = (limits.maxY - limits.minY) / 2;
+  const { cx, cy, halfW, halfH } = keepProportionsStart(limits);
   return [
     "    // Keep proportions: widen the viewing volume to match the window's shape",
     '    glViewport(0, 0, width, height);',

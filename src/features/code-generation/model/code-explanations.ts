@@ -5,7 +5,8 @@
  */
 import type { InspectorGroupId } from '@/core/inspector/groups';
 import type { JourneyStageId } from '@/core/inspector/journey-stage';
-import type { PrimitiveType, SceneNode, ViewportLimits } from '@/core/types/scene';
+import type { CallbacksState, PrimitiveType, SceneNode, ViewportLimits } from '@/core/types/scene';
+import { keepProportionsView, keepsProportions } from '@/core/callbacks/reshape-view';
 import type { TextureAsset } from '@/core/types/textures';
 import { assemblyFor } from '@/entities/scene/model/primitive-assembly';
 import { fmt, short } from '@/shared/lib/format-number';
@@ -46,6 +47,8 @@ export interface ExplainScene {
   canvasBackgroundColor: string;
   canvas: { width: number; height: number };
   textures: readonly TextureAsset[];
+  /** The program's callbacks; a Keep proportions reshape handler widens the volume glOrtho receives. */
+  callbacks?: CallbacksState;
 }
 
 interface Ctx {
@@ -108,8 +111,14 @@ const ARRAYS: Record<string, { what: string; stage: JourneyStageId; control: [st
 const HANDLE_WHAT: Record<string, string> = { vbo: 'positions', cbo: 'colours', uvbo: 'texture coordinates', ebo: 'indices' };
 const CALLBACK_KIND: Record<string, string> = { Keyboard: 'keyboard', Special: 'arrow key', Mouse: 'mouse', Motion: 'mouse motion', Reshape: 'reshape', Idle: 'idle' };
 
-function limitRows(scene: ExplainScene, names: [string, string, string, string]): ValueRow[] {
-  const v = scene.viewportLimits;
+/** The volume glOrtho receives once GLUT's first reshape has run. */
+function orthoLimits(scene: ExplainScene): ViewportLimits {
+  return scene.callbacks && keepsProportions(scene.callbacks)
+    ? keepProportionsView(scene.viewportLimits, scene.canvas.width, scene.canvas.height)
+    : scene.viewportLimits;
+}
+
+function limitRows(v: ViewportLimits, names: [string, string, string, string]): ValueRow[] {
   return (['left', 'right', 'bottom', 'top'] as const).map((arg, k) => ({
     arg, source: names[k], value: fmt([v.minX, v.maxX, v.minY, v.maxY][k]), control: 'Viewing volume',
   }));
@@ -146,7 +155,7 @@ const ENTRIES: Entry[] = [
     explain: (_m, ctx) => ({
       signature: 'float viewMinX, viewMaxX, viewMinY, viewMaxY',
       text: 'The viewing volume’s edges, kept in variables so the reshape callback can widen them when the window changes shape.',
-      values: limitRows(ctx.scene, ['viewMinX', 'viewMaxX', 'viewMinY', 'viewMaxY']),
+      values: limitRows(ctx.scene.viewportLimits, ['viewMinX', 'viewMaxX', 'viewMinY', 'viewMaxY']),
       stage: 'projected',
       control: link('Viewing volume', 'viewing-volume'),
     }),
@@ -340,8 +349,9 @@ const ENTRIES: Entry[] = [
     test: /\bglOrtho\(([^,]+), ([^,]+), ([^,]+), ([^,]+), /,
     explain: (m, ctx) => ({
       signature: 'glOrtho(left, right, bottom, top, near, far)',
-      text: 'Sets the viewing volume, the part of the scene the window shows: x from left to right and y from bottom to top become −1 to 1.',
-      values: limitRows(ctx.scene, [m[1], m[2], m[3], m[4]].map((a) => (/^-?[\d.]+$/.test(a) ? 'viewing volume' : a)) as [string, string, string, string]),
+      text: 'Sets the viewing volume, the part of the scene the window shows: x from left to right and y from bottom to top become −1 to 1.'
+        + (ctx.scene.callbacks && keepsProportions(ctx.scene.callbacks) ? ' The reshape callback has already widened the volume to match the window’s shape.' : ''),
+      values: limitRows(orthoLimits(ctx.scene), [m[1], m[2], m[3], m[4]].map((a) => (/^-?[\d.]+$/.test(a) ? 'viewing volume' : a)) as [string, string, string, string]),
       stage: 'projected',
       control: link('Viewing volume', 'viewing-volume'),
     }),

@@ -64,6 +64,27 @@ export function orthoToNdc(
   };
 }
 
+/**
+ * A Keep proportions reshape handler's viewing volume: the axis that is too short for the
+ * window's width-to-height ratio grows about the volume's centre until the two ratios match.
+ */
+export function keepAspectBounds(
+  v: { minX: number; maxX: number; minY: number; maxY: number },
+  size: { width: number; height: number },
+): { minX: number; maxX: number; minY: number; maxY: number } {
+  const windowRatio = size.width / size.height;
+  const w = v.maxX - v.minX;
+  const h = v.maxY - v.minY;
+  const midX = (v.minX + v.maxX) / 2;
+  const midY = (v.minY + v.maxY) / 2;
+  if (w / h <= windowRatio) {
+    const half = (h * windowRatio) / 2;
+    return { minX: midX - half, maxX: midX + half, minY: v.minY, maxY: v.maxY };
+  }
+  const half = w / windowRatio / 2;
+  return { minX: v.minX, maxX: v.maxX, minY: midY - half, maxY: midY + half };
+}
+
 /** The default viewport's mapping of NDC to window pixels, counted from the bottom-left as OpenGL does. */
 export function ndcToWindow(p: { x: number; y: number }, size: { width: number; height: number }): { x: number; y: number } {
   // NDC exactly +1 is the last pixel; anything beyond ±1 keeps its real, unclamped pixel.

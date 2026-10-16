@@ -3,6 +3,7 @@ import type {
   RuleTrigger, SceneNode, SpecialKey, ViewportLimits,
 } from '@/core/types/scene';
 import { isCallbackValid, programObjects } from '@/core/callbacks/callbacks-model';
+import { keepProportionsView } from '@/core/callbacks/reshape-view';
 
 /**
  * The Run runtime: pure functions over a temporary copy of each object's program state. Every
@@ -85,17 +86,8 @@ export function windowToWorld(view: RunView, window: { width: number; height: nu
   return { x: view.minX + ((view.maxX - view.minX) * x) / w, y: view.maxY - ((view.maxY - view.minY) * y) / h };
 }
 
-/** The generated Keep proportions reshape body. */
-export function keepProportionsView(limits: RunView, width: number, height: number): RunView {
-  const aspect = width / (height > 0 ? height : 1);
-  const cx = q((limits.minX + limits.maxX) / 2, 4);
-  const cy = q((limits.minY + limits.maxY) / 2, 4);
-  let halfW = q((limits.maxX - limits.minX) / 2, 4);
-  let halfH = q((limits.maxY - limits.minY) / 2, 4);
-  if (aspect >= halfW / halfH) halfW = halfH * aspect;
-  else halfH = halfW / aspect;
-  return { minX: cx - halfW, maxX: cx + halfW, minY: cy - halfH, maxY: cy + halfH };
-}
+/** The generated Keep proportions reshape body, shared with the math journey. */
+export { keepProportionsView };
 
 function matches(trigger: RuleTrigger, event: RunEvent): boolean {
   switch (event.type) {

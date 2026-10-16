@@ -62,8 +62,8 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
   const outline = useMemo(() => outlineCode(generatedCode), [generatedCode]);
 
   const scene = useMemo<ExplainScene>(
-    () => ({ objects, viewportLimits, canvasBackgroundColor, canvas: canvasSize, textures: getAllTextures() }),
-    [objects, viewportLimits, canvasBackgroundColor, canvasSize, getAllTextures],
+    () => ({ objects, viewportLimits, canvasBackgroundColor, canvas: canvasSize, textures: getAllTextures(), callbacks }),
+    [objects, viewportLimits, canvasBackgroundColor, canvasSize, getAllTextures, callbacks],
   );
   const explainable = useMemo(
     () => new Set(outline.lines.flatMap((l, i) => (l.explainable && explainLine(i, outline, scene) ? [i] : []))),

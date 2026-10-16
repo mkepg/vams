@@ -713,3 +713,19 @@ describe('BB-JOURNEY-25: a flat face is one colour', () => {
     unmount(host);
   });
 });
+
+describe('BB-JOURNEY-26: With a Keep proportions reshape handler, Projected works the widened volume', () => {
+  it('puts the widened bounds in the formula and says the reshape callback widened them', async () => {
+    mockTriangle();
+    getState().setCallbackHandler('reshape', 'onReshape');
+    getState().setReshapeMode('keep');
+    getState().setJourneyStageOverride('projected');
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    expect(host.querySelector('.journey-open__why')!.textContent).toContain('The reshape callback first widened your viewing volume to match the window’s shape.');
+    expect(host.querySelector('.journey-formula')!.textContent).toContain('1.33');
+    expect(host.textContent).toContain('The reshape callback widened your volume to match the window’s shape');
+    unmount(host);
+    getState().setCallbackHandler('reshape', '');
+  });
+});

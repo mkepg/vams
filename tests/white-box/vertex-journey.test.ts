@@ -9,7 +9,7 @@ import { fmt, int, short, whole } from '@/shared/lib/format-number';
 import type { PrimitiveType, SceneNode, TransformState } from '@/core/types/scene';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
-import { makeMatrix, multiply, transformPoint, orthoToNdc, ndcToWindow } from '../helpers/matrix';
+import { makeMatrix, multiply, transformPoint, orthoToNdc, ndcToWindow, keepAspectBounds } from '../helpers/matrix';
 
 const T = (t: Partial<TransformState> = {}): TransformState => ({ translateX: 0, translateY: 0, rotate: 0, scaleX: 1, scaleY: 1, ...t });
 function node(id: string, type: SceneNode['type'], points: [number, number][], transform: Partial<TransformState> = {}, extra: Partial<SceneNode> = {}): SceneNode {
@@ -518,5 +518,59 @@ describe('WB-JOURNEY-17: Coloured edge cases', () => {
     const hex = node('Hex', 'POLYGON', [[0, 0], [1, 0], [2, 1], [2, 2], [1, 2], [0, 1]]);
     const j = vertexJourney(scene([hex]), 'Hex', 2, CANVAS);
     expect(rowsOf(j, 'coloured')[2][1]).toBe('weights 1 here, 0 at the other 5');
+  });
+});
+
+describe('WB-JOURNEY-18: A Keep proportions reshape handler widens the volume the journey projects with', () => {
+  const WIDE = { width: 800, height: 600 };
+  const tri = () => node('Tri', 'TRIANGLES', [[1, 0], [0, 1], [-1, 0]]);
+  const WIDENED = 'The reshape callback first widened your viewing volume to match the window’s shape.';
+
+  it('projects and rasterises with the widened bounds, as the reference does', () => {
+    const limits = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
+    const j = vertexJourney({ ...scene([tri()], limits), reshape: true, resize: 'keep' }, 'Tri', 0, WIDE);
+    const bounds = keepAspectBounds(limits, WIDE);
+    const ndc = orthoToNdc({ x: 1, y: 0 }, bounds);
+    expect(ndc.x).toBeCloseTo(0.75, 10);
+    expect(stage(j, 'projected').point!.x).toBeCloseTo(ndc.x, 4);
+    expect(stage(j, 'projected').point!.y).toBeCloseTo(ndc.y, 4);
+    expect(stage(j, 'rasterised').point).toEqual(ndcToWindow(ndc, WIDE));
+    expect(rowsOf(j, 'projected')[1]).toEqual(['volume x −1.33…1.33', 'x → 0.75', 'glOrtho']);
+    expect(stage(j, 'projected').sentence).toContain(WIDENED);
+  });
+
+  it('widens y on a tall window, and leaves the volume alone when stretching or with no handler', () => {
+    const limits = { minX: -2, maxX: 2, minY: -1, maxY: 1 };
+    const tall = { width: 400, height: 600 };
+    const j = vertexJourney({ ...scene([tri()], limits), reshape: true, resize: 'keep' }, 'Tri', 1, tall);
+    const ndc = orthoToNdc({ x: 0, y: 1 }, keepAspectBounds(limits, tall));
+    expect(stage(j, 'projected').point!.y).toBeCloseTo(ndc.y, 4);
+    for (const s of [{ reshape: true, resize: 'stretch' as const }, { reshape: false, resize: 'keep' as const }]) {
+      const plain = vertexJourney({ ...scene([tri()], limits), ...s }, 'Tri', 1, tall);
+      expect(stage(plain, 'projected').point!.y).toBeCloseTo(orthoToNdc({ x: 0, y: 1 }, limits).y, 10);
+      expect(stage(plain, 'projected').sentence).not.toContain('widened');
+    }
+  });
+
+  it('says nothing about widening when the window already has the volume’s shape', () => {
+    const j = vertexJourney({ ...scene([tri()]), reshape: true, resize: 'keep' }, 'Tri', 0, { width: 500, height: 500 });
+    expect(stage(j, 'projected').sentence).not.toContain('widened');
+    expect(stage(j, 'projected').point!.x).toBe(1);
+  });
+
+  it('matches the generated reshape handler’s numbers', () => {
+    const limits = { minX: -1, maxX: 3, minY: -1, maxY: 1 };
+    const callbacks = { ...emptyCallbacks(), reshape: { handlerName: 'onReshape', resize: 'keep' as const } };
+    const code = generateCodeFromState({ objects: [tri()], canvasBackgroundColor: '#000000', callbacks, viewportLimits: limits }, WIDE);
+    const num = (name: string) => Number(new RegExp(`${name} = (-?[0-9.]+)f`).exec(code)![1]);
+    const aspect = WIDE.width / WIDE.height;
+    let halfW = num('halfW');
+    let halfH = num('halfH');
+    if (aspect >= halfW / halfH) halfW = halfH * aspect; else halfH = halfW / aspect;
+    const program = { minX: num('cx') - halfW, maxX: num('cx') + halfW, minY: num('cy') - halfH, maxY: num('cy') + halfH };
+    const j = vertexJourney({ ...scene([tri()], limits), reshape: true, resize: 'keep' }, 'Tri', 1, WIDE);
+    expect(program.minY).toBeCloseTo(-1.5, 10);
+    expect(stage(j, 'projected').point!.x).toBeCloseTo(orthoToNdc({ x: 0, y: 1 }, program).x, 10);
+    expect(stage(j, 'projected').point!.y).toBeCloseTo(orthoToNdc({ x: 0, y: 1 }, program).y, 10);
   });
 });

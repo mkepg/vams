@@ -594,3 +594,23 @@ describe('WB-CODE-27: The glViewport line the Rasterised stage names is found in
     expect(note.text).toContain('window’s pixels');
   });
 });
+
+describe('WB-CODE-28: The glOrtho strip shows the volume the Keep proportions reshape handler widened', () => {
+  it('reads viewMinX…viewMaxY as the 800×600 window widens them, and the declaration keeps its own values', () => {
+    immediateFixture();
+    getState().setCallbackHandler('reshape', 'onReshape');
+    getState().setReshapeMode('keep');
+    const o = outlineCode(program());
+    const scene = { ...explainScene(), callbacks: getState().callbacks };
+    const ortho = explainLine(lineOf(o, 'glOrtho('), o, scene)!;
+    expect(ortho.values.map((v) => [v.source, v.value])).toEqual([
+      ['viewMinX', '−1.33'], ['viewMaxX', '1.33'], ['viewMinY', '−1.00'], ['viewMaxY', '1.00'],
+    ]);
+    const declared = explainLine(lineOf(o, 'float viewMinX'), o, scene)!;
+    expect(declared.values.map((v) => v.value)).toEqual(['−1.00', '1.00', '−1.00', '1.00']);
+    getState().setReshapeMode('stretch');
+    const stretched = outlineCode(program());
+    const plain = explainLine(lineOf(stretched, 'glOrtho('), stretched, { ...explainScene(), callbacks: getState().callbacks })!;
+    expect(plain.values.map((v) => v.value)).toEqual(['−1.00', '1.00', '−1.00', '1.00']);
+  });
+});

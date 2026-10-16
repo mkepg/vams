@@ -53,7 +53,7 @@ const short1 = (n: number) => n.toFixed(1).replace('-', '−');
 const signed = (a: string, b: number) => (b < 0 ? `${a} + ${whole(-b)}` : `${a} − ${whole(b)}`);
 
 /** glOrtho's formula with the student's numbers in it. */
-function OrthoFormula({ world, limits, ndc }: { world: Point; limits: ViewportLimits; ndc: Point }) {
+function OrthoFormula({ world, limits, ndc, widened }: { world: Point; limits: ViewportLimits; ndc: Point; widened: boolean }) {
   const line = (axis: 'x' | 'y', v: number, lo: number, hi: number, out: number) => (
     <>
       {axis}' = 2({axis} − {axis === 'x' ? 'l' : 'b'})/({axis === 'x' ? 'r − l' : 't − b'}) − 1
@@ -70,7 +70,9 @@ function OrthoFormula({ world, limits, ndc }: { world: Point; limits: ViewportLi
         {line('y', world.y, limits.minY, limits.maxY, ndc.y)}
       </p>
       <p className="journey-picture__caption">
-        {unit
+        {widened
+          ? 'The reshape callback widened your volume to match the window’s shape, so the numbers change on the way in.'
+          : unit
           ? 'Your volume is already −1 to 1, so the numbers don’t change. Widen it in Settings and they will.'
           : 'Your volume is wider or narrower than −1 to 1, so the numbers change on the way in.'}
       </p>
@@ -249,7 +251,9 @@ export const DEEPER_LABEL: Partial<Record<JourneyStageId, string>> = {
 
 export function StagePictures({ stage, node, deeper, deeperId, world, ndc }: PicturesProps) {
   const objects = useVamsStore((s) => s.objects);
-  const limits = useVamsStore((s) => s.viewportLimits);
+  const storeLimits = useVamsStore((s) => s.viewportLimits);
+  // The volume the program's glOrtho receives, once a reshape handler has widened it.
+  const volume = stage.volume?.limits ?? storeLimits;
   const vertex = useVamsStore((s) => s.journeyVertex);
   const canvas = useCanvasSize();
   const shape = node && node.type !== 'GROUP' && node.type !== 'TEXT' ? node : undefined;
@@ -291,7 +295,7 @@ export function StagePictures({ stage, node, deeper, deeperId, world, ndc }: Pic
     case 'projected':
       return (
         <div className="transforms-math">
-          {world && stage.point && <OrthoFormula world={world} limits={limits} ndc={stage.point} />}
+          {world && stage.point && <OrthoFormula world={world} limits={volume} ndc={stage.point} widened={stage.volume?.widened ?? false} />}
           {(deeper || !node) && (
             <div id={deeperId}>
             <TransformsSection title="glOrtho — Viewing Volume">
@@ -299,7 +303,7 @@ export function StagePictures({ stage, node, deeper, deeperId, world, ndc }: Pic
                 <code>glOrtho</code> defines the rectangle of world space that maps to the visible
                 window. Anything outside is clipped.
               </p>
-              <OrthoMapping limits={limits} />
+              <OrthoMapping limits={volume} />
             </TransformsSection>
             </div>
           )}
