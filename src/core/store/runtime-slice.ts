@@ -19,6 +19,7 @@ export const createRuntimeSlice: StateCreator<VamsState, [], [], RuntimeSlice> =
   codeHidden: false,
   codeChangedUnseen: false,
   codeFoldsOpened: [],
+  codeFoldsClosed: [],
   explainedLine: null,
   codeNotes: true,
   journeyVertex: 0,
@@ -66,10 +67,15 @@ export const createRuntimeSlice: StateCreator<VamsState, [], [], RuntimeSlice> =
   setCodePane: (pane) => set(pane === 'code' ? { codePane: pane, codeChangedUnseen: false } : { codePane: pane }),
   setCodeHidden: (hidden) => set({ codeHidden: hidden }),
   markCodeChanged: () => set((state) => (state.codePane === 'math' && !state.codeChangedUnseen ? { codeChangedUnseen: true } : {})),
-  toggleCodeFold: (block) => set((state) => ({
-    codeFoldsOpened: state.codeFoldsOpened.includes(block)
-      ? state.codeFoldsOpened.filter((id) => id !== block)
-      : [...state.codeFoldsOpened, block],
+  toggleCodeFold: (block) => set((state) => (state.codeFoldsOpened.includes(block)
+    ? { codeFoldsOpened: state.codeFoldsOpened.filter((id) => id !== block) }
+    : {
+      codeFoldsOpened: [...state.codeFoldsOpened, block],
+      codeFoldsClosed: state.codeFoldsClosed.filter((id) => id !== block),
+    })),
+  foldCodeBlock: (block) => set((state) => ({
+    codeFoldsOpened: state.codeFoldsOpened.filter((id) => id !== block),
+    codeFoldsClosed: state.codeFoldsClosed.includes(block) ? state.codeFoldsClosed : [...state.codeFoldsClosed, block],
   })),
   setExplainedLine: (line) => set({ explainedLine: line }),
   setCodeNotes: (on) => set({ codeNotes: on }),
