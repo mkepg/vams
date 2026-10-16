@@ -110,9 +110,10 @@ function ShareDialogBody({ lessonTitle }: { lessonTitle: string | null }) {
   return (
     <Dialog open onClose={close} labelledBy={titleId} size="md" className="share-dialog" initialFocusRef={doneRef}>
       <h2 id={titleId}>{lessonId ? 'Share this lesson' : `Share ‘${sceneName}’`}</h2>
-      <p className="share-dialog__lead">
-        {lessonId ? 'Anyone with the link opens this lesson.' : 'Anyone with the link opens a copy of this scene. On a phone it opens as a view.'}
-      </p>
+      {/* The lesson link's own note says who can open it, so the lead is for scenes only. */}
+      {!lessonId && (
+        <p className="share-dialog__lead">Anyone with the link opens a copy of this scene. On a phone it opens as a view.</p>
+      )}
       {result ? (
         <ShareResultView result={result} onSaveFile={saveFile} />
       ) : (

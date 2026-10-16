@@ -177,3 +177,17 @@ describe('BB-SHARE-09: An image that cannot be resized never leaves the dialog w
     expect((await prepareShare({ ...huge, textures: [upload] }, { store, shrink: broken })).kind).toBe('failed');
   });
 });
+
+describe('BB-SHARE-10: In a lesson the dialog says who can open the link once', () => {
+  it('titles the lesson and words it in one note, without a lead', async () => {
+    useVamsStore.setState({ appMode: 'Lesson', activeLessonId: 'transforms-demo-1' });
+    const host = mount(h(ShareDialog, { lessonTitle: 'Transforms 1' }));
+    useShareDialog.getState().show();
+    await settle();
+    const dialog = document.querySelector('.share-dialog')!;
+    expect(dialog.querySelector('h2')!.textContent).toBe('Share this lesson');
+    expect(dialog.textContent!.split('Anyone with the link opens this lesson.').length - 1).toBe(1);
+    expect(dialog.querySelector('.share-dialog__lead')).toBeNull();
+    unmount(host);
+  });
+});

@@ -6,9 +6,9 @@
 .share-dialog {
   h2 { margin: 0 0 var(--space-1); font-family: var(--font-display); font-size: var(--text-lg); }
 
-  &__lead { margin: 0 0 var(--space-3); font-size: var(--text-xs); color: var(--ink-muted); }
+  &__lead { margin: 0 0 var(--space-3); font-size: var(--text-xs); color: var(--ink-muted); text-wrap: pretty; }
 
-  &__body { display: flex; gap: 14px; align-items: flex-start; }
+  &__body { display: flex; gap: var(--space-3); align-items: flex-start; }
   &__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 
   &__field {
@@ -62,7 +62,7 @@
     align-items: center;
     justify-content: space-between;
     margin-top: var(--space-3);
-    padding-top: 12px;
+    padding-top: var(--space-3);
     border-top: 1px solid var(--rule);
   }
 
