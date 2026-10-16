@@ -780,3 +780,42 @@ describe('BB-JOURNEY-28: A vertex row\'s GL call opens the followed vertex\'s li
     unmount(host);
   });
 });
+
+describe('BB-JOURNEY-29: Coloured\'s face caption and Color card follow the vertex', () => {
+  const coloured = async (patch: Record<string, unknown>, vertex: number) => {
+    mockTriangle();
+    useVamsStore.setState({ objects: [{ ...getState().objects[0], ...patch }] });
+    getState().setJourneyVertex(vertex);
+    getState().setJourneyStageOverride('coloured');
+    return mount(h(MathPanel, {}));
+  };
+  const hex = (host: HTMLElement) => host.querySelector('.cc-swatch-hex')!.textContent;
+
+  it('converts the followed vertex\'s colour with smooth shading', async () => {
+    const host = await coloured({}, 2);
+    await settle();
+    expect(hex(host)).toBe('#55DD88');
+    unmount(host);
+  });
+
+  it('names the triangle and its provoking vertex under flat shading, and converts that vertex\'s colour', async () => {
+    const host = await coloured({ shading: 'FLAT' }, 0);
+    await settle();
+    expect(host.textContent).not.toContain('whole shape');
+    expect(host.textContent).toContain('With flat shading, triangle 1 takes vertex 3’s colour.');
+    expect(hex(host)).toBe('#55DD88');
+    unmount(host);
+  });
+
+  it('names the strip\'s triangle that holds the vertex', async () => {
+    const vertices = [
+      { id: 'v0', x: -0.5, y: -0.5, color: '#ff0000' }, { id: 'v1', x: -0.5, y: 0.5, color: '#00ff00' },
+      { id: 'v2', x: 0.5, y: -0.5, color: '#0000ff' }, { id: 'v3', x: 0.5, y: 0.5, color: '#ffff00' },
+    ];
+    const host = await coloured({ type: 'TRIANGLE_STRIP', shading: 'FLAT', vertices }, 3);
+    await settle();
+    expect(host.textContent).toContain('With flat shading, triangle 2 takes vertex 4’s colour.');
+    expect(hex(host)).toBe('#FFFF00');
+    unmount(host);
+  });
+});

@@ -574,3 +574,15 @@ describe('WB-JOURNEY-18: A Keep proportions reshape handler widens the volume th
     expect(stage(j, 'projected').point!.y).toBeCloseTo(orthoToNdc({ x: 0, y: 1 }, program).y, 10);
   });
 });
+
+describe('WB-JOURNEY-19: Smooth shading reads its own way for points and lines', () => {
+  it('says a point has one colour, a line blends along itself, and a filled shape mixes inside', () => {
+    const at = (type: SceneNode['type'], points: [number, number][]) =>
+      stage(vertexJourney(scene([node('S', type, points)]), 'S', 0, CANVAS), 'coloured').sentence;
+    expect(at('POINTS', [[0, 0]])).toBe('A point has one colour, so with smooth shading it keeps its own vertex’s colour.');
+    for (const type of ['LINES', 'LINE_STRIP', 'LINE_LOOP'] as const) {
+      expect(at(type, [[0, 0], [0.5, 0.5]])).toBe('With smooth shading, the colour blends along the line from one vertex’s colour to the other’s.');
+    }
+    expect(at('TRIANGLES', [[0, 0], [0.5, 0], [0, 0.5]])).toBe('With smooth shading, each pixel inside the shape mixes the vertex colours by how close it is to each one.');
+  });
+});

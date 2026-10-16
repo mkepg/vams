@@ -184,7 +184,13 @@ function FacePicture({ node, vertex }: { node: SceneNode; vertex: number }) {
   const at = (k: number) => fit.at(node.vertices[k]);
   const points = members.map((k) => `${at(k).x},${at(k).y}`).join(' ');
   const flat = node.shading === 'FLAT';
-  const flatColour = node.vertices[provokingVertex(type, i, n)]?.color ?? '#ffffff';
+  const provoking = provokingVertex(type, i, n);
+  const flatColour = node.vertices[provoking]?.color ?? '#ffffff';
+  // Name the primitive the picture draws, as the stage's sentence does.
+  const assembly = assemblyFor(type, i, n);
+  const flatCaption = type === 'POLYGON'
+    ? `With flat shading, the polygon takes vertex ${provoking + 1}’s colour.`
+    : `With flat shading, ${assembly.noun} ${assembly.primitives[0] + 1} takes vertex ${provoking + 1}’s colour.`;
   // Each corner's colour runs from the corner toward the middle of the others and is gone by the nearest of them,
   // so it never tints another corner.
   const fade = (k: number) => {
@@ -222,7 +228,7 @@ function FacePicture({ node, vertex }: { node: SceneNode; vertex: number }) {
         </svg>
         <p className="journey-picture__caption">
           {flat
-            ? 'With flat shading the whole shape takes one vertex’s colour.'
+            ? flatCaption
             : 'Your vertex sits at a corner, so it keeps its own colour. Pixels further in blend toward the others.'}
         </p>
       </div>
@@ -341,11 +347,16 @@ export function StagePictures({ stage, node, deeper, deeperId, world, ndc }: Pic
       if (!node || node.type === 'GROUP') return null;
       if (node.texture) return <TexturesMathContent />;
       const multi = node.vertices.length > 1 && node.vertices.some((v) => v.color !== node.vertices[0].color);
+      // The followed vertex's colour, or under flat shading the vertex whose colour the primitive takes.
+      const followed = Math.min(Math.max(0, vertex), Math.max(0, node.vertices.length - 1));
+      const source = node.shading === 'FLAT' && node.type !== 'TEXT' && node.vertices.length > 0
+        ? provokingVertex(node.type as PrimitiveType, followed, node.vertices.length)
+        : followed;
       return (
         <div className="primitives-math">
           {FILLED.includes(node.type) && <FacePicture node={node} vertex={vertex} />}
           <PrimitivesSection title="Color">
-            <ColorConversion hex={node.vertices[0]?.color ?? '#ffffff'} />
+            <ColorConversion hex={node.vertices[source]?.color ?? '#ffffff'} />
           </PrimitivesSection>
           {node.type !== 'POINTS' && multi && (
             <PrimitivesSection title="Barycentric Interpolation">

@@ -85,6 +85,12 @@ const PROJECTED = 'Your viewing volume is squeezed into a −1 to 1 box on each 
 const WIDENED = ' The reshape callback first widened your viewing volume to match the window’s shape.';
 const RASTERISED = 'NDC is stretched to the window’s pixels, counted from the bottom-left corner as OpenGL does.';
 const SMOOTH = 'With smooth shading, each pixel inside the shape mixes the vertex colours by how close it is to each one.';
+const SMOOTH_POINT = 'A point has one colour, so with smooth shading it keeps its own vertex’s colour.';
+const SMOOTH_LINE = 'With smooth shading, the colour blends along the line from one vertex’s colour to the other’s.';
+const LINE_TYPES: readonly PrimitiveType[] = ['LINES', 'LINE_STRIP', 'LINE_LOOP'];
+
+/** Smooth shading blends over what the primitive covers: nothing for a point, the length of a line, the inside of a shape. */
+const smoothSentence = (type: PrimitiveType) => (type === 'POINTS' ? SMOOTH_POINT : LINE_TYPES.includes(type) ? SMOOTH_LINE : SMOOTH);
 const TEXTURED = 'Each pixel reads its colour from the texture, at the UV the vertices carry.';
 const TEXT_STORED = 'The text starts at its raster position, set by glRasterPos2f in the text’s own coordinates.';
 const TEXT_ASSEMBLED = 'Text is drawn as bitmap characters at this position, not assembled from vertices.';
@@ -268,8 +274,9 @@ function colouredStage(node: SceneNode, index: number, scene: JourneyScene, pixe
     { step: ['vertex colour'], value: rgbArgs(colourHex, mode === 'IMMEDIATE' && node.colorMode === 'BYTE'), call: colourCall, ...(mode === 'IMMEDIATE' ? { target: { nth: index } } : {}) },
     { step: ['shading ', { input: flat ? 'flat' : 'smooth' }], value: shadingValue, call: 'glShadeModel' },
   ];
-  if (!drawn) return stage('coloured', flat ? flatSentence(type, index, count) : SMOOTH, rows, 'not drawn', null);
-  return stage('coloured', flat ? flatSentence(type, index, count) : SMOOTH, rows, rgbText(rgbOf(node.vertices[source]?.color ?? '#ffffff')), null);
+  const sentence = flat ? flatSentence(type, index, count) : smoothSentence(type);
+  if (!drawn) return stage('coloured', sentence, rows, 'not drawn', null);
+  return stage('coloured', sentence, rows, rgbText(rgbOf(node.vertices[source]?.color ?? '#ffffff')), null);
 }
 
 // --- The journey ------------------------------------------------------------------------------
