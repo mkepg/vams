@@ -28,6 +28,8 @@ import {
   isSceneEmpty,
   loadProjectData,
   replaceScene,
+  startSceneAutosave,
+  useSaveStatus,
 } from '@/features/scene-library';
 import { addQuad, addTriangle } from '../helpers/store';
 import { h, render } from 'preact';
@@ -165,7 +167,7 @@ describe('BB-LIB-08: Replacing the scene backs up first, then loads', () => {
     const library = useMemoryLibrary();
     addTriangle();
     const incoming = sanitizeProjectData({ objects: [{ id: 'q', name: 'Q', type: 'QUADS', vertices: [] }], theme: 'light' });
-    const result = await replaceScene(incoming, { reason: 'library-open', label: backupLabel('Q') });
+    const result = await replaceScene(incoming, { reason: 'library-open', label: backupLabel('Q'), name: 'Q' });
     expect(result).toEqual({ backedUp: true, detached: 0 });
     const state = useVamsStore.getState();
     expect(state.objects.map((o) => o.id)).toEqual(['q']);
@@ -175,7 +177,7 @@ describe('BB-LIB-08: Replacing the scene backs up first, then loads', () => {
   });
   it('reports no backup when the scene was empty', async () => {
     useMemoryLibrary();
-    const result = await replaceScene(sanitizeProjectData({ objects: [] }), { reason: 'scene-link', label: 'x' });
+    const result = await replaceScene(sanitizeProjectData({ objects: [] }), { reason: 'scene-link', label: 'x', name: 'x' });
     expect(result.backedUp).toBe(false);
   });
 });
@@ -186,7 +188,7 @@ describe('BB-LIB-09: A failed backup leaves the scene untouched', () => {
     setSceneLibraryForTests(failingLibrary());
     const tri = addTriangle();
     await expect(
-      replaceScene(sanitizeProjectData({ objects: [] }), { reason: 'scene-link', label: 'x' }),
+      replaceScene(sanitizeProjectData({ objects: [] }), { reason: 'scene-link', label: 'x', name: 'x' }),
     ).rejects.toThrow('QuotaExceededError');
     expect(useVamsStore.getState().objects.map((o) => o.id)).toEqual([tri.id]);
   });
@@ -272,7 +274,7 @@ describe('BB-LIB-12: Saving the current scene from the dialog', () => {
   it('is disabled for an empty scene and saves a named entry otherwise', async () => {
     const library = useMemoryLibrary();
     let host = await mountDialog();
-    expect(buttonNamed(host, 'Save')?.disabled).toBe(true);
+    expect(buttonNamed(host, 'Save copy')?.disabled).toBe(true);
     expect(host.textContent).toContain('Add something to the canvas first.');
     expect(host.textContent).toContain('Nothing saved yet.');
     unmount(host);
@@ -384,7 +386,7 @@ describe('BB-LIB-16: A full browser storage does not break the dialog', () => {
     await settle();
     expect(useMyScenesDialog.getState().isOpen).toBe(true);
     expect(useVamsStore.getState().objects.map((o) => o.id)).toEqual([tri.id]);
-    expect(buttonNamed(host, 'Save')?.disabled).toBe(false);
+    expect(buttonNamed(host, 'Save copy')?.disabled).toBe(false);
     unmount(host);
   });
 });
@@ -407,5 +409,189 @@ describe('BB-LIB-17: The working scene has a name the student can change', () =>
     expect(sceneNameFromFile('solar-system.vams')).toBe('solar-system');
     expect(sceneNameFromFile('scene.JSON')).toBe('scene');
     expect(sceneNameFromFile('.vams')).toBe(UNTITLED_SCENE);
+  });
+});
+
+async function drainAutosave(done: () => Promise<void> | void) {
+  await vi.advanceTimersByTimeAsync(1100);
+  await vi.waitFor(done);
+}
+
+describe('BB-LIB-18: Edits save the working scene to its own My scenes entry', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('writes the scene under its id and name a second after the edit', async () => {
+    vi.useFakeTimers();
+    const lib = createMemoryLibrary();
+    useVamsStore.setState({ sceneId: 'mine', sceneName: 'Solar system' });
+    const stop = startSceneAutosave({ library: async () => lib });
+    addTriangle();
+    expect(useSaveStatus.getState().status).toBe('saving');
+    expect(await lib.list()).toEqual([]);
+    await drainAutosave(() => expect(useSaveStatus.getState().status).toBe('saved'));
+    const [entry] = await lib.list();
+    expect(entry).toMatchObject({ id: 'mine', name: 'Solar system', kind: 'saved', reason: null });
+    expect(entry.file!.data.objects).toHaveLength(1);
+    stop();
+  });
+});
+
+describe('BB-LIB-19: An empty untitled scene is not saved, a named one is', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('skips the blank editor and saves once the scene is renamed', async () => {
+    vi.useFakeTimers();
+    const lib = createMemoryLibrary();
+    const stop = startSceneAutosave({ library: async () => lib });
+    useVamsStore.setState({ sceneId: 'other' });
+    await vi.advanceTimersByTimeAsync(1100);
+    expect(await lib.list()).toEqual([]);
+    useVamsStore.getState().renameScene('Plan');
+    await drainAutosave(async () => expect((await lib.list()).map((e) => e.name)).toEqual(['Plan']));
+    stop();
+  });
+});
+
+describe('BB-LIB-20: Lesson scenes never write to My scenes', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('does nothing while a lesson is active', async () => {
+    vi.useFakeTimers();
+    const lib = createMemoryLibrary();
+    const stop = startSceneAutosave({ library: async () => lib });
+    useVamsStore.setState({ activeLessonId: 'transforms-demo-1', appMode: 'Lesson' });
+    addTriangle();
+    await vi.advanceTimersByTimeAsync(1100);
+    expect(await lib.list()).toEqual([]);
+    useVamsStore.setState({ activeLessonId: null, appMode: 'Author' });
+    stop();
+  });
+});
+
+describe('BB-LIB-21: An edit just before a scene switch is saved to the scene it belongs to', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('writes the old content to the old entry and the new content to the new one', async () => {
+    vi.useFakeTimers();
+    const lib = createMemoryLibrary();
+    useVamsStore.setState({ sceneId: 'old', sceneName: 'Old' });
+    const stop = startSceneAutosave({ library: async () => lib });
+    addTriangle();
+    addQuad();
+    loadProjectData(sanitizeProjectData({ objects: [] }), sceneIdentity('New', 'new'));
+    addTriangle();
+    await drainAutosave(async () => expect(await lib.list()).toHaveLength(2));
+    const byId = Object.fromEntries((await lib.list()).map((e) => [e.id, e]));
+    expect(byId.old.file!.data.objects).toHaveLength(2);
+    expect(byId.old.name).toBe('Old');
+    expect(byId.new.file!.data.objects).toHaveLength(1);
+    expect(byId.new.name).toBe('New');
+    stop();
+  });
+
+  it('never shows the new content under the old id', () => {
+    useVamsStore.setState({ sceneId: 'old', sceneName: 'Old' });
+    addTriangle();
+    const seen: [string, number][] = [];
+    const unsub = useVamsStore.subscribe((s) => seen.push([s.sceneId, s.objects.length]));
+    loadProjectData(sanitizeProjectData({ objects: [] }), sceneIdentity('New', 'new'));
+    unsub();
+    expect(seen.some(([id, n]) => id === 'old' && n === 0)).toBe(false);
+  });
+});
+
+describe('BB-LIB-22: A refused save shows "Not saved" and breaks nothing', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('sets the error status, then recovers on the next good save', async () => {
+    vi.useFakeTimers();
+    const lib = createMemoryLibrary();
+    const refuse = vi.spyOn(lib, 'save').mockRejectedValueOnce(new DOMException('full', 'QuotaExceededError'));
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    useVamsStore.setState({ sceneId: 'mine', sceneName: 'Mine' });
+    const stop = startSceneAutosave({ library: async () => lib });
+    expect(() => addTriangle()).not.toThrow();
+    await drainAutosave(() => expect(useSaveStatus.getState().status).toBe('error'));
+    addQuad();
+    await drainAutosave(() => expect(useSaveStatus.getState().status).toBe('saved'));
+    expect(refuse).toHaveBeenCalledTimes(2);
+    errors.mockRestore();
+    stop();
+  });
+});
+
+describe('BB-LIB-23: Opening a scene sets its name and id', () => {
+  afterEach(() => setSceneLibraryForTests(null));
+
+  it('starts a new identity for a preset or file, and adopts a saved entry', async () => {
+    setSceneLibraryForTests(createMemoryLibrary());
+    useVamsStore.setState({ sceneId: 'before', sceneName: 'Before' });
+    await replaceScene(sanitizeProjectData({ objects: [] }), { reason: 'open-file', label: 'x', name: 'orbit' });
+    expect(useVamsStore.getState().sceneName).toBe('orbit');
+    expect(useVamsStore.getState().sceneId).not.toBe('before');
+    await replaceScene(sanitizeProjectData({ objects: [] }), {
+      reason: 'library-open',
+      label: 'x',
+      name: 'Kept',
+      adoptId: 'saved-7',
+    });
+    expect(useVamsStore.getState()).toMatchObject({ sceneId: 'saved-7', sceneName: 'Kept' });
+  });
+});
+
+describe('BB-LIB-24: A new workspace is a new untitled scene, and My scenes saves a copy', () => {
+  afterEach(() => {
+    setSceneLibraryForTests(null);
+    useMyScenesDialog.getState().close();
+  });
+
+  it('resets the identity and labels the manual save as a copy', async () => {
+    useMemoryLibrary();
+    useVamsStore.setState({ sceneId: 'before', sceneName: 'Before' });
+    addTriangle();
+    const host = mount(h(NewWorkspaceButton, { beforeReset: async () => {} }));
+    host.querySelector('button')!.click();
+    await settle();
+    useConfirmStore.getState().handleConfirm();
+    await settle();
+    expect(useVamsStore.getState().sceneName).toBe(UNTITLED_SCENE);
+    expect(useVamsStore.getState().sceneId).not.toBe('before');
+    unmount(host);
+
+    addTriangle();
+    const dialog = await mountDialog();
+    expect(dialog.textContent).toContain('Save a copy');
+    unmount(dialog);
+  });
+});
+
+describe('BB-LIB-25: Renaming the working scene in My scenes renames it in the editor', () => {
+  afterEach(() => {
+    setSceneLibraryForTests(null);
+    useMyScenesDialog.getState().close();
+  });
+
+  it('keeps the next auto-save from undoing the rename', async () => {
+    const library = useMemoryLibrary();
+    useVamsStore.setState({ sceneId: 'mine', sceneName: 'Mine' });
+    addTriangle();
+    await library.save(entry('mine', 'saved', 1000, 'Mine'));
+    await library.save(entry('other', 'saved', 500, 'Other'));
+    const host = await mountDialog();
+    const rename = async (label: string, value: string) => {
+      buttonNamed(host, label)!.click();
+      await settle();
+      const input = host.querySelector<HTMLInputElement>('.my-scenes__rename')!;
+      input.value = value;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      await settle();
+    };
+    await rename('Rename Other', 'Elsewhere');
+    expect(useVamsStore.getState().sceneName).toBe('Mine');
+    await rename('Rename Mine', 'Renamed');
+    expect((await library.get('mine'))?.name).toBe('Renamed');
+    expect(useVamsStore.getState().sceneName).toBe('Renamed');
+    unmount(host);
   });
 });

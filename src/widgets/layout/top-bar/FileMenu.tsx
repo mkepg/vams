@@ -1,13 +1,14 @@
 import { Code, FileJson, FilePlus, FolderOpen, Library, Save } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import type { VamsProjectData } from '@/entities/project/model/project-io';
+import { sceneNameFromFile } from '@/entities/project/model/scene-library';
 import { backupCurrentScene, backupLabel, replaceScene, useMyScenesDialog } from '@/features/scene-library';
 import { useNewWorkspace } from '@/features/workspace-reset/model/useNewWorkspace';
 import { useProjectFile } from '@/features/project-io/model/useProjectFile';
 import { MenuButton, type MenuEntry } from '@/shared/ui/controls';
 
 function loadProject(data: VamsProjectData, fileName: string): Promise<number> {
-  return replaceScene(data, { reason: 'open-file', label: backupLabel(fileName) }).then((result) => result.detached);
+  return replaceScene(data, { reason: 'open-file', label: backupLabel(fileName), name: sceneNameFromFile(fileName) }).then((result) => result.detached);
 }
 
 function backupBeforeReset(): Promise<unknown> {

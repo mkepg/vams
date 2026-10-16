@@ -9,6 +9,7 @@ import {
   createSceneId,
   getSceneLibrary,
   normalizeSceneName,
+  sceneIdentity,
   type BackupReason,
   type SceneEntry,
 } from '@/entities/project/model/scene-library';
@@ -22,8 +23,9 @@ export { isSceneEmpty } from '@/entities/project/model/scene-empty';
  * the editor cannot resolve are dropped, and undo history starts over.
  * Returns how many texture attachments were dropped.
  */
-export function loadProjectData(data: VamsProjectData): number {
-  useVamsStore.setState({ ...toStorePatchFromProject(data), theme: toEditorTheme(getActiveTheme()) }, false);
+export function loadProjectData(data: VamsProjectData, identity?: { sceneId: string; sceneName: string }): number {
+  // The identity changes in the same update as the scene, so auto-save never sees new content under the old id.
+  useVamsStore.setState({ ...toStorePatchFromProject(data), ...identity, theme: toEditorTheme(getActiveTheme()) }, false);
   // An opened scene is not the student's edit: its code is not marked as changed.
   useVamsStore.getState().markSceneSwap();
   const state = useVamsStore.getState();
@@ -69,6 +71,10 @@ export async function backupCorruptSave(raw: string): Promise<SceneEntry> {
 export interface ReplaceOptions {
   reason: BackupReason;
   label: string;
+  /** The opened scene's name. */
+  name: string;
+  /** A saved My scenes entry being reopened keeps its id, so edits update that entry. */
+  adoptId?: string;
 }
 
 export interface ReplaceResult {
@@ -82,7 +88,7 @@ export interface ReplaceResult {
  */
 export async function replaceScene(data: VamsProjectData, options: ReplaceOptions): Promise<ReplaceResult> {
   const backup = await backupCurrentScene(options.reason, options.label);
-  const detached = loadProjectData(data);
+  const detached = loadProjectData(data, sceneIdentity(options.name, options.adoptId));
   return { backedUp: backup !== null, detached };
 }
 

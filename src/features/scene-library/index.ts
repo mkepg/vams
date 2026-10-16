@@ -14,4 +14,5 @@ export {
 } from './model/scene-ops';
 export { useMyScenesDialog } from './model/dialog-store';
 export { default as MyScenesDialog } from './ui/MyScenesDialog';
+export { AUTOSAVE_DELAY, startSceneAutosave, useSaveStatus, useSceneAutosave, type SaveStatus } from './model/autosave';
 export { openPreset } from './model/open-preset';

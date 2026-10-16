@@ -69,7 +69,7 @@ function MyScenesDialogInner() {
     void run(async () => {
       // Read the field itself: a state update from the latest keystroke may not have rendered yet.
       const saved = await saveCurrentScene(nameRef.current?.value ?? name);
-      toast.success(`Saved ‘${saved.name}’`);
+      toast.success(`Saved a copy as ‘${saved.name}’`);
       setName(defaultName());
     }, "Couldn't save the scene. The browser's storage may be full; use Download to keep a copy.");
   };
@@ -80,6 +80,8 @@ function MyScenesDialogInner() {
       const { detached } = await replaceScene(sanitizeProjectData(entry.file.data), {
         reason: 'library-open',
         label: backupLabel(entry.name),
+        name: entry.name,
+        adoptId: entry.kind === 'saved' ? entry.id : undefined,
       });
       close();
       toast.success(`Opened ‘${entry.name}’`);
@@ -89,6 +91,8 @@ function MyScenesDialogInner() {
   const onRename = (entry: SceneEntry, value: string) =>
     run(async () => {
       await (await getSceneLibrary()).rename(entry.id, value);
+      // The working scene's auto-save would otherwise write the old name back.
+      if (entry.id === useVamsStore.getState().sceneId) useVamsStore.getState().renameScene(value);
       setRenaming(null);
     }, "Couldn't rename the scene.");
 
@@ -215,7 +219,7 @@ function MyScenesDialogInner() {
         </header>
 
         <form className="my-scenes__save" onSubmit={onSave}>
-          <label htmlFor="my-scenes-name">Save current scene</label>
+          <label htmlFor="my-scenes-name">Save a copy</label>
           <div className="my-scenes__save-row">
             <input
               id="my-scenes-name"
@@ -226,7 +230,7 @@ function MyScenesDialogInner() {
               onInput={(e) => setName(e.currentTarget.value)}
             />
             <button type="submit" className="my-scenes__btn my-scenes__btn--primary" disabled={sceneEmpty}>
-              Save
+              Save copy
             </button>
           </div>
           {sceneEmpty && (

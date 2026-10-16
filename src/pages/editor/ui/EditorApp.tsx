@@ -4,7 +4,7 @@ import { EditorPanel } from '@/widgets/layout/editor-column';
 import Rail from '@/widgets/layout/rail';
 import CodeMathColumn from '@/widgets/layout/code-math-column';
 import ViewportRouter from '@/widgets/canvas/ViewportRouter';
-import { MyScenesDialog } from '@/features/scene-library';
+import { MyScenesDialog, useSceneAutosave } from '@/features/scene-library';
 import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import LearnDrawer from '@/features/lesson-engine/ui/LearnDrawer';
 import { useRecordLessonOnLeave } from '@/features/lesson-engine/model/record-on-leave';
@@ -32,6 +32,7 @@ export default function EditorApp() {
   useEditorLink();
   useCorruptSaveNotice();
   useRecordLessonOnLeave();
+  useSceneAutosave();
   useLayoutEffect(() => {
     const root = document.documentElement;
     root.classList.add('route-editor');

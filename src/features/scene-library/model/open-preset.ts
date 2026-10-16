@@ -14,7 +14,7 @@ export async function openPreset(slug: string, deps: { openLibrary?: () => void 
   if (!preset) return false;
   const openLibrary = deps.openLibrary ?? (() => useMyScenesDialog.getState().open());
   try {
-    const { backedUp } = await replaceScene(preset.data, { reason: 'scene-link', label: backupLabel(preset.title) });
+    const { backedUp } = await replaceScene(preset.data, { reason: 'scene-link', label: backupLabel(preset.title), name: preset.title });
     const state = useVamsStore.getState();
     state.setActiveSection(preset.section);
     state.setRailPanel('scene');
