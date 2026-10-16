@@ -50,7 +50,7 @@ describe('BB-TOP-01: Layout B puts File, Learn and the scene on the left', () =>
     const right = host.querySelector('.top-bar__actions')!;
     expect(right.querySelector('[aria-label="Settings"]')).not.toBeNull();
     expect(host.querySelector('[aria-label^="Switch to the"]')).toBeNull();
-    expect(host.querySelector('.top-bar__share')).not.toBeNull();
+    expect(host.querySelector('.top-bar__share .share-button')).not.toBeNull();
     unmount(host);
   });
 });

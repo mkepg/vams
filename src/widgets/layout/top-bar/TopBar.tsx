@@ -8,6 +8,7 @@ import LearnButton from '@/features/lesson-engine/ui/LearnButton';
 import { getLessonById } from '@/features/lesson-engine/model/lesson-registry';
 import HelpButton from '@/features/help/ui/HelpButton';
 import { SceneTitle } from '@/features/scene-library';
+import { ShareButton } from '@/features/share';
 import { useRunSnapshot } from '@/features/callbacks';
 import FileMenu from './FileMenu';
 import './top-bar.scss';
@@ -38,7 +39,9 @@ export default function TopBar() {
         <span className="top-bar__sep" aria-hidden="true" />
         <EditorPreferencesMenu />
         <HelpButton />
-        <span className="top-bar__share" />
+        <span className="top-bar__share">
+          <ShareButton />
+        </span>
       </div>
     </header>
   );

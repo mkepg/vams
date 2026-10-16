@@ -14,6 +14,7 @@ import {
   type SceneEntry,
 } from '@/entities/project/model/scene-library';
 import { isSceneEmpty } from '@/entities/project/model/scene-empty';
+import { slugify } from '@/shared/lib/slug';
 import { getActiveTheme, toEditorTheme } from '@/shared/lib/theme';
 
 export { isSceneEmpty } from '@/entities/project/model/scene-empty';
@@ -100,12 +101,7 @@ export async function saveCurrentScene(name: string): Promise<SceneEntry> {
 }
 
 export function entryFileName(entry: SceneEntry): string {
-  const base = entry.name
-    .replace(/[^\w\- ]+/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .toLowerCase();
-  return `${base || 'vams-scene'}.vams`;
+  return `${slugify(entry.name)}.vams`;
 }
 
 export function downloadText(filename: string, text: string): void {

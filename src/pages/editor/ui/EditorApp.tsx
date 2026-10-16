@@ -8,6 +8,8 @@ import { MyScenesDialog, useSceneAutosave } from '@/features/scene-library';
 import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import LearnDrawer from '@/features/lesson-engine/ui/LearnDrawer';
 import { useRecordLessonOnLeave } from '@/features/lesson-engine/model/record-on-leave';
+import { ShareDialog } from '@/features/share';
+import { getLessonById } from '@/features/lesson-engine/model/lesson-registry';
 import HelpCenter from '@/features/help/ui/HelpCenter';
 import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
 import WelcomeCard from '@/features/onboarding/ui/WelcomeCard';
@@ -33,6 +35,7 @@ export default function EditorApp() {
   useCorruptSaveNotice();
   useRecordLessonOnLeave();
   useSceneAutosave();
+  const lessonTitle = useVamsStore((s) => (s.activeLessonId ? (getLessonById(s.activeLessonId)?.title ?? null) : null));
   useLayoutEffect(() => {
     const root = document.documentElement;
     root.classList.add('route-editor');
@@ -57,6 +60,7 @@ export default function EditorApp() {
           <LearnDrawer />
           <HelpCenter />
           <MyScenesDialog />
+          <ShareDialog lessonTitle={lessonTitle} />
           <ConfirmDialog />
           <WelcomeCard />
           <FirstVisitTour run={runController} codeName={sanitizeName} startLearning={startLearning} />
