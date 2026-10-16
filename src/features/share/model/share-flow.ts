@@ -1,5 +1,5 @@
 import {
-  buildSharePayload, carriedLink, lessonLink, MAX_CARRIED_URL, MAX_STORED_BYTES, payloadBytes, planShare, storedLink, withoutUploads,
+  buildSharePayload, carriedLink, hasUploads, lessonLink, MAX_CARRIED_URL, MAX_STORED_BYTES, payloadBytes, storedLink, withoutUploads,
   type SharePayload, type ShareSource,
 } from '@/entities/project/model/share';
 import { createStoredShare } from './share-api';
@@ -19,17 +19,17 @@ export interface ShareDeps {
   shrink?: (p: SharePayload) => ReturnType<typeof shrinkPayloadImages>;
 }
 
-/** Chooses and makes the link: the lesson's, one that carries the scene, or a stored one; with a fallback when storing fails. */
+/** Chooses and makes the link: the lesson's, or a short stored one for any scene; a link that carries the scene when storing fails. */
 export async function prepareShare(input: ShareInput, deps: ShareDeps = {}): Promise<ShareResult> {
   if (input.lesson) return { kind: 'lesson', url: lessonLink(input.lesson.id), title: input.lesson.title };
   const store = deps.store ?? ((p: SharePayload) => createStoredShare(p));
   const shrink = deps.shrink ?? ((p: SharePayload) => shrinkPayloadImages(p));
   const payload = buildSharePayload(input);
-  const plan = planShare(payload);
-  if (plan.kind === 'carried') return plan;
   const fallback = (): ShareResult => {
-    const url = carriedLink(withoutUploads(payload));
-    return url.length <= MAX_CARRIED_URL ? { kind: 'fallback', url } : { kind: 'failed' };
+    const uploads = hasUploads(payload);
+    const url = carriedLink(uploads ? withoutUploads(payload) : payload);
+    if (url.length > MAX_CARRIED_URL) return { kind: 'failed' };
+    return uploads ? { kind: 'fallback', url } : { kind: 'carried', url };
   };
   try {
     const { payload: small, shrunk } = await shrink(payload);

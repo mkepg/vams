@@ -1,6 +1,6 @@
 import { deflateSync, inflateSync, strFromU8, strToU8 } from 'fflate';
 import { SHARE_ORIGIN } from '@/shared/lib/share-origin';
-import { hasUploads, type SharePayload } from './share-payload';
+import type { SharePayload } from './share-payload';
 
 /** A link that carries its scene stays short enough for a QR code read off a projector. */
 export const MAX_CARRIED_URL = 1000;
@@ -37,10 +37,3 @@ export function decodeShare(data: string): unknown | null {
 export const carriedLink = (p: SharePayload, origin: string = SHARE_ORIGIN): string => `${origin}/app#s=${encodeShare(p)}`;
 export const storedLink = (id: string, origin: string = SHARE_ORIGIN): string => `${origin}/s/${id}`;
 export const lessonLink = (id: string, origin: string = SHARE_ORIGIN): string => `${origin}/app?lesson=${encodeURIComponent(id)}`;
-
-/** Uploaded images, or a link too long to scan, mean the scene is stored. */
-export function planShare(p: SharePayload): { kind: 'carried'; url: string } | { kind: 'stored' } {
-  if (hasUploads(p)) return { kind: 'stored' };
-  const url = carriedLink(p);
-  return url.length <= MAX_CARRIED_URL ? { kind: 'carried', url } : { kind: 'stored' };
-}

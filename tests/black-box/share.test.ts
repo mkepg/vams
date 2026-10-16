@@ -2,14 +2,17 @@
  * BLACK-BOX TEST SUITE — BB-SHARE
  * Sharing a scene: choosing the link, the dialog's states, copying and the QR code.
  */
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { h, render, type VNode } from 'preact';
 import { useVamsStore } from '@/core/store';
 import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { carriedLink, buildSharePayload, MAX_CARRIED_URL } from '@/entities/project/model/share';
+import { createStoredShare } from '@/features/share/model/share-api';
 import { prepareShare, ShareButton, ShareDialog, useShareDialog, type ShareResult } from '@/features/share';
 import { SHARE_ORIGIN } from '@/shared/lib/share-origin';
 import { addTriangle, getState } from '../helpers/store';
+
+vi.mock('@/features/share/model/share-api', () => ({ createStoredShare: vi.fn(), fetchStoredShare: vi.fn() }));
 
 async function settle() {
   for (let i = 0; i < 8; i++) await new Promise((resolve) => setTimeout(resolve, 0));
@@ -53,20 +56,23 @@ function overLimit() {
   return { ...base, objects: Array.from({ length: 60 }, (_, i) => ({ ...base.objects[0], id: `o-${i}-${seededName(i)}`, name: `Shape ${seededName(i + 100)}` })) };
 }
 
+const STORED = { ok: true as const, id: 'k3x9q2Ab', expiresAt: '2027-01-14T00:00:00.000Z' };
+
+beforeEach(() => {
+  vi.mocked(createStoredShare).mockResolvedValue(STORED);
+});
+
 afterEach(() => {
   useShareDialog.getState().close();
   useVamsStore.setState({ appMode: 'Author', activeLessonId: null });
 });
 
-describe('BB-SHARE-01: A small scene shares a link that carries it', () => {
-  it('needs no server', async () => {
-    const store = vi.fn();
-    const r = await prepareShare(input(), { store });
-    expect(r.kind).toBe('carried');
-    const url = (r as Extract<ShareResult, { kind: 'carried' }>).url;
-    expect(url.startsWith(`${SHARE_ORIGIN}/app#s=`)).toBe(true);
-    expect(url.length).toBeLessThanOrEqual(MAX_CARRIED_URL);
-    expect(store).not.toHaveBeenCalled();
+describe('BB-SHARE-01: A small scene shares the short stored link', () => {
+  it('stores the scene and gives /s/<id>', async () => {
+    const store = vi.fn(async () => STORED);
+    const r = await prepareShare(input(), { store, shrink });
+    expect(r).toEqual({ kind: 'stored', url: `${SHARE_ORIGIN}/s/k3x9q2Ab`, expiresAt: STORED.expiresAt, shrunk: 1 });
+    expect(store).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -78,14 +84,22 @@ describe('BB-SHARE-02: A scene with an uploaded image is stored, shrunk', () => 
   });
 });
 
-describe('BB-SHARE-03: When storing fails, the link leaves the uploads out, or there is no link', () => {
-  it('falls back to a carried link, and fails when even that is too long', async () => {
-    const store = vi.fn(async () => ({ ok: false as const, reason: 'offline' as const }));
+describe('BB-SHARE-03: When storing fails, the link carries the scene, or leaves the uploads out, or there is no link', () => {
+  const store = vi.fn(async () => ({ ok: false as const, reason: 'offline' as const }));
+  it('carries a small scene, whole', async () => {
+    const r = await prepareShare(input(), { store, shrink });
+    expect(r.kind).toBe('carried');
+    const url = (r as Extract<ShareResult, { kind: 'carried' }>).url;
+    expect(url.startsWith(`${SHARE_ORIGIN}/app#s=`)).toBe(true);
+    expect(url.length).toBeLessThanOrEqual(MAX_CARRIED_URL);
+  });
+  it('leaves uploads out, and fails when even that is too long', async () => {
     const r = await prepareShare(textured(), { store, shrink });
     expect(r.kind).toBe('fallback');
     const huge = overLimit();
     expect(carriedLink(buildSharePayload({ ...huge, textures: [] })).length).toBeGreaterThan(MAX_CARRIED_URL * 2);
     expect((await prepareShare({ ...huge, textures: [upload] }, { store, shrink })).kind).toBe('failed');
+    expect((await prepareShare(huge, { store, shrink })).kind).toBe('failed');
   });
 });
 
@@ -97,7 +111,7 @@ describe('BB-SHARE-04: During a lesson, Share gives the lesson link', () => {
 });
 
 describe('BB-SHARE-05: The dialog shows the link, the note and the QR code', () => {
-  it('reads as approved for a carried link', async () => {
+  it('reads as approved for a stored link', async () => {
     addTriangle();
     useVamsStore.setState({ sceneName: 'Solar system' });
     const host = mount(h('div', {}, h(ShareButton, {}), h(ShareDialog, { lessonTitle: null })));
@@ -106,8 +120,8 @@ describe('BB-SHARE-05: The dialog shows the link, the note and the QR code', () 
     const dialog = document.querySelector('.share-dialog')!;
     expect(dialog.querySelector('h2')!.textContent).toBe('Share ‘Solar system’');
     expect(dialog.textContent).toContain('Anyone with the link opens a copy of this scene. On a phone it opens as a view.');
-    expect((dialog.querySelector('.share-dialog__link') as HTMLInputElement).value).toMatch(/\/app#s=/);
-    expect(dialog.textContent).toContain('This link carries your scene and never expires.');
+    expect((dialog.querySelector('.share-dialog__link') as HTMLInputElement).value).toBe(`${SHARE_ORIGIN}/s/k3x9q2Ab`);
+    expect(dialog.textContent).toContain('Stored for 90 days, until 14 Jan 2027.');
     expect(dialog.querySelector('.qr-code svg')).not.toBeNull();
     expect(dialog.querySelector('.qr-code')!.getAttribute('aria-label')).toBe('QR code for this link');
     unmount(host);
@@ -147,7 +161,7 @@ describe('BB-SHARE-07: Done closes the dialog and focus returns to Share', () =>
 });
 
 describe('BB-SHARE-08: The dialog words each state', () => {
-  it('stored, shrunk, fallback, failed and lesson', async () => {
+  it('stored, shrunk, carried, fallback, failed and lesson', async () => {
     const { ShareResultView } = await import('@/features/share/ui/ShareDialog');
     const view = (result: ShareResult) => {
       const host = mount(h(ShareResultView, { result, onSaveFile: () => {} }));
@@ -158,20 +172,22 @@ describe('BB-SHARE-08: The dialog words each state', () => {
     expect(view({ kind: 'stored', url: 'u', expiresAt: '2027-01-14T00:00:00.000Z', shrunk: 1 })).toContain('Stored for 90 days, until 14 Jan 2027.');
     expect(view({ kind: 'stored', url: 'u', expiresAt: '2027-01-14T00:00:00.000Z', shrunk: 1 })).toContain('Your uploaded image is shared at 512 px.');
     expect(view({ kind: 'stored', url: 'u', expiresAt: '2027-01-14T00:00:00.000Z', shrunk: 2 })).toContain('Your uploaded images are shared at 512 px.');
-    expect(view({ kind: 'fallback', url: 'u' })).toContain('Your uploaded images are left out.');
+    expect(view({ kind: 'carried', url: 'u' })).toContain('Couldn’t store it right now, so this link carries your scene instead. It never expires.');
+    expect(view({ kind: 'fallback', url: 'u' })).toContain('Couldn’t store your uploaded images, so this link leaves them out.');
     expect(view({ kind: 'failed' })).toContain('Couldn’t make a link right now.');
     expect(view({ kind: 'lesson', url: 'u', title: 'Transforms 1' })).toContain('Anyone with the link opens this lesson.');
   });
 });
 
 describe('BB-SHARE-09: An image that cannot be resized never leaves the dialog waiting', () => {
-  it('gives the link without the uploads, or no link when that is too long', async () => {
+  it('takes the same path as a failed store', async () => {
     const store = vi.fn();
     const broken = async () => {
       throw new Error('The image could not be decoded');
     };
     const r = await prepareShare(textured(), { store, shrink: broken });
     expect(r.kind).toBe('fallback');
+    expect((await prepareShare(input(), { store, shrink: broken })).kind).toBe('carried');
     expect(store).not.toHaveBeenCalled();
     const huge = overLimit();
     expect((await prepareShare({ ...huge, textures: [upload] }, { store, shrink: broken })).kind).toBe('failed');

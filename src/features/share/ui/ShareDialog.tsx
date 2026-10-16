@@ -51,12 +51,12 @@ export function ShareResultView({ result, onSaveFile }: { result: ShareResult; o
           <input className="share-dialog__link" readOnly value={result.url} aria-label="Link" onFocus={(e) => e.currentTarget.select()} />
           <Button variant="primary" onClick={() => void copyLink(result.url)}>Copy link</Button>
         </div>
-        {result.kind === 'carried' && <Note tone="ok">This link carries your scene and never expires.</Note>}
+        {result.kind === 'carried' && <Note tone="ok">Couldn’t store it right now, so this link carries your scene instead. It never expires.</Note>}
         {result.kind === 'stored' && <Note tone="ok">{`Stored for 90 days, until ${date(result.expiresAt)}.`}</Note>}
         {result.kind === 'stored' && result.shrunk > 0 && (
           <Note tone="warn">{result.shrunk === 1 ? 'Your uploaded image is shared at 512 px.' : 'Your uploaded images are shared at 512 px.'}</Note>
         )}
-        {result.kind === 'fallback' && <Note tone="warn">Your uploaded images are left out.</Note>}
+        {result.kind === 'fallback' && <Note tone="warn">Couldn’t store your uploaded images, so this link leaves them out.</Note>}
         {result.kind === 'lesson' && <Note tone="ok">Anyone with the link opens this lesson.</Note>}
       </div>
       <div className="share-dialog__qr">

@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   buildSharePayload, carriedLink, decodeShare, encodeShare, hasUploads, lessonLink, MAX_CARRIED_URL,
-  payloadBytes, planShare, readSharePayload, storedLink, withoutUploads, type SharePayload,
+  payloadBytes, readSharePayload, storedLink, withoutUploads, type SharePayload,
 } from '@/entities/project/model/share';
 import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { SHARE_ORIGIN } from '@/shared/lib/share-origin';
@@ -94,17 +94,10 @@ describe('WB-SHARE-04: Reading a payload sanitises it and checks the version', (
   });
 });
 
-describe('WB-SHARE-05: Small scenes travel in the link, others are stored', () => {
-  it('chooses by uploads and by the 1,000-character limit', () => {
-    const small = sceneWith([]);
-    const plan = planShare(small);
-    expect(plan.kind).toBe('carried');
-    if (plan.kind === 'carried') expect(plan.url.length).toBeLessThanOrEqual(MAX_CARRIED_URL);
-    expect(carriedLink(small).length).toBeLessThanOrEqual(MAX_CARRIED_URL);
-    expect(planShare(sceneWith(['up-1'])).kind).toBe('stored');
-    const big = overLimitScene();
-    expect(carriedLink(big).length).toBeGreaterThan(MAX_CARRIED_URL * 2);
-    expect(planShare(big).kind).toBe('stored');
+describe('WB-SHARE-05: A carried link stays short enough to scan', () => {
+  it('keeps a small scene within the 1,000-character limit and a large one far over it', () => {
+    expect(carriedLink(sceneWith([])).length).toBeLessThanOrEqual(MAX_CARRIED_URL);
+    expect(carriedLink(overLimitScene()).length).toBeGreaterThan(MAX_CARRIED_URL * 2);
   });
 });
 
