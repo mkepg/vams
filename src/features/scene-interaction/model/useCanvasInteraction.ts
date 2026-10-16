@@ -2,6 +2,7 @@ import { useRef, useEffect, useCallback } from "react";
 import type { Application, Container, FederatedPointerEvent } from "pixi.js";
 import { Rectangle } from "pixi.js";
 import { useVamsStore } from "@/core/store";
+import { isEditableTarget, isMenuTarget } from "@/shared/lib/key-target";
 interface UseCanvasInteractionProps {
   pixiReady: boolean;
   appRef: React.MutableRefObject<Application | null>;
@@ -126,6 +127,8 @@ export function useCanvasInteraction({
       // Only vertex-placement keys live here. App-level shortcuts (delete,
       // duplicate, undo/redo) are handled centrally in useKeyboardShortcuts.
       if (interactionModeRef.current !== "VERTEX_PLACE") return;
+      // Keys typed into a field or used in a menu belong to that control.
+      if (isEditableTarget(e.target) || isMenuTarget(e.target)) return;
 
       if (e.key === "Escape") {
         state.cancelCustomShape();

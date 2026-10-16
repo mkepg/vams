@@ -1,3 +1,4 @@
+import { toHexColor } from '@/shared/lib/hex-color';
 import { migratePersistedState } from '@/core/store/persist-migrate';
 import { create } from 'zustand';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
@@ -89,6 +90,10 @@ export const useVamsStore = create<VamsState>()(
           // A lesson backup that survived a reload means the page reloaded mid-lesson:
           // put the student's own scene back and leave the lesson.
           if (rehydratedState?.sceneBackup) rehydratedState.clearLessonState();
+          // A saved colour PixiJS cannot read would leave the canvas blank on every load.
+          if (rehydratedState && toHexColor(rehydratedState.canvasBackgroundColor) !== rehydratedState.canvasBackgroundColor) {
+            rehydratedState.setCanvasBackgroundColor('#000000');
+          }
           rehydratedState?.ensureSceneId();
           rehydratedState?.pickOpeningPanel();
         };

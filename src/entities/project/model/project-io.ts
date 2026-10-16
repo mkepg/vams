@@ -26,6 +26,7 @@ import type {
   TextureWrap,
   UV,
 } from '@/core/types/textures';
+import { toHexColor } from '@/shared/lib/hex-color';
 
 // v9 replaces the handler name per callback kind with callbacks that hold rules, adds the Special
 // keys callback and the reshape choice. v8 files load with their names kept and no rules.
@@ -353,7 +354,7 @@ export function sanitizeProjectData(raw: unknown): VamsProjectData {
     showCoordinateTracker: toBoolean(raw.showCoordinateTracker, DEFAULT_DATA.showCoordinateTracker),
     learningSettings,
     theme: toTheme(raw.theme),
-    canvasBackgroundColor: toString(raw.canvasBackgroundColor, DEFAULT_DATA.canvasBackgroundColor),
+    canvasBackgroundColor: toHexColor(raw.canvasBackgroundColor, DEFAULT_DATA.canvasBackgroundColor),
     selectedObjectId,
     interactionMode: toInteractionMode(raw.interactionMode),
     selectedVertexId: typeof raw.selectedVertexId === 'string' ? raw.selectedVertexId : null,

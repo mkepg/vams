@@ -279,3 +279,40 @@ describe('BB-WINDOW-07: The chip takes focus only after the student hides the wi
     unregister();
   });
 });
+
+describe('BB-WINDOW-08: A lesson, a swapped scene or vertex placement brings the window back', () => {
+  const hide = async (host: HTMLElement) => {
+    button(host, 'Close').click();
+    await settle();
+    expect(windowState().mode).toBe('closed');
+  };
+  afterEach(() => {
+    useVamsStore.setState({ interactionMode: 'SELECT', activeLessonId: null });
+  });
+  it.each([
+    ['a lesson starts', () => useVamsStore.setState({ activeLessonId: 'transforms-demo-1' })],
+    ['a scene is swapped in', () => useVamsStore.getState().markSceneSwap()],
+    ['vertex placement starts', () => useVamsStore.setState({ interactionMode: 'VERTEX_PLACE' })],
+  ])('shows a closed window when %s, where it was', async (_label, act) => {
+    const host = mountWindow();
+    await settle();
+    const rect = { ...windowState().rect! };
+    await hide(host);
+    act();
+    await settle();
+    expect(windowState().mode).toBe('floating');
+    expect(windowState().rect).toEqual(rect);
+    expect(chip(host)).toBeNull();
+    unmount(host);
+  });
+  it('shows a minimised window too', async () => {
+    const host = mountWindow();
+    await settle();
+    button(host, 'Minimise').click();
+    await settle();
+    useVamsStore.getState().markSceneSwap();
+    await settle();
+    expect(windowState().mode).toBe('floating');
+    unmount(host);
+  });
+});

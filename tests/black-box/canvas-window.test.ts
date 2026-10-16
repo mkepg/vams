@@ -319,3 +319,23 @@ describe('BB-CANVAS-10: The resize handles hang outside the window box', () => {
     unmount(host);
   });
 });
+
+describe('BB-CANVAS-11: Placing keys ignore the fields and menus they were not typed into', () => {
+  it('leaves pending vertices alone for Backspace in a field and Enter on a menu item', async () => {
+    const prepare = () => useVamsStore.setState({ interactionMode: 'VERTEX_PLACE', pendingShapeType: 'GL_TRIANGLES', pendingMinVertices: 3, pendingVertices: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }] } as never);
+    prepare();
+    const before = useVamsStore.getState().objects.length;
+    const host = mount(h('div', {}, h(InteractionProbe, { readOnly: false, on: vi.fn() }), h('input', { class: 'name-field' }), h('div', { role: 'menu' }, h('button', { role: 'menuitem', class: 'menu-item' }))));
+    await settle();
+    const send = (el: Element, k: string) => el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
+    send(host.querySelector('.name-field')!, 'Backspace');
+    expect(useVamsStore.getState().pendingVertices).toHaveLength(3);
+    send(host.querySelector('.menu-item')!, 'Enter');
+    expect(useVamsStore.getState().objects.length).toBe(before);
+    expect(useVamsStore.getState().interactionMode).toBe('VERTEX_PLACE');
+    send(document.body, 'Backspace');
+    expect(useVamsStore.getState().pendingVertices).toHaveLength(2);
+    unmount(host);
+    useVamsStore.getState().cancelCustomShape();
+  });
+});

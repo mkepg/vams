@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { useVamsStore } from '@/core/store';
+import { isEditableTarget } from '@/shared/lib/key-target';
 
 /**
  * Global keyboard shortcuts. This is the single source of truth for app-level
@@ -15,9 +16,7 @@ export function useKeyboardShortcuts() {
       const state = useVamsStore.getState();
 
       // Don't hijack typing in form fields.
-      const target = e.target as HTMLElement | null;
-      const tag = target?.tagName;
-      const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable;
+      const isTyping = isEditableTarget(e.target);
 
       // Undo: Ctrl + Z
       if (isCtrl && !e.shiftKey && e.key.toLowerCase() === 'z') {

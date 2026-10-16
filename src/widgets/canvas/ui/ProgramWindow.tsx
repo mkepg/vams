@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { ComponentChildren, JSX } from 'preact';
+import { useVamsStore } from '@/core/store';
 import { runController, useRunSnapshot } from '@/features/callbacks';
 import { PROGRAM_WINDOW_TITLE } from '@/shared/lib/program-window';
 import { MIN_WINDOW_SIZE, resizeRect, type Rect, type ResizeEdge } from '../model/program-window';
@@ -53,6 +54,16 @@ export default function ProgramWindow({ size, away = false, children }: ProgramW
   useEffect(() => {
     if (running) useProgramWindow.getState().show();
   }, [running]);
+
+  // The scene changing under the student, or placing vertices, needs the canvas in view; it returns where it was.
+  useEffect(() => {
+    return useVamsStore.subscribe((state, prev) => {
+      const lessonStarted = state.activeLessonId !== null && state.activeLessonId !== prev.activeLessonId;
+      const sceneSwapped = state.sceneSwapSeq !== prev.sceneSwapSeq;
+      const placing = state.interactionMode === 'VERTEX_PLACE' && prev.interactionMode !== 'VERTEX_PLACE';
+      if (lessonStarted || sceneSwapped || placing) useProgramWindow.getState().show();
+    });
+  }, []);
 
   const hidden = mode === 'minimised' || mode === 'closed';
   useEffect(() => {
