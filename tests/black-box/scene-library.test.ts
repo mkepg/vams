@@ -412,6 +412,14 @@ describe('BB-LIB-17: The working scene has a name the student can change', () =>
   });
 });
 
+const stoppers: (() => void)[] = [];
+function startAutosave(lib: SceneLibrary) {
+  stoppers.push(startSceneAutosave({ library: async () => lib }));
+}
+afterEach(() => {
+  while (stoppers.length) stoppers.pop()!();
+});
+
 async function drainAutosave(done: () => Promise<void> | void) {
   await vi.advanceTimersByTimeAsync(1100);
   await vi.waitFor(done);
@@ -424,7 +432,7 @@ describe('BB-LIB-18: Edits save the working scene to its own My scenes entry', (
     vi.useFakeTimers();
     const lib = createMemoryLibrary();
     useVamsStore.setState({ sceneId: 'mine', sceneName: 'Solar system' });
-    const stop = startSceneAutosave({ library: async () => lib });
+    startAutosave(lib);
     addTriangle();
     expect(useSaveStatus.getState().status).toBe('saving');
     expect(await lib.list()).toEqual([]);
@@ -432,7 +440,6 @@ describe('BB-LIB-18: Edits save the working scene to its own My scenes entry', (
     const [entry] = await lib.list();
     expect(entry).toMatchObject({ id: 'mine', name: 'Solar system', kind: 'saved', reason: null });
     expect(entry.file!.data.objects).toHaveLength(1);
-    stop();
   });
 });
 
@@ -442,13 +449,12 @@ describe('BB-LIB-19: An empty untitled scene is not saved, a named one is', () =
   it('skips the blank editor and saves once the scene is renamed', async () => {
     vi.useFakeTimers();
     const lib = createMemoryLibrary();
-    const stop = startSceneAutosave({ library: async () => lib });
+    startAutosave(lib);
     useVamsStore.setState({ sceneId: 'other' });
     await vi.advanceTimersByTimeAsync(1100);
     expect(await lib.list()).toEqual([]);
     useVamsStore.getState().renameScene('Plan');
     await drainAutosave(async () => expect((await lib.list()).map((e) => e.name)).toEqual(['Plan']));
-    stop();
   });
 });
 
@@ -458,13 +464,12 @@ describe('BB-LIB-20: Lesson scenes never write to My scenes', () => {
   it('does nothing while a lesson is active', async () => {
     vi.useFakeTimers();
     const lib = createMemoryLibrary();
-    const stop = startSceneAutosave({ library: async () => lib });
+    startAutosave(lib);
     useVamsStore.setState({ activeLessonId: 'transforms-demo-1', appMode: 'Lesson' });
     addTriangle();
     await vi.advanceTimersByTimeAsync(1100);
     expect(await lib.list()).toEqual([]);
     useVamsStore.setState({ activeLessonId: null, appMode: 'Author' });
-    stop();
   });
 });
 
@@ -475,7 +480,7 @@ describe('BB-LIB-21: An edit just before a scene switch is saved to the scene it
     vi.useFakeTimers();
     const lib = createMemoryLibrary();
     useVamsStore.setState({ sceneId: 'old', sceneName: 'Old' });
-    const stop = startSceneAutosave({ library: async () => lib });
+    startAutosave(lib);
     addTriangle();
     addQuad();
     loadProjectData(sanitizeProjectData({ objects: [] }), sceneIdentity('New', 'new'));
@@ -486,7 +491,6 @@ describe('BB-LIB-21: An edit just before a scene switch is saved to the scene it
     expect(byId.old.name).toBe('Old');
     expect(byId.new.file!.data.objects).toHaveLength(1);
     expect(byId.new.name).toBe('New');
-    stop();
   });
 
   it('never shows the new content under the old id', () => {
@@ -509,14 +513,30 @@ describe('BB-LIB-22: A refused save shows "Not saved" and breaks nothing', () =>
     const refuse = vi.spyOn(lib, 'save').mockRejectedValueOnce(new DOMException('full', 'QuotaExceededError'));
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
     useVamsStore.setState({ sceneId: 'mine', sceneName: 'Mine' });
-    const stop = startSceneAutosave({ library: async () => lib });
+    startAutosave(lib);
     expect(() => addTriangle()).not.toThrow();
     await drainAutosave(() => expect(useSaveStatus.getState().status).toBe('error'));
     addQuad();
     await drainAutosave(() => expect(useSaveStatus.getState().status).toBe('saved'));
     expect(refuse).toHaveBeenCalledTimes(2);
     errors.mockRestore();
-    stop();
+  });
+});
+
+describe('BB-LIB-26: A change that leaves nothing worth saving cancels the pending save', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('does not write the snapshot of an edit that was undone back to a blank scene', async () => {
+    vi.useFakeTimers();
+    const lib = createMemoryLibrary();
+    startAutosave(lib);
+    useVamsStore.setState({ sceneId: 'blank' });
+    addTriangle();
+    expect(useSaveStatus.getState().status).toBe('saving');
+    useVamsStore.setState({ objects: [] });
+    await vi.advanceTimersByTimeAsync(1100);
+    expect(await lib.list()).toEqual([]);
+    expect(useSaveStatus.getState().status).not.toBe('saving');
   });
 });
 
@@ -593,5 +613,10 @@ describe('BB-LIB-25: Renaming the working scene in My scenes renames it in the e
     expect((await library.get('mine'))?.name).toBe('Renamed');
     expect(useVamsStore.getState().sceneName).toBe('Renamed');
     unmount(host);
+    // An edit after the rename is saved under the new name.
+    startAutosave(library);
+    addQuad();
+    await vi.waitFor(async () => expect((await library.get('mine'))?.file?.data.objects).toHaveLength(2), { timeout: 3000 });
+    expect((await library.get('mine'))?.name).toBe('Renamed');
   });
 });
