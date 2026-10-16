@@ -611,7 +611,11 @@ describe('BB-SITE-35: The old Netlify address forwards to the live site', () => 
   });
 
   it('leaves the Netlify-only 404 rule out of the live site', () => {
-    expect(() => readFileSync('public/_redirects', 'utf8')).toThrow();
+    const rules = readFileSync('public/_redirects', 'utf8')
+      .split(/\r?\n/)
+      .filter((line) => line.trim() && !line.trim().startsWith('#'))
+      .map((line) => line.trim().split(/\s+/));
+    expect(rules).toEqual([['/s/*', '/app', '200']]);
   });
 });
 
