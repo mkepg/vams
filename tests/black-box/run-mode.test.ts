@@ -443,20 +443,37 @@ describe('BB-RUN-17: Run off says why on the canvas', () => {
   });
 });
 
-describe('BB-RUN-18: The Run note sits in the window bar, clear of the frame', () => {
-  it('is placed from the header by the stage padding and the frame, not hung under the button', async () => {
+describe('BB-RUN-18: The Run note sits in the window bar, left of the buttons', () => {
+  it('is a flex item that truncates before the title or size, not an absolute plate', async () => {
     const { readFileSync } = await import('node:fs');
     const scss = readFileSync('src/features/callbacks/ui/run-overlay.scss', 'utf8');
     const start = scss.indexOf('.run-plate {');
     const rule = scss.slice(start, scss.indexOf('&__link', start));
-    expect(rule).toMatch(/top:\s*calc\(100% \+ 1px \+ var\(--stage-pad/);
-    expect(rule).toMatch(/right:\s*calc\(var\(--stage-pad/);
-    expect(rule).toMatch(/height:\s*22px/);
+    expect(rule).not.toMatch(/position:\s*absolute/);
+    expect(rule).toMatch(/min-width:\s*0/);
+    expect(rule).toMatch(/text-overflow:\s*ellipsis/);
+    expect(rule).toMatch(/height:\s*20px/);
     expect(rule).toMatch(/var\(--paper-raised\)/);
-    expect(rule).not.toMatch(/var\(--space-1\)\);\s*\n\s*right:\s*0/);
-    const pane = readFileSync('src/widgets/canvas/canvas-pane.scss', 'utf8');
-    expect(pane).toMatch(/--stage-pad:\s*14px/);
-    const header = pane.slice(pane.indexOf('.canvas-header {'), pane.indexOf('&__title'));
-    expect(header).toMatch(/position:\s*relative/);
+    const windowScss = readFileSync('src/widgets/canvas/ui/canvas-window.scss', 'utf8');
+    expect(windowScss).toMatch(/&__title \{[^}]*flex-shrink:\s*0/);
+    expect(windowScss).toMatch(/&__size \{[^}]*flex-shrink:\s*0/);
+  });
+  it('renders inside the bar, before the window buttons, and not in the header', async () => {
+    const { ProgramWindow } = { ProgramWindow: (await import('@/widgets/canvas/ui/ProgramWindow')).default };
+    const win = mount(h(ProgramWindow, { size: { width: 100, height: 100 } }, h('div', {})));
+    await settle();
+    const bar = win.querySelector('.canvas-window__bar')!;
+    const note = bar.querySelector('.run-plate')!;
+    expect(note.textContent).toBe(RUN_EMPTY_REASON);
+    expect(note.nextElementSibling?.classList.contains('canvas-window__buttons')).toBe(true);
+    render(null, win);
+    win.remove();
+    const { default: CanvasHeader } = await import('@/widgets/canvas/ui/CanvasHeader');
+    const header = mount(h(CanvasHeader, {}));
+    await settle();
+    expect(header.querySelector('.run-plate')).toBeNull();
+    expect(header.querySelector('.run-button')!.getAttribute('aria-describedby')).toBe(note.id);
+    render(null, header);
+    header.remove();
   });
 });

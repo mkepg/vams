@@ -5,18 +5,14 @@
   align-items: center;
 }
 
-// Why Run is off. The host header is the positioning context (--stage-pad is
-// the gap between it and the window frame), so the note sits in the window
-// bar's empty right end, in the panel's own paper, clear of the frame.
+// Why Run is off. It sits in the program window's bar, left of the window buttons, and gives way
+// (truncating with an ellipsis) before the title or the size does.
 .run-plate {
-  position: absolute;
-  top: calc(100% + 1px + var(--stage-pad, 14px) + 1px + 3px);
-  right: calc(var(--stage-pad, 14px) + 1px + 10px);
-  z-index: 40;
   box-sizing: border-box;
-  height: 22px;
-  max-width: calc(100% - 220px);
-  margin: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+  height: 20px;
+  margin: 0 var(--space-2) 0 0;
   padding: 0 var(--space-2);
   display: flex;
   align-items: center;

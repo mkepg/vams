@@ -1,7 +1,6 @@
 @use '../../shared/styles/tokens' as *;
 
 .canvas-pane {
-  --stage-pad: 14px;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -56,13 +55,15 @@
   flex: 1;
   min-height: 0;
   display: flex;
-  padding: var(--stage-pad);
+  // A window dragged part way off the stage is clipped by it.
+  overflow: hidden;
   background-color: var(--stage-bg);
   background-image: radial-gradient(var(--stage-dot) 1px, transparent 1px);
   background-size: 14px 14px;
 
-  &--bare { padding: 0; background-image: none; }
-  &__frame { flex: 1; display: flex; min-width: 0; min-height: 0; }
+  &--bare { background-image: none; }
+  // The stage the program's window floats on; the window and its chip position inside it.
+  &__frame { position: absolute; inset: 0; min-width: 0; min-height: 0; }
   // Away under an illustration: still laid out, so the canvas keeps its size.
-  &__frame--away { visibility: hidden; position: absolute; inset: var(--stage-pad); pointer-events: none; }
+  &__frame--away { visibility: hidden; pointer-events: none; }
 }

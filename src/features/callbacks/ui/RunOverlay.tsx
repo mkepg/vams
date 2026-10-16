@@ -1,5 +1,5 @@
 import './run-overlay.scss';
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { MoveDiagonal2, Play, Square } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import { Button } from '@/shared/ui/controls';
@@ -11,17 +11,38 @@ export const RUN_SURFACE_LABEL = 'Running program. Keys, clicks and drags go to 
 export const RUN_EMPTY_REASON = 'Add a shape to run your program.';
 export const RUN_NO_CALLBACK_REASON = 'Run needs a callback.';
 export const RUN_OPEN_CALLBACKS = 'Open Callbacks';
+const RUN_NOTE_ID = 'run-note';
 
 const HANDLE_KEYS: Record<string, [number, number]> = {
   ArrowLeft: [-RESIZE_STEP, 0], ArrowRight: [RESIZE_STEP, 0], ArrowUp: [0, -RESIZE_STEP], ArrowDown: [0, RESIZE_STEP],
 };
 
-/** Run in the canvas header; it becomes Stop while the program runs. */
-export function RunControl() {
+/** Why Run is off, as a one-line note; null when Run can go. It sits where the host puts it. */
+export function RunNote() {
   const snap = useRunSnapshot();
   const block = useVamsStore((s) => runBlock(s));
   const setRailPanel = useVamsStore((s) => s.setRailPanel);
-  const plateId = useId();
+  if (snap.running || !block || block === 'illustration') return null;
+  return (
+    <p id={RUN_NOTE_ID} className="run-plate">
+      {block === 'empty' ? (
+        RUN_EMPTY_REASON
+      ) : (
+        <>
+          {RUN_NO_CALLBACK_REASON}{' '}
+          <button type="button" className="run-plate__link" onClick={() => setRailPanel('callbacks')}>
+            {RUN_OPEN_CALLBACKS}
+          </button>
+        </>
+      )}
+    </p>
+  );
+}
+
+/** Run in the canvas header; it becomes Stop while the program runs. `note` false leaves the reason to the host. */
+export function RunControl({ note = true }: { note?: boolean } = {}) {
+  const snap = useRunSnapshot();
+  const block = useVamsStore((s) => runBlock(s));
   const runButtonRef = useRef<HTMLButtonElement>(null);
   const wasRunning = useRef(false);
 
@@ -47,25 +68,12 @@ export function RunControl() {
         className="run-button"
         icon={<Play />}
         disabled={block !== null}
-        aria-describedby={block ? plateId : undefined}
+        aria-describedby={block ? RUN_NOTE_ID : undefined}
         onClick={() => runController.start()}
       >
         Run
       </Button>
-      {block && (
-        <p id={plateId} className="run-plate">
-          {block === 'empty' ? (
-            RUN_EMPTY_REASON
-          ) : (
-            <>
-              {RUN_NO_CALLBACK_REASON}{' '}
-              <button type="button" className="run-plate__link" onClick={() => setRailPanel('callbacks')}>
-                {RUN_OPEN_CALLBACKS}
-              </button>
-            </>
-          )}
-        </p>
-      )}
+      {note && <RunNote />}
     </div>
   );
 }

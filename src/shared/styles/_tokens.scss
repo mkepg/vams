@@ -160,6 +160,10 @@ $header-height: 3.7rem;
   --stage-dot: #c6cfe2;
   --window-line: #9aa6c2;
   --window-shadow: 0 8px 24px rgba(18, 24, 39, 0.18);
+  /* The window's own buttons sit on the ink bar in both themes; Close turns red as it does on a desktop. */
+  --window-btn-hover: rgba(255, 255, 255, 0.09);
+  --window-close: #c42b1c;
+  --window-close-ink: #ffffff;
 }
 
 [data-theme='dark'] {
@@ -262,6 +266,10 @@ $header-height: 3.7rem;
   --stage-dot: #29324a;
   --window-line: #3a4563;
   --window-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  /* The window's own buttons sit on the ink bar in both themes; Close turns red as it does on a desktop. */
+  --window-btn-hover: rgba(255, 255, 255, 0.09);
+  --window-close: #c42b1c;
+  --window-close-ink: #ffffff;
 }
 $bg-dark: rgb(var(--bg-dark-rgb));
 $bg-panel: rgb(var(--bg-panel-rgb));

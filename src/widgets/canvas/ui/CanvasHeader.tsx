@@ -47,7 +47,7 @@ export default function CanvasHeader() {
           onClick={() => setAxisVisibility({ ...axisVisibility, showGridNumbers: !axisVisibility.showGridNumbers })}
         />
       )}
-      <RunControl />
+      <RunControl note={false} />
     </div>
   );
 }
