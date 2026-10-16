@@ -2,24 +2,33 @@
 
 .canvas-window {
   --window-bar: 28px;
-  container-type: inline-size;
   position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
-  border: 1px solid var(--window-line);
-  border-radius: 8px;
-  box-shadow: var(--window-shadow);
+
+  // The visible window. It clips its own contents; the resize handles sit outside it.
+  &__frame {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    border: 1px solid var(--window-line);
+    border-radius: 8px;
+    box-shadow: var(--window-shadow);
+  }
 
   // Floating on the stage: placed by inline left, top, width and height; until the stage has been
   // measured it sits a margin in from every side.
   &--floating,
   &--maximised { position: absolute; flex: none; inset: 24px; }
   // Maximised fills the stage edge to edge.
-  &--maximised { inset: 0; border: 0; border-radius: 0; box-shadow: none; }
+  &--maximised { inset: 0; }
+  &--maximised &__frame { border: 0; border-radius: 0; box-shadow: none; }
   // Minimised or closed: still laid out, so the canvas keeps its size and the code keeps its size line.
   &--away { visibility: hidden; pointer-events: none; }
 
@@ -61,10 +70,11 @@
     &--close:hover { background: var(--window-close); color: var(--window-close-ink); }
   }
 
-  // Resize handles: the right edge, the bottom edge and the corner, with a small grip.
+  // Resize handles: the right and bottom edges hang just outside the window, so they cover no canvas;
+  // the corner keeps a small grip inside.
   &__handle { position: absolute; z-index: 5; touch-action: none; }
-  &__handle--e { top: var(--window-bar); right: 0; bottom: 14px; width: 6px; cursor: ew-resize; }
-  &__handle--s { left: 0; right: 14px; bottom: 0; height: 6px; cursor: ns-resize; }
+  &__handle--e { top: var(--window-bar); right: -8px; bottom: 14px; width: 8px; cursor: ew-resize; }
+  &__handle--s { left: 0; right: 14px; bottom: -8px; height: 8px; cursor: ns-resize; }
   &__handle--se {
     right: 0;
     bottom: 0;
@@ -103,9 +113,4 @@
   &::before { content: ''; width: 12px; height: 12px; border-radius: 3px; background: var(--accent); }
   &:hover { background: var(--chrome-hover); }
   &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-}
-
-// A narrow window has no room for the Run note; it would only show a clipped stub.
-@container (max-width: 420px) {
-  .run-plate { display: none; }
 }

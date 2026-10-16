@@ -1,47 +1,32 @@
 @use '../../../shared/styles/tokens' as *;
 
 .run-control {
+  position: relative;
   display: flex;
   align-items: center;
 }
 
-// Why Run is off. It sits in the program window's bar, left of the window buttons, and gives way
-// (truncating with an ellipsis) before the title or the size does.
-.run-plate {
+// The dialog under Run that says why it cannot start. It uses the menus' surface.
+.run-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 1040;
   box-sizing: border-box;
-  flex: 0 1 auto;
-  min-width: 0;
-  height: 20px;
-  margin: 0 var(--space-2) 0 0;
-  padding: 0 var(--space-2);
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
+  width: 264px;
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
   border: 1px solid var(--rule);
-  border-radius: var(--radius-s);
+  border-radius: 5px;
   background: var(--paper-raised);
+  box-shadow: 0 10px 28px rgba(var(--shadow-rgb), 0.22);
   color: var(--ink);
-  font-size: var(--text-xs);
-  line-height: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
 
-  &__link {
-    padding: 0;
-    border: 0;
-    background: none;
-    color: inherit;
-    font: inherit;
-    text-decoration: underline;
-    text-underline-offset: 2px;
-    cursor: pointer;
-
-    &:focus-visible {
-      outline: 2px solid var(--focus-ring);
-      outline-offset: 2px;
-    }
-  }
+  &__title { margin: 0; font-size: var(--text-base); font-weight: 600; }
+  &__body { margin: 0; font-size: var(--text-sm); color: var(--ink-muted); line-height: 1.4; }
+  &__action { justify-self: start; }
 }
 
 .run-layer {

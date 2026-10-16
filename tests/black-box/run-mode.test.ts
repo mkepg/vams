@@ -288,12 +288,14 @@ describe('BB-RUN-11: The overlay shows Run, then the strip, the readout and the 
     host.remove();
   });
 
-  it('is disabled with a reason when nothing can run', async () => {
+  it('is aria-disabled with a reason when nothing can run', async () => {
     const host = mount(h(RunOverlay, {}));
     await settle();
     const run = host.querySelector('.run-button') as HTMLButtonElement;
-    expect(run.disabled).toBe(true);
-    expect(host.querySelector('.run-plate')?.textContent).toBe(RUN_EMPTY_REASON);
+    expect(run.disabled).toBe(false);
+    expect(run.getAttribute('aria-disabled')).toBe('true');
+    expect(host.querySelector('.run-plate')).toBeNull();
+    expect(document.getElementById(run.getAttribute('aria-describedby')!)?.textContent).toBe(RUN_EMPTY_REASON);
     render(null, host);
     host.remove();
   });
@@ -330,13 +332,13 @@ describe('BB-RUN-14: Run is unavailable while a Pipeline illustration replaces t
     expect(canRun(getState())).toBe(true);
   });
 
-  it('hides Run and its plate over an illustration', async () => {
+  it('hides Run over an illustration', async () => {
     setup();
     showIllustration();
     const host = mount(h(RunOverlay, {}));
     await settle();
     expect(host.querySelector('.run-button')).toBeNull();
-    expect(host.querySelector('.run-plate')).toBeNull();
+    expect(host.querySelector('[role="dialog"]')).toBeNull();
     useVamsStore.setState({ pipelineMode: 'Playground' });
     await settle();
     expect(host.querySelector('.run-button')).not.toBeNull();
@@ -418,62 +420,126 @@ describe('BB-RUN-16: The selection outline and handles hide during Run and come 
   });
 });
 
-describe('BB-RUN-17: Run off says why on the canvas', () => {
-  it('asks for a shape, then a callback with a link to Callbacks, then gets out of the way', async () => {
+describe('BB-RUN-17: Run off says why when it is clicked', () => {
+  it('asks for a shape, then a callback with a button to Callbacks, then starts', async () => {
     const host = mount(h(RunOverlay, {}));
     await settle();
     const run = () => host.querySelector('.run-button') as HTMLButtonElement;
-    const plate = () => host.querySelector('.run-plate');
-    expect(run().disabled).toBe(true);
-    expect(plate()!.textContent).toBe(RUN_EMPTY_REASON);
-    expect(run().getAttribute('aria-describedby')).toBe(plate()!.id);
+    const dialog = () => host.querySelector('[role="dialog"]');
+    expect(run().getAttribute('aria-disabled')).toBe('true');
+    expect(dialog()).toBeNull();
+    expect(document.getElementById(run().getAttribute('aria-describedby')!)?.textContent).toBe(RUN_EMPTY_REASON);
     addTriangle();
     await settle();
-    expect(plate()!.textContent).toBe(`${RUN_NO_CALLBACK_REASON} ${RUN_OPEN_CALLBACKS}`);
+    expect(document.getElementById(run().getAttribute('aria-describedby')!)?.textContent).toBe(RUN_NO_CALLBACK_REASON);
+    run().click();
+    await settle();
+    expect(dialog()!.textContent).toContain(RUN_OPEN_CALLBACKS);
     getState().setRailPanel('scene');
-    (plate()!.querySelector('button') as HTMLButtonElement).click();
+    ([...dialog()!.querySelectorAll('button')].find((b) => b.textContent === RUN_OPEN_CALLBACKS) as HTMLButtonElement).click();
+    await settle();
     expect(getState().railPanel).toBe('callbacks');
+    expect(dialog()).toBeNull();
     getState().setCallbackHandler('keyboard', 'onKey');
     await settle();
-    expect(run().disabled).toBe(false);
-    expect(plate()).toBeNull();
+    expect(run().getAttribute('aria-disabled')).toBeNull();
+    expect(run().hasAttribute('aria-describedby')).toBe(false);
     expect(host.querySelector('[data-tour-anchor="run"]')).not.toBeNull();
     render(null, host);
     host.remove();
   });
 });
 
-describe('BB-RUN-18: The Run note sits in the window bar, left of the buttons', () => {
-  it('is a flex item that truncates before the title or size, not an absolute plate', async () => {
+describe('BB-RUN-18: The window bar holds no Run note', () => {
+  it('has no note in the bar or the header, and no style for one', async () => {
     const { readFileSync } = await import('node:fs');
-    const scss = readFileSync('src/features/callbacks/ui/run-overlay.scss', 'utf8');
-    const start = scss.indexOf('.run-plate {');
-    const rule = scss.slice(start, scss.indexOf('&__link', start));
-    expect(rule).not.toMatch(/position:\s*absolute/);
-    expect(rule).toMatch(/min-width:\s*0/);
-    expect(rule).toMatch(/text-overflow:\s*ellipsis/);
-    expect(rule).toMatch(/height:\s*20px/);
-    expect(rule).toMatch(/var\(--paper-raised\)/);
-    const windowScss = readFileSync('src/widgets/canvas/ui/canvas-window.scss', 'utf8');
-    expect(windowScss).toMatch(/&__title \{[^}]*flex-shrink:\s*0/);
-    expect(windowScss).toMatch(/&__size \{[^}]*flex-shrink:\s*0/);
-  });
-  it('renders inside the bar, before the window buttons, and not in the header', async () => {
+    expect(readFileSync('src/features/callbacks/ui/run-overlay.scss', 'utf8')).not.toContain('.run-plate');
+    expect(readFileSync('src/widgets/canvas/ui/canvas-window.scss', 'utf8')).not.toMatch(/run-plate|@container/);
     const { ProgramWindow } = { ProgramWindow: (await import('@/widgets/canvas/ui/ProgramWindow')).default };
     const win = mount(h(ProgramWindow, { size: { width: 100, height: 100 } }, h('div', {})));
     await settle();
-    const bar = win.querySelector('.canvas-window__bar')!;
-    const note = bar.querySelector('.run-plate')!;
-    expect(note.textContent).toBe(RUN_EMPTY_REASON);
-    expect(note.nextElementSibling?.classList.contains('canvas-window__buttons')).toBe(true);
+    expect(win.querySelector('.run-plate')).toBeNull();
+    expect(win.querySelector('.canvas-window__bar')!.querySelector('.run-control')).toBeNull();
     render(null, win);
     win.remove();
-    const { default: CanvasHeader } = await import('@/widgets/canvas/ui/CanvasHeader');
-    const header = mount(h(CanvasHeader, {}));
+  });
+});
+
+describe('BB-RUN-19: A blocked Run opens a small dialog that says what to do', () => {
+  const run = (host: HTMLElement) => host.querySelector('.run-button') as HTMLButtonElement;
+  const dialog = (host: HTMLElement) => host.querySelector('[role="dialog"]') as HTMLElement | null;
+  const heading = (d: HTMLElement) => document.getElementById(d.getAttribute('aria-labelledby')!)!.textContent;
+  const key = (el: Element, k: string) => el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+
+  it('names the empty scene, and its button does what the empty card does', async () => {
+    const host = mount(h(RunOverlay, {}));
     await settle();
-    expect(header.querySelector('.run-plate')).toBeNull();
-    expect(header.querySelector('.run-button')!.getAttribute('aria-describedby')).toBe(note.id);
-    render(null, header);
-    header.remove();
+    run(host).click();
+    await settle();
+    const d = dialog(host)!;
+    expect(heading(d)).toBe('Add a shape first');
+    expect(d.textContent).toContain('Your program has nothing to draw yet. Add a shape, then press Run.');
+    expect(run(host).getAttribute('aria-expanded')).toBe('true');
+    const add = d.querySelector('button') as HTMLButtonElement;
+    expect(add.textContent).toBe('Add a shape');
+    expect(document.activeElement).toBe(add);
+    getState().setRailPanel('scene');
+    add.click();
+    await settle();
+    expect(getState().railPanel).toBe('add');
+    expect(dialog(host)).toBeNull();
+    render(null, host);
+    host.remove();
+  });
+
+  it('names the missing callback and closes with Escape, returning focus to Run', async () => {
+    addTriangle();
+    const host = mount(h(RunOverlay, {}));
+    await settle();
+    run(host).click();
+    await settle();
+    const d = dialog(host)!;
+    expect(heading(d)).toBe('Run needs a callback');
+    expect(d.textContent).toContain('Switch on a callback in Callbacks and give it a rule, then press Run.');
+    expect(d.querySelector('button')!.textContent).toBe('Open Callbacks');
+    key(d.querySelector('button')!, 'Escape');
+    await settle();
+    expect(dialog(host)).toBeNull();
+    expect(document.activeElement).toBe(run(host));
+    render(null, host);
+    host.remove();
+  });
+
+  it('toggles on a second click and closes on a click outside', async () => {
+    addTriangle();
+    const host = mount(h(RunOverlay, {}));
+    await settle();
+    run(host).click();
+    await settle();
+    expect(dialog(host)).not.toBeNull();
+    run(host).click();
+    await settle();
+    expect(dialog(host)).toBeNull();
+    run(host).click();
+    await settle();
+    document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    await settle();
+    expect(dialog(host)).toBeNull();
+    expect(document.activeElement).toBe(run(host));
+    render(null, host);
+    host.remove();
+  });
+
+  it('leaves a ready Run alone: no aria-disabled, and a click starts the program', async () => {
+    setup();
+    const host = mount(h(RunOverlay, {}));
+    await settle();
+    expect(run(host).getAttribute('aria-disabled')).toBeNull();
+    run(host).click();
+    await settle();
+    expect(runController.getSnapshot().running).toBe(true);
+    expect(dialog(host)).toBeNull();
+    render(null, host);
+    host.remove();
   });
 });

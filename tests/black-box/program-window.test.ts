@@ -28,6 +28,7 @@ function unmount(host: HTMLElement) {
   host.remove();
 }
 
+const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 const STAGE = { width: 1000, height: 600 };
 const windowState = () => useProgramWindow.getState();
 const code = () =>
@@ -218,6 +219,8 @@ describe('BB-WINDOW-05: Close stops Run, and the chip reopens the window', () =>
     expect(useVamsStore.getState().objects.length).toBe(1);
     expect(windowEl(host).classList.contains('canvas-window--away')).toBe(true);
     expect(chip(host)!.textContent).toBe('Open VAMS Preview');
+    await frame();
+    expect(document.activeElement).toBe(chip(host));
     chip(host)!.click();
     await settle();
     expect(chip(host)).toBeNull();
@@ -241,6 +244,37 @@ describe('BB-WINDOW-06: Run brings back a minimised or closed window', () => {
     await settle();
     expect(windowState().mode).toBe('floating');
     expect(chip(host)).toBeNull();
+    unmount(host);
+    unregister();
+  });
+});
+
+describe('BB-WINDOW-07: The chip takes focus only after the student hides the window', () => {
+  it('does not take focus on mount while the window is already hidden', async () => {
+    windowState().close();
+    const host = mountWindow();
+    await settle();
+    await frame();
+    expect(document.activeElement).not.toBe(chip(host));
+    unmount(host);
+  });
+  it('does not take focus when a run ends while the window is minimised', async () => {
+    addTriangle();
+    useVamsStore.getState().setCallbackHandler('keyboard', 'onKey');
+    const unregister = registerFakeRenderer(new Map(), { getCanvasSize: () => ({ width: 800, height: 600 }) });
+    const host = mountWindow();
+    await settle();
+    button(host, 'Minimise').click();
+    await settle();
+    await frame();
+    expect(document.activeElement).toBe(chip(host));
+    (document.activeElement as HTMLElement).blur();
+    expect(runController.start({ loop: false })).toBe(true);
+    await settle();
+    runController.stop();
+    await settle();
+    await frame();
+    expect(document.activeElement).not.toBe(chip(host));
     unmount(host);
     unregister();
   });

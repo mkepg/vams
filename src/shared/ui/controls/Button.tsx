@@ -25,6 +25,8 @@ export interface ButtonProps {
   'aria-controls'?: string;
   'aria-pressed'?: boolean;
   'aria-describedby'?: string;
+  /** Looks off but stays focusable and clickable, so it can still explain itself. */
+  'aria-disabled'?: 'true' | 'false';
   /** Lets the first-visit tour find this control. */
   'data-tour-anchor'?: string;
 }

@@ -13,6 +13,7 @@ import { isSceneEmpty } from '@/entities/project/model/scene-empty';
 import HistoryControls from '@/features/history-controls/ui/HistoryControls';
 import NewWorkspaceButton from '@/features/workspace-reset/ui/NewWorkspaceButton';
 import EditorPreferencesMenu from '@/features/editor-preferences/ui/EditorPreferencesMenu';
+import ViewMenu from '@/features/editor-preferences/ui/ViewMenu';
 import LearnButton from '@/features/lesson-engine/ui/LearnButton';
 import FileMenu from '@/widgets/layout/top-bar/FileMenu';
 import { EditorPanel, ObjectInspector, SettingsPanel } from '@/widgets/layout/editor-column';
@@ -350,10 +351,10 @@ describe('BB-SHELL-11: Opening a project file asks first when the scene has work
   });
 });
 
-describe('BB-SHELL-12: The settings menu toggles view options and opens shortcuts', () => {
+describe('BB-SHELL-12: The View menu toggles view options and Settings opens shortcuts', () => {
   it('menuitemcheckbox entries reflect and toggle state', async () => {
-    const host = mount(h(EditorPreferencesMenu, {}));
-    await openMenu(host, 'Settings');
+    const host = mount(h('div', {}, h(ViewMenu, {}), h(EditorPreferencesMenu, {})));
+    await openMenu(host, 'View');
     const grid = [...host.querySelectorAll('[role="menuitemcheckbox"]')].find((el) => el.textContent?.includes('Gridlines'))!;
     const before = useVamsStore.getState().axisVisibility.showGridlines;
     expect(grid.getAttribute('aria-checked')).toBe(String(before));
@@ -361,6 +362,7 @@ describe('BB-SHELL-12: The settings menu toggles view options and opens shortcut
     await settle();
     expect(useVamsStore.getState().axisVisibility.showGridlines).toBe(!before);
     await openMenu(host, 'Settings');
+    expect(host.querySelectorAll('[role="menuitemcheckbox"]')).toHaveLength(0);
     chooseItem(host, 'Keyboard shortcuts');
     await settle();
     expect(useVamsStore.getState().activeHelpTopicId).toBe('shortcuts');
@@ -769,7 +771,7 @@ describe('BB-SHELL-29: A lesson step switches the rail to its panel and opens it
 });
 
 describe('BB-SHELL-30: The rail and the code column are never saved', () => {
-  it('keeps them out of the saved editor data, which stays at version 10', () => {
+  it('keeps them out of the saved editor data, which stays at version 11', () => {
     const s = () => useVamsStore.getState();
     s().setRailPanel('callbacks');
     s().setCodePane('math');
@@ -1132,11 +1134,11 @@ describe('BB-SHELL-42: Add a shape moves focus to the first primitive tile', () 
   });
 });
 
-describe('BB-SHELL-43: The settings menu toggles Grid numbers', () => {
+describe('BB-SHELL-43: The View menu toggles Grid numbers', () => {
   it('lists the checkbox right after Gridlines and flips the setting', async () => {
     useVamsStore.getState().setAxisVisibility({ showGridNumbers: true });
-    const host = mount(h(EditorPreferencesMenu, {}));
-    await openMenu(host, 'Settings');
+    const host = mount(h(ViewMenu, {}));
+    await openMenu(host, 'View');
     const boxes = [...host.querySelectorAll('[role="menuitemcheckbox"]')];
     const at = boxes.findIndex((el) => el.textContent?.includes('Gridlines'));
     const item = boxes[at + 1] as HTMLElement;

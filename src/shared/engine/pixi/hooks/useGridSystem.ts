@@ -88,7 +88,6 @@ export function useGridSystem({
       if (axisVisibility.showGridlines) {
         const xs = gridLevels(startX, endX, niceStep);
         const ys = gridLevels(startY, endY, niceStep);
-        const minorPx = (niceStep / GRID_STYLE.minorPerMajor) * zoom;
         const strokeVertical = (xList: number[]) => {
           for (const x of xList) {
             const screenPos = world.toGlobal({ x, y: 0 });
@@ -107,12 +106,11 @@ export function useGridSystem({
             }
           }
         };
-        if (minorPx >= GRID_STYLE.minMinorPx) {
-          g.setStrokeStyle({ width: 1, color: 0xffffff, alpha: GRID_STYLE.minorAlpha });
-          strokeVertical(xs.minor);
-          strokeHorizontal(ys.minor);
-          g.stroke();
-        }
+        // The adaptive niceStep keeps the minor spacing well clear of a grey wash, so there is no pixel floor here.
+        g.setStrokeStyle({ width: 1, color: 0xffffff, alpha: GRID_STYLE.minorAlpha });
+        strokeVertical(xs.minor);
+        strokeHorizontal(ys.minor);
+        g.stroke();
         g.setStrokeStyle({ width: 1, color: 0xffffff, alpha: GRID_STYLE.majorAlpha });
         strokeVertical(xs.major);
         strokeHorizontal(ys.major);

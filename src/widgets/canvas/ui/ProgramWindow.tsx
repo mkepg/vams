@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { ComponentChildren, JSX } from 'preact';
-import { RunNote, runController, useRunSnapshot } from '@/features/callbacks';
+import { runController, useRunSnapshot } from '@/features/callbacks';
 import { PROGRAM_WINDOW_TITLE } from '@/shared/lib/program-window';
 import { MIN_WINDOW_SIZE, resizeRect, type Rect, type ResizeEdge } from '../model/program-window';
 import { useProgramWindow } from '../model/program-window-store';
@@ -33,7 +33,9 @@ export default function ProgramWindow({ size, away = false, children }: ProgramW
   const frameRef = useRef<HTMLDivElement>(null);
   const chipRef = useRef<HTMLButtonElement>(null);
   const drag = useRef<Drag | null>(null);
-  const previous = useRef(mode);
+  const wasHidden = useRef(mode === 'minimised' || mode === 'closed');
+  // Set when the student's own Minimise or Close hides the window, so the chip takes focus and nothing else does.
+  const focusChip = useRef(false);
 
   // The frame is the stage. A read with a zero side is ignored by the store.
   useLayoutEffect(() => {
@@ -54,11 +56,17 @@ export default function ProgramWindow({ size, away = false, children }: ProgramW
 
   const hidden = mode === 'minimised' || mode === 'closed';
   useEffect(() => {
-    const wasHidden = previous.current === 'minimised' || previous.current === 'closed';
-    previous.current = mode;
-    if (hidden) chipRef.current?.focus();
-    else if (wasHidden && !running) frameRef.current?.querySelector<HTMLElement>('.canvas-window__btn')?.focus();
-  }, [mode, hidden, running]);
+    const was = wasHidden.current;
+    wasHidden.current = hidden;
+    if (hidden && !was && focusChip.current) {
+      focusChip.current = false;
+      const id = requestAnimationFrame(() => chipRef.current?.focus());
+      return () => cancelAnimationFrame(id);
+    }
+    if (!hidden && was && !runController.getSnapshot().running) {
+      frameRef.current?.querySelector<HTMLElement>('.canvas-window__btn')?.focus();
+    }
+  }, [hidden]);
 
   const begin = (next: Drag, event: PointerEvent) => {
     drag.current = next;
@@ -83,9 +91,13 @@ export default function ProgramWindow({ size, away = false, children }: ProgramW
 
   const controls: WindowControls = {
     maximised: mode === 'maximised',
-    onMinimise: () => useProgramWindow.getState().minimise(),
+    onMinimise: () => {
+      focusChip.current = true;
+      useProgramWindow.getState().minimise();
+    },
     onMaximise: () => useProgramWindow.getState().toggleMaximise(),
     onClose: () => {
+      focusChip.current = true;
       runController.stop();
       useProgramWindow.getState().close();
     },
@@ -125,7 +137,7 @@ export default function ProgramWindow({ size, away = false, children }: ProgramW
 
   return (
     <div ref={frameRef} className={`canvas-stage__frame${away ? ' canvas-stage__frame--away' : ''}`}>
-      <CanvasWindow size={size} running={running} controls={controls} note={<RunNote />} className={classes} style={placed}>
+      <CanvasWindow size={size} running={running} controls={controls} className={classes} style={placed}>
         {children}
       </CanvasWindow>
       {hidden && (

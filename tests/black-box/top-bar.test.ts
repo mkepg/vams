@@ -67,12 +67,12 @@ describe('BB-TOP-02: The File menu no longer repeats Save', () => {
   });
 });
 
-describe('BB-TOP-03: Settings holds the theme and the view options', () => {
-  it('offers Light, Dark and System, and the four view checkboxes', async () => {
+describe('BB-TOP-03: Settings holds the theme and the shortcuts', () => {
+  it('offers Light, Dark and System and Keyboard shortcuts, and no view checkboxes', async () => {
     const host = mount(h(TopBar, {}));
     await settle();
     await openMenu(host, 'Settings');
-    expect(menuItems()).toEqual(['Light', 'Dark', 'System', 'Coordinate axes', 'Gridlines', 'Grid numbers', 'Coordinate tracker', 'Keyboard shortcuts']);
+    expect(menuItems()).toEqual(['Light', 'Dark', 'System', 'Keyboard shortcuts']);
     const radio = (name: string) =>
       [...document.querySelectorAll('[role="menuitemradio"]')].find((el) => el.textContent?.trim() === name) as HTMLElement;
     radio('Dark').click();

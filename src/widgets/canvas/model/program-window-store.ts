@@ -22,6 +22,8 @@ interface ProgramWindowState {
   reset: () => void;
 }
 
+const sameRect = (a: Rect, b: Rect) => a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
+
 const initial = {
   mode: 'floating' as WindowMode,
   shownAs: 'floating' as const,
@@ -42,12 +44,16 @@ export const useProgramWindow = create<ProgramWindowState>((set, get) => ({
   moveTo: (x, y) => {
     const { rect, stage } = get();
     if (!rect || !stage) return;
-    set({ rect: clampRect({ ...rect, x, y }, stage), placedByUser: true });
+    const next = clampRect({ ...rect, x, y }, stage);
+    if (sameRect(next, rect)) return;
+    set({ rect: next, placedByUser: true });
   },
   resizeTo: (next) => {
-    const { stage } = get();
+    const { rect, stage } = get();
     if (!stage) return;
-    set({ rect: clampRect(next, stage), placedByUser: true });
+    const clamped = clampRect(next, stage);
+    if (rect && sameRect(clamped, rect)) return;
+    set({ rect: clamped, placedByUser: true });
   },
   minimise: () => set({ mode: 'minimised' }),
   toggleMaximise: () => set((s) => {

@@ -235,40 +235,87 @@ describe('BB-CANVAS-08: The viewport refits as soon as the canvas box changes si
   });
 });
 
-describe('BB-CANVAS-09: The header toggles Grid numbers', () => {
-  it('steps aside while vertices are being placed, to leave the hint whole', async () => {
-    useVamsStore.setState({ interactionMode: 'VERTEX_PLACE' });
+describe('BB-CANVAS-09: The header has a View menu beside Run', () => {
+  const axis = () => useVamsStore.getState().axisVisibility;
+  const trigger = (host: HTMLElement) => host.querySelector('button[aria-haspopup="menu"]') as HTMLButtonElement;
+  const boxes = () => [...document.querySelectorAll('[role="menuitemcheckbox"]')] as HTMLElement[];
+  it('has no Grid numbers icon button, and View sits directly left of Run', async () => {
     const host = mount(h(CanvasHeader, {}));
     await settle();
     expect(host.querySelector('button[aria-label="Grid numbers"]')).toBeNull();
+    expect(host.querySelector('.canvas-header__numbers')).toBeNull();
+    expect(trigger(host).textContent).toContain('View');
+    expect(trigger(host).closest('.vmenu')!.nextElementSibling?.classList.contains('run-control')).toBe(true);
     unmount(host);
   });
-  const axis = () => useVamsStore.getState().axisVisibility;
-  it('reflects the setting in aria-pressed and flips it on click', async () => {
-    useVamsStore.getState().setAxisVisibility({ showOriginMarker: true, showGridNumbers: true });
+  it('lists the four checkboxes in order and each toggles its setting', async () => {
+    useVamsStore.getState().setAxisVisibility({ showOriginMarker: true, showGridlines: true, showGridNumbers: true });
+    useVamsStore.getState().setShowCoordinateTracker(false);
     const host = mount(h(CanvasHeader, {}));
     await settle();
-    const button = host.querySelector('button[aria-label="Grid numbers"]') as HTMLButtonElement;
-    expect(button.getAttribute('aria-pressed')).toBe('true');
-    expect(button.getAttribute('title')).toBe('Grid numbers');
-    expect(button.nextElementSibling?.classList.contains('run-control')).toBe(true);
-    button.click();
+    trigger(host).click();
+    await settle();
+    expect(boxes().map((el) => el.textContent?.trim())).toEqual(['Coordinate axes', 'Gridlines', 'Grid numbers', 'Coordinate tracker']);
+    expect(boxes().map((el) => el.getAttribute('aria-checked'))).toEqual(['true', 'true', 'true', 'false']);
+    boxes()[1].click();
+    await settle();
+    expect(axis().showGridlines).toBe(false);
+    trigger(host).click();
+    await settle();
+    boxes()[2].click();
     await settle();
     expect(axis().showGridNumbers).toBe(false);
-    expect(button.getAttribute('aria-pressed')).toBe('false');
-    button.click();
+    trigger(host).click();
     await settle();
-    expect(axis().showGridNumbers).toBe(true);
+    boxes()[3].click();
+    await settle();
+    expect(useVamsStore.getState().showCoordinateTracker).toBe(true);
+    trigger(host).click();
+    await settle();
+    boxes()[0].click();
+    await settle();
+    expect(axis().showOriginMarker).toBe(false);
     unmount(host);
+    useVamsStore.getState().setAxisVisibility({ showOriginMarker: true, showGridlines: true, showGridNumbers: true });
+    useVamsStore.getState().setShowCoordinateTracker(false);
   });
-  it('is disabled, with its reason, while Coordinate axes are off', async () => {
+  it('disables Grid numbers while Coordinate axes are off', async () => {
     useVamsStore.getState().setAxisVisibility({ showOriginMarker: false, showGridNumbers: true });
     const host = mount(h(CanvasHeader, {}));
     await settle();
-    const button = host.querySelector('button[aria-label="Grid numbers"]') as HTMLButtonElement;
-    expect(button.disabled).toBe(true);
-    expect(button.getAttribute('title')).toBe('Grid numbers (turn on Coordinate axes first)');
+    trigger(host).click();
+    await settle();
+    expect(boxes()[2].getAttribute('aria-disabled')).toBe('true');
+    boxes()[2].click();
+    await settle();
+    expect(axis().showGridNumbers).toBe(true);
     unmount(host);
     useVamsStore.getState().setAxisVisibility({ showOriginMarker: true });
+  });
+  it('collapses to the icon alone while vertices are being placed', async () => {
+    useVamsStore.setState({ interactionMode: 'VERTEX_PLACE' });
+    const host = mount(h(CanvasHeader, {}));
+    await settle();
+    expect(trigger(host).textContent?.trim()).toBe('');
+    expect(trigger(host).getAttribute('aria-label')).toBe('View');
+    unmount(host);
+  });
+});
+
+describe('BB-CANVAS-10: The resize handles hang outside the window box', () => {
+  it('keeps the east and south handles out of the clipped frame, so they cover no canvas', async () => {
+    const { readFileSync } = await import('node:fs');
+    const scss = readFileSync('src/widgets/canvas/ui/canvas-window.scss', 'utf8');
+    expect(scss).toMatch(/&__handle--e \{[^}]*right:\s*-\d+px/);
+    expect(scss).toMatch(/&__handle--s \{[^}]*bottom:\s*-\d+px/);
+    const { default: ProgramWindow } = await import('@/widgets/canvas/ui/ProgramWindow');
+    const host = mount(h(ProgramWindow, { size: { width: 100, height: 100 } }, h('div', {})));
+    await settle();
+    for (const edge of ['e', 's', 'se']) {
+      const handle = host.querySelector(`.canvas-window__handle--${edge}`)!;
+      expect(handle.closest('.canvas-window__frame')).toBeNull();
+      expect(handle.closest('.canvas-window')).not.toBeNull();
+    }
+    unmount(host);
   });
 });

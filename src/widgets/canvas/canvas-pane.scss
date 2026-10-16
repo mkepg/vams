@@ -22,9 +22,13 @@
   font-size: var(--text-sm);
   white-space: nowrap;
 
+  // Placing: the hint, the tracker, View and Run all share the row, so the rhythm tightens to keep the hint whole.
+  &--placing { gap: var(--space-1); }
+
   &__title { font-weight: 600; color: var(--ink); }
   &__volume, &__cursor { font-family: $font-mono; font-size: var(--text-xs); color: var(--ink-faint); }
   &__hint {
+    flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -32,7 +36,7 @@
     color: var(--ink);
 
     kbd {
-      padding: 0 4px;
+      padding: 0 2px;
       border: 1px solid var(--rule-strong);
       border-radius: var(--radius-s);
       font-family: $font-mono;
@@ -40,14 +44,9 @@
     }
   }
   &__spacer { flex: 1; }
-  &__numbers {
-    flex-shrink: 0;
-    width: 28px;
-    min-width: 28px;
-    min-height: 28px;
-    height: 28px;
-    &[aria-pressed='true']:not(:disabled) { @include selected-mark; }
-  }
+  > .vmenu { flex-shrink: 0; }
+  // Icon only while placing, at the header's own rhythm, to leave the hint whole.
+  > .vmenu .vbtn--icon { width: 28px; min-width: 28px; min-height: 28px; height: 28px; }
 }
 
 .canvas-stage {

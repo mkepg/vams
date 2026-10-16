@@ -1,5 +1,6 @@
 import { Shapes } from "lucide-react";
 import { useVamsStore } from "@/core/store";
+import { addAShape } from "@/core/store/add-a-shape";
 import { Button } from "@/shared/ui/controls";
 import { RunLayer } from "@/features/callbacks";
 
@@ -11,12 +12,6 @@ interface CanvasOverlaysProps {
 export function CanvasOverlays({ showEmptyHint = false }: CanvasOverlaysProps) {
   const interactionMode = useVamsStore((s) => s.interactionMode);
   const setLearnOpen = useVamsStore((s) => s.setLearnOpen);
-  const setRailPanel = useVamsStore((s) => s.setRailPanel);
-  // Add may already be showing, so also bring the panel up and put focus on the first tile.
-  const addAShape = () => {
-    setRailPanel('add');
-    requestAnimationFrame(() => document.querySelector<HTMLElement>('#editor-panel .primitive-tile')?.focus());
-  };
   return (
     <>
       <RunLayer />

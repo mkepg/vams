@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 import {
   BAR_HEIGHT, MIN_WINDOW_SIZE, REACH, STAGE_MARGIN, centredRect, clampRect, resizeRect,
 } from '@/widgets/canvas/model/program-window';
+import { useProgramWindow } from '@/widgets/canvas/model/program-window-store';
 
 const stage = { width: 1000, height: 600 };
 
@@ -68,5 +69,30 @@ describe('WB-WINDOW-03: resizeRect drags an edge, within the minimum and the sta
   it('sets the minimum to 240 by 180 for the canvas body', () => {
     expect(min.width).toBe(240 + 2);
     expect(min.height).toBe(180 + BAR_HEIGHT + 2);
+  });
+});
+
+describe('WB-WINDOW-04: The store marks a window as placed only when its rect changes', () => {
+  const place = () => {
+    useProgramWindow.getState().reset();
+    useProgramWindow.getState().setStage(stage);
+  };
+  it('leaves placedByUser false for a zero-distance move', () => {
+    place();
+    const { rect } = useProgramWindow.getState();
+    useProgramWindow.getState().moveTo(rect!.x, rect!.y);
+    expect(useProgramWindow.getState().placedByUser).toBe(false);
+  });
+  it('leaves placedByUser false for a resize to the same rect', () => {
+    place();
+    useProgramWindow.getState().resizeTo({ ...useProgramWindow.getState().rect! });
+    expect(useProgramWindow.getState().placedByUser).toBe(false);
+  });
+  it('sets placedByUser once the rect moves', () => {
+    place();
+    const { rect } = useProgramWindow.getState();
+    useProgramWindow.getState().moveTo(rect!.x + 10, rect!.y);
+    expect(useProgramWindow.getState().placedByUser).toBe(true);
+    useProgramWindow.getState().reset();
   });
 });
