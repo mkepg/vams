@@ -1,0 +1,90 @@
+.scene-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  box-sizing: border-box;
+  max-width: 640px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 12px;
+  color: var(--ink);
+  background-color: var(--paper);
+  font-family: var(--font-ui);
+
+  &__top {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-width: 0;
+  }
+
+  &__home { display: inline-flex; font-size: var(--text-md); }
+
+  &__name {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    font-size: var(--text-md);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__error {
+    margin: 0;
+    padding: var(--space-3);
+    font-size: var(--text-md);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-md);
+    background: var(--paper-raised);
+  }
+
+  &__panes { position: relative; }
+
+  // The scene pane hides by visibility, so the canvas keeps its size.
+  &__window {
+    display: flex;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+
+    &--away {
+      position: absolute;
+      top: 0;
+      left: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+  }
+
+  &__code {
+    position: relative;
+    max-height: 60vh;
+    min-height: 240px;
+    overflow: auto;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-md);
+
+    &[hidden] { display: none; }
+    .code-viewer-container { position: relative; }
+  }
+
+  &__note {
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--ink-muted);
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  &__anyway {
+    font-size: var(--text-sm);
+    color: var(--accent-text);
+    text-decoration: underline;
+  }
+}
