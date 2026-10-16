@@ -9,10 +9,11 @@ export function useCanvasSize(): CanvasSize {
     const el = document.querySelector('.canvas-wrapper');
     if (!el) return;
     const updateSize = (target: Element) => {
-      setCanvasSize({
-        width: Math.floor(target.clientWidth),
-        height: Math.floor(target.clientHeight),
-      });
+      const width = Math.floor(target.clientWidth);
+      const height = Math.floor(target.clientHeight);
+      // A 0 by 0 read means the box is not laid out right now; keep the last real size.
+      if (width === 0 && height === 0) return;
+      setCanvasSize({ width, height });
     };
     updateSize(el);
     const observer = new ResizeObserver(entries => {

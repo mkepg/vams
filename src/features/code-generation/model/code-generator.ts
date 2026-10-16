@@ -1,5 +1,6 @@
 import type { SceneNode, ViewportLimits } from '@/core/types/scene';
 import type { TextureAsset } from '@/core/types/textures';
+import { PROGRAM_WINDOW_TITLE } from '@/shared/lib/program-window';
 import { sanitizeName } from './generator/utils';
 import { generateState } from './generator/state';
 import { generateObjectDrawBody, type DrawEffects } from './generator/render';
@@ -149,7 +150,7 @@ export function generateAppOutput(
   code += `    glutInit(&argc, argv);\n`;
   code += `    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_MULTISAMPLE);\n`;
   code += `    glutInitWindowSize(${canvasSize.width}, ${canvasSize.height});\n`;
-  code += `    glutCreateWindow("VAMS Preview");\n\n`;
+  code += `    glutCreateWindow("${PROGRAM_WINDOW_TITLE}");\n\n`;
   // Resolve modern-GL entry points (VBOs, glMapBuffer, etc.) BEFORE init().
   // glewExperimental = GL_TRUE is required on some drivers / core profiles.
   code += `    glewExperimental = GL_TRUE;\n`;

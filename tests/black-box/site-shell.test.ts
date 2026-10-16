@@ -443,10 +443,10 @@ describe('BB-SITE-25: The wordmark font is preloaded and cannot shift the header
   });
 });
 
-describe('BB-SITE-26: Canvas overlays take their text colour from the plate, not the accent', () => {
-  it('uses --canvas-plate-text on the plate', () => {
+describe('BB-SITE-26: The empty card is solid paper in the UI font, not a canvas plate', () => {
+  it('uses the panel tokens so it hides the tick labels behind it', () => {
     const canvas = readFileSync('src/widgets/canvas/vams-canvas.scss', 'utf8');
-    expect(canvas).toMatch(/color: var\(--canvas-plate-text\);\s*background: var\(--canvas-plate\);/);
+    expect(canvas).toMatch(/\.empty-canvas-hint \{[^}]*font-family: \$font-ui;[^}]*color: var\(--ink\);\s*background: var\(--paper-raised\);\s*border: 1px solid var\(--rule\);/);
   });
 });
 

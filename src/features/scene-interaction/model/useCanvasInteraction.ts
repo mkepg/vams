@@ -7,12 +7,15 @@ interface UseCanvasInteractionProps {
   appRef: React.MutableRefObject<Application | null>;
   worldRef: React.MutableRefObject<Container | null>;
   canvasRef: React.RefObject<HTMLDivElement | null>;
+  /** A read-only view ignores pointer and key input. */
+  readOnly?: boolean;
 }
 export function useCanvasInteraction({
   pixiReady,
   appRef,
   worldRef,
   canvasRef,
+  readOnly = false,
 }: UseCanvasInteractionProps) {
   const cleanupListenersRef = useRef<(() => void) | null>(null);
   const viewportLimits = useVamsStore((s) => s.viewportLimits);
@@ -80,6 +83,11 @@ export function useCanvasInteraction({
   useEffect(() => {
     const app = appRef.current;
     if (!app || !pixiReady) return;
+    const onResize = () => applyViewportTransform();
+    window.addEventListener("resize", onResize);
+    if (readOnly) {
+      return () => window.removeEventListener("resize", onResize);
+    }
     const onStagePointerDown = (e: FederatedPointerEvent) => {
       if (interactionModeRef.current === "VERTEX_PLACE") {
         if (e.button !== 0) return;
@@ -92,10 +100,8 @@ export function useCanvasInteraction({
         selectObject(null);
       }
     };
-    const onResize = () => applyViewportTransform();
     app.stage.eventMode = "static";
     app.stage.on("pointerdown", onStagePointerDown);
-    window.addEventListener("resize", onResize);
     cleanupListenersRef.current = () => {
       window.removeEventListener("resize", onResize);
       // A destroyed app has a null stage; destroying the stage already removed this listener.
@@ -107,9 +113,9 @@ export function useCanvasInteraction({
         cleanupListenersRef.current = null;
       }
     };
-  }, [pixiReady, appRef, screenToWorld, selectObject, applyViewportTransform]);
+  }, [pixiReady, appRef, screenToWorld, selectObject, applyViewportTransform, readOnly]);
   useEffect(() => {
-    if (!pixiReady) return;
+    if (!pixiReady || readOnly) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       const state = useVamsStore.getState();
       // Only vertex-placement keys live here. App-level shortcuts (delete,
@@ -135,7 +141,7 @@ export function useCanvasInteraction({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [pixiReady]);
+  }, [pixiReady, readOnly]);
   return {
     screenToWorld,
     applyViewportTransform,

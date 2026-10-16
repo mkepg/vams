@@ -16,54 +16,72 @@ const HANDLE_KEYS: Record<string, [number, number]> = {
   ArrowLeft: [-RESIZE_STEP, 0], ArrowRight: [RESIZE_STEP, 0], ArrowUp: [0, -RESIZE_STEP], ArrowDown: [0, RESIZE_STEP],
 };
 
-export default function RunOverlay() {
+/** Run in the canvas header; it becomes Stop while the program runs. */
+export function RunControl() {
   const snap = useRunSnapshot();
   const block = useVamsStore((s) => runBlock(s));
   const setRailPanel = useVamsStore((s) => s.setRailPanel);
   const plateId = useId();
   const runButtonRef = useRef<HTMLButtonElement>(null);
+  const wasRunning = useRef(false);
+
+  useEffect(() => {
+    if (!snap.running && wasRunning.current) runButtonRef.current?.focus();
+    wasRunning.current = snap.running;
+  }, [snap.running]);
+
+  if (snap.running) {
+    return (
+      <div className="run-control" data-tour-anchor="run">
+        <Button variant="danger" className="run-stop" icon={<Square />} onClick={() => runController.stop()}>Stop</Button>
+      </div>
+    );
+  }
+  // A Pipeline illustration replaces the canvas; there is nothing to run, so Run steps aside.
+  if (block === "illustration") return null;
+  return (
+    <div className="run-control" data-tour-anchor="run">
+      <Button
+        ref={runButtonRef}
+        variant="primary"
+        className="run-button"
+        icon={<Play />}
+        disabled={block !== null}
+        aria-describedby={block ? plateId : undefined}
+        onClick={() => runController.start()}
+      >
+        Run
+      </Button>
+      {block && (
+        <p id={plateId} className="run-plate">
+          {block === "empty" ? (
+            RUN_EMPTY_REASON
+          ) : (
+            <>
+              {RUN_NO_CALLBACK_REASON}{" "}
+              <button type="button" className="run-plate__link" onClick={() => setRailPanel("callbacks")}>
+                {RUN_OPEN_CALLBACKS}
+              </button>
+            </>
+          )}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** The running program over the canvas: its window, the Running strip and the last call. */
+export function RunLayer() {
+  const snap = useRunSnapshot();
   const surfaceRef = useRef<HTMLDivElement>(null);
   const wasRunning = useRef(false);
 
   useEffect(() => {
     if (snap.running && !wasRunning.current) surfaceRef.current?.focus();
-    if (!snap.running && wasRunning.current) runButtonRef.current?.focus();
     wasRunning.current = snap.running;
   }, [snap.running]);
 
-  if (!snap.running || !snap.window) {
-    // A Pipeline illustration replaces the canvas; there is nothing to run, so Run steps aside.
-    if (block === 'illustration') return null;
-    return (
-      <div className="run-control" data-tour-anchor="run">
-        <Button
-          ref={runButtonRef}
-          variant="primary"
-          className="run-button"
-          icon={<Play />}
-          disabled={block !== null}
-          aria-describedby={block ? plateId : undefined}
-          onClick={() => runController.start()}
-        >
-          Run
-        </Button>
-        {block && (
-          <p id={plateId} className="run-plate">
-            {block === 'empty' ? (
-              RUN_EMPTY_REASON
-            ) : (
-              <>
-                {RUN_NO_CALLBACK_REASON}{' '}
-                <button type="button" className="run-plate__link" onClick={() => setRailPanel('callbacks')}>
-                  {RUN_OPEN_CALLBACKS}
-                </button>
-              </>
-            )}
-          </p>
-        )}
-      </div>
-    );
-  }
+  if (!snap.running || !snap.window) return null;
 
   const win = snap.window;
   const local = (event: PointerEvent) => {
@@ -133,9 +151,17 @@ export default function RunOverlay() {
         <span className="run-strip__dot" aria-hidden="true" />
         <span className="run-strip__title">Running</span>
         <span className="run-strip__hint">{RUN_HINT}</span>
-        <Button className="run-strip__stop" icon={<Square />} onClick={() => runController.stop()}>Stop</Button>
       </div>
       <p className="run-readout">{snap.lastCall ?? 'Waiting for an event'}</p>
     </div>
+  );
+}
+
+export default function RunOverlay() {
+  return (
+    <>
+      <RunControl />
+      <RunLayer />
+    </>
   );
 }

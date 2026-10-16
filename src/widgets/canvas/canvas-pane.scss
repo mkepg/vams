@@ -1,0 +1,57 @@
+@use '../../shared/styles/tokens' as *;
+
+.canvas-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--stage-bg);
+}
+
+.canvas-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 10px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+
+  &__title { font-weight: 600; color: var(--ink); }
+  &__volume, &__cursor { font-family: $font-mono; font-size: var(--text-xs); color: var(--ink-faint); }
+  &__hint {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: var(--text-xs);
+    color: var(--ink);
+
+    kbd {
+      padding: 0 4px;
+      border: 1px solid var(--rule-strong);
+      border-radius: var(--radius-s);
+      font-family: $font-mono;
+      font-size: var(--text-xs);
+    }
+  }
+  &__spacer { flex: 1; }
+}
+
+.canvas-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  padding: 14px;
+  background-color: var(--stage-bg);
+  background-image: radial-gradient(var(--stage-dot) 1px, transparent 1px);
+  background-size: 14px 14px;
+
+  &--bare { padding: 0; background-image: none; }
+  &__frame { flex: 1; display: flex; min-width: 0; min-height: 0; }
+  // Away under an illustration: still laid out, so the canvas keeps its size.
+  &__frame--away { visibility: hidden; position: absolute; inset: 14px; pointer-events: none; }
+}

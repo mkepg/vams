@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Application, Container, Graphics, Text, TextStyle } from "pixi.js";
 import { useVamsStore } from "@/core/store";
+import { insetLabel } from "../grid-labels";
 interface UseGridSystemProps {
   pixiReady: boolean;
   appRef: React.MutableRefObject<Application | null>;
@@ -138,6 +139,8 @@ export function useGridSystem({
               t.text = parseFloat(x.toPrecision(6)).toString();
               t.anchor.set(0.5, 0);
               t.position.set(screenX, screenY + 4);
+              const p = insetLabel({ x: t.position.x, y: t.position.y }, { width: t.width, height: t.height }, { x: t.anchor.x, y: t.anchor.y }, { width: screenWidth, height: screenHeight });
+              t.position.set(p.x, p.y);
             }
           }
         }
@@ -152,6 +155,8 @@ export function useGridSystem({
               t.text = parseFloat(y.toPrecision(6)).toString();
               t.anchor.set(1, 0.5);
               t.position.set(screenX - 6, screenY);
+              const p = insetLabel({ x: t.position.x, y: t.position.y }, { width: t.width, height: t.height }, { x: t.anchor.x, y: t.anchor.y }, { width: screenWidth, height: screenHeight });
+              t.position.set(p.x, p.y);
             }
           }
         }
@@ -167,6 +172,8 @@ export function useGridSystem({
         t.text = "0";
         t.anchor.set(1, 0);
         t.position.set(originScreen.x - 4, originScreen.y + 4);
+        const p = insetLabel({ x: t.position.x, y: t.position.y }, { width: t.width, height: t.height }, { x: t.anchor.x, y: t.anchor.y }, { width: screenWidth, height: screenHeight });
+        t.position.set(p.x, p.y);
       }
     };
     app.ticker.add(update);

@@ -469,29 +469,17 @@ describe('BB-SHELL-15: The inspector shows the object in pipeline order; the sce
   });
 });
 
-describe('BB-SHELL-16: Canvas overlays keep their text and actions', () => {
-  it('shows the viewport, the placement banner and the empty hint', async () => {
-    const host = mount(h(CanvasOverlays, {
-      viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
-      interactionMode: 'SELECT',
-      coordinates: { x: 0.42, y: -0.13 },
-      showCoordinateTracker: true,
-      showEmptyHint: true,
-    }));
-    expect(host.querySelector('.viewport-info')!.textContent).toBe('Viewport: (-1, 1)');
-    expect(host.querySelector('.coordinate-tracker')!.textContent).toContain('0.42');
+describe('BB-SHELL-16: Canvas overlays keep the empty card and its actions', () => {
+  it('shows the empty card with its two actions, and drops it while placing vertices', async () => {
+    const host = mount(h(CanvasOverlays, { showEmptyHint: true }));
     const buttons = [...host.querySelectorAll('.empty-canvas-hint button')].map((b) => b.textContent?.trim());
     expect(buttons).toEqual(['Add a shape', 'Start a lesson']);
     ([...host.querySelectorAll('.empty-canvas-hint button')][1] as HTMLButtonElement).click();
     expect(useVamsStore.getState().learnOpen).toBe(true);
-    useVamsStore.setState({ learnOpen: false });
-    render(h(CanvasOverlays, {
-      viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
-      interactionMode: 'VERTEX_PLACE',
-      coordinates: { x: 0, y: 0 },
-      showCoordinateTracker: false,
-    }), host);
-    expect(host.querySelector('.placement-mode-banner')!.textContent).toContain('click to place');
+    useVamsStore.setState({ learnOpen: false, interactionMode: 'VERTEX_PLACE' });
+    for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(host.querySelector('.empty-canvas-hint')).toBeNull();
+    useVamsStore.setState({ interactionMode: 'SELECT' });
     unmount(host);
   });
 });

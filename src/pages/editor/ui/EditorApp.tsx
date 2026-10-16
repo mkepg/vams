@@ -3,7 +3,7 @@ import TopBar from '@/widgets/layout/top-bar';
 import { EditorPanel } from '@/widgets/layout/editor-column';
 import Rail from '@/widgets/layout/rail';
 import CodeMathColumn from '@/widgets/layout/code-math-column';
-import ViewportRouter from '@/widgets/canvas/ViewportRouter';
+import { CanvasPane } from '@/widgets/canvas';
 import { MyScenesDialog, useSceneAutosave } from '@/features/scene-library';
 import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import LearnDrawer from '@/features/lesson-engine/ui/LearnDrawer';
@@ -49,7 +49,7 @@ export default function EditorApp() {
       topBar={<TopBar />}
       rail={<Rail />}
       panel={<EditorPanel />}
-      canvas={<ViewportRouter />}
+      canvas={<CanvasPane />}
       lessonBar={<LessonBar />}
       codeMath={<CodeMathColumn />}
       overlays={

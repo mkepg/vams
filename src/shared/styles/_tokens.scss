@@ -155,6 +155,11 @@ $header-height: 3.7rem;
   --canvas-y: #4ade80;
   /* The followed vertex's ring on the canvas: amber, the same in both themes, as the canvas is dark in both. */
   --canvas-ring: #fbbf77;
+  /* The editor stage the program window sits on, and the window's own frame. */
+  --stage-bg: #e3e8f3;
+  --stage-dot: #c6cfe2;
+  --window-line: #9aa6c2;
+  --window-shadow: 0 8px 24px rgba(18, 24, 39, 0.18);
 }
 
 [data-theme='dark'] {
@@ -252,6 +257,11 @@ $header-height: 3.7rem;
   --canvas-y: #4ade80;
   /* The followed vertex's ring on the canvas: amber, the same in both themes, as the canvas is dark in both. */
   --canvas-ring: #fbbf77;
+  /* The editor stage the program window sits on, and the window's own frame. */
+  --stage-bg: #0c1019;
+  --stage-dot: #29324a;
+  --window-line: #3a4563;
+  --window-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 $bg-dark: rgb(var(--bg-dark-rgb));
 $bg-panel: rgb(var(--bg-panel-rgb));
