@@ -25,6 +25,7 @@ export default function SceneTitle({ lessonLabel = null }: SceneTitleProps) {
 
   useEffect(() => {
     if (editing) {
+      finished.current = false;
       inputRef.current?.focus();
       inputRef.current?.select();
     } else if (returnFocus.current) {
@@ -34,6 +35,7 @@ export default function SceneTitle({ lessonLabel = null }: SceneTitleProps) {
   }, [editing]);
 
   if (lessonLabel) {
+    if (editing) setEditing(false);
     return <span className="scene-title scene-title--lesson">{lessonLabel}</span>;
   }
 

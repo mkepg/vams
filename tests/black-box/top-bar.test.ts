@@ -128,9 +128,69 @@ describe('BB-TOP-04: The scene name renames in place', () => {
     input.value = 'Discarded';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     press(input, 'Escape');
-    input.dispatchEvent(new Event('blur'));
+    input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
     await settle();
     expect(useVamsStore.getState().sceneName).toBe('Kept');
+    unmount(host);
+  });
+});
+
+describe('BB-TOP-04 (cont.): committing a typed name', () => {
+  it('normalises an empty or whitespace-only name on Enter and on blur', async () => {
+    for (const how of ['Enter', 'blur'] as const) {
+      useVamsStore.setState({ sceneName: 'Before' });
+      const host = mount(h(SceneTitle, {}));
+      await settle();
+      (host.querySelector('.scene-title__name') as HTMLButtonElement).click();
+      await settle();
+      const input = host.querySelector('input') as HTMLInputElement;
+      input.value = '   ';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      if (how === 'Enter') press(input, 'Enter');
+      else input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+      await settle();
+      const name = useVamsStore.getState().sceneName;
+      expect(name.trim()).not.toBe('');
+      expect(name).toBe(name.trim());
+      unmount(host);
+    }
+  });
+
+  it('commits the live typed value on blur alone', async () => {
+    useVamsStore.setState({ sceneName: 'Before' });
+    const host = mount(h(SceneTitle, {}));
+    await settle();
+    (host.querySelector('.scene-title__name') as HTMLButtonElement).click();
+    await settle();
+    const input = host.querySelector('input') as HTMLInputElement;
+    input.value = ' Typed then blurred ';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    await settle();
+    expect(useVamsStore.getState().sceneName).toBe('Typed then blurred');
+    unmount(host);
+  });
+
+  it('drops a half-finished rename when a lesson starts, and renames normally afterwards', async () => {
+    useVamsStore.setState({ sceneName: 'Before' });
+    const host = mount(h(SceneTitle, {}));
+    await settle();
+    (host.querySelector('.scene-title__name') as HTMLButtonElement).click();
+    await settle();
+    expect(host.querySelector('input')).not.toBeNull();
+    render(h(SceneTitle, { lessonLabel: 'Lesson · Step 1 of 2' }), host);
+    await settle();
+    render(h(SceneTitle, {}), host);
+    await settle();
+    expect(host.querySelector('input')).toBeNull();
+    (host.querySelector('.scene-title__name') as HTMLButtonElement).click();
+    await settle();
+    const again = host.querySelector('input') as HTMLInputElement;
+    again.value = 'After lesson';
+    again.dispatchEvent(new Event('input', { bubbles: true }));
+    again.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    await settle();
+    expect(useVamsStore.getState().sceneName).toBe('After lesson');
     unmount(host);
   });
 });
