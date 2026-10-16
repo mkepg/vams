@@ -342,7 +342,7 @@ const ENTRIES: Entry[] = [
   { test: /\bglTexImage2D\(/, explain: () => plain('glTexImage2D(target, level, …, data)', 'Copies the image to the GPU as the texture’s pixels.', 'coloured') },
   { test: /\bstbi_image_free\(/, explain: () => plain('stbi_image_free(data)', 'Frees the image now that the GPU has its own copy.', 'coloured') },
   { test: /\bglClear\(GL_COLOR_BUFFER_BIT\)/, explain: () => plain('glClear(mask)', 'Wipes the frame to the background colour before anything is drawn.', 'rasterised', link('Background', 'background')) },
-  { test: /\bglMatrixMode\(GL_PROJECTION\)/, explain: () => plain('glMatrixMode(GL_PROJECTION)', 'Chooses the projection matrix, which maps the viewing volume to the window, for the calls that follow.', 'projected') },
+  { test: /\bglMatrixMode\(GL_PROJECTION\)/, explain: () => plain('glMatrixMode(GL_PROJECTION)', 'Chooses the projection matrix, which maps the viewing volume to the −1 to 1 box (NDC), for the calls that follow.', 'projected') },
   { test: /\bglMatrixMode\(GL_MODELVIEW\)/, explain: () => plain('glMatrixMode(GL_MODELVIEW)', 'Chooses the modelview matrix, which places objects, for the calls that follow.', 'transformed') },
   { test: /\bglLoadIdentity\(/, explain: () => plain('glLoadIdentity()', 'Resets the current matrix to the identity, undoing what came before.') },
   {

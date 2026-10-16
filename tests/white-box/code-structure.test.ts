@@ -639,3 +639,13 @@ describe('WB-CODE-29: A call target names its owner, its nth vertex line, a text
     expect(findCallLine(o, 'Tri', 'glTranslatef')).toBe(findCallLine(o, 'Tri', { call: 'glTranslatef' }));
   });
 });
+
+describe('WB-CODE-30: glMatrixMode(GL_PROJECTION) maps the viewing volume to NDC, not to the window', () => {
+  it('names the −1 to 1 box', () => {
+    immediateFixture();
+    const o = outlineCode(program());
+    const e = explainLine(lineOf(o, 'glMatrixMode(GL_PROJECTION)'), o, explainScene())!;
+    expect(e.text).toContain('maps the viewing volume to the −1 to 1 box (NDC)');
+    expect(e.text).not.toContain('to the window');
+  });
+});
