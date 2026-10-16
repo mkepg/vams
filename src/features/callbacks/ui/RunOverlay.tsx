@@ -46,6 +46,9 @@ export function RunControl() {
   const reason = block === 'empty' || block === 'no-callback' ? block : null;
   const open = reason !== null && openFor === reason;
 
+  // Forget the reason once it changes, so an undo that brings it back can't reopen the dialog unasked.
+  if (openFor !== null && openFor !== reason) setOpenFor(null);
+
   useEffect(() => {
     if (!snap.running && wasRunning.current) runButtonRef.current?.focus();
     wasRunning.current = snap.running;

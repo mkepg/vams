@@ -530,6 +530,23 @@ describe('BB-RUN-19: A blocked Run opens a small dialog that says what to do', (
     host.remove();
   });
 
+  it('stays closed when the reason it opened for comes back on its own', async () => {
+    const host = mount(h(RunOverlay, {}));
+    await settle();
+    run(host).click();
+    await settle();
+    expect(heading(dialog(host)!)).toBe('Add a shape first');
+    const t = addTriangle();
+    await settle();
+    expect(dialog(host)).toBeNull();
+    getState().deleteObject(t.id);
+    await settle();
+    expect(dialog(host)).toBeNull();
+    expect(run(host).getAttribute('aria-expanded')).toBe('false');
+    render(null, host);
+    host.remove();
+  });
+
   it('leaves a ready Run alone: no aria-disabled, and a click starts the program', async () => {
     setup();
     const host = mount(h(RunOverlay, {}));
