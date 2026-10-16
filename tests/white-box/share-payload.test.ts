@@ -2,7 +2,7 @@
  * WHITE-BOX TEST SUITE — WB-SHARE
  * The shared scene payload: what it carries, how it is packed into a link, and how it is read back.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   buildSharePayload, carriedLink, decodeShare, encodeShare, hasUploads, lessonLink, MAX_CARRIED_URL,
   payloadBytes, planShare, readSharePayload, storedLink, withoutUploads, type SharePayload,
@@ -10,6 +10,9 @@ import {
 import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { SHARE_ORIGIN } from '@/shared/lib/share-origin';
 import { checkShareShape, isShareId, MAX_NAME_LENGTH, MAX_OBJECTS } from '@/shared/lib/share-schema';
+import { fitWithin, shrinkPayloadImages, SHARE_IMAGE_MAX } from '@/features/share/model/shrink-image';
+import { createStoredShare, fetchStoredShare } from '@/features/share/model/share-api';
+import { qrSvg } from '@/shared/lib/qr';
 import { addTriangle, getState } from '../helpers/store';
 
 const LIMITS = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
@@ -158,5 +161,73 @@ describe('WB-SHARE-09: Boundaries the server relies on', () => {
     const p = { ...base(), textures: [{ id: 'up-1', sample: false, name: 'Photo', dataUrl: upload.dataUrl, width: 800, height: 600 }] };
     expect(checkShareShape(p)).toBeNull();
     expect(readSharePayload(p)!.data.uploadedTextures.map((t) => t.id)).toEqual(['up-1']);
+  });
+});
+
+describe('WB-SHARE-10: Images fit within 512 px, keeping their shape', () => {
+  it('scales the longer side to 512 and leaves small images alone', () => {
+    expect(SHARE_IMAGE_MAX).toBe(512);
+    expect(fitWithin(2048, 1024)).toEqual({ width: 512, height: 256 });
+    expect(fitWithin(600, 1800)).toEqual({ width: 171, height: 512 });
+    expect(fitWithin(512, 300)).toEqual({ width: 512, height: 300 });
+    expect(fitWithin(64, 64)).toEqual({ width: 64, height: 64 });
+    expect(fitWithin(5000, 2)).toEqual({ width: 512, height: 1 });
+  });
+
+  it('shrinks only the uploads that need it and counts them', async () => {
+    const resize = vi.fn(async (_url: string, size: { width: number; height: number }) => `data:image/webp;base64,${size.width}x${size.height}`);
+    const p = {
+      ...sceneWith(['up-1']),
+      textures: [
+        { id: 'up-1', name: 'Photo', dataUrl: 'data:image/png;base64,AAAA', width: 2048, height: 1024 },
+        { id: 'up-2', name: 'Icon', dataUrl: 'data:image/png;base64,BBBB', width: 32, height: 32 },
+        { id: 'sample-bricks', sample: true as const },
+      ],
+    };
+    const { payload, shrunk } = await shrinkPayloadImages(p, resize);
+    expect(shrunk).toBe(1);
+    expect(resize).toHaveBeenCalledTimes(1);
+    expect(payload.textures[0]).toEqual({ id: 'up-1', name: 'Photo', dataUrl: 'data:image/webp;base64,512x256', width: 512, height: 256 });
+    expect(payload.textures[1]).toBe(p.textures[1]);
+    expect(payload.textures[2]).toBe(p.textures[2]);
+  });
+});
+
+describe('WB-SHARE-11: Storing a share reports each outcome', () => {
+  const respond = (status: number, body: unknown) => vi.fn(async () => new Response(JSON.stringify(body), { status }));
+  it('returns the id and expiry on 201, and a reason otherwise', async () => {
+    const p = sceneWith([]);
+    expect(await createStoredShare(p, respond(201, { id: 'k3x9q2Ab', expiresAt: '2027-01-14T00:00:00.000Z' }))).toEqual({ ok: true, id: 'k3x9q2Ab', expiresAt: '2027-01-14T00:00:00.000Z' });
+    expect(await createStoredShare(p, respond(429, {}))).toEqual({ ok: false, reason: 'limited' });
+    expect(await createStoredShare(p, respond(413, {}))).toEqual({ ok: false, reason: 'too-large' });
+    expect(await createStoredShare(p, respond(400, {}))).toEqual({ ok: false, reason: 'invalid' });
+    expect(await createStoredShare(p, respond(503, {}))).toEqual({ ok: false, reason: 'unavailable' });
+    expect(await createStoredShare(p, vi.fn(async () => { throw new TypeError('Failed to fetch'); }))).toEqual({ ok: false, reason: 'offline' });
+    const sent = respond(201, { id: 'a', expiresAt: 'b' });
+    await createStoredShare(p, sent);
+    expect(sent).toHaveBeenCalledWith('/api/share', expect.objectContaining({ method: 'POST' }));
+  });
+});
+
+describe('WB-SHARE-12: Fetching a stored share reports each outcome', () => {
+  it('returns the payload, or missing, offline or unavailable', async () => {
+    const ok = vi.fn(async () => new Response('{"v":1}', { status: 200 }));
+    expect(await fetchStoredShare('k3x9q2Ab', ok)).toEqual({ ok: true, payload: { v: 1 } });
+    expect(ok).toHaveBeenCalledWith('/api/share/k3x9q2Ab');
+    expect(await fetchStoredShare('k3x9q2Ab', vi.fn(async () => new Response('', { status: 404 })))).toEqual({ ok: false, reason: 'missing' });
+    expect(await fetchStoredShare('k3x9q2Ab', vi.fn(async () => new Response('', { status: 500 })))).toEqual({ ok: false, reason: 'unavailable' });
+    expect(await fetchStoredShare('k3x9q2Ab', vi.fn(async () => new Response('not json', { status: 200 })))).toEqual({ ok: false, reason: 'unavailable' });
+    expect(await fetchStoredShare('k3x9q2Ab', vi.fn(async () => { throw new TypeError('offline'); }))).toEqual({ ok: false, reason: 'offline' });
+  });
+});
+
+describe('WB-SHARE-13: QR codes are SVG, dark on white, and deterministic', () => {
+  it('draws a square code with a white background', () => {
+    const svg = qrSvg('https://vams.pages.dev');
+    expect(svg).toMatch(/^<svg[^>]+viewBox="0 0 (\d+) \1"/);
+    expect(svg).toContain('fill="#fff"');
+    expect(svg).toMatch(/<path fill="#000" d="M/);
+    expect(qrSvg('https://vams.pages.dev')).toBe(svg);
+    expect(qrSvg('https://vams.pages.dev/s/k3x9q2Ab')).not.toBe(svg);
   });
 });
