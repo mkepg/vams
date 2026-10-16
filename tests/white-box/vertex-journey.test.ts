@@ -586,3 +586,14 @@ describe('WB-JOURNEY-19: Smooth shading reads its own way for points and lines',
     expect(at('TRIANGLES', [[0, 0], [0.5, 0], [0, 0.5]])).toBe('With smooth shading, each pixel inside the shape mixes the vertex colours by how close it is to each one.');
   });
 });
+
+describe('WB-JOURNEY-20: A window value a rounding error short of a whole number lands in that pixel', () => {
+  it('puts world x = 1 under a widened 800×600 volume in pixel 700, as 0.75 of the way across says', () => {
+    const WIDE = { width: 800, height: 600 };
+    const limits = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
+    const tri = node('Tri', 'TRIANGLES', [[1, 0], [0, 1], [-1, 0]]);
+    const j = vertexJourney({ ...scene([tri], limits), reshape: true, resize: 'keep' }, 'Tri', 0, WIDE);
+    expect(stage(j, 'rasterised').point!.x).toBe(700);
+    expect(ndcToWindow(orthoToNdc({ x: 1, y: 0 }, keepAspectBounds(limits, WIDE)), WIDE).x).toBe(700);
+  });
+});

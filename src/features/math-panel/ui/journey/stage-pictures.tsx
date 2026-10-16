@@ -11,7 +11,7 @@ import { BarycentricMixer, ColorConversion, isLine, PrimitivesSection, StippleBi
 import { buildMatrix4, getAncestorChain, Matrix4, MatrixStack, OrthoMapping, TransformsSection, TRSCompositionTrace } from '../TransformsMathContent';
 import { fmt, int, short, whole } from '@/shared/lib/format-number';
 import { useCanvasSize } from '@/shared/lib/use-canvas-size';
-import type { JourneyStage, Point } from '../../model/vertex-journey';
+import { windowValue, type JourneyStage, type Point } from '../../model/vertex-journey';
 
 /** A labelled picture under the working. */
 export function Picture({ label, children }: { label: string; children: ComponentChildren }) {
@@ -84,7 +84,7 @@ function OrthoFormula({ world, limits, ndc, widened }: { world: Point; limits: V
 function PixelFormula({ ndc, pixel, canvas }: { ndc: Point; pixel: Point; canvas: { width: number; height: number } }) {
   const line = (axis: 'x' | 'y', v: number, size: number, out: number) => {
     // The unrounded value, then the pixel it falls in; the arrow is dropped when they read the same.
-    const raw = ((v + 1) / 2) * size;
+    const raw = windowValue(v, size);
     // Truncated, not rounded, so the shown value never crosses into the next pixel.
     const cut = Math.floor(raw * 10) / 10;
     const rawText = Number.isInteger(cut) ? int(cut) : short1(cut);

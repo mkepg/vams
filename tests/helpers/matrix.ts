@@ -88,6 +88,10 @@ export function keepAspectBounds(
 /** The default viewport's mapping of NDC to window pixels, counted from the bottom-left as OpenGL does. */
 export function ndcToWindow(p: { x: number; y: number }, size: { width: number; height: number }): { x: number; y: number } {
   // NDC exactly +1 is the last pixel; anything beyond ±1 keeps its real, unclamped pixel.
-  const at = (v: number, n: number) => (v === 1 ? n - 1 : Math.floor(((v + 1) / 2) * n));
+  // Rounding error under a millionth of a pixel is ignored, so 699.9999999999999 is pixel 700.
+  const at = (v: number, n: number) => {
+    const w = Math.round(((v + 1) / 2) * n * 1e6) / 1e6;
+    return w === n ? n - 1 : Math.floor(w);
+  };
   return { x: at(p.x, size.width), y: at(p.y, size.height) };
 }

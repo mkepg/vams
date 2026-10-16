@@ -161,10 +161,19 @@ function ndcOf(p: Point, v: ViewportLimits): Point {
   return { x: (2 * (p.x - v.minX)) / (v.maxX - v.minX) - 1, y: (2 * (p.y - v.minY)) / (v.maxY - v.minY) - 1 };
 }
 
+/** How far across the window an NDC value lands, in pixels, before it is cut to a whole pixel. */
+export function windowValue(v: number, size: number): number {
+  // Snapped to a millionth, so a rounding error just short of a whole number does not drop a pixel.
+  return Math.round(((v + 1) / 2) * size * 1e6) / 1e6;
+}
+
 function pixelOf(n: Point, c: CanvasSize): Point {
   // A vertex exactly on the far edge (NDC +1) still lands in the last pixel: pixels run 0 to size − 1.
   // Anything beyond ±1 keeps its real pixel, which can be negative or past the window.
-  const at = (v: number, size: number) => (v === 1 ? size - 1 : Math.floor(((v + 1) / 2) * size));
+  const at = (v: number, size: number) => {
+    const w = windowValue(v, size);
+    return w === size ? size - 1 : Math.floor(w);
+  };
   return { x: at(n.x, c.width), y: at(n.y, c.height) };
 }
 
