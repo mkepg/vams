@@ -169,6 +169,8 @@
 
 .add-panel .rail-panel__body {
   display: grid;
+  // A bare 1fr track grows to its widest child; minmax keeps it at the panel's width.
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--space-3);
   padding: 0 var(--space-3) var(--space-4);

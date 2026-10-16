@@ -51,6 +51,8 @@
 
   &__body {
     display: grid;
+    // A bare 1fr track grows to its widest child; minmax keeps it at the panel's width.
+    grid-template-columns: minmax(0, 1fr);
     gap: 9px;
     padding: 2px 12px 12px;
   }
