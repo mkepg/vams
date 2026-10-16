@@ -218,8 +218,10 @@
 
 .try-qr {
   display: inline-flex;
+  flex-wrap: wrap; // On a narrow phone the address drops under the code instead of overflowing.
   align-items: center;
   gap: var(--space-4);
+  max-width: 100%;
   margin: var(--space-4) 0 0;
 }
 
