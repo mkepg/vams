@@ -288,7 +288,7 @@ New black-box and white-box tests, with the next free IDs in their suites:
   5. **Help, the product plan, the roadmap and the divergence entry.**
 
   Steps 1–3 are the core. If time runs short, step 4 stops after whichever stages are done, and each of those stages is complete.
-- **Mocks** from the design sessions are kept locally under `.superpowers/brainstorm/` (not committed): `journey-h2-v3.html` and `code-calm-v2.html`.
+- **Mocks** from the design sessions are kept locally, outside the repository: `journey-h2-v3.html` and `code-calm-v2.html`.
 
 ## Rulings made in this spec
 

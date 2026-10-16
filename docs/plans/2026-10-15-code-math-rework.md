@@ -1,7 +1,5 @@
 # Code and Math Rework Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** The code panel folds everything except the selected object's code, marks only the value that changed, and explains any line on request. The math pane becomes a vertex journey that follows one vertex through six pipeline stages with the student's numbers.
 
 **Architecture:**
@@ -14,8 +12,8 @@
 **Spec:** [docs/specs/2026-10-15-code-math-rework-design.md](../specs/2026-10-15-code-math-rework-design.md). Its "Owner decisions" table and "Rulings made in this spec" list are binding.
 
 **Visual reference (local, git-ignored):**
-- `.superpowers/brainstorm/1039-1791996012/content/code-calm-v2.html`: the code panel. Use "Calm A", the left column.
-- `.superpowers/brainstorm/1039-1791996012/content/journey-h2-v3.html`: the journey.
+- `mocks/code-calm-v2.html`: the code panel. Use "Calm A", the left column.
+- `mocks/journey-h2-v3.html`: the journey.
 
 Every UI task carries the mocks' spacing, sizes, colour roles and hierarchy, mapped to tokens as below.
 
@@ -2780,12 +2778,12 @@ git commit -m "feat(code): fold the code to the selected object and mark only th
 
 ### Task 7: Checkpoint 1: the calm code panel against the mock
 
-**This task is the controller's, not a subagent's.** It ends with the owner's sign-off. Build step 2 does not start until the owner signs off, or until their requested changes are made and re-shown.
+**This task ends with the owner's sign-off.** Build step 2 does not start until the owner signs off, or until their requested changes are made and re-shown.
 
 **Files:**
 - Create: `tests/visual/code-math.spec.ts`
 - Modify: `tests/README.md` (the visual suite list)
-- Local only, git-ignored: `.superpowers/checkpoints/shoot-mocks.mjs` and `.superpowers/checkpoints/step-1.html`
+- Local only, git-ignored: `checkpoints/shoot-mocks.mjs` and `checkpoints/step-1.html`
 
 - [ ] **Step 1: Write the visual spec with the mocks' scene**
 
@@ -2879,15 +2877,15 @@ Expected: 2 tests pass, writing `tests/visual/baseline.local/cm-code-{dark,light
 
 - [ ] **Step 3: Shoot the mocks**
 
-Create `.superpowers/checkpoints/shoot-mocks.mjs` (local only):
+Create `checkpoints/shoot-mocks.mjs` (local only):
 
 ```js
 import { chromium } from '@playwright/test';
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 
-const dir = resolve('.superpowers/brainstorm/1039-1791996012/content');
-const out = resolve('.superpowers/checkpoints');
+const dir = resolve('mocks');
+const out = resolve('checkpoints');
 const browser = await chromium.launch({ channel: 'chrome' });
 const page = await browser.newPage({ viewport: { width: 1400, height: 1000 } });
 await page.goto(pathToFileURL(resolve(dir, 'code-calm-v2.html')).href);
@@ -2900,16 +2898,16 @@ for (const [i, name] of ['transformed', 'projected', 'coloured'].entries()) {
 await browser.close();
 ```
 
-Run: `node .superpowers/checkpoints/shoot-mocks.mjs`
+Run: `node checkpoints/shoot-mocks.mjs`
 
 - [ ] **Step 4: Put them side by side and show the owner**
 
-1. Write `.superpowers/checkpoints/step-1.html`. It is a two-column page:
+1. Write `checkpoints/step-1.html`. It is a two-column page:
    - Left: `mock-code-calm-a.png`.
    - Right: `../../tests/visual/baseline.local/cm-code-dark-1280.png`.
    - A second row: `cm-code-light-1280.png` and `cm-editor-code-dark-1280.png`.
    - Each image gets a caption naming it.
-2. Open it: `start .superpowers/checkpoints/step-1.html`.
+2. Open it: `start checkpoints/step-1.html`.
 3. Ask the owner, in one question, whether the code panel matches the approved look. List what to compare:
    - fold rows with names only;
    - the amber value and its line number;
@@ -5284,7 +5282,7 @@ git commit -m "fix(lessons): steps about the math name the journey stage they op
 
 ### Task 12: Checkpoint 2: the journey against the mock
 
-**This task is the controller's.** Build step 3 does not start until the owner signs off.
+**This task ends with the owner's sign-off.** Build step 3 does not start until the owner signs off.
 
 **Files:**
 - Modify: `tests/visual/code-math.spec.ts` (append VIS-CM-02, VIS-CM-03 and VIS-CM-06; Task 16 adds 04 and 05)
@@ -5342,7 +5340,7 @@ npx playwright test tests/visual/code-math.spec.ts --update-snapshots
 
 Expected: the new tests pass, writing `cm-journey-*`, `cm-editor-math-*` and twelve `cm-stage-<stage>-<theme>-1280.png` baselines.
 
-1. Write `.superpowers/checkpoints/step-2.html`. It puts three pairs side by side:
+1. Write `checkpoints/step-2.html`. It puts three pairs side by side:
    - `mock-journey-transformed.png` | `cm-journey-transformed-dark-1280.png`
    - `mock-journey-projected.png` | `cm-journey-projected-dark-1280.png`
    - `mock-journey-coloured.png` | `cm-journey-coloured-dark-1280.png`
@@ -6919,7 +6917,7 @@ git commit -m "feat(math): link the working's GL calls to the code, and ring the
 
 ### Task 16: Checkpoint 3: notes, the strip and the ring
 
-**This task is the controller's.** It closes the core (build steps 1–3) and must be signed off before the Oct 28 freeze. Step 4 starts after sign-off.
+**This task ends with the owner's sign-off.** It closes the core (build steps 1–3) and must be signed off before the Oct 28 freeze. Step 4 starts after sign-off.
 
 **Files:**
 - Modify: `tests/visual/code-math.spec.ts` (append VIS-CM-04 and 05)
@@ -6952,7 +6950,7 @@ rm -f tests/visual/baseline.local/cm-code-strip-*.png tests/visual/baseline.loca
 npx playwright test tests/visual/code-math.spec.ts --update-snapshots
 ```
 
-1. Write `.superpowers/checkpoints/step-3.html`, with these rows:
+1. Write `checkpoints/step-3.html`, with these rows:
    - `mock-code-calm-a.png` beside `cm-code-dark-1280.png`. The three notes should now show.
    - `cm-code-strip-dark-1280.png`.
    - `cm-code-strip-light-1280.png`.
