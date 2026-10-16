@@ -77,6 +77,7 @@ export type AxisVisibility = {
   showLocalAxes: boolean;
   showOriginMarker: boolean;
   showGridlines: boolean;
+  showGridNumbers: boolean;
 };
 export interface ProjectExportOptions {
   includeCPP: boolean;

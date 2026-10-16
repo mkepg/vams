@@ -2,7 +2,7 @@ import { toast } from 'sonner';
 import { useVamsStore } from '@/core/store';
 import { isPresetSlug } from '@/entities/project/model/scene-presets';
 import { getLessonById } from '@/features/lesson-engine/model/lesson-registry';
-import { recordLessonLeft } from '@/features/lesson-engine/model/progress';
+import { leaveRunningLesson } from '@/features/lesson-engine/model/leave-lesson';
 import { openPreset } from '@/features/scene-library';
 
 /** What a /app URL asks the editor to open: ?lesson=<id> or ?scene=<slug>. */
@@ -17,7 +17,7 @@ export interface LinkTargets {
   isScene(slug: string): boolean;
 }
 
-const LINK_PARAMS = ['lesson', 'scene'] as const;
+const LINK_PARAMS = ['lesson', 'scene', 'editor'] as const;
 
 const DEFAULT_TARGETS: LinkTargets = {
   isLesson: (id) => getLessonById(id) !== undefined,
@@ -67,12 +67,8 @@ export async function applyEditorLink(link: EditorLink, deps: ApplyDeps): Promis
   if (link.kind === 'lesson') {
     const lesson = getLessonById(link.id);
     if (!lesson) return;
-    const running = useVamsStore.getState();
-    if (running.activeLessonId) {
-      // As when starting a lesson from Learn, the lesson being replaced is recorded as left mid-way.
-      recordLessonLeft(running.activeLessonId, running.currentStepIndex);
-      running.clearLessonState();
-    }
+    // As when starting a lesson from Learn, the lesson being replaced is recorded as left mid-way.
+    leaveRunningLesson();
     const state = useVamsStore.getState();
     state.setActiveSection(lesson.section);
     state.setActiveLesson(lesson.id);

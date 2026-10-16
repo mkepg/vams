@@ -216,9 +216,25 @@
   font-size: 1.25rem;
 }
 
+.try-qr {
+  display: inline-flex;
+  flex-wrap: wrap; // On a narrow phone the address drops under the code instead of overflowing.
+  align-items: center;
+  gap: var(--space-4);
+  max-width: 100%;
+  margin: var(--space-4) 0 0;
+}
+
+.try-qr__code {
+  flex: none;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+
 .try-url {
   display: inline-block;
-  margin: var(--space-5) 0 0;
+  margin: 0;
   padding-bottom: 2px;
   border-bottom: 1px solid var(--rule);
   font-family: var(--font-mono);

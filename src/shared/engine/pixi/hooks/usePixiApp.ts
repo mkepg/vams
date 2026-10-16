@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from "react";
 import { Application, Container } from "pixi.js";
 import { SelectionOverlay } from "@/shared/engine/selection-overlay";
 import { useVamsStore } from "@/core/store";
+import { toHexColor } from "@/shared/lib/hex-color";
 interface UsePixiAppReturn {
   pixiReady: boolean;
   appRef: React.MutableRefObject<Application | null>;
@@ -17,7 +18,7 @@ export function usePixiApp(
   const worldRef = useRef<Container | null>(null);
   const gridRef = useRef<Container | null>(null);
   const overlayRef = useRef<SelectionOverlay | null>(null);
-  const canvasBackgroundColor = useVamsStore((s) => s.canvasBackgroundColor);
+  const canvasBackgroundColor = useVamsStore((s) => toHexColor(s.canvasBackgroundColor));
   useEffect(() => {
     if (!canvasRef.current || appRef.current) return;
     let destroyed = false;

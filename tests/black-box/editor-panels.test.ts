@@ -875,3 +875,17 @@ describe('BB-PANEL-36: Add tile GL names break only after an underscore', () => 
     unmount(host);
   });
 });
+
+describe('BB-PANEL-37: The Add panel body holds its width while placing', () => {
+  it('uses a minmax(0, 1fr) track so wide children cannot push past the panel border', async () => {
+    const { readFileSync } = await import('node:fs');
+    const scss = readFileSync('src/widgets/layout/editor-column/editor-column.scss', 'utf8');
+    const start = scss.indexOf('.add-panel .rail-panel__body');
+    expect(start).toBeGreaterThan(-1);
+    const rule = scss.slice(start, scss.indexOf('}', start));
+    expect(rule).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+    const panel = readFileSync('src/shared/ui/controls/panel.scss', 'utf8');
+    const body = panel.slice(panel.indexOf('&__body {'), panel.indexOf('}', panel.indexOf('&__body {')));
+    expect(body).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  });
+});

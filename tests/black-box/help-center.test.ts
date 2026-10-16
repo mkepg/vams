@@ -264,3 +264,21 @@ describe('BB-HELP-09: Help describes the folded code and the vertex journey', ()
     expect(all).not.toMatch(/one tab per section|underlined line|the code highlights it/i);
   });
 });
+
+describe('BB-HELP-10: Help covers sharing, the top bar and the canvas window', () => {
+  it('has a sharing topic and names the new places', () => {
+    const sharing = JSON.stringify(HELP_TOPICS.find((t) => t.id === 'sharing'));
+    for (const word of ['Share', 'QR', '90 days', 'phone', 'uploaded image', '512 px', 'Save project file']) expect(sharing, word).toContain(word);
+    const tour = JSON.stringify(HELP_TOPICS.find((t) => t.id === 'workspace-tour'));
+    for (const word of ['scene’s name', 'Settings', 'VAMS Preview', 'View menu', 'Run']) expect(tour, word).toContain(word);
+    const saving = JSON.stringify(HELP_TOPICS.find((t) => t.id === 'saving-loading'));
+    expect(saving).toContain('saved by name in My scenes');
+    expect(JSON.stringify(HELP_TOPICS.map((t) => t.blocks))).not.toMatch(/Export scene JSON|theme button|View settings/i);
+  });
+
+  it('keeps the old wording searchable and points the tracker at the View menu', () => {
+    expect(searchHelpTopics('view settings').map((t) => t.id)).toContain('workspace-tour');
+    const basics = JSON.stringify(HELP_TOPICS.find((t) => t.id === 'canvas-basics'));
+    expect(basics).toContain('View menu');
+  });
+});

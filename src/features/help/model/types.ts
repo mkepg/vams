@@ -21,6 +21,7 @@ export type HelpTopicId =
   | 'code-panel'
   | 'math-panel'
   | 'saving-loading'
+  | 'sharing'
   | 'shortcuts'
   | 'glossary'
   | 'about';

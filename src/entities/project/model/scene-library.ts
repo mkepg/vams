@@ -13,7 +13,8 @@ export type BackupReason =
   | 'open-file'
   | 'new-workspace'
   | 'recovery'
-  | 'corrupt-save';
+  | 'corrupt-save'
+  | 'shared-link';
 
 export interface SceneEntry {
   id: string;
@@ -48,6 +49,16 @@ export const LIBRARY_STORE = 'scenes';
 
 export function normalizeSceneName(name: string): string {
   return name.trim().slice(0, MAX_NAME_LENGTH).trim() || UNTITLED_SCENE;
+}
+
+/** A fresh identity for the working scene: its own My scenes id and a normalised name. */
+export function sceneIdentity(name: string = UNTITLED_SCENE, id: string = createSceneId()): { sceneId: string; sceneName: string } {
+  return { sceneId: id, sceneName: normalizeSceneName(name) };
+}
+
+/** A project file's name without its extension, as a scene name. */
+export function sceneNameFromFile(fileName: string): string {
+  return normalizeSceneName(fileName.replace(/\.(vams|json)$/i, ''));
 }
 
 export function createSceneId(): string {

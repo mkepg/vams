@@ -120,14 +120,14 @@ describe('BB-INSP-04: Groups toggle, remember the last opened one, and clear a s
 });
 
 describe('BB-INSP-05: The persisted shape is unchanged and transient state is never saved', () => {
-  it('keeps version 7, the same partialize keys, and no inspector fields', () => {
+  it('keeps version 11, the saved keys, and no inspector fields', () => {
     const options = (useVamsStore as unknown as { persist: { getOptions: () => { version: number; partialize: (s: unknown) => object } } }).persist.getOptions();
-    expect(options.version).toBe(9);
+    expect(options.version).toBe(11);
     const keys = Object.keys(options.partialize(useVamsStore.getState())).sort();
     expect(keys).toEqual([
       'activeSection', 'axisVisibility', 'callbacks', 'callbacksBackup', 'canvasBackgroundColor',
       'canvasBackgroundColorBackup', 'hasSeenWelcome', 'learningSettings', 'objects', 'sceneBackup',
-      'showCoordinateTracker', 'theme', 'uploadedTextures', 'uploadedTexturesBackup', 'viewportLimits',
+      'sceneId', 'sceneName', 'showCoordinateTracker', 'theme', 'uploadedTextures', 'uploadedTexturesBackup', 'viewportLimits',
       'viewportLimitsBackup',
     ]);
   });

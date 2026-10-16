@@ -13,6 +13,7 @@ import { isSceneEmpty } from '@/entities/project/model/scene-empty';
 import HistoryControls from '@/features/history-controls/ui/HistoryControls';
 import NewWorkspaceButton from '@/features/workspace-reset/ui/NewWorkspaceButton';
 import EditorPreferencesMenu from '@/features/editor-preferences/ui/EditorPreferencesMenu';
+import ViewMenu from '@/features/editor-preferences/ui/ViewMenu';
 import LearnButton from '@/features/lesson-engine/ui/LearnButton';
 import FileMenu from '@/widgets/layout/top-bar/FileMenu';
 import { EditorPanel, ObjectInspector, SettingsPanel } from '@/widgets/layout/editor-column';
@@ -305,7 +306,7 @@ describe('BB-SHELL-09: The File menu lists the project actions in order', () => 
     const host = mount(h(FileMenu, {}));
     await openMenu(host, 'File');
     expect(menuItems(host)).toEqual([
-      'New workspace', 'My scenes…', 'Open project file…', 'Save project file', 'Export C++ code', 'Export scene JSON',
+      'New workspace', 'My scenes…', 'Open project file…', 'Save project file', 'Export C++ code',
     ]);
     expect(host.querySelectorAll('[role="separator"]')).toHaveLength(2);
     chooseItem(host, 'My scenes…');
@@ -321,7 +322,7 @@ describe('BB-SHELL-10: In Lesson mode the File menu only saves and exports', () 
     useVamsStore.setState({ appMode: 'Lesson' });
     const host = mount(h(FileMenu, {}));
     await openMenu(host, 'File');
-    expect(menuItems(host)).toEqual(['Save project file', 'Export C++ code', 'Export scene JSON']);
+    expect(menuItems(host)).toEqual(['Save project file', 'Export C++ code']);
     unmount(host);
     useVamsStore.setState({ appMode: 'Author' });
   });
@@ -350,17 +351,18 @@ describe('BB-SHELL-11: Opening a project file asks first when the scene has work
   });
 });
 
-describe('BB-SHELL-12: The settings menu toggles view options and opens shortcuts', () => {
+describe('BB-SHELL-12: The View menu toggles view options and Settings opens shortcuts', () => {
   it('menuitemcheckbox entries reflect and toggle state', async () => {
-    const host = mount(h(EditorPreferencesMenu, {}));
-    await openMenu(host, 'View settings');
+    const host = mount(h('div', {}, h(ViewMenu, {}), h(EditorPreferencesMenu, {})));
+    await openMenu(host, 'View');
     const grid = [...host.querySelectorAll('[role="menuitemcheckbox"]')].find((el) => el.textContent?.includes('Gridlines'))!;
     const before = useVamsStore.getState().axisVisibility.showGridlines;
     expect(grid.getAttribute('aria-checked')).toBe(String(before));
     (grid as HTMLElement).click();
     await settle();
     expect(useVamsStore.getState().axisVisibility.showGridlines).toBe(!before);
-    await openMenu(host, 'View settings');
+    await openMenu(host, 'Settings');
+    expect(host.querySelectorAll('[role="menuitemcheckbox"]')).toHaveLength(0);
     chooseItem(host, 'Keyboard shortcuts');
     await settle();
     expect(useVamsStore.getState().activeHelpTopicId).toBe('shortcuts');
@@ -469,29 +471,17 @@ describe('BB-SHELL-15: The inspector shows the object in pipeline order; the sce
   });
 });
 
-describe('BB-SHELL-16: Canvas overlays keep their text and actions', () => {
-  it('shows the viewport, the placement banner and the empty hint', async () => {
-    const host = mount(h(CanvasOverlays, {
-      viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
-      interactionMode: 'SELECT',
-      coordinates: { x: 0.42, y: -0.13 },
-      showCoordinateTracker: true,
-      showEmptyHint: true,
-    }));
-    expect(host.querySelector('.viewport-info')!.textContent).toBe('Viewport: (-1, 1)');
-    expect(host.querySelector('.coordinate-tracker')!.textContent).toContain('0.42');
+describe('BB-SHELL-16: Canvas overlays keep the empty card and its actions', () => {
+  it('shows the empty card with its two actions, and drops it while placing vertices', async () => {
+    const host = mount(h(CanvasOverlays, { showEmptyHint: true }));
     const buttons = [...host.querySelectorAll('.empty-canvas-hint button')].map((b) => b.textContent?.trim());
     expect(buttons).toEqual(['Add a shape', 'Start a lesson']);
     ([...host.querySelectorAll('.empty-canvas-hint button')][1] as HTMLButtonElement).click();
     expect(useVamsStore.getState().learnOpen).toBe(true);
-    useVamsStore.setState({ learnOpen: false });
-    render(h(CanvasOverlays, {
-      viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
-      interactionMode: 'VERTEX_PLACE',
-      coordinates: { x: 0, y: 0 },
-      showCoordinateTracker: false,
-    }), host);
-    expect(host.querySelector('.placement-mode-banner')!.textContent).toContain('click to place');
+    useVamsStore.setState({ learnOpen: false, interactionMode: 'VERTEX_PLACE' });
+    for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(host.querySelector('.empty-canvas-hint')).toBeNull();
+    useVamsStore.setState({ interactionMode: 'SELECT' });
     unmount(host);
   });
 });
@@ -781,13 +771,13 @@ describe('BB-SHELL-29: A lesson step switches the rail to its panel and opens it
 });
 
 describe('BB-SHELL-30: The rail and the code column are never saved', () => {
-  it('keeps them out of the saved editor data, which stays at version 9', () => {
+  it('keeps them out of the saved editor data, which stays at version 11', () => {
     const s = () => useVamsStore.getState();
     s().setRailPanel('callbacks');
     s().setCodePane('math');
     s().setCodeHidden(true);
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
-    expect(saved.version).toBe(9);
+    expect(saved.version).toBe(11);
     for (const key of ['railPanel', 'railHidden', 'codePane', 'codeHidden', 'codeChangedUnseen']) {
       expect(saved.state).not.toHaveProperty(key);
     }
@@ -1141,5 +1131,23 @@ describe('BB-SHELL-42: Add a shape moves focus to the first primitive tile', () 
       unmount(host);
       media.restore();
     }
+  });
+});
+
+describe('BB-SHELL-43: The View menu toggles Grid numbers', () => {
+  it('lists the checkbox right after Gridlines and flips the setting', async () => {
+    useVamsStore.getState().setAxisVisibility({ showGridNumbers: true });
+    const host = mount(h(ViewMenu, {}));
+    await openMenu(host, 'View');
+    const boxes = [...host.querySelectorAll('[role="menuitemcheckbox"]')];
+    const at = boxes.findIndex((el) => el.textContent?.includes('Gridlines'));
+    const item = boxes[at + 1] as HTMLElement;
+    expect(item.textContent).toContain('Grid numbers');
+    expect(item.getAttribute('aria-checked')).toBe('true');
+    item.click();
+    await settle();
+    expect(useVamsStore.getState().axisVisibility.showGridNumbers).toBe(false);
+    unmount(host);
+    useVamsStore.getState().setAxisVisibility({ showGridNumbers: true });
   });
 });

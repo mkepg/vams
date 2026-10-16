@@ -46,6 +46,8 @@ beforeEach(() => {
     viewportLimitsBackup: null,
     uploadedTexturesBackup: null,
     codeViewBeforeLesson: null,
+    sceneId: 'scene-test',
+    sceneName: 'Untitled scene',
     tourStep: null,
     railBeforeTour: null,
     tourStepBaseline: null,

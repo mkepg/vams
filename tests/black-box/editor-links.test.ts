@@ -3,7 +3,8 @@
  * Links into the editor: prepared scenes, lesson and scene links, the slide 07 starting points
  * and the stage URL.
  */
-import { afterEach, describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
+import { toast } from 'sonner';
 import { h, render } from 'preact';
 import { renderToString } from 'preact-render-to-string';
 import { useVamsStore } from '@/core/store';
@@ -13,7 +14,11 @@ import { applyEditorLink, parseEditorLink, stripEditorLinkParams } from '@/pages
 import { useEditorLink } from '@/pages/editor/model/useEditorLink';
 import { withStageParam } from '@/features/stage-mode/model/stage-controller';
 import TryItSection from '@/pages/home/ui/sections/TryItSection';
-import { addTriangle } from '../helpers/store';
+import { addQuad, addTriangle } from '../helpers/store';
+import { parseShareLink, shouldShowSceneView, editorAnywayUrl, PHONE_MAX_WIDTH } from '@/pages/editor/model/share-link';
+import { openSharedScene } from '@/pages/editor/model/open-shared';
+import { SHARE_MESSAGES } from '@/features/share';
+import { buildSharePayload, encodeShare, MAX_CARRIED_DATA } from '@/entities/project/model/share';
 import { readFileSync } from 'node:fs';
 import { sanitizeProjectData } from '@/entities/project/model/project-io';
 import { PRESET_LINKS, presetHref } from '@/entities/project/model/preset-links';
@@ -259,5 +264,162 @@ describe('BB-LINK-14: A lesson link records the lesson it replaces as left mid-w
     const s = useVamsStore.getState();
     s.clearLessonState();
     s.setAppMode('Author');
+  });
+});
+
+const sharedPayload = (extra: Record<string, unknown> = {}) => {
+  addTriangle();
+  const s = useVamsStore.getState();
+  const p = buildSharePayload({ sceneName: 'Solar system', objects: s.objects, callbacks: s.callbacks, viewportLimits: s.viewportLimits, canvasBackgroundColor: s.canvasBackgroundColor, textures: [] });
+  useVamsStore.setState({ objects: [] });
+  return { ...p, ...extra };
+};
+
+describe('BB-LINK-15: Shared links are recognised by path or hash', () => {
+  it('parses /s/<id> and #s=<data>, and ignores everything else', () => {
+    expect(parseShareLink('/s/k3x9q2Ab', '')).toEqual({ kind: 'stored', id: 'k3x9q2Ab' });
+    expect(parseShareLink('/s/k3x9q2Ab/', '')).toEqual({ kind: 'stored', id: 'k3x9q2Ab' });
+    expect(parseShareLink('/app', '#s=abc_-1')).toEqual({ kind: 'carried', data: 'abc_-1' });
+    expect(parseShareLink('/app', '')).toBeNull();
+    expect(parseShareLink('/app', '#section')).toBeNull();
+    expect(parseShareLink('/learn', '')).toBeNull();
+  });
+
+  it('sends phones to the scene view unless they asked for the editor', () => {
+    expect(PHONE_MAX_WIDTH).toBe(960);
+    const stored = { pathname: '/s/k3x9q2Ab', search: '', hash: '' };
+    expect(shouldShowSceneView(390, stored)).toBe(true);
+    expect(shouldShowSceneView(959, { pathname: '/app', search: '', hash: '#s=abc' })).toBe(true);
+    expect(shouldShowSceneView(960, stored)).toBe(false);
+    expect(shouldShowSceneView(390, { ...stored, search: '?editor=1' })).toBe(false);
+    expect(shouldShowSceneView(390, { pathname: '/app', search: '', hash: '' })).toBe(false);
+    expect(editorAnywayUrl(stored)).toBe('/s/k3x9q2Ab?editor=1');
+    expect(editorAnywayUrl({ pathname: '/app', search: '', hash: '#s=abc' })).toBe('/app?editor=1#s=abc');
+  });
+});
+
+describe('BB-LINK-16: A carried link opens its scene, backed up and named', () => {
+  afterEach(() => setSceneLibraryForTests(null));
+  it('replaces the scene, names it and keeps the visitor’s view settings', async () => {
+    const lib = createMemoryLibrary();
+    setSceneLibraryForTests(lib);
+    const data = encodeShare(sharedPayload());
+    addQuad();
+    useVamsStore.setState({ showCoordinateTracker: true });
+    const ok = await openSharedScene({ kind: 'carried', data }, { openLibrary: () => {} });
+    expect(ok).toBe(true);
+    const s = useVamsStore.getState();
+    expect(s.sceneName).toBe('Solar system');
+    expect(s.objects).toHaveLength(1);
+    expect(s.showCoordinateTracker).toBe(true);
+    expect((await lib.list()).some((e) => e.kind === 'backup' && e.reason === 'shared-link')).toBe(true);
+  });
+});
+
+describe('BB-LINK-17: A stored link fetches its scene; failures say why', () => {
+  afterEach(() => setSceneLibraryForTests(null));
+  it('opens on 200 and words 404, offline, damaged and server errors', async () => {
+    const lib = createMemoryLibrary();
+    setSceneLibraryForTests(lib);
+    const errors = vi.spyOn(toast, 'error');
+    const body = JSON.stringify(sharedPayload());
+    expect(await openSharedScene({ kind: 'stored', id: 'k3x9q2Ab' }, { openLibrary: () => {}, fetchImpl: vi.fn(async () => new Response(body, { status: 200 })) })).toBe(true);
+    expect(useVamsStore.getState().sceneName).toBe('Solar system');
+    await openSharedScene({ kind: 'stored', id: 'k3x9q2Ab' }, { openLibrary: () => {}, fetchImpl: vi.fn(async () => new Response('', { status: 404 })) });
+    expect(errors).toHaveBeenLastCalledWith(SHARE_MESSAGES.missing);
+    expect(SHARE_MESSAGES.missing).toBe('That shared scene has expired or can’t be found. Ask for a new link.');
+    await openSharedScene({ kind: 'stored', id: 'k3x9q2Ab' }, { openLibrary: () => {}, fetchImpl: vi.fn(async () => { throw new TypeError('offline'); }) });
+    expect(errors).toHaveBeenLastCalledWith('Connect to the internet to open this shared scene.');
+    await openSharedScene({ kind: 'carried', data: 'damaged' }, { openLibrary: () => {} });
+    expect(errors).toHaveBeenLastCalledWith('That link is incomplete. Ask for it again.');
+    await openSharedScene({ kind: 'stored', id: 'k3x9q2Ab' }, { openLibrary: () => {}, fetchImpl: vi.fn(async () => new Response('', { status: 503 })) });
+    expect(errors).toHaveBeenLastCalledWith('That shared scene couldn’t be loaded. Try again in a moment.');
+    errors.mockRestore();
+  });
+});
+
+describe('BB-LINK-18: Opening a shared link leaves a running lesson first', () => {
+  afterEach(() => setSceneLibraryForTests(null));
+  it('ends the lesson, so its backup does not return over the shared scene', async () => {
+    setSceneLibraryForTests(createMemoryLibrary());
+    const data = encodeShare(sharedPayload());
+    useVamsStore.setState({ appMode: 'Lesson', activeLessonId: 'transforms-demo-1', sceneBackup: [], currentStepIndex: 1 });
+    await openSharedScene({ kind: 'carried', data }, { openLibrary: () => {} });
+    const s = useVamsStore.getState();
+    expect(s.activeLessonId).toBeNull();
+    expect(s.appMode).toBe('Author');
+    expect(s.sceneBackup).toBeNull();
+    expect(s.objects).toHaveLength(1);
+  });
+});
+
+describe('BB-LINK-19: A texture the share does not carry is dropped, and the scene still opens', () => {
+  afterEach(() => setSceneLibraryForTests(null));
+  it('detaches the missing texture', async () => {
+    setSceneLibraryForTests(createMemoryLibrary());
+    const p = sharedPayload() as ReturnType<typeof sharedPayload> & { objects: Record<string, unknown>[] };
+    p.objects = p.objects.map((o) => ({ ...o, texture: { textureId: 'not-here', filter: 'NEAREST', wrap: 'REPEAT' } }));
+    expect(await openSharedScene({ kind: 'carried', data: encodeShare(p as never) }, { openLibrary: () => {} })).toBe(true);
+    expect(useVamsStore.getState().objects[0].texture).toBeNull();
+  });
+});
+
+describe('BB-LINK-20: A shared link in the address bar opens once, on load and on hashchange', () => {
+  afterEach(() => {
+    setSceneLibraryForTests(null);
+    window.history.replaceState(null, '', '/');
+  });
+  it('cleans the URL to /app and applies a later #s= without a reload', async () => {
+    setSceneLibraryForTests(createMemoryLibrary());
+    const data = encodeShare(sharedPayload());
+    window.history.replaceState(null, '', `/app?editor=1#s=${data}`);
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const Probe = () => {
+      useEditorLink();
+      return null;
+    };
+    render(h(Probe, {}), host);
+    await settle();
+    expect(window.location.pathname + window.location.search + window.location.hash).toBe('/app');
+    expect(useVamsStore.getState().sceneName).toBe('Solar system');
+    const other = encodeShare({ ...sharedPayload(), name: 'Orbit' } as never);
+    window.location.hash = `#s=${other}`;
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    await settle();
+    expect(useVamsStore.getState().sceneName).toBe('Orbit');
+    render(null, host);
+    host.remove();
+  });
+});
+
+describe('BB-LINK-21: /s/<id> is a route of the site', () => {
+  it('renders the editor page for /s/<id>', () => {
+    const source = readFileSync('src/app/SiteApp.tsx', 'utf8');
+    expect(source).toMatch(/<Route path="\/s\/:id" component=\{EditorPage\} \/>/);
+    const redirects = readFileSync('public/_redirects', 'utf8');
+    expect(redirects).toMatch(/^\/s\/\*\s+\/app\/\s+200$/m);
+  });
+});
+
+describe('BB-LINK-22: Damaged or oversized links fail with a message and never throw', () => {
+  afterEach(() => setSceneLibraryForTests(null));
+  it('returns a link for a malformed percent escape and words it as missing', async () => {
+    expect(() => parseShareLink('/s/%E0%A4%A', '')).not.toThrow();
+    expect(parseShareLink('/s/%E0%A4%A', '')).toEqual({ kind: 'stored', id: '%E0%A4%A' });
+    setSceneLibraryForTests(createMemoryLibrary());
+    const errors = vi.spyOn(toast, 'error');
+    await openSharedScene({ kind: 'stored', id: '%E0%A4%A' }, { openLibrary: () => {} });
+    expect(errors).toHaveBeenLastCalledWith(SHARE_MESSAGES.missing);
+    errors.mockRestore();
+  });
+  it('rejects carried data over the cap before inflating it', async () => {
+    expect(MAX_CARRIED_DATA).toBe(4000);
+    setSceneLibraryForTests(createMemoryLibrary());
+    const ok = encodeShare(sharedPayload());
+    const errors = vi.spyOn(toast, 'error');
+    await openSharedScene({ kind: 'carried', data: ok + 'A'.repeat(MAX_CARRIED_DATA) }, { openLibrary: () => {} });
+    expect(errors).toHaveBeenLastCalledWith(SHARE_MESSAGES.damaged);
+    errors.mockRestore();
   });
 });

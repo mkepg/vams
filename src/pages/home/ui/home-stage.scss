@@ -106,6 +106,24 @@ html.stage {
 
   /* Try it: the closing slide mirrors the hero, and the address is the one thing to copy down. */
   .home-section--try .home-section__title { font-size: 4.25rem; }
-  .try-url { justify-self: start; font-size: 2rem; border-bottom-width: 2px; }
+  /* The code takes the slide's right half, sized in CSS so it scans from the back of a room. */
+  .home-section--try { position: relative; }
+  .home-section--try > .try-qr {
+    position: absolute;
+    top: 50%;
+    right: var(--space-8);
+    transform: translateY(-50%);
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-4);
+    margin: 0;
+  }
+  .try-qr__code { width: min(58vh, 460px) !important; height: min(58vh, 460px) !important; }
+  /* Below projector widths the right half is too narrow, so the code returns under the presets. */
+  @media (max-width: 1099px) {
+    .home-section--try > .try-qr { position: static; transform: none; flex-direction: row; margin-top: var(--space-4); }
+    .try-qr__code { width: min(34vh, 320px) !important; height: min(34vh, 320px) !important; }
+  }
+  .try-url { font-size: 2rem; border-bottom-width: 2px; }
   .try-note { font-size: 1.3rem; }
 }

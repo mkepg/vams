@@ -443,10 +443,10 @@ describe('BB-SITE-25: The wordmark font is preloaded and cannot shift the header
   });
 });
 
-describe('BB-SITE-26: Canvas overlays take their text colour from the plate, not the accent', () => {
-  it('uses --canvas-plate-text on the plate', () => {
+describe('BB-SITE-26: The empty card is solid paper in the UI font, not a canvas plate', () => {
+  it('uses the panel tokens so it hides the tick labels behind it', () => {
     const canvas = readFileSync('src/widgets/canvas/vams-canvas.scss', 'utf8');
-    expect(canvas).toMatch(/color: var\(--canvas-plate-text\);\s*background: var\(--canvas-plate\);/);
+    expect(canvas).toMatch(/\.empty-canvas-hint \{[^}]*font-family: \$font-ui;[^}]*color: var\(--ink\);\s*background: var\(--paper-raised\);\s*border: 1px solid var\(--rule\);/);
   });
 });
 
@@ -611,7 +611,13 @@ describe('BB-SITE-35: The old Netlify address forwards to the live site', () => 
   });
 
   it('leaves the Netlify-only 404 rule out of the live site', () => {
-    expect(() => readFileSync('public/_redirects', 'utf8')).toThrow();
+    const rules = readFileSync('public/_redirects', 'utf8')
+      .split(/\r?\n/)
+      .filter((line) => line.trim() && !line.trim().startsWith('#'))
+      .map((line) => line.trim().split(/\s+/));
+    // The target ends in a slash: Pages serves dist/app/index.html at /app/ and redirects /app there,
+    // and a redirect would drop the /s/<id> the editor reads.
+    expect(rules).toEqual([['/s/*', '/app/', '200']]);
   });
 });
 
@@ -632,5 +638,33 @@ describe('BB-SITE-37: Netlify publishes only the forwarding site, and only when 
     expect(toml).toMatch(/publish\s*=\s*"deploy\/netlify-forward"/);
     expect(toml).not.toMatch(/npm run build/);
     expect(toml).toMatch(/ignore\s*=\s*"git diff --quiet \$CACHED_COMMIT_REF \$COMMIT_REF -- netlify\.toml deploy\/netlify-forward"/);
+  });
+});
+
+describe('BB-SITE-38: A stored share link has the editor’s title and metadata', () => {
+  it('maps /s/<id> to the /app route', () => {
+    expect(findRouteMeta('/s/k3x9q2Ab')).toBe(findRouteMeta('/app'));
+    expect(findRouteMeta('/s/k3x9q2Ab/').title).toBe('VAMS Editor');
+    expect(findRouteMeta('/s').title).not.toBe('VAMS Editor');
+  });
+});
+
+describe('BB-SITE-39: The tab title follows the route on first load', () => {
+  it('syncs the title from the address once when the site mounts', () => {
+    const source = readFileSync('src/app/SiteApp.tsx', 'utf8');
+    expect(source).toMatch(/useEffect\(\(\) => \{\s*syncDocumentTitle\(window\.location\.pathname\);/);
+  });
+});
+
+describe('BB-SITE-40: The Try it slide carries a QR code to the site', () => {
+  it('prerenders an SVG code beside the written address', async () => {
+    const { renderToString } = await import('preact-render-to-string');
+    const { h } = await import('preact');
+    const { default: TryItSection } = await import('@/pages/home/ui/sections/TryItSection');
+    const html = renderToString(h(TryItSection, {}));
+    expect(html).toContain('class="qr-code try-qr__code"');
+    expect(html).toMatch(/role="img" aria-label="QR code for vams\.pages\.dev"/);
+    expect(html).toMatch(/<svg[^>]+viewBox="0 0 \d+ \d+"/);
+    expect(html).toContain('vams.pages.dev');
   });
 });

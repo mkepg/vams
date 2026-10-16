@@ -61,7 +61,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     category: 'workspace',
     title: 'Workspace Tour',
     summary: 'The rail and its panels on the left, the canvas in the center, code and math on the right.',
-    keywords: ['layout', 'panels', 'rail', 'regions', 'tour', 'top bar', 'add', 'scene', 'settings', 'callbacks', 'inspector', 'hide', 'code', 'math', 'learn', 'lesson bar', 'file menu'],
+    keywords: ['layout', 'panels', 'rail', 'regions', 'tour', 'top bar', 'add', 'scene', 'settings', 'callbacks', 'inspector', 'hide', 'code', 'math', 'learn', 'lesson bar', 'file menu', 'view settings', 'view menu', 'window', 'run', 'share', 'rename'],
     blocks: [
       { kind: 'start-tour' },
       {
@@ -73,9 +73,17 @@ export const HELP_TOPICS: HelpTopic[] = [
         kind: 'list',
         items: [
           'Left — Build. A rail of four panels: Add, Scene, Settings and Callbacks. One panel shows at a time.',
-          'Center — See. The canvas, where your scene is drawn and where you place vertices. Run sits in its top-right corner.',
+          'Center — See. The canvas, where your scene is drawn and where you place vertices. The canvas is drawn as your program’s window, with the View menu and Run in the header above it.',
           'Right — Read. The generated OpenGL code, or the math behind it, with a Code / Math switch at the top.',
         ],
+      },
+      {
+        kind: 'paragraph',
+        text: 'The top bar holds File and Learn, then your scene’s name: click it to rename the scene, and the note beside it says whether the scene is saved. On the right are undo and redo, Settings (the theme and the keyboard shortcuts), Help and Share. The canvas is drawn as your program’s window, titled VAMS Preview with its size, the same title and size the generated main() gives it. The header above it shows the viewing volume, the cursor position when the coordinate tracker is on, the View menu (axes, gridlines, grid numbers and the tracker) and Run. If Run can’t start, click it: it tells you why and offers a button that fixes it.',
+      },
+      {
+        kind: 'paragraph',
+        text: 'The window works like a window on your desktop. Drag its title bar to move it; that changes nothing in your drawing or your code. Drag its right edge, bottom edge or corner to resize it: the scene stretches to fill the window, and the size in glutInitWindowSize follows. The — button minimises it and the ▢ button maximises or restores it (double-clicking the title bar does the same). ✕ closes it and stops a running program; the chip at the bottom of the stage, or pressing Run, brings it back.',
       },
       { kind: 'heading', text: 'The rail and its panels' },
       {
@@ -121,15 +129,16 @@ export const HELP_TOPICS: HelpTopic[] = [
           'Learn — open the course map and start a demo or an exercise.',
           'File — start a new workspace, open My scenes, open or save a project file, or export the C++ code.',
           'Undo / Redo — step backward and forward through your edits.',
-          'Theme — switch between dark and light.',
-          'View settings — toggle axes, gridlines, the coordinate tracker, and open the shortcut list.',
+          'Scene name — click it to rename the scene. The note beside it shows whether the scene is saved: Saving…, Saved or Not saved.',
+          'Settings — choose the theme and open the shortcut list.',
+          'Share — make a link and a QR code for your scene.',
           'Help — open this Help Center (also ? or F1).',
         ],
       },
       {
         kind: 'callout',
         tone: 'info',
-        text: 'The editor’s tools are the same in every section. Select an object to edit it in the Scene panel; the scene’s own settings are in Settings.',
+        text: 'The editor’s tools are the same in every section. Select an object to edit it in the Scene panel; the scene’s own settings are in the Settings panel on the rail, and the view options are in the View menu beside Run.',
       },
     ],
     related: ['canvas-basics', 'scene-hierarchy', 'code-panel', 'math-panel', 'saving-loading'],
@@ -154,18 +163,18 @@ export const HELP_TOPICS: HelpTopic[] = [
       { kind: 'heading', text: 'Placing vertices' },
       {
         kind: 'paragraph',
-        text: 'When you start a custom shape, the canvas enters vertex-placement mode and a banner appears. Click to drop each vertex in order; the shape needs a minimum number of vertices before it can be finished.',
+        text: 'When you start a custom shape, the canvas enters vertex-placement mode and the canvas header shows the keys: Click to place, Enter to finish, Backspace to undo the last vertex and Esc to cancel. Click to drop each vertex in order; the shape needs a minimum number of vertices before it can be finished.',
       },
       { kind: 'heading', text: 'Running your program' },
       {
         kind: 'paragraph',
-        text: 'Press Run in the top-right corner of the canvas to play your callbacks. Keys, clicks and drags go to your handlers, and the bar at the bottom shows the last call GLUT made. Drag the handle in the bottom-right corner to resize the program window. Press Esc or Stop to end the run: your scene is just as you built it.',
+        text: 'Press Run in the canvas header to play your callbacks. Keys, clicks and drags go to your handlers, and the bar at the bottom shows the last call GLUT made. Drag the window’s edges or corner to resize it. Press Esc or Stop to end the run: your scene is just as you built it.',
       },
       { kind: 'shortcuts' },
       { kind: 'heading', text: 'Grid snapping & coordinates' },
       {
         kind: 'paragraph',
-        text: 'Turn on grid snapping so clicks land on tidy increments instead of arbitrary decimals — useful for clean, predictable geometry. The coordinate tracker (toggle it in View Settings) shows the world X/Y under your cursor as you move.',
+        text: 'Turn on grid snapping so clicks land on tidy increments instead of arbitrary decimals — useful for clean, predictable geometry. The coordinate tracker (switch it on in the View menu beside Run) shows the world X/Y under your cursor as you move.',
       },
       {
         kind: 'callout',
@@ -671,6 +680,11 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'callout',
         tone: 'tip',
+        text: 'Your working scene is saved by name in My scenes a moment after every change. My scenes also keeps a backup whenever another scene replaces it.',
+      },
+      {
+        kind: 'callout',
+        tone: 'tip',
         text: 'Your work is also kept in the browser between visits, so reopening VAMS restores your last scene automatically — saving to a file is for backups and sharing.',
       },
       {
@@ -679,7 +693,36 @@ export const HELP_TOPICS: HelpTopic[] = [
         text: 'Loading a project or starting a new workspace replaces what is currently on the canvas. Save first if you want to keep it.',
       },
     ],
-    related: ['code-panel', 'workspace-tour'],
+    related: ['sharing', 'code-panel', 'workspace-tour'],
+  },
+  {
+    id: 'sharing',
+    category: 'workspace',
+    title: 'Sharing a Scene',
+    summary: 'Send your scene as a link or a QR code; on a phone it opens as a view.',
+    keywords: ['share', 'link', 'qr', 'phone', 'send', 'classmate', 'instructor'],
+    blocks: [
+      {
+        kind: 'paragraph',
+        text: 'Share in the top bar makes a link to a copy of your scene, with a QR code beside it. Anyone who opens the link on a computer gets the scene in their own editor; your scene is never changed. On a phone it opens as a view: the scene in its window and its C++.',
+      },
+      {
+        kind: 'list',
+        items: [
+          'Every scene gets a short link that is kept for 90 days.',
+          'An uploaded image is shared at 512 px. Your own copy keeps its full size.',
+          'If the short link can’t be made, for example when you are offline, Share gives a longer link that carries the scene itself and never expires. It leaves out any uploaded image.',
+          'If no link can be made at all, Share offers Save project file, which sends everything, uploaded images included.',
+          'During a lesson, Share gives a link to the lesson.',
+        ],
+      },
+      {
+        kind: 'callout',
+        tone: 'tip',
+        text: 'Opening a shared link keeps your current scene in My scenes first, so nothing is lost.',
+      },
+    ],
+    related: ['saving-loading', 'workspace-tour'],
   },
   {
     id: 'shortcuts',

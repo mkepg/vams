@@ -14,7 +14,7 @@ import {
   toStorePatchFromProject,
   VAMS_PROJECT_SCHEMA_VERSION,
 } from '@/entities/project/model/project-io';
-import { useVamsStore } from '@/core/store';
+import { useVamsStore, STORAGE_KEY } from '@/core/store';
 import { addTriangle, addQuad, getState } from '../helpers/store';
 
 describe('BB-PERSIST-01: A scene round-trips through save → JSON → load', () => {
@@ -164,5 +164,33 @@ describe('BB-PERSIST-08: A file saved with an object animation still opens', () 
     const data = sanitizeProjectData(saved);
     expect(data.objects.map((o) => o.id)).toEqual([t.id]);
     expect('animation' in data.objects[0]).toBe(false);
+  });
+});
+
+describe('BB-PERSIST-09: A project file without Grid numbers loads with them on', () => {
+  it('reads a missing showGridNumbers as true and keeps a saved false', () => {
+    const file = buildProjectFile(getState() as never);
+    const older: Record<string, unknown> = { ...file.data.axisVisibility };
+    delete older.showGridNumbers;
+    const loaded = sanitizeProjectData({ ...file.data, axisVisibility: older });
+    expect(loaded.axisVisibility.showGridNumbers).toBe(true);
+    const off = sanitizeProjectData({ ...file.data, axisVisibility: { ...older, showGridNumbers: false } });
+    expect(off.axisVisibility.showGridNumbers).toBe(false);
+  });
+});
+
+describe('BB-PERSIST-10: A background colour that is not a hex colour loads as black', () => {
+  it.each(['zzz', 'red', '#12345', '#1234567', '#12345g', 42, null])('replaces %j with #000000', (bad) => {
+    expect(sanitizeProjectData({ objects: [], canvasBackgroundColor: bad }).canvasBackgroundColor).toBe('#000000');
+  });
+  it('keeps a six-digit hex colour', () => {
+    expect(sanitizeProjectData({ objects: [], canvasBackgroundColor: '#1A2b3C' }).canvasBackgroundColor).toBe('#1A2b3C');
+  });
+  it('repairs a bad colour already saved in the browser', async () => {
+    const saved = { state: { canvasBackgroundColor: 'zzz' }, version: 11 };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+    await useVamsStore.persist.rehydrate();
+    expect(useVamsStore.getState().canvasBackgroundColor).toBe('#000000');
+    localStorage.removeItem(STORAGE_KEY);
   });
 });

@@ -1,44 +1,32 @@
 @use '../../../shared/styles/tokens' as *;
 
 .run-control {
-  position: absolute;
-  top: var(--space-2);
-  right: var(--space-2);
-  z-index: 25;
+  position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: var(--space-1);
+  align-items: center;
 }
 
-// Why Run is off, on the canvas plate under the button.
-.run-plate {
-  max-width: 220px;
-  margin: 0;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--canvas-plate-line);
-  border-radius: var(--radius-s);
-  background: var(--canvas-plate);
-  color: var(--canvas-plate-text);
-  font-size: var(--text-xs);
-  line-height: 1.4;
-  text-align: right;
+// The dialog under Run that says why it cannot start. It uses the menus' surface.
+.run-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 1040;
+  box-sizing: border-box;
+  width: 264px;
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  background: var(--paper-raised);
+  box-shadow: 0 10px 28px rgba(var(--shadow-rgb), 0.22);
+  color: var(--ink);
+  white-space: normal;
 
-  &__link {
-    padding: 0;
-    border: 0;
-    background: none;
-    color: inherit;
-    font: inherit;
-    text-decoration: underline;
-    text-underline-offset: 2px;
-    cursor: pointer;
-
-    &:focus-visible {
-      outline: 2px solid var(--focus-ring);
-      outline-offset: 2px;
-    }
-  }
+  &__title { margin: 0; font-size: var(--text-base); font-weight: 600; }
+  &__body { margin: 0; font-size: var(--text-sm); color: var(--ink-muted); line-height: 1.4; }
+  &__action { justify-self: start; }
 }
 
 .run-layer {
@@ -130,10 +118,6 @@
 
   &__hint {
     opacity: 0.85;
-  }
-
-  &__stop {
-    margin-left: auto;
   }
 }
 

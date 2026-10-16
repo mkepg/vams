@@ -1,13 +1,14 @@
-import { Code, FileJson, FilePlus, FolderOpen, Library, Save } from 'lucide-react';
+import { Code, FilePlus, FolderOpen, Library, Save } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import type { VamsProjectData } from '@/entities/project/model/project-io';
+import { sceneNameFromFile } from '@/entities/project/model/scene-library';
 import { backupCurrentScene, backupLabel, replaceScene, useMyScenesDialog } from '@/features/scene-library';
 import { useNewWorkspace } from '@/features/workspace-reset/model/useNewWorkspace';
 import { useProjectFile } from '@/features/project-io/model/useProjectFile';
 import { MenuButton, type MenuEntry } from '@/shared/ui/controls';
 
 function loadProject(data: VamsProjectData, fileName: string): Promise<number> {
-  return replaceScene(data, { reason: 'open-file', label: backupLabel(fileName) }).then((result) => result.detached);
+  return replaceScene(data, { reason: 'open-file', label: backupLabel(fileName), name: sceneNameFromFile(fileName) }).then((result) => result.detached);
 }
 
 function backupBeforeReset(): Promise<unknown> {
@@ -24,7 +25,6 @@ export default function FileMenu() {
     { kind: 'item', id: 'save', label: 'Save project file', icon: <Save />, onSelect: file.save },
     { kind: 'separator', id: 'sep-export' },
     { kind: 'item', id: 'cpp', label: 'Export C++ code', icon: <Code />, onSelect: file.exportCpp },
-    { kind: 'item', id: 'json', label: 'Export scene JSON', icon: <FileJson />, onSelect: file.save },
   ];
   const entries: MenuEntry[] = inLesson
     ? saveAndExport
@@ -39,7 +39,7 @@ export default function FileMenu() {
   return (
     <>
       <input {...file.inputProps} />
-      <MenuButton label="File" entries={entries} align="end">File</MenuButton>
+      <MenuButton label="File" variant="quiet" entries={entries}>File</MenuButton>
     </>
   );
 }

@@ -1,5 +1,8 @@
 export {
   type SiteTheme,
+  type ThemeChoice,
+  readThemeChoice,
+  setThemeChoice,
   THEME_STORAGE_KEY,
   DEFAULT_THEME,
   isSiteTheme,

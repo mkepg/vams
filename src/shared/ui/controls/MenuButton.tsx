@@ -7,7 +7,7 @@ import './menu.scss';
 export type MenuEntry =
   | { kind: 'item'; id: string; label: string; icon?: ComponentChildren; description?: string; disabled?: boolean; onSelect: () => void }
   | { kind: 'radio'; id: string; label: string; icon?: ComponentChildren; description?: string; checked: boolean; onSelect: () => void }
-  | { kind: 'checkbox'; id: string; label: string; icon?: ComponentChildren; checked: boolean; onSelect: () => void }
+  | { kind: 'checkbox'; id: string; label: string; icon?: ComponentChildren; checked: boolean; disabled?: boolean; onSelect: () => void }
   | { kind: 'separator'; id: string }
   | { kind: 'group'; id: string; label: string };
 
@@ -31,6 +31,8 @@ export interface MenuButtonProps {
 
 const isActionable = (entry: MenuEntry): entry is Actionable =>
   entry.kind === 'item' || entry.kind === 'radio' || entry.kind === 'checkbox';
+
+const isDisabled = (entry: Actionable) => (entry.kind === 'item' || entry.kind === 'checkbox') && entry.disabled === true;
 
 export function MenuButton({
   label, entries, children, icon, iconOnly = false, variant = 'secondary', align = 'start',
@@ -77,7 +79,7 @@ export function MenuButton({
   }, [open]);
 
   const activate = (entry: Actionable) => {
-    if (entry.kind === 'item' && entry.disabled) return;
+    if (isDisabled(entry)) return;
     close(true);
     entry.onSelect();
   };
@@ -178,7 +180,7 @@ export function MenuButton({
   const renderItem = (entry: Actionable) => {
     const index = actionable.indexOf(entry);
     const role = entry.kind === 'item' ? 'menuitem' : entry.kind === 'radio' ? 'menuitemradio' : 'menuitemcheckbox';
-    const disabled = entry.kind === 'item' && entry.disabled;
+    const disabled = isDisabled(entry);
     return (
       <div
         key={entry.id}

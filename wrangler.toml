@@ -1,0 +1,9 @@
+# Cloudflare Pages: the site's build output and the store behind shared scene links.
+# This file is the project's configuration source; the dashboard shows these fields read-only.
+name = "vams"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-10-12"
+
+[[kv_namespaces]]
+binding = "SHARES"
+id = "7d85439fec8247699fb6cbef54207f94"

@@ -63,8 +63,20 @@ tests/
 │   │                                        steps, checks and spotlight)
 │   ├── code-panel.test.ts                (BB-CODE-*: folds, value marks, Find,
 │   │                                        the strip and notes)
-│   └── math-journey.test.ts              (BB-JOURNEY-*: the vertex journey, its
-│                                            stages, the stepper and the links)
+│   ├── math-journey.test.ts              (BB-JOURNEY-*: the vertex journey, its
+│   │                                        stages, the stepper and the links)
+│   ├── top-bar.test.ts                   (BB-TOP-*: the top bar, the scene
+│   │                                        title and its menus)
+│   ├── canvas-window.test.ts             (BB-CANVAS-*: the canvas header, the
+│   │                                        View menu and Run)
+│   ├── program-window.test.ts            (BB-WINDOW-*: the program's window:
+│   │                                        move, resize, minimise, close)
+│   ├── share.test.ts                     (BB-SHARE-*: the Share dialog and
+│   │                                        choosing a link)
+│   ├── scene-view.test.ts                (BB-VIEW-*: the read-only scene view
+│   │                                        on phones)
+│   └── help-center.test.ts               (BB-HELP-*: the Help Center's topics
+│                                            and search)
 ├── white-box/                    ← Maps to Table 13.
 │   ├── state-management.test.ts          (WB-STATE-*)
 │   ├── matrix-engine.test.ts             (WB-MATRIX-*)
@@ -78,8 +90,16 @@ tests/
 │   │                                        the generated C++)
 │   ├── code-structure.test.ts            (WB-CODE-*: the outline, folds, value
 │   │                                        diff and explanation catalogue)
-│   └── vertex-journey.test.ts            (WB-JOURNEY-*: each stage's numbers
-│                                            against the reference)
+│   ├── vertex-journey.test.ts            (WB-JOURNEY-*: each stage's numbers
+│   │                                        against the reference)
+│   ├── share-payload.test.ts             (WB-SHARE-*: the shared payload,
+│   │                                        links, image shrinking, QR codes)
+│   ├── share-function.test.ts            (WB-SHAREFN-*: the Pages Function
+│   │                                        that stores shares)
+│   ├── grid-labels.test.ts               (WB-GRID-*: axis labels inside the
+│   │                                        canvas)
+│   └── program-window.test.ts            (WB-WINDOW-*: the window's size and
+│                                            position rules)
 ├── visual/                       ← Not part of `npm test`.
 │   ├── editor.spec.ts                    (VIS-EDITOR-*: screenshot checks,
 │   │                                        including the rail panels,
@@ -90,7 +110,9 @@ tests/
 │   ├── learn.spec.ts                     (VIS-LEARN-*: the /learn course map)
 │   ├── about.spec.ts                     (VIS-ABOUT-*: the /about page at
 │   │                                        1280 and 390, citation tabs)
-│   └── code-math.spec.ts                 (VIS-CM-*: the code panel and the math journey in the approved mocks' scene)
+│   ├── code-math.spec.ts                 (VIS-CM-*: the code panel and the math journey in the approved mocks' scene)
+│   └── share.spec.ts                     (VIS-SHARE-*: the Share dialog at 1280, the phone scene
+│                                        view at 390 and the closing slide's QR code)
 ├── algorithm/                    ← Maps to §3.10.3 Algorithm Validation.
 │   ├── algorithm-1-global-matrix.test.ts        (ALG-1-*)
 │   ├── algorithm-2-code-generation.test.ts      (ALG-2-*)
@@ -109,7 +131,7 @@ tests/
 ## Running
 
 ```bash
-npm test                # run all 832 tests
+npm test                # run all 1003 tests
 npm run test:watch      # watch mode for development
 npm run test:coverage   # also produce tests/reports/coverage/
 npm run test:visual     # editor screenshot checks (Playwright, installed Chrome)

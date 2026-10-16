@@ -1,3 +1,4 @@
+import { toHexColor } from '@/shared/lib/hex-color';
 import { migratePersistedState } from '@/core/store/persist-migrate';
 import { create } from 'zustand';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
@@ -15,7 +16,9 @@ import { createCallbacksSlice } from '@/core/store/callbacks-slice';
 import { createTextureSlice } from '@/core/store/texture-slice';
 import { createHelpSlice } from '@/core/store/help-slice';
 import { createTourSlice } from '@/core/store/tour-slice';
+import { createSceneIdentitySlice } from '@/entities/project/model/scene-identity-slice';
 import { reportCorruptSave } from '@/core/store/recovery-signal';
+import { isSceneViewLoad } from '@/shared/lib/scene-view-load';
 
 enableMapSet();
 export const STORAGE_KEY = 'vams-storage';
@@ -39,6 +42,10 @@ const safeStorage: StateStorage = {
   },
 };
 
+/** The phone scene view only shows a shared scene: it neither reads nor writes the visitor's saved editor. */
+const NO_STORAGE: StateStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+const pageStorage: StateStorage = isSceneViewLoad() ? NO_STORAGE : safeStorage;
+
 export const useVamsStore = create<VamsState>()(
   persist(
     (...a) => ({
@@ -54,6 +61,7 @@ export const useVamsStore = create<VamsState>()(
       ...createTextureSlice(...a),
       ...createHelpSlice(...a),
       ...createTourSlice(...a),
+      ...createSceneIdentitySlice(...a),
       resetProject: () => {
         localStorage.removeItem(STORAGE_KEY);
         window.location.reload();
@@ -61,9 +69,9 @@ export const useVamsStore = create<VamsState>()(
     }),
     {
       name: STORAGE_KEY,
-      version: 9,
+      version: 11,
       migrate: (persisted, version) => migratePersistedState(persisted, version) as never,
-      storage: createJSONStorage(() => safeStorage),
+      storage: createJSONStorage(() => pageStorage),
       onRehydrateStorage: () => {
         return (rehydratedState, error) => {
           if (error) {
@@ -82,6 +90,11 @@ export const useVamsStore = create<VamsState>()(
           // A lesson backup that survived a reload means the page reloaded mid-lesson:
           // put the student's own scene back and leave the lesson.
           if (rehydratedState?.sceneBackup) rehydratedState.clearLessonState();
+          // A saved colour PixiJS cannot read would leave the canvas blank on every load.
+          if (rehydratedState && toHexColor(rehydratedState.canvasBackgroundColor) !== rehydratedState.canvasBackgroundColor) {
+            rehydratedState.setCanvasBackgroundColor('#000000');
+          }
+          rehydratedState?.ensureSceneId();
           rehydratedState?.pickOpeningPanel();
         };
       },
@@ -97,6 +110,8 @@ export const useVamsStore = create<VamsState>()(
         callbacks: state.callbacks,
         uploadedTextures: state.uploadedTextures,
         hasSeenWelcome: state.hasSeenWelcome,
+        sceneId: state.sceneId,
+        sceneName: state.sceneName,
         sceneBackup: state.sceneBackup,
         callbacksBackup: state.callbacksBackup,
         canvasBackgroundColorBackup: state.canvasBackgroundColorBackup,

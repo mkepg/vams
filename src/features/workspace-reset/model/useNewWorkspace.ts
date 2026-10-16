@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { toast } from 'sonner';
 import { useVamsStore } from '@/core/store';
 import { isSceneEmpty } from '@/entities/project/model/scene-empty';
+import { sceneIdentity } from '@/entities/project/model/scene-library';
 import { confirm } from '@/shared/ui/confirm-dialog/confirm-store';
 
 /**
@@ -37,6 +38,7 @@ export function useNewWorkspace(beforeReset: () => Promise<unknown>): () => Prom
       callbacks: emptyCallbacks(),
       viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
       uploadedTextures: [],
+      ...sceneIdentity(),
     });
     const state = useVamsStore.getState();
     state.setCanvasBackgroundColor('#000000');

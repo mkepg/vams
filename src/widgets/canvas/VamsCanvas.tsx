@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { useVamsStore } from '@/core/store';
 import { usePixiApp } from '@/shared/engine/pixi/hooks/usePixiApp';
 import { useCanvasInteraction } from '@/features/scene-interaction/model/useCanvasInteraction';
@@ -12,15 +12,14 @@ import './vams-canvas.scss';
 
 interface VamsCanvasProps {
   isHidden?: boolean;
+  /** Draws the scene without taking pointer or key input (the shared scene view). */
+  readOnly?: boolean;
 }
 
-export default function VamsCanvas({ isHidden = false }: VamsCanvasProps) {
+export default function VamsCanvas({ isHidden = false, readOnly = false }: VamsCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [coordinates, setCoordinates] = useState({ x: 0, y: 0 });
 
-  const viewportLimits = useVamsStore((state) => state.viewportLimits);
   const interactionMode = useVamsStore((state) => state.interactionMode);
-  const showCoordinateTracker = useVamsStore((state) => state.showCoordinateTracker);
   const setCursorWorld = useVamsStore((state) => state.setCursorWorld);
   const objectCount = useVamsStore((state) => state.objects.length);
   const appMode = useVamsStore((state) => state.appMode);
@@ -32,6 +31,7 @@ export default function VamsCanvas({ isHidden = false }: VamsCanvasProps) {
     appRef,
     worldRef,
     canvasRef,
+    readOnly,
   });
 
   useSceneRenderer({ pixiReady, appRef, worldRef, overlayRef, applyViewportTransform });
@@ -58,10 +58,9 @@ export default function VamsCanvas({ isHidden = false }: VamsCanvasProps) {
   }, []);
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (isHidden) return;
+    if (isHidden || readOnly) return;
     const { x, y } = screenToWorld(event.clientX, event.clientY);
-    
-    setCoordinates({ x, y });
+
     pendingCoordRef.current = { x, y };
 
     if (rafRef.current === null) {
@@ -76,32 +75,22 @@ export default function VamsCanvas({ isHidden = false }: VamsCanvasProps) {
     setCursorWorld(null);
   };
 
-  const cursorStyle = interactionMode === 'VERTEX_PLACE' ? 'crosshair' : undefined;
+  const cursorStyle = !readOnly && interactionMode === 'VERTEX_PLACE' ? 'crosshair' : undefined;
   
-  // Derive effective visibility: hidden along with the canvas, while the underlying
-  // user setting is preserved.
-  const effectiveShowCoordinateTracker = showCoordinateTracker && !isHidden;
-
   // Onboarding nudge: only on the real editing canvas, in Author mode, with an empty scene.
   const showEmptyHint =
-    !isHidden && appMode === 'Author' && objectCount === 0;
+    !isHidden && !readOnly && appMode === 'Author' && objectCount === 0;
 
   return (
     <div
-      className={`canvas-wrapper ${isHidden ? 'hidden' : ''}`}
+      className={`canvas-wrapper${isHidden ? ' hidden' : ''}${readOnly ? ' canvas-wrapper--readonly' : ''}`}
       ref={canvasRef}
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
       onContextMenu={(event) => event.preventDefault()}
       style={{ cursor: cursorStyle }}
     >
-      <CanvasOverlays
-        viewportLimits={viewportLimits}
-        interactionMode={interactionMode}
-        coordinates={coordinates}
-        showCoordinateTracker={effectiveShowCoordinateTracker}
-        showEmptyHint={showEmptyHint}
-      />
+      <CanvasOverlays showEmptyHint={showEmptyHint} />
     </div>
   );
 }

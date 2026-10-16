@@ -102,3 +102,27 @@ export function followSystemTheme(): () => void {
 export function toEditorTheme(theme: SiteTheme): 'dark' | 'light' {
   return theme;
 }
+
+/** An explicit theme, or 'system' to follow the operating system. */
+export type ThemeChoice = SiteTheme | 'system';
+
+export function readThemeChoice(): ThemeChoice {
+  return readStoredTheme() ?? 'system';
+}
+
+export function setThemeChoice(choice: ThemeChoice): void {
+  if (choice !== 'system') {
+    setTheme(choice);
+    return;
+  }
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.removeItem(THEME_STORAGE_KEY);
+    } catch {
+      // Storage can be unavailable; the system theme still applies for this visit.
+    }
+  }
+  const next = systemTheme();
+  applyTheme(next);
+  notify(next);
+}

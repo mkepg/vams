@@ -8,7 +8,8 @@ type Theme = 'light' | 'dark';
 
 // Timed notices stay out of screenshots: the offline notice appears once the service worker
 // installs, and toasts appear on their own schedule.
-const HIDE_TIMED_NOTICES = '.update-notice, [data-sonner-toaster] { display: none !important; }';
+const HIDE_TIMED_NOTICES =
+  '.update-notice, [data-sonner-toaster] { display: none !important; } .scene-title__state { visibility: hidden !important; }';
 
 async function open(page: Page, path: string, theme: Theme = 'light') {
   await page.addInitScript(
