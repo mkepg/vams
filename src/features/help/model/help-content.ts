@@ -79,7 +79,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       },
       {
         kind: 'paragraph',
-        text: 'The top bar holds File and Learn, then your scene’s name: click it to rename the scene, and the note beside it says when it was saved. On the right are undo and redo, Settings (the theme and the keyboard shortcuts), Help and Share. The canvas is drawn as your program’s window, titled VAMS Preview with its size, the same title and size the generated main() gives it. The header above it shows the viewing volume, the cursor position when the coordinate tracker is on, the View menu (axes, gridlines, grid numbers and the tracker) and Run. If Run can’t start, click it: it tells you why and offers a button that fixes it.',
+        text: 'The top bar holds File and Learn, then your scene’s name: click it to rename the scene, and the note beside it says whether the scene is saved. On the right are undo and redo, Settings (the theme and the keyboard shortcuts), Help and Share. The canvas is drawn as your program’s window, titled VAMS Preview with its size, the same title and size the generated main() gives it. The header above it shows the viewing volume, the cursor position when the coordinate tracker is on, the View menu (axes, gridlines, grid numbers and the tracker) and Run. If Run can’t start, click it: it tells you why and offers a button that fixes it.',
       },
       {
         kind: 'paragraph',
@@ -129,7 +129,7 @@ export const HELP_TOPICS: HelpTopic[] = [
           'Learn — open the course map and start a demo or an exercise.',
           'File — start a new workspace, open My scenes, open or save a project file, or export the C++ code.',
           'Undo / Redo — step backward and forward through your edits.',
-          'Scene name — click it to rename the scene. The note beside it shows when it was last saved.',
+          'Scene name — click it to rename the scene. The note beside it shows whether the scene is saved: Saving…, Saved or Not saved.',
           'Settings — choose the theme and open the shortcut list.',
           'Share — make a link and a QR code for your scene.',
           'Help — open this Help Center (also ? or F1).',
@@ -163,7 +163,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { kind: 'heading', text: 'Placing vertices' },
       {
         kind: 'paragraph',
-        text: 'When you start a custom shape, the canvas enters vertex-placement mode and a banner appears. Click to drop each vertex in order; the shape needs a minimum number of vertices before it can be finished.',
+        text: 'When you start a custom shape, the canvas enters vertex-placement mode and the canvas header shows the keys: Click to place, Enter to finish, Backspace to undo the last vertex and Esc to cancel. Click to drop each vertex in order; the shape needs a minimum number of vertices before it can be finished.',
       },
       { kind: 'heading', text: 'Running your program' },
       {

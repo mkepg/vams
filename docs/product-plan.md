@@ -117,7 +117,7 @@ VAMS maintains several distinct areas of state, each with a single clear owner. 
 
 The workspace has a top bar and three working regions:
 
-- **Top bar**: File, Learn and the working scene's name on the left (renamed in place, auto-saved by name to My scenes, with a note of when it was saved); undo, redo, a Settings menu (the theme and the keyboard shortcuts), Help and Share on the right. During a lesson the name slot shows the lesson and its step. The File menu holds new, open, save, My scenes and export. The view options (coordinate axes, gridlines, grid numbers and the coordinate tracker) are in the View menu on the canvas header.
+- **Top bar**: File, Learn and the working scene's name on the left (renamed in place, auto-saved by name to My scenes, with a note of whether it is saved); undo, redo, a Settings menu (the theme and the keyboard shortcuts), Help and Share on the right. During a lesson the name slot shows the lesson and its step. The File menu holds new, open, save, My scenes and export. The view options (coordinate axes, gridlines, grid numbers and the coordinate tracker) are in the View menu on the canvas header.
 - **Rail and panel**: a slim labelled rail on the left with Add, Scene and Settings, a divider, then Callbacks, and Hide at the bottom. One panel shows beside it at a time:
   - *Add*: the ten primitives by OpenGL name in three groups (points and lines, triangles, quads and polygons), Text, and the prepared sample scenes.
   - *Scene*: the object hierarchy with its toolbar (Select several, Group, Duplicate, Delete), and below it the selected object's inspector with groups in pipeline order (Vertices, Buffers, Transform, Appearance, Texture), each naming its OpenGL call.
