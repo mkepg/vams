@@ -74,7 +74,7 @@ describe('BB-RECOVER-04: Lesson backups are saved with the scene', () => {
     addTriangle();
     useVamsStore.getState().setActiveLesson('primitives-demo-1');
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
-    expect(saved.version).toBe(10);
+    expect(saved.version).toBe(11);
     expect(saved.state.sceneBackup).toHaveLength(1);
     useVamsStore.getState().clearLessonState();
   });

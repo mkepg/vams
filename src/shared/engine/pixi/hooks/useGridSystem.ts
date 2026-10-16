@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Application, Container, Graphics, Text, TextStyle } from "pixi.js";
 import { useVamsStore } from "@/core/store";
-import { insetLabel, tickRange } from "../grid-labels";
+import { GRID_STYLE, gridLevels, insetLabel, tickRange } from "../grid-labels";
 interface UseGridSystemProps {
   pixiReady: boolean;
   appRef: React.MutableRefObject<Application | null>;
@@ -44,7 +44,7 @@ export function useGridSystem({
       labelsContainerRef.current?.addChild(textObj);
     }
     textObj.visible = true;
-    textObj.alpha = 0.6; // Set alpha on the Text object, not the style
+    textObj.alpha = GRID_STYLE.numberAlpha; // Set alpha on the Text object, not the style
     return textObj;
   };
   // Main Render Loop
@@ -86,25 +86,40 @@ export function useGridSystem({
       const ticksX = tickRange(startX, endX, niceStep);
       const ticksY = tickRange(startY, endY, niceStep);
       if (axisVisibility.showGridlines) {
-        g.setStrokeStyle({ width: 1, color: 0xffffff, alpha: 0.1 });
-        for (const x of ticksX) {
-          const screenPos = world.toGlobal({ x, y: 0 });
-          if (screenPos.x >= -1 && screenPos.x <= screenWidth + 1) {
-            g.moveTo(screenPos.x, 0);
-            g.lineTo(screenPos.x, screenHeight);
+        const xs = gridLevels(startX, endX, niceStep);
+        const ys = gridLevels(startY, endY, niceStep);
+        const minorPx = (niceStep / GRID_STYLE.minorPerMajor) * zoom;
+        const strokeVertical = (xList: number[]) => {
+          for (const x of xList) {
+            const screenPos = world.toGlobal({ x, y: 0 });
+            if (screenPos.x >= -1 && screenPos.x <= screenWidth + 1) {
+              g.moveTo(screenPos.x, 0);
+              g.lineTo(screenPos.x, screenHeight);
+            }
           }
-        }
-        for (const y of ticksY) {
-          const screenPos = world.toGlobal({ x: 0, y });
-          if (screenPos.y >= -1 && screenPos.y <= screenHeight + 1) {
-            g.moveTo(0, screenPos.y);
-            g.lineTo(screenWidth, screenPos.y);
+        };
+        const strokeHorizontal = (yList: number[]) => {
+          for (const y of yList) {
+            const screenPos = world.toGlobal({ x: 0, y });
+            if (screenPos.y >= -1 && screenPos.y <= screenHeight + 1) {
+              g.moveTo(0, screenPos.y);
+              g.lineTo(screenWidth, screenPos.y);
+            }
           }
+        };
+        if (minorPx >= GRID_STYLE.minMinorPx) {
+          g.setStrokeStyle({ width: 1, color: 0xffffff, alpha: GRID_STYLE.minorAlpha });
+          strokeVertical(xs.minor);
+          strokeHorizontal(ys.minor);
+          g.stroke();
         }
+        g.setStrokeStyle({ width: 1, color: 0xffffff, alpha: GRID_STYLE.majorAlpha });
+        strokeVertical(xs.major);
+        strokeHorizontal(ys.major);
         g.stroke();
       }
       if (axisVisibility.showOriginMarker) {
-        g.setStrokeStyle({ width: 1, color: 0xffffff, alpha: 0.3 });
+        g.setStrokeStyle({ width: 1, color: 0xffffff, alpha: GRID_STYLE.axisAlpha });
         if (originScreen.y >= 0 && originScreen.y <= screenHeight) {
           g.moveTo(0, originScreen.y);
           g.lineTo(screenWidth, originScreen.y);
@@ -114,7 +129,7 @@ export function useGridSystem({
           g.lineTo(originScreen.x, screenHeight);
         }
         g.stroke();
-        g.setStrokeStyle({ width: 1, color: 0xffffff, alpha: 0.45 });
+        g.setStrokeStyle({ width: 1, color: 0xffffff, alpha: GRID_STYLE.axisAlpha });
         for (const x of ticksX) {
           const sx = world.toGlobal({ x, y: 0 }).x;
           g.moveTo(sx, originScreen.y - 3);
@@ -126,7 +141,7 @@ export function useGridSystem({
           g.lineTo(originScreen.x + 3, sy);
         }
         g.stroke();
-        for (const x of ticksX) {
+        for (const x of axisVisibility.showGridNumbers ? ticksX : []) {
           if (Math.abs(x) < niceStep / 10) continue;
           const screenPos = world.toGlobal({ x, y: 0 });
           const screenX = screenPos.x;
@@ -142,7 +157,7 @@ export function useGridSystem({
             }
           }
         }
-        for (const y of ticksY) {
+        for (const y of axisVisibility.showGridNumbers ? ticksY : []) {
           if (Math.abs(y) < niceStep / 10) continue;
           const screenPos = world.toGlobal({ x: 0, y });
           const screenX = originScreen.x;
@@ -161,6 +176,7 @@ export function useGridSystem({
       }
       if (
         axisVisibility.showOriginMarker &&
+        axisVisibility.showGridNumbers &&
         originScreen.x >= -20 &&
         originScreen.x <= screenWidth + 20 &&
         originScreen.y >= -20 &&

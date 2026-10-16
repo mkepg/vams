@@ -775,7 +775,7 @@ describe('BB-SHELL-30: The rail and the code column are never saved', () => {
     s().setCodePane('math');
     s().setCodeHidden(true);
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
-    expect(saved.version).toBe(10);
+    expect(saved.version).toBe(11);
     for (const key of ['railPanel', 'railHidden', 'codePane', 'codeHidden', 'codeChangedUnseen']) {
       expect(saved.state).not.toHaveProperty(key);
     }
@@ -1129,5 +1129,23 @@ describe('BB-SHELL-42: Add a shape moves focus to the first primitive tile', () 
       unmount(host);
       media.restore();
     }
+  });
+});
+
+describe('BB-SHELL-43: The settings menu toggles Grid numbers', () => {
+  it('lists the checkbox right after Gridlines and flips the setting', async () => {
+    useVamsStore.getState().setAxisVisibility({ showGridNumbers: true });
+    const host = mount(h(EditorPreferencesMenu, {}));
+    await openMenu(host, 'Settings');
+    const boxes = [...host.querySelectorAll('[role="menuitemcheckbox"]')];
+    const at = boxes.findIndex((el) => el.textContent?.includes('Gridlines'));
+    const item = boxes[at + 1] as HTMLElement;
+    expect(item.textContent).toContain('Grid numbers');
+    expect(item.getAttribute('aria-checked')).toBe('true');
+    item.click();
+    await settle();
+    expect(useVamsStore.getState().axisVisibility.showGridNumbers).toBe(false);
+    unmount(host);
+    useVamsStore.getState().setAxisVisibility({ showGridNumbers: true });
   });
 });

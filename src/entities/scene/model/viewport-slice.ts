@@ -8,6 +8,7 @@ export const createViewportSlice: StateCreator<VamsState, [], [], ViewportSlice>
     showLocalAxes: true,
     showOriginMarker: true,
     showGridlines: true,
+    showGridNumbers: true,
   },
   // Automatically disabled by default to avoid redundancy with the initial Pipeline active tab
   showCoordinateTracker: false,

@@ -234,3 +234,41 @@ describe('BB-CANVAS-08: The viewport refits as soon as the canvas box changes si
     unmount(host);
   });
 });
+
+describe('BB-CANVAS-09: The header toggles Grid numbers', () => {
+  it('steps aside while vertices are being placed, to leave the hint whole', async () => {
+    useVamsStore.setState({ interactionMode: 'VERTEX_PLACE' });
+    const host = mount(h(CanvasHeader, {}));
+    await settle();
+    expect(host.querySelector('button[aria-label="Grid numbers"]')).toBeNull();
+    unmount(host);
+  });
+  const axis = () => useVamsStore.getState().axisVisibility;
+  it('reflects the setting in aria-pressed and flips it on click', async () => {
+    useVamsStore.getState().setAxisVisibility({ showOriginMarker: true, showGridNumbers: true });
+    const host = mount(h(CanvasHeader, {}));
+    await settle();
+    const button = host.querySelector('button[aria-label="Grid numbers"]') as HTMLButtonElement;
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(button.getAttribute('title')).toBe('Grid numbers');
+    expect(button.nextElementSibling?.classList.contains('run-control')).toBe(true);
+    button.click();
+    await settle();
+    expect(axis().showGridNumbers).toBe(false);
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    button.click();
+    await settle();
+    expect(axis().showGridNumbers).toBe(true);
+    unmount(host);
+  });
+  it('is disabled, with its reason, while Coordinate axes are off', async () => {
+    useVamsStore.getState().setAxisVisibility({ showOriginMarker: false, showGridNumbers: true });
+    const host = mount(h(CanvasHeader, {}));
+    await settle();
+    const button = host.querySelector('button[aria-label="Grid numbers"]') as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute('title')).toBe('Grid numbers (turn on Coordinate axes first)');
+    unmount(host);
+    useVamsStore.getState().setAxisVisibility({ showOriginMarker: true });
+  });
+});

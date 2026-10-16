@@ -185,10 +185,10 @@ describe('WB-PERSIST-09: Browser storage version 9 migrates to version 10', () =
   });
 });
 
-describe('WB-PERSIST-10: The store saves the scene identity at version 10', () => {
+describe('WB-PERSIST-10: The store saves the scene identity at version 11', () => {
   it('persists sceneId and sceneName', () => {
     const options = useVamsStore.persist.getOptions();
-    expect(options.version).toBe(10);
+    expect(options.version).toBe(11);
     useVamsStore.setState({ sceneId: 'id-1', sceneName: 'Solar system' });
     const saved = options.partialize!(useVamsStore.getState()) as Record<string, unknown>;
     expect(saved.sceneId).toBe('id-1');
@@ -204,5 +204,20 @@ describe('WB-PERSIST-11: ensureSceneId gives a migrated save an id once', () => 
     expect(first).not.toBe('');
     useVamsStore.getState().ensureSceneId();
     expect(useVamsStore.getState().sceneId).toBe(first);
+  });
+});
+
+describe('WB-PERSIST-12: Browser storage version 10 migrates to version 11', () => {
+  it('turns Grid numbers on for an older save and keeps the other axis fields', () => {
+    const axis = { showGlobalAxes: false, showLocalAxes: true, showOriginMarker: false, showGridlines: true };
+    const input = { axisVisibility: axis };
+    const out = migratePersistedState(input, 10) as { axisVisibility: Record<string, unknown> };
+    expect(out.axisVisibility).toEqual({ ...axis, showGridNumbers: true });
+    expect(input.axisVisibility).toEqual(axis);
+  });
+  it('leaves a saved choice alone', () => {
+    const saved = { axisVisibility: { showGlobalAxes: true, showLocalAxes: true, showOriginMarker: true, showGridlines: true, showGridNumbers: false } };
+    const out = migratePersistedState(saved, 11) as { axisVisibility: { showGridNumbers: boolean } };
+    expect(out.axisVisibility.showGridNumbers).toBe(false);
   });
 });

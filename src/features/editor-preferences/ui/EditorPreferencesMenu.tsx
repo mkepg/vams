@@ -45,6 +45,10 @@ export default function EditorPreferencesMenu() {
       onSelect: () => setAxisVisibility({ ...axisVisibility, showGridlines: !axisVisibility.showGridlines }),
     },
     {
+      kind: 'checkbox', id: 'grid-numbers', label: 'Grid numbers', checked: axisVisibility.showGridNumbers,
+      onSelect: () => setAxisVisibility({ ...axisVisibility, showGridNumbers: !axisVisibility.showGridNumbers }),
+    },
+    {
       kind: 'checkbox', id: 'tracker', label: 'Coordinate tracker', checked: showCoordinateTracker,
       onSelect: () => setShowCoordinateTracker(!showCoordinateTracker),
     },

@@ -63,7 +63,7 @@ export const useVamsStore = create<VamsState>()(
     }),
     {
       name: STORAGE_KEY,
-      version: 10,
+      version: 11,
       migrate: (persisted, version) => migratePersistedState(persisted, version) as never,
       storage: createJSONStorage(() => safeStorage),
       onRehydrateStorage: () => {

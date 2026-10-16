@@ -166,3 +166,15 @@ describe('BB-PERSIST-08: A file saved with an object animation still opens', () 
     expect('animation' in data.objects[0]).toBe(false);
   });
 });
+
+describe('BB-PERSIST-09: A project file without Grid numbers loads with them on', () => {
+  it('reads a missing showGridNumbers as true and keeps a saved false', () => {
+    const file = buildProjectFile(getState() as never);
+    const older: Record<string, unknown> = { ...file.data.axisVisibility };
+    delete older.showGridNumbers;
+    const loaded = sanitizeProjectData({ ...file.data, axisVisibility: older });
+    expect(loaded.axisVisibility.showGridNumbers).toBe(true);
+    const off = sanitizeProjectData({ ...file.data, axisVisibility: { ...older, showGridNumbers: false } });
+    expect(off.axisVisibility.showGridNumbers).toBe(false);
+  });
+});

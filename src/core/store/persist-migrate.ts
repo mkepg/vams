@@ -4,7 +4,8 @@ import { migrateLegacyCallbacks } from '@/core/callbacks/callbacks-model';
  * Persisted store migrations. Version 7 kept a handler name per callback kind; version 8
  * keeps each callback's rules too. Version 9 drops the saved per-object animation, since
  * motion now comes from idle rules. Version 10 names the working scene and gives it its own
- * My scenes entry; an older save is 'Untitled scene' with an id assigned on rehydration. Saves older than version 7 were always discarded, and
+ * My scenes entry; an older save is 'Untitled scene' with an id assigned on rehydration.
+ * Version 11 adds the Grid numbers view setting, on for an older save. Saves older than version 7 were always discarded, and
  * still are: they start from a blank editor.
  */
 export function migratePersistedState(persisted: unknown, version: number): unknown {
@@ -22,6 +23,12 @@ export function migratePersistedState(persisted: unknown, version: number): unkn
   if (version < 10) {
     if (typeof state.sceneName !== 'string') state.sceneName = 'Untitled scene';
     if (typeof state.sceneId !== 'string') state.sceneId = '';
+  }
+  if (version < 11) {
+    const axis = state.axisVisibility;
+    if (axis && typeof axis === 'object' && !('showGridNumbers' in axis)) {
+      state.axisVisibility = { ...(axis as Record<string, unknown>), showGridNumbers: true };
+    }
   }
   return state;
 }

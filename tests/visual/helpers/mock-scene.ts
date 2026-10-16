@@ -40,7 +40,7 @@ export async function openMockScene(page: Page, theme: Theme) {
       window.localStorage.setItem('vams-theme', t);
       window.localStorage.setItem('vams-storage', JSON.stringify({
         state: { objects, hasSeenWelcome: true, activeSection: 'Transforms' },
-        version: 10,
+        version: 11,
       }));
       const inject = () => {
         const style = document.createElement('style');

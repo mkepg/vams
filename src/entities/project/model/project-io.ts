@@ -63,7 +63,7 @@ const ALLOWED_OBJECT_TYPES: ReadonlySet<SceneNodeType> = new Set([
   'TEXT', 'GROUP',
 ]);
 const DEFAULT_VIEWPORT: ViewportLimits = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
-const DEFAULT_AXIS: AxisVisibility = { showGlobalAxes: true, showLocalAxes: true, showOriginMarker: true, showGridlines: true };
+const DEFAULT_AXIS: AxisVisibility = { showGlobalAxes: true, showLocalAxes: true, showOriginMarker: true, showGridlines: true, showGridNumbers: true };
 const DEFAULT_LEARNING: LearningSettings = { gridSnapping: false, snapIncrement: 0.1 };
 const DEFAULT_TRANSFORM: TransformState = { translateX: 0, translateY: 0, rotate: 0, scaleX: 1, scaleY: 1 };
 const DEFAULT_DATA: VamsProjectData = {
@@ -124,7 +124,7 @@ function sanitizeViewport(v: unknown): ViewportLimits {
 }
 function sanitizeAxis(v: unknown): AxisVisibility {
   if (!isRecord(v)) return DEFAULT_AXIS;
-  return { showGlobalAxes: toBoolean(v.showGlobalAxes, DEFAULT_AXIS.showGlobalAxes), showLocalAxes: toBoolean(v.showLocalAxes, DEFAULT_AXIS.showLocalAxes), showOriginMarker: toBoolean(v.showOriginMarker, DEFAULT_AXIS.showOriginMarker), showGridlines: toBoolean(v.showGridlines, DEFAULT_AXIS.showGridlines) };
+  return { showGlobalAxes: toBoolean(v.showGlobalAxes, DEFAULT_AXIS.showGlobalAxes), showLocalAxes: toBoolean(v.showLocalAxes, DEFAULT_AXIS.showLocalAxes), showOriginMarker: toBoolean(v.showOriginMarker, DEFAULT_AXIS.showOriginMarker), showGridlines: toBoolean(v.showGridlines, DEFAULT_AXIS.showGridlines), showGridNumbers: toBoolean(v.showGridNumbers, DEFAULT_AXIS.showGridNumbers) };
 }
 function sanitizeLearning(v: unknown): LearningSettings {
   if (!isRecord(v)) return DEFAULT_LEARNING;
