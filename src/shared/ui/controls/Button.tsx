@@ -8,6 +8,8 @@ export interface ButtonProps {
   variant?: ButtonVariant;
   size?: 'md' | 'lg';
   icon?: ComponentChildren;
+  /** Puts the icon after the label, for a forward action. */
+  iconAfter?: boolean;
   /** Renders only the icon; `label` becomes the accessible name and the tooltip. */
   iconOnly?: boolean;
   label?: string;
@@ -32,12 +34,13 @@ export interface ButtonProps {
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'secondary', size = 'md', icon, iconOnly = false, label, children, className, type = 'button', title, ...rest },
+  { variant = 'secondary', size = 'md', icon, iconAfter = false, iconOnly = false, label, children, className, type = 'button', title, ...rest },
   ref,
 ) {
   const classes = ['vbtn', `vbtn--${variant}`, `vbtn--${size}`, iconOnly ? 'vbtn--icon' : '', className ?? '']
     .filter(Boolean)
     .join(' ');
+  const iconSpan = icon ? <span className="vbtn__icon" aria-hidden="true">{icon}</span> : null;
   return (
     <button
       {...rest}
@@ -47,8 +50,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       aria-label={iconOnly ? label : rest['aria-label']}
       title={title ?? (iconOnly ? label : undefined)}
     >
-      {icon && <span className="vbtn__icon" aria-hidden="true">{icon}</span>}
+      {icon && !iconAfter && iconSpan}
       {!iconOnly && children}
+      {icon && iconAfter && iconSpan}
     </button>
   );
 });

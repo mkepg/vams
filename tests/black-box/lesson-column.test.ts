@@ -1323,3 +1323,19 @@ describe('BB-LCOL-48: A shown hint is announced politely, and so is the next one
     }
   });
 });
+
+describe('BB-LCOL-49: The arrow on Next comes after the word, and Back keeps its arrow first', () => {
+  it('has the Next icon as its last child and the Back icon as its first', async () => {
+    const host = await startGoalsBar();
+    try {
+      const next = host.querySelector<HTMLElement>('.lesson-bar__next')!;
+      expect((next.lastElementChild as HTMLElement).classList.contains('vbtn__icon')).toBe(true);
+      expect(next.firstChild!.nodeType).toBe(Node.TEXT_NODE);
+      const back = host.querySelector<HTMLElement>('.lesson-bar__back')!;
+      expect((back.firstElementChild as HTMLElement).classList.contains('vbtn__icon')).toBe(true);
+      expect(back.firstChild).toBe(back.firstElementChild);
+    } finally {
+      unmount(host);
+    }
+  });
+});

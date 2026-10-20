@@ -511,3 +511,18 @@ describe('BB-CTRL-25: An embedded panel is flat: a titled section, always open, 
     unmount(host);
   });
 });
+
+describe('BB-CTRL-26: A forward button can put its icon after the label', () => {
+  it('renders the label before the icon with iconAfter, and the icon first without it', () => {
+    const after = mount(h(Button, { icon: h('svg', {}), iconAfter: true }, 'Next'));
+    const afterButton = after.querySelector('button')!;
+    expect(afterButton.firstChild!.textContent).toBe('Next');
+    expect((afterButton.lastChild as HTMLElement).classList.contains('vbtn__icon')).toBe(true);
+    const before = mount(h(Button, { icon: h('svg', {}) }, 'Back'));
+    const beforeButton = before.querySelector('button')!;
+    expect((beforeButton.firstChild as HTMLElement).classList.contains('vbtn__icon')).toBe(true);
+    expect(beforeButton.lastChild!.textContent).toBe('Back');
+    unmount(after);
+    unmount(before);
+  });
+});

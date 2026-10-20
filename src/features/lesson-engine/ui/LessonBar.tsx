@@ -152,6 +152,7 @@ function LessonBarBody() {
       variant="primary"
       className="lesson-bar__next"
       icon={isLastStep ? <CheckCircle2 /> : <ChevronRight />}
+      iconAfter
       title={isLastStep ? 'Finish lesson' : 'Next step (→)'}
       disabled={!canAdvance}
       onClick={() => {
