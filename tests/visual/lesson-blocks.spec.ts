@@ -81,3 +81,37 @@ for (const theme of THEMES) {
     await expect(page.locator('.lesson-bar')).toHaveScreenshot(`lb-predict-wrong-${theme}-1280.png`);
   });
 }
+
+async function openCodeStep(page: import('@playwright/test').Page, theme: (typeof THEMES)[number]) {
+  await openLesson(page, 'sample-code', theme);
+  await page.getByRole('button', { name: /^Next/ }).click();
+  await expect(page.locator('.lesson-bar')).toContainText('Step 2 of 3');
+  await expect(page.locator('.lesson-code')).toBeVisible();
+  await page.addStyleTag({ content: '* { caret-color: transparent !important; }' });
+}
+
+for (const theme of THEMES) {
+  test(`VIS-LB-08: fill-in step, 0.5 right and 0.3 wrong, blurred, ${theme}, 1280`, async ({ page }) => {
+    await openCodeStep(page, theme);
+    const blank1 = page.getByLabel('Blank 1 of 2');
+    const blank2 = page.getByLabel('Blank 2 of 2');
+    await blank1.fill('0.5');
+    await blank2.fill('0.3');
+    await blank2.blur();
+    await expect(blank1).not.toBeFocused();
+    await expect(blank2).not.toBeFocused();
+    await expect(blank1).toHaveClass(/is-right/);
+    await expect(blank2).toHaveClass(/is-wrong/);
+    await expect(page.locator('.lesson-bar')).toContainText("that's not Y");
+    await expect(page.locator('.lesson-bar')).toHaveScreenshot(`lb-code-wrong-${theme}-1280.png`);
+  });
+
+  test(`VIS-LB-09: fill-in step, blank 2 focused with 0.2, ${theme}, 1280`, async ({ page }) => {
+    await openCodeStep(page, theme);
+    await page.getByLabel('Blank 1 of 2').fill('0.5');
+    await page.getByLabel('Blank 2 of 2').fill('0.2');
+    await expect(page.getByLabel('Blank 2 of 2')).toBeFocused();
+    await expect(page.locator('.lesson-bar__next')).toBeEnabled();
+    await expect(page.locator('.lesson-bar')).toHaveScreenshot(`lb-code-focus-${theme}-1280.png`);
+  });
+}
