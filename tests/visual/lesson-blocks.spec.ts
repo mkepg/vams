@@ -57,3 +57,27 @@ for (const theme of THEMES) {
     await expect(bar).toHaveScreenshot(`lb-recap-next-named-${theme}-1280.png`);
   });
 }
+
+async function openPredictStep(page: import('@playwright/test').Page, theme: (typeof THEMES)[number]) {
+  await openLesson(page, 'sample-predict', theme);
+  await page.getByRole('button', { name: /^Next/ }).click();
+  await expect(page.locator('.lesson-bar')).toContainText('Step 2 of 3');
+  await expect(page.getByRole('group', { name: 'Your prediction' }).getByRole('button')).toHaveCount(4);
+}
+
+for (const theme of THEMES) {
+  test(`VIS-LB-06: prediction step before a pick, ${theme}, 1280`, async ({ page }) => {
+    await openPredictStep(page, theme);
+    await expect(page.locator('.lesson-bar')).toHaveScreenshot(`lb-predict-open-${theme}-1280.png`);
+  });
+
+  test(`VIS-LB-07: prediction step after picking Up, ${theme}, 1280`, async ({ page }) => {
+    await openPredictStep(page, theme);
+    await page.getByRole('group', { name: 'Your prediction' }).getByRole('button', { name: 'Up' }).click();
+    const verdict = page.locator('.lesson-bar__verdict');
+    await expect(verdict).toContainText('Up');
+    await expect(verdict).toContainText('up would be Y');
+    await expect(page.locator('.lesson-bar__next')).toBeEnabled();
+    await expect(page.locator('.lesson-bar')).toHaveScreenshot(`lb-predict-wrong-${theme}-1280.png`);
+  });
+}
