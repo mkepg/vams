@@ -26,7 +26,7 @@ export type ExerciseWidget =
     }
   | {
       kind: 'code';
-      /** The line, with {0}, {1}, … where the blanks go. */
+      /** The line, with {0}, {1}, â€¦ where the blanks go. */
       template: string;
       blanks: {
         answer: (state: VamsState) => number | string;

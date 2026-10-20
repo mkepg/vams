@@ -216,6 +216,13 @@ describe('WB-LESSON-11: checkBlank judges typed numbers and names', () => {
     expect(checkBlank(typed, 0.5)).toBe('empty');
   });
 
+  it('accepts a value exactly one tolerance away', () => {
+    expect(checkBlank('0.51', 0.5)).toBe('right');
+    expect(checkBlank('0.49', 0.5)).toBe('right');
+    expect(checkBlank('0.511', 0.5)).toBe('wrong');
+    expect(checkBlank('0.6', 0.5, 0.1)).toBe('right');
+  });
+
   it('accepts a negative answer', () => {
     expect(checkBlank('-0.25', -0.25)).toBe('right');
   });

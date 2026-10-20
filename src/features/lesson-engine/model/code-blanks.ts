@@ -24,7 +24,7 @@ export function checkBlank(
   if (typeof answer === 'string') return text === answer ? 'right' : 'wrong';
   if (!NUMBER_TEXT.test(text)) return 'wrong';
   const value = parseFloat(text.replace(/[fF]$/, ''));
-  return Math.abs(value - answer) <= tolerance ? 'right' : 'wrong';
+  return Math.abs(value - answer) <= tolerance + 1e-9 ? 'right' : 'wrong';
 }
 
 /** The text Skip puts in a number blank: four places, no trailing zeros. */
