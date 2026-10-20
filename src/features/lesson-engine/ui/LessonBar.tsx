@@ -18,6 +18,7 @@ import { useLessonRunner } from '../model/useLessonRunner';
 import { goalLabelParts, waitsForStudent } from '../model/step-rules';
 import MultipleChoiceWidget from './exercise-widgets/MultipleChoiceWidget';
 import OrderListWidget from './exercise-widgets/OrderListWidget';
+import CodeBlankWidget from './exercise-widgets/CodeBlankWidget';
 import './lesson-bar.scss';
 
 const PIPELINE_MODES: { value: PipelineMode; label: string }[] = [
@@ -361,6 +362,15 @@ function LessonBarBody() {
               order={runner.orderAnswer}
               correctOrder={step.exercise.correctOrder}
               onChange={runner.setOrderAnswer}
+            />
+          )}
+          {step.exercise.kind === 'code' && (
+            <CodeBlankWidget
+              template={step.exercise.template}
+              wrong={step.exercise.blanks.map((blank) => blank.wrong)}
+              values={runner.codeAnswers}
+              verdicts={runner.codeVerdicts}
+              onChange={runner.setCodeAnswer}
             />
           )}
         </div>

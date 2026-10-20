@@ -7,6 +7,7 @@ import { getLessonById } from './lesson-registry';
 import { isSectionEnd, nextInCourse } from './catalog';
 import { markLessonComplete, markLessonSkipped, recordLessonLeft } from './progress';
 import { canSkip as stepCanSkip, waitsForStudent } from './step-rules';
+import { checkBlank, formatBlankNumber } from './code-blanks';
 import { focusStyleFor } from './guidance';
 import { useCanvasSize } from '@/shared/lib/use-canvas-size';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
@@ -17,6 +18,16 @@ interface PredictAnswers {
   byStep: Record<number, string>;
 }
 const NO_ANSWERS: Record<number, string> = {};
+
+/** A blank's verdict against the scene: no text yet, right, or wrong. */
+export type BlankVerdict = 'empty' | 'right' | 'wrong';
+const VERDICT_LETTER: Record<BlankVerdict, string> = { empty: 'e', right: 'r', wrong: 'w' };
+const LETTER_VERDICT: Record<string, BlankVerdict> = { e: 'empty', r: 'right', w: 'wrong' };
+
+/** One empty answer for each blank of a code step; none for any other step. */
+function emptyCodeAnswers(step: LessonStep | undefined): string[] {
+  return step?.exercise?.kind === 'code' ? step.exercise.blanks.map(() => '') : [];
+}
 
 const DEFAULT_LESSON_VIEWPORT = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
 
@@ -62,6 +73,11 @@ export interface LessonRunner {
   setMcAnswer: (id: string | null) => void;
   orderAnswer: string[] | null;
   setOrderAnswer: (order: string[]) => void;
+  /** The text typed in each blank of this code step; one '' per blank when the step opens. */
+  codeAnswers: string[];
+  setCodeAnswer: (index: number, text: string) => void;
+  /** Each blank's verdict against the scene as it is now. */
+  codeVerdicts: BlankVerdict[];
   next: () => void;
   back: () => void;
   exit: () => void;
@@ -223,8 +239,21 @@ export function useLessonRunner(): LessonRunner {
 
   const step = lesson?.steps[currentStepIndex];
 
+  // What is typed in a code step's blanks, kept for the step it was typed on: any change of step
+  // or lesson starts from one empty answer per blank.
+  const codeStepKey = `${activeLessonId}-${currentStepIndex}`;
+  const [typed, setTyped] = useState<{ key: string; step: LessonStep | undefined; values: string[] }>(() => ({
+    key: codeStepKey,
+    step,
+    values: emptyCodeAnswers(step),
+  }));
+  const typedIsCurrent = typed.key === codeStepKey && typed.step === step;
+  if (!typedIsCurrent) setTyped({ key: codeStepKey, step, values: emptyCodeAnswers(step) });
+  const codeAnswers = typedIsCurrent ? typed.values : emptyCodeAnswers(step);
+
   useEffect(() => {
     setMcAnswer(null);
+    setTyped({ key: `${activeLessonId}-${currentStepIndex}`, step, values: emptyCodeAnswers(step) });
     if (step?.exercise?.kind === 'ordered-list') {
       const expected = step.exercise.correctOrder;
       const arr = [...step.exercise.items].map((i) => i.id);
@@ -297,9 +326,34 @@ export function useLessonRunner(): LessonRunner {
     [step, goalBits],
   );
 
+  // Each blank is checked against its answer in the whole state on every change, as one letter per
+  // blank, so moving the shape re-checks what is typed and a change re-renders only on a flip.
+  const codeLetters = useVamsStore((s) => {
+    const ex = step?.exercise;
+    if (ex?.kind !== 'code') return '';
+    return ex.blanks
+      .map((blank, i) => VERDICT_LETTER[checkBlank(codeAnswers[i] ?? '', blank.answer(s), blank.tolerance)])
+      .join('');
+  });
+  const codeVerdicts = useMemo(() => [...codeLetters].map((letter) => LETTER_VERDICT[letter]), [codeLetters]);
+
+  const setCodeAnswer = useCallback(
+    (index: number, text: string) => {
+      setTyped((prev) => {
+        if (prev.key !== codeStepKey || prev.step !== step || index < 0 || index >= prev.values.length) return prev;
+        const values = [...prev.values];
+        values[index] = text;
+        return { ...prev, values };
+      });
+    },
+    [codeStepKey, step],
+  );
+
   const isStepSuccess = useMemo(() => {
     if (!step) return false;
     if (goalBits.includes('0')) return false;
+    // A code step passes as soon as every blank is right, the one being typed included.
+    if (step.exercise?.kind === 'code' && /[ew]/.test(codeLetters)) return false;
 
     if (step.exercise) {
       if (step.exercise.kind === 'multiple-choice') {
@@ -322,7 +376,7 @@ export function useLessonRunner(): LessonRunner {
     }
 
     return true;
-  }, [step, goalBits, mcAnswer, orderAnswer, objects, callbacks, viewportLimits]);
+  }, [step, goalBits, codeLetters, mcAnswer, orderAnswer, objects, callbacks, viewportLimits]);
 
   const predictAnswer = runAnswers[currentStepIndex] ?? null;
   // A prediction never gates on being right, only on being made.
@@ -345,8 +399,16 @@ export function useLessonRunner(): LessonRunner {
     const ex = step.exercise;
     if (ex?.kind === 'multiple-choice') setMcAnswer(ex.correctId);
     else if (ex?.kind === 'ordered-list') setOrderAnswer([...ex.correctOrder]);
+    else if (ex?.kind === 'code') {
+      const state = useVamsStore.getState();
+      const values = ex.blanks.map((blank) => {
+        const answer = blank.answer(state);
+        return typeof answer === 'number' ? formatBlankNumber(answer) : answer;
+      });
+      setTyped({ key: codeStepKey, step, values });
+    }
     setSkipped(true);
-  }, [step, canSkip]);
+  }, [step, canSkip, codeStepKey]);
 
   const handlePick = useCallback(
     (optionId: string) => {
@@ -467,6 +529,9 @@ export function useLessonRunner(): LessonRunner {
     setMcAnswer,
     orderAnswer,
     setOrderAnswer,
+    codeAnswers,
+    setCodeAnswer,
+    codeVerdicts,
     next: handleNext,
     back: handleBack,
     exit: handleExit,

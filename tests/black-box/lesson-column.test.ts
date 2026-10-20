@@ -1685,3 +1685,156 @@ describe('BB-LCOL-60: Starting another lesson clears the answers of the last run
     }
   });
 });
+
+/** Starts the code sample with the sample lessons built in, and opens its fill-in step. */
+async function startCodeBar() {
+  vi.stubEnv('VITE_LESSON_SAMPLES', '1');
+  startLesson('sample-code');
+  const host = mount(h(LessonBar, {}));
+  await settle();
+  buttonNamed(host, 'Next')!.click();
+  await settle();
+  return host;
+}
+const blanks = (host: HTMLElement) => [...host.querySelectorAll<HTMLInputElement>('input.lesson-code__blank')];
+/** Focuses a blank and types into it, as a student would; the blank keeps focus. */
+async function typeInto(input: HTMLInputElement, text: string) {
+  input.focus();
+  input.value = text;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  await settle();
+}
+async function blurBlank(input: HTMLInputElement) {
+  input.blur();
+  await settle();
+}
+
+describe('BB-LCOL-61: A code step sets the line in a well with labelled blanks and holds Next', () => {
+  it('shows glTranslatef in the code colour, two blanks, and a disabled Next', async () => {
+    const host = await startCodeBar();
+    try {
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+      expect(host.querySelector('.lesson-bar__narration')!.textContent).toBe('Write the line that puts it there.');
+      const well = host.querySelector('div.lesson-code')!;
+      expect(well).not.toBeNull();
+      expect(well.closest('.lesson-bar__exercise')).not.toBeNull();
+      const inputs = blanks(host);
+      expect(inputs.map((b) => b.getAttribute('aria-label'))).toEqual(['Blank 1 of 2', 'Blank 2 of 2']);
+      expect(inputs.every((b) => b.parentElement!.matches('span.lesson-code__slot'))).toBe(true);
+      expect(inputs.every((b) => b.value === '')).toBe(true);
+      expect(well.querySelector('.tk-glfn')!.textContent).toBe('glTranslatef');
+      expect(well.textContent).toContain(', 0.0f);');
+      expect(well.classList.contains('has-note')).toBe(false);
+      expect(host.querySelector('.lesson-bar__task')!.textContent).toContain('Fill in both numbers');
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+      // The well adds no live region: the narration and the hint wrapper stay the only two.
+      expect(host.querySelectorAll('[aria-live]')).toHaveLength(2);
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-62: A blank shows its verdict once left, and the step passes as soon as both are right', () => {
+  it('marks 0.5 right and 0.3 wrong with its note, then .2f lights Next while still focused', async () => {
+    const host = await startCodeBar();
+    try {
+      const [x, y] = blanks(host);
+      await typeInto(x, '0.5');
+      expect(x.classList.contains('is-focus')).toBe(true);
+      expect(x.classList.contains('is-right')).toBe(false);
+      await blurBlank(x);
+      expect(x.classList.contains('is-right')).toBe(true);
+      expect(x.classList.contains('is-focus')).toBe(false);
+      expect(x.hasAttribute('aria-invalid')).toBe(false);
+
+      await typeInto(y, '0.3');
+      expect(y.classList.contains('is-wrong')).toBe(false);
+      expect(host.querySelector('.lesson-code__note')).toBeNull();
+      await blurBlank(y);
+      expect(y.classList.contains('is-wrong')).toBe(true);
+      expect(y.getAttribute('aria-invalid')).toBe('true');
+      const note = host.querySelector('.lesson-code__note')!;
+      expect(note.textContent).toBe("that's not Y");
+      expect(note.parentElement).toBe(y.parentElement);
+      expect(y.getAttribute('aria-describedby')).toBe(note.id);
+      expect(note.id).not.toBe('');
+      expect(host.querySelector('.lesson-code')!.classList.contains('has-note')).toBe(true);
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+
+      await typeInto(y, '.2f');
+      expect(document.activeElement).toBe(y);
+      expect(y.classList.contains('is-focus')).toBe(true);
+      expect(y.classList.contains('is-right')).toBe(false);
+      expect(y.hasAttribute('aria-invalid')).toBe(false);
+      expect(host.querySelector('.lesson-code__note')).toBeNull();
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(false);
+      // A blank grows with its text, from six characters wide.
+      expect(y.style.width).toBe('6ch');
+      await typeInto(y, '0.2000000f');
+      expect(y.style.width).toBe('11ch');
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-63: The blanks are checked against the scene, and arrow keys in a blank stay in it', () => {
+  it('takes 0.6 once Translate Y is 0.6, rejects 0.2, and ArrowLeft and ArrowRight never move the step', async () => {
+    const host = await startCodeBar();
+    try {
+      const t = useVamsStore.getState().objects.find((o) => o.type === 'TRIANGLES')!;
+      useVamsStore.getState().updateObjectTransform(t.id, { translateY: 0.6 });
+      await settle();
+      const [x, y] = blanks(host);
+      await typeInto(x, '0.5');
+      await typeInto(y, '0.6');
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(false);
+      key(y, 'ArrowRight');
+      key(y, 'ArrowLeft');
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+      await blurBlank(y);
+      expect(y.classList.contains('is-right')).toBe(true);
+
+      await typeInto(y, '0.2');
+      key(y, 'ArrowLeft');
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+      await blurBlank(y);
+      expect(y.classList.contains('is-wrong')).toBe(true);
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-64: Skip on a code step fills in the answers and lights Next', () => {
+  it('fills 0.5 and 0.2, marks both right, and stays on the step', async () => {
+    const host = await startCodeBar();
+    try {
+      buttonNamed(host, 'Stuck?')!.click();
+      await settle();
+      buttonNamed(host, 'Skip this step')!.click();
+      await settle();
+      const [x, y] = blanks(host);
+      expect([x.value, y.value]).toEqual(['0.5', '0.2']);
+      const next = buttonNamed(host, 'Next')!;
+      expect(next.disabled).toBe(false);
+      expect(document.activeElement).toBe(next);
+      expect(x.classList.contains('is-right') && y.classList.contains('is-right')).toBe(true);
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+
+      // A step opened again starts with empty blanks.
+      next.click();
+      await settle();
+      buttonNamed(host, 'Back')!.click();
+      await settle();
+      expect(blanks(host).map((b) => b.value)).toEqual(['', '']);
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+    } finally {
+      unmount(host);
+    }
+  });
+});

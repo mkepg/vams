@@ -13,6 +13,10 @@ const RED = '#ff0000';
 /** A sample's triangle: the only object its scene has. */
 const triangle = (state: VamsState) => state.objects.find((o) => o.type === 'TRIANGLES');
 
+/** The selected object, or the triangle when nothing is selected. */
+const subject = (state: VamsState) =>
+  state.objects.find((o) => o.id === state.selectedObjectId) ?? triangle(state);
+
 export const SAMPLE_LESSONS: Record<string, Lesson> = {
   'sample-goals': {
     id: 'sample-goals',
@@ -137,6 +141,47 @@ export const SAMPLE_LESSONS: Record<string, Lesson> = {
         narration: 'Done.',
         recap: {
           points: ['Translate X moves a shape along the horizontal axis.'],
+          calls: ['glTranslatef'],
+        },
+      },
+    ],
+  },
+  'sample-code': {
+    id: 'sample-code',
+    title: 'Transforms capstone',
+    type: 'exercise',
+    section: 'Transforms',
+    steps: [
+      {
+        narration: 'Here is a triangle, moved to (0.5, 0.2).',
+        action: (state) => {
+          state.addCustomObject('TRIANGLES', [{ x: 0, y: 0.5 }, { x: -0.5, y: -0.5 }, { x: 0.5, y: -0.5 }]);
+          const id = useVamsStore.getState().objects[0]?.id;
+          if (!id) return;
+          state.selectObject(id);
+          state.updateObjectTransform(id, { translateX: 0.5, translateY: 0.2 });
+        },
+      },
+      {
+        narration: 'Write the line that puts it there.',
+        task: 'Fill in both numbers',
+        hints: [
+          'The first number is X, the second Y.',
+          'The Translate values under Transform are the numbers you need.',
+        ],
+        exercise: {
+          kind: 'code',
+          template: 'glTranslatef({0}, {1}, 0.0f);',
+          blanks: [
+            { answer: (state) => subject(state)?.transform.translateX ?? 0, wrong: "that's not X" },
+            { answer: (state) => subject(state)?.transform.translateY ?? 0, wrong: "that's not Y" },
+          ],
+        },
+      },
+      {
+        narration: 'Done.',
+        recap: {
+          points: ['glTranslatef takes the X and Y the shape moves by.'],
           calls: ['glTranslatef'],
         },
       },

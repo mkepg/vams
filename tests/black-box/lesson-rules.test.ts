@@ -9,6 +9,8 @@
  *  - Waiting steps without a widget can be solved, and solving them makes them pass
  *  - Every lesson closes with a recap whose calls are in the code of its last step
  *  - Every predict step offers 2-4 answers, each with a why, one of them right, and has an action
+ *  - Every code step's blanks have an answer, a place in the line and a reason when wrong
+ *  - Every section's last lesson is a capstone: an exercise with a code step that ends with a recap
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -22,6 +24,8 @@ import { useVamsStore } from '@/core/store';
 import { solvedStepScene } from '../helpers/lesson-scene';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { outlineCode, findCallLine } from '@/features/code-generation/model/code-outline';
+import { templateParts } from '@/features/lesson-engine/model/code-blanks';
+import { courseOrder } from '@/features/lesson-engine/model/catalog';
 
 /** Sections whose lessons already meet the full bar. The content work adds each one as it lands. */
 export const SECTIONS_ON_THE_BAR: CurriculumSection[] = [];
@@ -41,6 +45,7 @@ export function taughtText(lesson: Lesson): string {
     if (step.hints) parts.push(...step.hints);
     if (step.recap) parts.push(...step.recap.calls);
     if (step.predict) for (const o of step.predict.options) parts.push(o.label, o.why);
+    if (step.exercise?.kind === 'code') parts.push(step.exercise.template);
   }
   return parts.join('\n');
 }
@@ -55,7 +60,7 @@ function allText(lesson: Lesson): string {
     const ex = step.exercise;
     if (ex) {
       if (ex.kind === 'code') {
-        parts.push(ex.template, ...ex.blanks.map((b) => b.wrong));
+        parts.push(...ex.blanks.map((b) => b.wrong));
       } else {
         parts.push(ex.prompt);
         if (ex.kind === 'multiple-choice') parts.push(...ex.options.map((o) => o.label));
@@ -270,5 +275,74 @@ describe('BB-LRULE-06: Predict steps offer 2-4 answers with a why each, one righ
     const text = taughtText(SAMPLE_LESSONS['sample-predict']);
     expect(text).toContain('It grows wider');
     expect(text).toContain('Translate moves a shape; scale changes its size.');
+  });
+});
+
+describe('BB-LRULE-07: Code steps have an answer, a place and a reason for each blank', () => {
+  afterEach(() => {
+    useVamsStore.getState().clearLessonState();
+  });
+
+  it('the code sample is under the rules', () => {
+    expect(lessonsUnderRules().map((l) => l.id)).toContain('sample-code');
+  });
+
+  it('every code step under the rules is well formed on the scene its step builds', () => {
+    const bad: string[] = [];
+    let checked = 0;
+    for (const lesson of lessonsUnderRules()) {
+      lesson.steps.forEach((step, i) => {
+        const ex = step.exercise;
+        if (ex?.kind !== 'code') return;
+        checked++;
+        solvedStepScene(lesson, i);
+        const state = useVamsStore.getState();
+        const where = `${lesson.id}#${i + 1}`;
+        ex.blanks.forEach((blank, b) => {
+          const answer = blank.answer(state);
+          const ok = typeof answer === 'number' ? Number.isFinite(answer) : answer.trim() !== '';
+          if (!ok) bad.push(`${where}: blank ${b + 1} answer ${String(answer)}`);
+          if (!blank.wrong.trim()) bad.push(`${where}: blank ${b + 1} has no wrong text`);
+        });
+        const places = templateParts(ex.template)
+          .filter((p): p is number => typeof p === 'number')
+          .sort((a, b) => a - b);
+        const expected = ex.blanks.map((_, b) => b);
+        if (ex.blanks.length === 0 || places.join(',') !== expected.join(',')) bad.push(`${where}: template places ${places.join(',')}`);
+      });
+    }
+    expect(checked).toBeGreaterThan(0);
+    expect(bad).toEqual([]);
+  });
+
+  it('taughtText counts the code templates', () => {
+    expect(taughtText(SAMPLE_LESSONS['sample-code'])).toContain('glTranslatef({0}, {1}, 0.0f);');
+  });
+});
+
+/** Why a lesson falls short of a section's capstone, or an empty list when it is one. */
+function capstoneFaults(lesson: Lesson): string[] {
+  const faults: string[] = [];
+  if (lesson.type !== 'exercise') faults.push('not an exercise');
+  if (!lesson.steps.some((step) => step.exercise?.kind === 'code')) faults.push('no code step');
+  if (!lesson.steps[lesson.steps.length - 1]?.recap) faults.push('no closing recap');
+  return faults;
+}
+
+describe('BB-LRULE-08: Each section on the bar ends with a capstone', () => {
+  it("every section's last lesson in course order is an exercise with a code step and a closing recap", () => {
+    const bad: string[] = [];
+    for (const section of SECTIONS_ON_THE_BAR) {
+      const last = courseOrder().filter((entry) => entry.section === section).pop();
+      const lesson = last ? LESSON_REGISTRY[last.id] : undefined;
+      const faults = lesson ? capstoneFaults(lesson) : ['no lessons'];
+      if (faults.length) bad.push(`${section} (${last?.id ?? 'none'}): ${faults.join(', ')}`);
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('the code sample has the capstone shape, and a demo does not', () => {
+    expect(capstoneFaults(SAMPLE_LESSONS['sample-code'])).toEqual([]);
+    expect(capstoneFaults(SAMPLE_LESSONS['sample-recap'])).toEqual(['not an exercise', 'no code step']);
   });
 });
