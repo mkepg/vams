@@ -597,6 +597,13 @@ Each step may include:
 - A scene mutation (executed via the same API the GUI uses — nothing a lesson does bypasses normal state management)
 - A code panel highlight (specific lines to visually emphasize)
 - A wait-for-user flag
+- Goals: a checklist of conditions on the scene, each met when a pure check over state passes
+- Hints, shown one at a time under a "Stuck?" control
+- A Skip action, which does the step through the same store actions the GUI uses (or fills in the right answer) and then lights Next. Skip never advances by itself, and a lesson with any skipped step is recorded as skipped
+- A prediction: the student picks an outcome first, then sees the scene
+- A recap: points, and the calls the lesson used, each opening its line in the code panel. The last step of every lesson names the next lesson, and Finish appears only on a section's last lesson
+
+A **waiting step** is one with goals, a success check or an exercise widget. A step with a wait-for-user flag alone is not one. On a goals step or a fill-in step the task line stays hidden until the step is done.
 
 Exercises additionally have a success check — a pure function that reads current scene state and returns whether the student has met the goal.
 
@@ -604,7 +611,7 @@ Each lesson is also listed in a course catalog by id, title, kind, section and s
 
 ### Exercise Answer Types
 
-Exercises record student answers as structured data. The supported answer types are: multiple choice (a selected option from a fixed set), ordered list (a ranked sequence of items), numeric (a number), and position (an x,y coordinate). New exercise formats add a new answer type rather than using an untyped catch-all.
+Exercises record student answers as structured data. The supported answer types are: multiple choice (a selected option from a fixed set), ordered list (a ranked sequence of items), numeric (a number), position (an x,y coordinate), and code (typed blanks in the generated code, checked against the scene; numbers are accepted within a tolerance of 0.01). New exercise formats add a new answer type rather than using an untyped catch-all.
 
 ### Authoring Guidance
 
@@ -613,10 +620,16 @@ Exercises record student answers as structured data. The supported answer types 
 - Every scene mutation in a lesson must correspond to something a student could do via the GUI. If a needed mutation isn't exposed by the GUI, extend the GUI (and the underlying mutation capability) rather than adding a lesson-only backdoor.
 - Success checks must be pure and fast. They run after every scene mutation.
 - Prefer many small steps over few large ones. Students benefit from finer-grained pacing control.
+- Shape lessons by the arcs in the lesson content design (docs/specs/2026-10-15-lesson-content-design.md), as a guideline rather than a rule.
+- Every waiting step has hints and a Skip action.
+- Every GL and GLUT name the generator can emit is taught in some lesson.
+- Each section ends with a capstone.
 
 ### Validation
 
 Lessons are validated at development time. Warnings are issued for: non-unique lesson IDs, empty step arrays, exercises without success checks, and code-line highlights referencing lines that don't exist in the generated output.
+
+The rule tests (BB-LRULE) check that every GL and GLUT name the generator can emit is covered by a lesson or listed on an allowlist that empties section by section, and that lessons keep to the wording rules, give waiting steps hints and a task, make Skip solve the step, give recaps, predictions and code blanks valid data, and end each section with a capstone.
 
 ---
 

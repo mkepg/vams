@@ -81,6 +81,7 @@ Four projects, in this order. Each has its own spec and plan.
    - **The math is just numbers.** The cards show results (a matrix, a table) but not the working: how a vertex goes from the student's values to the screen, step by step.
 3. **Share link and QR code** (item 8). Complete (2026-10-17): [spec](2026-10-16-editor-chrome-share-design.md), [plan](../plans/2026-10-16-editor-chrome-share.md). It also redesigned the top bar and drew the canvas as the program's window.
 4. **Lesson content:** more, deeper and better lessons, including item 11 and the `task` and `pane` text the lesson bar uses. Lesson data may land until Nov 2. The owner's concern, in their words: "I feel a lack of content for each lesson, it lacks quantity and quality as well as depth." Item 11 also covers tidying the lessons shown on stage.
+   Status: the lesson blocks (goals, hints and Skip, recap, predict then see, fill in the code) landed 2026-10-21. The lesson content follows section by section until Nov 2.
 
 ### Below the line
 
@@ -196,6 +197,7 @@ The thesis manuscript is final and describes the evaluated build. The overhauled
 
 16. The manuscript describes a client-only web application. Sharing a scene stores it through one server-side Pages Function in a key-value store, which keeps a shared scene for 90 days.
 17. The manuscript's canvas is a plain drawing area. The canvas is now drawn as the program's window, titled as the generated program titles it, under a header holding the viewing volume, the cursor, the View menu and Run. The window can be moved, resized, minimised and closed like a desktop window.
+18. The evaluated lessons were narrated steps with scene actions and two exercise kinds (multiple choice and ordered list). Lessons now also have goal checklists, hints, Skip, predictions, recaps and typed code blanks, and each section ends with a capstone.
 
 The following manuscript descriptions may also be crossed by later sub-projects. When one is, it is added to the list above:
 - The default canvas background `#000000`. Changing it changes generated code and the replay baseline.
