@@ -5,11 +5,16 @@
 import { readFileSync } from 'node:fs';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
+import { useLayoutEffect } from 'preact/hooks';
 import { useVamsStore } from '@/core/store';
 import type { Lesson } from '@/core/types/lesson';
 import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import { SegmentedControl } from '@/shared/ui/controls';
-import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
+import { LESSON_REGISTRY, getLessonById } from '@/features/lesson-engine/model/lesson-registry';
+import { SAMPLE_LESSONS } from '@/features/lesson-engine/model/sample-lessons';
+import { LESSON_CATALOG } from '@/features/lesson-engine/model/catalog';
+import { PROGRESS_KEY } from '@/features/lesson-engine/model/progress';
+import { useLessonRunner, type LessonRunner } from '@/features/lesson-engine/model/useLessonRunner';
 import { EditorPanel } from '@/widgets/layout/editor-column';
 import Rail from '@/widgets/layout/rail';
 import CodeMathColumn from '@/widgets/layout/code-math-column';
@@ -57,6 +62,7 @@ const lessonEditor = () => h('div', {}, h(LessonBar, {}), h(EditorPanel, {}));
 afterEach(() => {
   useVamsStore.getState().clearLessonState();
   useVamsStore.setState({ appMode: 'Author' });
+  vi.unstubAllEnvs();
 });
 
 describe('BB-LCOL-01: The lesson bar renders nothing outside a lesson', () => {
@@ -954,5 +960,140 @@ describe("BB-LCOL-36: The mapping steps still drive the Stored stage's diagram",
     expect(host.querySelector('.bm-dma-driven-badge')).not.toBeNull();
     unmount(host);
     useVamsStore.getState().clearLessonState();
+  });
+});
+
+/** The runner on its own, so a test can read the fields the bar does not draw yet. */
+let runner: LessonRunner;
+function RunnerProbe() {
+  const current = useLessonRunner();
+  useLayoutEffect(() => {
+    runner = current;
+  });
+  return null;
+}
+const goalsMet = () => runner.goals?.map((g) => g.met);
+/** Starts the goals sample with the sample lessons built in, and mounts the runner. */
+async function startGoalsSample() {
+  vi.stubEnv('VITE_LESSON_SAMPLES', '1');
+  startLesson('sample-goals');
+  const host = mount(h(RunnerProbe, {}));
+  await settle();
+  // A fresh history, so the next undo step is the one the test makes.
+  useVamsStore.getState().clearHistory();
+  return host;
+}
+const sampleTriangleId = () => useVamsStore.getState().objects[0].id;
+const rawProgress = () => JSON.parse(localStorage.getItem(PROGRESS_KEY) ?? 'null') as { completed: string[]; skipped: string[] };
+
+describe('BB-LCOL-37: Goals tick as the scene changes, and undo un-ticks them', () => {
+  it('reads the goals of the step and re-checks them on every change', async () => {
+    const host = await startGoalsSample();
+    expect(runner.goals).toEqual([
+      { label: 'Red', met: true },
+      { label: 'At (0.5, 0.2)', met: false },
+      { label: 'Turned 45°', met: false },
+    ]);
+    const s = useVamsStore.getState();
+    s.pushToHistory();
+    s.updateObjectTransform(sampleTriangleId(), { translateX: 0.5, translateY: 0.2 });
+    await settle();
+    expect(goalsMet()).toEqual([true, true, false]);
+    useVamsStore.getState().undo();
+    await settle();
+    expect(goalsMet()).toEqual([true, false, false]);
+    unmount(host);
+  });
+});
+
+describe('BB-LCOL-38: Meeting every goal enables Next and ArrowRight', () => {
+  it('holds the step until all three goals are met, then advances on ArrowRight', async () => {
+    const host = await startGoalsSample();
+    expect(runner.canAdvance).toBe(false);
+    key(document.body, 'ArrowRight');
+    await settle();
+    expect(useVamsStore.getState().currentStepIndex).toBe(0);
+    useVamsStore.getState().updateObjectTransform(sampleTriangleId(), { translateX: 0.5, translateY: 0.2 });
+    await settle();
+    expect(runner.canAdvance).toBe(false);
+    useVamsStore.getState().updateObjectTransform(sampleTriangleId(), { rotate: 45 });
+    await settle();
+    expect(goalsMet()).toEqual([true, true, true]);
+    expect(runner.canAdvance).toBe(true);
+    key(document.body, 'ArrowRight');
+    await settle();
+    expect(useVamsStore.getState().currentStepIndex).toBe(1);
+    expect(runner.step!.narration).toBe('Done.');
+    unmount(host);
+  });
+});
+
+describe('BB-LCOL-39: Skip solves the step as one undo step and never advances', () => {
+  it('meets every goal, lights Next, keeps the step, and one undo takes it back', async () => {
+    const host = await startGoalsSample();
+    expect(runner.canSkip).toBe(true);
+    expect(runner.skipped).toBe(false);
+    runner.skip();
+    await settle();
+    expect(goalsMet()).toEqual([true, true, true]);
+    expect(runner.canAdvance).toBe(true);
+    expect(runner.canSkip).toBe(false);
+    expect(runner.skipped).toBe(true);
+    expect(useVamsStore.getState().currentStepIndex).toBe(0);
+    useVamsStore.getState().undo();
+    await settle();
+    expect(goalsMet()).toEqual([true, false, false]);
+    expect(runner.canAdvance).toBe(false);
+    expect(runner.skipped).toBe(true);
+    unmount(host);
+  });
+});
+
+describe('BB-LCOL-40: A run with Skip is recorded as skipped, a run without it as completed', () => {
+  it('writes the sample to skipped after a Skip, and to completed after a run by hand', async () => {
+    localStorage.removeItem(PROGRESS_KEY);
+    try {
+      const host = await startGoalsSample();
+      runner.skip();
+      await settle();
+      runner.next();
+      await settle();
+      expect(runner.isLastStep).toBe(true);
+      runner.finish();
+      await settle();
+      expect(rawProgress().skipped).toContain('sample-goals');
+      expect(rawProgress().completed).not.toContain('sample-goals');
+
+      startLesson('sample-goals');
+      await settle();
+      expect(runner.active).toBe(true);
+      expect(runner.skipped).toBe(false);
+      useVamsStore.getState().updateObjectTransform(sampleTriangleId(), { translateX: 0.5, translateY: 0.2, rotate: 45 });
+      await settle();
+      runner.next();
+      await settle();
+      runner.finish();
+      await settle();
+      expect(rawProgress().completed).toContain('sample-goals');
+      expect(rawProgress().skipped).not.toContain('sample-goals');
+      unmount(host);
+    } finally {
+      localStorage.removeItem(PROGRESS_KEY);
+    }
+  });
+});
+
+describe('BB-LCOL-41: The sample lessons exist only with the flag, and never in the course', () => {
+  it('hides the samples without the flag and keeps them out of the registry and the catalog', () => {
+    expect(getLessonById('sample-goals')).toBeUndefined();
+    vi.stubEnv('VITE_LESSON_SAMPLES', '1');
+    expect(getLessonById('sample-goals')).toBe(SAMPLE_LESSONS['sample-goals']);
+    vi.unstubAllEnvs();
+    const ids = Object.keys(SAMPLE_LESSONS);
+    expect(ids).toContain('sample-goals');
+    for (const id of ids) {
+      expect(LESSON_REGISTRY[id], id).toBeUndefined();
+      expect(LESSON_CATALOG.some((entry) => entry.id === id), id).toBe(false);
+    }
   });
 });

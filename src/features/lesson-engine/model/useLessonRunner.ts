@@ -3,8 +3,9 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useVamsStore } from '@/core/store';
 import type { Lesson, LessonStep } from '@/core/types/lesson';
 import { resolveFocus } from '@/core/inspector';
-import { LESSON_REGISTRY } from './lesson-registry';
-import { markLessonComplete, recordLessonLeft } from './progress';
+import { getLessonById } from './lesson-registry';
+import { markLessonComplete, markLessonSkipped, recordLessonLeft } from './progress';
+import { canSkip as stepCanSkip, waitsForStudent } from './step-rules';
 import { focusStyleFor } from './guidance';
 import { useCanvasSize } from '@/shared/lib/use-canvas-size';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
@@ -27,6 +28,14 @@ export interface LessonRunner {
   stepCount: number;
   isLastStep: boolean;
   canAdvance: boolean;
+  /** The step's goals, each with whether the scene meets it now; null when the step has none. */
+  goals: { label: string; met: boolean }[] | null;
+  /** The step can be solved for the student and has not passed yet. */
+  canSkip: boolean;
+  /** Solves the step (one undo step) or fills in the right answer. Never advances. */
+  skip: () => void;
+  /** Skip was used in this run of the lesson; Finish records the lesson as skipped. */
+  skipped: boolean;
   mcAnswer: string | null;
   setMcAnswer: (id: string | null) => void;
   orderAnswer: string[] | null;
@@ -50,6 +59,18 @@ function selectForFocus(panelId: string | null) {
   s.selectObject(s.objects[0].id);
 }
 
+/** The clean scene a lesson replays its steps on: Back, a jump and the lesson's start rebuild from it. */
+export function resetLessonScene(): void {
+  useVamsStore.setState({
+    objects: [],
+    callbacks: emptyCallbacks(),
+    canvasBackgroundColor: '#000000',
+    viewportLimits: { ...DEFAULT_LESSON_VIEWPORT },
+    selectedObjectId: null,
+    interactionMode: 'SELECT',
+  });
+}
+
 export function useLessonRunner(): LessonRunner {
   const {
     appMode,
@@ -71,6 +92,14 @@ export function useLessonRunner(): LessonRunner {
   const [mcAnswer, setMcAnswer] = useState<string | null>(null);
   const [orderAnswer, setOrderAnswer] = useState<string[] | null>(null);
 
+  // A run is skipped once Skip is used in it, whatever happens after; a new lesson starts a new run.
+  const [skipped, setSkipped] = useState(false);
+  const [skippedFor, setSkippedFor] = useState(activeLessonId);
+  if (skippedFor !== activeLessonId) {
+    setSkippedFor(activeLessonId);
+    if (skipped) setSkipped(false);
+  }
+
   /* ------------------------------------------------------------------ */
   /*  Canvas size — kept in a ref so the step-execution effect always   */
   /*  reads the latest value without needing it in its dependency array */
@@ -90,7 +119,7 @@ export function useLessonRunner(): LessonRunner {
 
   const lesson = useMemo(() => {
     if (!activeLessonId) return null;
-    const baseLesson = LESSON_REGISTRY[activeLessonId];
+    const baseLesson = getLessonById(activeLessonId);
     if (!baseLesson) return null;
 
     if (baseLesson.shuffleRange) {
@@ -198,14 +227,7 @@ export function useLessonRunner(): LessonRunner {
       // Reset every piece of pedagogically-relevant state so step replay starts
       // from a clean baseline — including viewportLimits, which Stage 4 lessons
       // mutate.
-      useVamsStore.setState({
-        objects: [],
-        callbacks: emptyCallbacks(),
-        canvasBackgroundColor: '#000000',
-        viewportLimits: { ...DEFAULT_LESSON_VIEWPORT },
-        selectedObjectId: null,
-        interactionMode: 'SELECT',
-      });
+      resetLessonScene();
       // The rebuilt scene is not the student's edit: the code panel marks none of its values.
       store.markSceneSwap();
 
@@ -243,8 +265,17 @@ export function useLessonRunner(): LessonRunner {
     lastStepIndexRef.current = currentStepIndex;
   }, [currentStepIndex, activeLessonId, lesson]);
 
+  // Every goal is checked against the whole state on every change, as one string of 1s and 0s,
+  // so a change re-renders only when a goal flips.
+  const goalBits = useVamsStore((s) => step?.goals?.map((g) => (g.check(s) ? '1' : '0')).join('') ?? '');
+  const goals = useMemo(
+    () => step?.goals?.map((g, i) => ({ label: g.label, met: goalBits[i] === '1' })) ?? null,
+    [step, goalBits],
+  );
+
   const isStepSuccess = useMemo(() => {
     if (!step) return false;
+    if (goalBits.includes('0')) return false;
 
     if (step.exercise) {
       if (step.exercise.kind === 'multiple-choice') {
@@ -267,7 +298,28 @@ export function useLessonRunner(): LessonRunner {
     }
 
     return true;
-  }, [step, mcAnswer, orderAnswer, objects, callbacks, viewportLimits]);
+  }, [step, goalBits, mcAnswer, orderAnswer, objects, callbacks, viewportLimits]);
+
+  const canAdvance = !!step && (!waitsForStudent(step) || isStepSuccess);
+  const canSkip = !!step && stepCanSkip(step) && !isStepSuccess;
+
+  const handleSkip = useCallback(() => {
+    if (!step || !canSkip) return;
+    if (step.solve) {
+      const store = useVamsStore.getState();
+      store.pushToHistory();
+      store.startBatch();
+      try {
+        step.solve(useVamsStore.getState());
+      } finally {
+        useVamsStore.getState().endBatch();
+      }
+    }
+    const ex = step.exercise;
+    if (ex?.kind === 'multiple-choice') setMcAnswer(ex.correctId);
+    else if (ex?.kind === 'ordered-list') setOrderAnswer([...ex.correctOrder]);
+    setSkipped(true);
+  }, [step, canSkip]);
 
   const handleNext = useCallback(() => {
     if (lesson && currentStepIndex < lesson.steps.length - 1) {
@@ -282,6 +334,7 @@ export function useLessonRunner(): LessonRunner {
   const leave = useCallback(() => {
     clearLessonState();
     setAppMode('Author');
+    setSkipped(false);
     lastExecutedStepRef.current = null;
     lastStepIndexRef.current = -1;
   }, [clearLessonState, setAppMode]);
@@ -292,11 +345,11 @@ export function useLessonRunner(): LessonRunner {
     leave();
   }, [activeLessonId, currentStepIndex, leave]);
 
-  /** The last step passed: the lesson is complete. */
+  /** The last step passed: the lesson is complete, or skipped when Skip was used in this run. */
   const handleFinish = useCallback(() => {
-    if (activeLessonId) markLessonComplete(activeLessonId);
+    if (activeLessonId) (skipped ? markLessonSkipped : markLessonComplete)(activeLessonId);
     leave();
-  }, [activeLessonId, leave]);
+  }, [activeLessonId, skipped, leave]);
 
   useEffect(() => {
     if (appMode !== 'Lesson' || !lesson || !step) return;
@@ -314,7 +367,6 @@ export function useLessonRunner(): LessonRunner {
       }
 
       if (e.key === 'ArrowRight') {
-        const canAdvance = !step.waitForUser || isStepSuccess;
         if (canAdvance) handleNext();
       } else if (e.key === 'ArrowLeft') {
         handleBack();
@@ -325,7 +377,7 @@ export function useLessonRunner(): LessonRunner {
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [appMode, lesson, step, isStepSuccess, handleNext, handleBack, handleExit]);
+  }, [appMode, lesson, step, canAdvance, handleNext, handleBack, handleExit]);
 
   const active = appMode === 'Lesson' && !!lesson && !!step;
   const stepCount = lesson?.steps.length ?? 0;
@@ -336,7 +388,11 @@ export function useLessonRunner(): LessonRunner {
     stepIndex: currentStepIndex,
     stepCount,
     isLastStep: active && currentStepIndex === stepCount - 1,
-    canAdvance: active && (!step!.waitForUser || isStepSuccess),
+    canAdvance: active && canAdvance,
+    goals: active ? goals : null,
+    canSkip: active && canSkip,
+    skip: handleSkip,
+    skipped,
     mcAnswer,
     setMcAnswer,
     orderAnswer,

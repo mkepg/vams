@@ -6,20 +6,27 @@
  *  - Every GL name the generator can emit is taught in a lesson, or listed as untaught
  *  - No lesson text uses the banned wording
  *  - Waiting steps in the sections on the bar carry hints and a task
+ *  - Waiting steps without a widget can be solved, and solving them makes them pass
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { CurriculumSection } from '@/core/store/types';
 import type { Lesson } from '@/core/types/lesson';
 import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
+import { SAMPLE_LESSONS } from '@/features/lesson-engine/model/sample-lessons';
 import { waitsForStudent } from '@/features/lesson-engine/model/step-rules';
+import { useVamsStore } from '@/core/store';
+import { solvedStepScene } from '../helpers/lesson-scene';
 
 /** Sections whose lessons already meet the full bar. The content work adds each one as it lands. */
 export const SECTIONS_ON_THE_BAR: CurriculumSection[] = [];
 
 export function lessonsUnderRules(): Lesson[] {
-  return Object.values(LESSON_REGISTRY).filter((l) => SECTIONS_ON_THE_BAR.includes(l.section));
+  return [
+    ...Object.values(LESSON_REGISTRY).filter((l) => SECTIONS_ON_THE_BAR.includes(l.section)),
+    ...Object.values(SAMPLE_LESSONS),
+  ];
 }
 
 /** Everything a lesson teaches in words. Later blocks add their own text here. */
@@ -113,7 +120,7 @@ describe('BB-LRULE-01: Every GL name the generator emits is taught or listed', (
 describe('BB-LRULE-02: No lesson text uses banned wording', () => {
   it('narration, tasks, hints and exercise text are clean', () => {
     const banned = /coming soon|not supported|future|deferred|\b3D\b|lighting/i;
-    const offenders = Object.values(LESSON_REGISTRY)
+    const offenders = [...Object.values(LESSON_REGISTRY), ...Object.values(SAMPLE_LESSONS)]
       .filter((l) => banned.test(allText(l)))
       .map((l) => l.id);
     expect(offenders).toEqual([]);
@@ -130,6 +137,41 @@ describe('BB-LRULE-03: Waiting steps carry hints and a task', () => {
         const ok =
           hints.length >= 1 && hints.length <= 3 && hints.every((h) => h.trim()) && !!step.task?.trim();
         if (!ok) bad.push(`${lesson.id}#${i + 1}`);
+      });
+    }
+    expect(bad).toEqual([]);
+  });
+});
+
+describe('BB-LRULE-04: Waiting steps can be solved, and solving them makes them pass', () => {
+  afterEach(() => {
+    useVamsStore.getState().clearLessonState();
+  });
+
+  it('the sample lessons are under the rules', () => {
+    expect(lessonsUnderRules().map((l) => l.id)).toContain('sample-goals');
+  });
+
+  it('every waiting step without an exercise has a solve', () => {
+    const bad: string[] = [];
+    for (const lesson of lessonsUnderRules()) {
+      lesson.steps.forEach((step, i) => {
+        if (waitsForStudent(step) && !step.exercise && !step.solve) bad.push(`${lesson.id}#${i + 1}`);
+      });
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it("the step's action and solve, on the scene the earlier steps built, meet its goals and success check", () => {
+    const bad: string[] = [];
+    for (const lesson of lessonsUnderRules()) {
+      lesson.steps.forEach((step, i) => {
+        if (!waitsForStudent(step)) return;
+        solvedStepScene(lesson, i);
+        const state = useVamsStore.getState();
+        const unmet = (step.goals ?? []).filter((g) => !g.check(state)).map((g) => g.label);
+        if (step.successCheck && !step.successCheck(state)) unmet.push('successCheck');
+        if (unmet.length) bad.push(`${lesson.id}#${i + 1}: ${unmet.join(', ')}`);
       });
     }
     expect(bad).toEqual([]);
