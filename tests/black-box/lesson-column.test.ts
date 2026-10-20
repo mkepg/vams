@@ -1725,7 +1725,8 @@ describe('BB-LCOL-61: A code step sets the line in a well with labelled blanks a
       expect(well.querySelector('.tk-glfn')!.textContent).toBe('glTranslatef');
       expect(well.textContent).toContain(', 0.0f);');
       expect(well.classList.contains('has-note')).toBe(false);
-      expect(host.querySelector('.lesson-bar__task')!.textContent).toContain('Fill in both numbers');
+      // The task line stays hidden until every blank is right.
+      expect(host.querySelector('.lesson-bar__task')).toBeNull();
       expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
       // The well adds no live region: the narration and the hint wrapper stay the only two.
       expect(host.querySelectorAll('[aria-live]')).toHaveLength(2);
@@ -1769,6 +1770,7 @@ describe('BB-LCOL-62: A blank shows its verdict once left, and the step passes a
       expect(y.hasAttribute('aria-invalid')).toBe(false);
       expect(host.querySelector('.lesson-code__note')).toBeNull();
       expect(buttonNamed(host, 'Next')!.disabled).toBe(false);
+      expect(host.querySelector('.lesson-bar__task')!.textContent).toBe('Done · Fill in both numbers');
       // A blank grows with its text, from six characters wide.
       expect(y.style.width).toBe('6ch');
       await typeInto(y, '0.2000000f');

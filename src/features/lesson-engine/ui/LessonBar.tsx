@@ -210,8 +210,8 @@ function LessonBarBody() {
   // Stuck? is for a waiting step that has something to offer, and only until the step passes.
   const showHelp = waitsForStudent(step) && !done && (moreHints || runner.canSkip);
   const hint = !done && hintsShown > 0 ? hints[Math.min(hintsShown, hints.length) - 1] : null;
-  // On a goals step the goals are the task: the line appears only once the step is done.
-  const showTask = goals ? done : !!(step.successCheck || step.exercise || step.task);
+  // On a goals step the goals are the task, and on a fill-in step the blanks are: the line appears only once the step is done.
+  const showTask = goals || step.exercise?.kind === 'code' ? done : !!(step.successCheck || step.exercise || step.task);
 
   const predict = step.predict ?? null;
   const picked = predict && runner.predictAnswer ? predict.options.find((o) => o.id === runner.predictAnswer) ?? null : null;
