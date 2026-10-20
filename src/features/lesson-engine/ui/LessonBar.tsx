@@ -301,7 +301,7 @@ function LessonBarBody() {
                   <X size={14} strokeWidth={1.75} aria-hidden="true" />
                 )}
                 {picked.label}
-                <span className="sr-only">{pickedRight ? ', right' : ', not quite'}</span>
+                <span className="sr-only">{pickedRight ? ', correct' : ', incorrect'}</span>
               </span>
               <span>{picked.why}</span>
             </p>

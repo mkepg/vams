@@ -1566,6 +1566,7 @@ describe('BB-LCOL-56: A wrong pick runs the action, says why, and lights Next', 
       expect(pick.classList.contains('is-wrong')).toBe(true);
       expect(pick.textContent).toContain('Up');
       expect(pick.querySelector('svg.lucide-x')).not.toBeNull();
+      expect(verdict.querySelector('.sr-only')!.textContent).toBe(', incorrect');
       expect(verdict.textContent).toContain('It slid right. X is the horizontal axis; up would be Y.');
       expect(buttonNamed(host, 'Next')!.disabled).toBe(false);
       // The answers are gone, so focus moves on to the lit Next.
@@ -1638,6 +1639,7 @@ describe('BB-LCOL-58: A right pick shows a tick and is not marked wrong', () => 
       expect(pick.querySelector('svg.lucide-check')).not.toBeNull();
       expect(pick.querySelector('svg.lucide-x')).toBeNull();
       expect(pick.textContent).toContain('Right');
+      expect(host.querySelector('p.lesson-bar__verdict .sr-only')!.textContent).toBe(', correct');
       expect(host.querySelector('p.lesson-bar__verdict')!.textContent).toContain('It slid right. X is the horizontal axis.');
     } finally {
       unmount(host);
