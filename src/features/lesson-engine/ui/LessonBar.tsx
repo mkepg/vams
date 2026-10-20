@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
-  CheckCircle2,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -52,6 +52,7 @@ function LessonBarBody() {
   const pipelineLesson = useVamsStore((s) => s.activeSection === 'Pipeline');
   const pipelineMode = useVamsStore((s) => s.pipelineMode);
   const setPipelineMode = useVamsStore((s) => s.setPipelineMode);
+  const requestExplain = useVamsStore((s) => s.requestExplain);
   const focusPanelId = useVamsStore((s) => s.lessonFocusPanel);
   const lessonId = runner.active ? runner.lesson?.id ?? null : null;
   const stepKey = lessonId ? `${lessonId}:${runner.stepIndex}` : null;
@@ -134,6 +135,13 @@ function LessonBarBody() {
   if (!runner.active || !runner.lesson || !runner.step) return null;
   const { lesson, step, stepIndex, stepCount, isLastStep, canAdvance } = runner;
   const width = `${((stepIndex + 1) / stepCount) * 100}%`;
+  // The last step names the next lesson in the section; a section's last lesson, or one outside the course, reads Finish.
+  const nextLabel = !isLastStep ? 'Next' : runner.nextLesson?.title ?? 'Finish';
+  const nextTitle = !isLastStep
+    ? 'Next step (→)'
+    : runner.nextLesson
+      ? `Next lesson: ${runner.nextLesson.title}`
+      : 'Finish lesson';
 
   const progress = (
     <div
@@ -151,16 +159,16 @@ function LessonBarBody() {
     <Button
       variant="primary"
       className="lesson-bar__next"
-      icon={isLastStep ? <CheckCircle2 /> : <ChevronRight />}
+      icon={<ChevronRight />}
       iconAfter
-      title={isLastStep ? 'Finish lesson' : 'Next step (→)'}
+      title={nextTitle}
       disabled={!canAdvance}
       onClick={() => {
         refocusNext.current = folded;
         (isLastStep ? runner.finish : runner.next)();
       }}
     >
-      {isLastStep ? 'Finish' : 'Next'}
+      {nextLabel}
     </Button>
   );
   const meta = (
@@ -258,6 +266,32 @@ function LessonBarBody() {
       {progress}
       {meta}
       <p className="lesson-bar__narration" aria-live="polite">{step.narration}</p>
+      {step.recap && (
+        <>
+          <ul className="lesson-bar__learned">
+            {step.recap.points.map((point, i) => (
+              <li key={i}>
+                <Check size={13} strokeWidth={1.75} aria-hidden="true" />
+                <span>{point}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="lesson-bar__calls">
+            You used
+            {step.recap.calls.map((call) => (
+              <button
+                key={call}
+                type="button"
+                className="lesson-bar__call"
+                title={`Show ${call} in the code`}
+                onClick={() => requestExplain(call)}
+              >
+                {call}
+              </button>
+            ))}
+          </p>
+        </>
+      )}
       {pipelineLesson && (
         <div
           className={focusPanelId === 'pipeline-mode-controls' ? 'lesson-bar__modes is-lesson-focus' : 'lesson-bar__modes'}

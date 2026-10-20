@@ -12,9 +12,9 @@ import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import { SegmentedControl } from '@/shared/ui/controls';
 import { LESSON_REGISTRY, getLessonById } from '@/features/lesson-engine/model/lesson-registry';
 import { SAMPLE_LESSONS } from '@/features/lesson-engine/model/sample-lessons';
-import { LESSON_CATALOG } from '@/features/lesson-engine/model/catalog';
+import { LESSON_CATALOG, courseOrder, nextInCourse } from '@/features/lesson-engine/model/catalog';
 import { PROGRESS_KEY } from '@/features/lesson-engine/model/progress';
-import { useLessonRunner, type LessonRunner } from '@/features/lesson-engine/model/useLessonRunner';
+import { courseMap, useLessonRunner, type LessonRunner } from '@/features/lesson-engine/model/useLessonRunner';
 import { EditorPanel } from '@/widgets/layout/editor-column';
 import Rail from '@/widgets/layout/rail';
 import CodeMathColumn from '@/widgets/layout/code-math-column';
@@ -26,7 +26,8 @@ import ObjectTransformPanel from '@/features/object-transform/ui/ObjectTransform
 import TextNodePanel from '@/features/text-nodes/ui/TextNodePanel';
 import SceneHierarchyPanel from '@/features/scene-hierarchy/ui/SceneHierarchyPanel';
 import MathPanel from '@/features/math-panel/ui/MathPanel';
-import { addTriangle, findById } from '../helpers/store';
+import SceneCodePanel from '@/features/code-generation/ui/SceneCodePanel';
+import { addQuad, addTriangle, findById } from '../helpers/store';
 
 async function settle() {
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
@@ -93,8 +94,8 @@ describe('BB-LCOL-02: The bar shows the title, the step, a progress hairline and
   });
 });
 
-describe('BB-LCOL-03: Meeting the success check enables Next; the last step says Finish', () => {
-  it('advances when the triangle is moved to the target', async () => {
+describe('BB-LCOL-03: Meeting the success check enables Next; the last step names the next lesson', () => {
+  it('advances when the triangle is moved to the target, then names and starts the next lesson', async () => {
     startLesson('transforms-exercise-1');
     const host = mount(h(LessonBar, {}));
     await settle();
@@ -108,18 +109,30 @@ describe('BB-LCOL-03: Meeting the success check enables Next; the last step says
     next.click();
     await settle();
     expect(host.querySelector('.lesson-bar__narration')!.textContent).toContain('Spot on!');
-    expect(buttonNamed(host, 'Finish')).toBeDefined();
+    expect(buttonNamed(host, 'Finish')).toBeUndefined();
+    const named = buttonNamed(host, 'Rotate to Angle')!;
+    expect(named.title).toBe('Next lesson: Rotate to Angle');
+    named.click();
+    await settle();
+    expect(useVamsStore.getState().activeLessonId).toBe('transforms-exercise-2');
+    expect(useVamsStore.getState().currentStepIndex).toBe(0);
+    expect(host.querySelector('.lesson-bar__title')!.textContent).toBe('Rotate to Angle');
     unmount(host);
   });
 });
 
-describe('BB-LCOL-04: Finish and Exit return to Author mode', () => {
-  it('Finish on the last step ends the lesson', async () => {
+describe('BB-LCOL-04: The named Next stays in Lesson mode, and Exit returns to Author mode', () => {
+  it('the last step starts the next lesson, still in Lesson mode, and Exit then ends it', async () => {
     startLesson('transforms-exercise-1');
     useVamsStore.getState().setCurrentStep(1);
     const host = mount(h(LessonBar, {}));
     await settle();
-    buttonNamed(host, 'Finish')!.click();
+    buttonNamed(host, 'Rotate to Angle')!.click();
+    await settle();
+    expect(useVamsStore.getState().appMode).toBe('Lesson');
+    expect(useVamsStore.getState().activeLessonId).toBe('transforms-exercise-2');
+    expect(host.querySelector('.lesson-bar__step')!.textContent).toBe('Step 1 of 2');
+    exitButton(host).click();
     await settle();
     expect(useVamsStore.getState().appMode).toBe('Author');
     expect(useVamsStore.getState().activeLessonId).toBeNull();
@@ -1336,6 +1349,143 @@ describe('BB-LCOL-49: The arrow on Next comes after the word, and Back keeps its
       expect(back.firstChild).toBe(back.firstElementChild);
     } finally {
       unmount(host);
+    }
+  });
+});
+
+/** Opens a lesson's last step in the lesson bar. */
+async function lastStepBar(id: string, section: 'Transforms' | 'Pipeline' = 'Transforms') {
+  startLesson(id, section);
+  useVamsStore.getState().setCurrentStep(LESSON_REGISTRY[id].steps.length - 1);
+  const host = mount(h(LessonBar, {}));
+  await settle();
+  return host;
+}
+
+describe('BB-LCOL-50: The last step names the next lesson in the course and starts it', () => {
+  it('records the lesson as complete and opens the next one at step 1, still in Lesson mode', async () => {
+    const nextEntry = courseOrder()[courseOrder().findIndex((l) => l.id === 'pipeline-demo-1') + 1];
+    const nextLesson = LESSON_REGISTRY[nextEntry.id];
+    const host = await lastStepBar('pipeline-demo-1', 'Pipeline');
+    try {
+      const button = host.querySelector<HTMLButtonElement>('.lesson-bar__next')!;
+      expect(button.textContent!.trim()).toBe(nextEntry.title);
+      expect(button.title).toBe(`Next lesson: ${nextEntry.title}`);
+      expect((button.lastElementChild as HTMLElement).classList.contains('vbtn__icon')).toBe(true);
+      button.click();
+      await settle();
+      expect(rawProgress().completed).toContain('pipeline-demo-1');
+      const s = useVamsStore.getState();
+      expect(s.appMode).toBe('Lesson');
+      expect(s.activeLessonId).toBe(nextEntry.id);
+      expect(s.currentStepIndex).toBe(0);
+      expect(host.querySelector('.lesson-bar__step')!.textContent).toBe(`Step 1 of ${nextLesson.steps.length}`);
+      expect(host.querySelector('.lesson-bar__narration')!.textContent).toBe(nextLesson.steps[0].narration);
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe("BB-LCOL-51: A section's last lesson reads Finish and opens the course map at its section", () => {
+  it('records completion, returns to Author mode and goes to /learn#transforms', async () => {
+    const order = courseOrder().filter((l) => l.section === 'Transforms');
+    const last = order[order.length - 1];
+    const go = vi.spyOn(courseMap, 'go').mockImplementation(() => {});
+    const host = await lastStepBar(last.id);
+    try {
+      const button = buttonNamed(host, 'Finish')!;
+      expect(button).toBeDefined();
+      expect(button.classList.contains('lesson-bar__next')).toBe(true);
+      expect((button.lastElementChild as HTMLElement).classList.contains('vbtn__icon')).toBe(true);
+      button.click();
+      await settle();
+      expect(rawProgress().completed).toContain(last.id);
+      expect(useVamsStore.getState().appMode).toBe('Author');
+      expect(useVamsStore.getState().activeLessonId).toBeNull();
+      expect(go).toHaveBeenCalledTimes(1);
+      expect(go).toHaveBeenCalledWith('/learn#transforms');
+    } finally {
+      go.mockRestore();
+      unmount(host);
+    }
+  });
+});
+
+describe("BB-LCOL-52: Chaining lessons keeps the student's own scene for Exit", () => {
+  it('brings back the one quad after two lessons ended with the named Next', async () => {
+    const quad = addQuad(0.2, 0.1, 0.3);
+    startLesson('transforms-demo-1');
+    const host = mount(h(LessonBar, {}));
+    try {
+      await settle();
+      for (let i = 0; i < 2; i++) {
+        const id = useVamsStore.getState().activeLessonId!;
+        useVamsStore.getState().setCurrentStep(LESSON_REGISTRY[id].steps.length - 1);
+        await settle();
+        const title = nextInCourse(id)!.title;
+        buttonNamed(host, title)!.click();
+        await settle();
+        expect(useVamsStore.getState().activeLessonId).toBe(nextInCourse(id)!.id);
+        // The next lesson opens on its own clean scene, not on the student's.
+        expect(useVamsStore.getState().objects.some((o) => o.id === quad.id)).toBe(false);
+      }
+      exitButton(host).click();
+      await settle();
+      const objects = useVamsStore.getState().objects;
+      expect(objects).toHaveLength(1);
+      expect(objects[0].id).toBe(quad.id);
+      expect(useVamsStore.getState().appMode).toBe('Author');
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-53: The recap lists its points and the calls, and a call opens its line', () => {
+  it('shows two points and three calls, explains glRotatef in Code, and Finish stays in the editor', async () => {
+    vi.stubEnv('VITE_LESSON_SAMPLES', '1');
+    const go = vi.spyOn(courseMap, 'go').mockImplementation(() => {});
+    useVamsStore.getState().setCodePane('math');
+    startLesson('sample-recap');
+    const bar = mount(h(LessonBar, {}));
+    const code = mount(h(SceneCodePanel, {}));
+    try {
+      await settle();
+      expect(bar.querySelector('.lesson-bar__learned')).toBeNull();
+      buttonNamed(bar, 'Next')!.click();
+      await settle();
+      const points = [...bar.querySelectorAll('ul.lesson-bar__learned li')];
+      expect(points.map((p) => p.textContent)).toEqual([
+        'Translate moves, rotate turns, scale stretches.',
+        'They apply in reverse code order: scale first, move last.',
+      ]);
+      expect(points.every((p) => p.querySelector('svg'))).toBe(true);
+      const calls = bar.querySelector('p.lesson-bar__calls')!;
+      expect(calls.firstChild!.textContent!.trim()).toBe('You used');
+      const buttons = [...calls.querySelectorAll<HTMLButtonElement>('button.lesson-bar__call')];
+      expect(buttons.map((b) => b.textContent)).toEqual(['glTranslatef', 'glRotatef', 'glScalef']);
+      useVamsStore.getState().setCodePane('math');
+      buttons[1].click();
+      await settle();
+      const s = useVamsStore.getState();
+      expect(s.codePane).toBe('code');
+      expect(s.codeHidden).toBe(false);
+      expect(s.explainedLine).not.toBeNull();
+      const line = code.querySelector(`.code-line[data-line="${s.explainedLine}"] .code-line__text`)!;
+      expect(line.textContent).toContain('glRotatef(');
+
+      const finish = buttonNamed(bar, 'Finish')!;
+      expect(finish).toBeDefined();
+      finish.click();
+      await settle();
+      expect(useVamsStore.getState().appMode).toBe('Author');
+      expect(useVamsStore.getState().activeLessonId).toBeNull();
+      expect(go).not.toHaveBeenCalled();
+    } finally {
+      go.mockRestore();
+      unmount(code);
+      unmount(bar);
     }
   });
 });

@@ -4,6 +4,7 @@ import { useVamsStore } from '@/core/store';
 import type { Lesson, LessonStep } from '@/core/types/lesson';
 import { resolveFocus } from '@/core/inspector';
 import { getLessonById } from './lesson-registry';
+import { isSectionEnd, nextInCourse } from './catalog';
 import { markLessonComplete, markLessonSkipped, recordLessonLeft } from './progress';
 import { canSkip as stepCanSkip, waitsForStudent } from './step-rules';
 import { focusStyleFor } from './guidance';
@@ -18,6 +19,13 @@ const ARROW_KEY_OWNERS = [
   '[role="slider"]', '[role="dialog"]', '[role="alertdialog"]', '[role="spinbutton"]',
 ].join(', ');
 const ESCAPE_KEY_OWNERS = '[role="menu"], [role="dialog"], [role="alertdialog"]';
+
+/** Leaves the editor for the course map. An object, so a test can stand in for the page load. */
+export const courseMap = {
+  go(href: string): void {
+    window.location.assign(href);
+  },
+};
 
 export interface LessonRunner {
   /** True when appMode is Lesson and a lesson and step exist. */
@@ -36,6 +44,10 @@ export interface LessonRunner {
   skip: () => void;
   /** Skip was used in this run of the lesson; Finish records the lesson as skipped. */
   skipped: boolean;
+  /** The next lesson in the course, in the same section, which the last step's button names and starts. */
+  nextLesson: { id: string; title: string } | null;
+  /** The lesson is its section's last: Finish then opens the course map at the section. */
+  finishGoesToMap: boolean;
   mcAnswer: string | null;
   setMcAnswer: (id: string | null) => void;
   orderAnswer: string[] | null;
@@ -89,6 +101,7 @@ export function useLessonRunner(): LessonRunner {
     appMode,
     activeLessonId,
     currentStepIndex,
+    setActiveLesson,
     setCurrentStep,
     setAppMode,
     clearLessonState,
@@ -355,11 +368,29 @@ export function useLessonRunner(): LessonRunner {
     leave();
   }, [activeLessonId, currentStepIndex, leave]);
 
-  /** The last step passed: the lesson is complete, or skipped when Skip was used in this run. */
+  const nextLesson = useMemo(() => {
+    const entry = activeLessonId ? nextInCourse(activeLessonId) : null;
+    return entry ? { id: entry.id, title: entry.title } : null;
+  }, [activeLessonId]);
+  const finishGoesToMap = !nextLesson && !!activeLessonId && isSectionEnd(activeLessonId);
+
+  /**
+   * The last step passed: the lesson is complete, or skipped when Skip was used in this run. Then the
+   * next lesson in the section starts, keeping the student's backed-up scene for when they leave; a
+   * section's last lesson opens the course map; a lesson outside the course ends in the editor.
+   */
   const handleFinish = useCallback(() => {
     if (activeLessonId) (skipped ? markLessonSkipped : markLessonComplete)(activeLessonId);
+    if (nextLesson) {
+      // A lesson is active, so the store keeps its backups instead of taking new ones.
+      setActiveLesson(nextLesson.id);
+      setCurrentStep(0);
+      return;
+    }
+    const section = lesson?.section ?? null;
     leave();
-  }, [activeLessonId, skipped, leave]);
+    if (finishGoesToMap && section) courseMap.go(`/learn#${section.toLowerCase()}`);
+  }, [activeLessonId, skipped, nextLesson, finishGoesToMap, lesson, setActiveLesson, setCurrentStep, leave]);
 
   useEffect(() => {
     if (appMode !== 'Lesson' || !lesson || !step) return;
@@ -403,6 +434,8 @@ export function useLessonRunner(): LessonRunner {
     canSkip: active && canSkip,
     skip: handleSkip,
     skipped,
+    nextLesson: active ? nextLesson : null,
+    finishGoesToMap: active && finishGoesToMap,
     mcAnswer,
     setMcAnswer,
     orderAnswer,

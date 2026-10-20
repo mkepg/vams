@@ -53,6 +53,9 @@ export interface LessonStep {
    */
   solve?: (state: VamsState) => void;
 
+  /** The lesson's closing points and the calls it taught. */
+  recap?: { points: string[]; calls: string[] };
+
   /** The journey stage the step is about, when the step's focus would open another one. */
   mathStage?: JourneyStageId;
 

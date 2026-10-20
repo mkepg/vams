@@ -10,7 +10,7 @@ import { renderToString } from 'preact-render-to-string';
 import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
 import { COURSE, LESSON_CATALOG, catalogFor, isCatalogLesson, lessonHref } from '@/features/lesson-engine/model/catalog';
 import { PROGRESS_KEY, useLessonProgress, type LessonProgress } from '@/features/lesson-engine/model/progress';
-import { courseOrder, firstLessonToStudy } from '@/features/lesson-engine/model/catalog';
+import { courseOrder, firstLessonToStudy, isSectionEnd, nextInCourse } from '@/features/lesson-engine/model/catalog';
 import { doneCount, lessonStatus, nextUp } from '@/pages/learn/model/learn-progress';
 import LearnPage from '@/pages/learn';
 import { LEARN_COPY } from '@/pages/learn/model/copy';
@@ -325,5 +325,24 @@ describe('BB-LPAGE-14: A skipped lesson shows on its row and does not count as d
     expect(row.querySelector('.learn-row__meta')!.textContent).toBe('Skipped');
     expect(row.getAttribute('aria-label')).toBe(`${entry('pipeline-demo-2').title}, skipped`);
     expect(doneCount(progressOf({ skipped: ['pipeline-demo-2'] }))).toBe(0);
+  });
+});
+
+describe('BB-LPAGE-15: The next lesson in the course, within a section', () => {
+  it("names the following lesson of the same section, and nothing at a section's end or for an unknown id", () => {
+    const order = courseOrder();
+    const pipeline = order.filter((l) => l.section === 'Pipeline');
+    expect(nextInCourse('pipeline-demo-1')).toEqual(pipeline[1]);
+    const ends = SECTIONS.map((section) => {
+      const lessons = order.filter((l) => l.section === section);
+      return lessons[lessons.length - 1].id;
+    });
+    for (const id of ends) expect(nextInCourse(id), id).toBeNull();
+    expect(order.filter((l) => isSectionEnd(l.id)).map((l) => l.id)).toEqual(ends);
+    for (const lesson of order) {
+      if (!ends.includes(lesson.id)) expect(nextInCourse(lesson.id)!.section, lesson.id).toBe(lesson.section);
+    }
+    expect(nextInCourse('nope')).toBeNull();
+    expect(isSectionEnd('nope')).toBe(false);
   });
 });

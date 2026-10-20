@@ -19,6 +19,7 @@ import { startLesson } from '@/features/lesson-engine/model/start-lesson';
 import LearnDrawer from '@/features/lesson-engine/ui/LearnDrawer';
 import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import { useRecordLessonOnLeave } from '@/features/lesson-engine/model/record-on-leave';
+import { courseMap } from '@/features/lesson-engine/model/useLessonRunner';
 
 async function settle() {
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
@@ -71,7 +72,9 @@ describe('BB-LEARN-02: Unreadable or foreign progress reads as clean progress', 
 });
 
 describe('BB-LEARN-03: A failed progress write never blocks finishing a lesson', () => {
+  // transforms-exercise-4 ends the Transforms section, so Finish then opens the course map.
   async function finishLastStep() {
+    vi.spyOn(courseMap, 'go').mockImplementation(() => {});
     useVamsStore.setState({ activeSection: 'Transforms' });
     useVamsStore.getState().setActiveLesson('transforms-exercise-4');
     useVamsStore.getState().setAppMode('Lesson');
@@ -94,6 +97,7 @@ describe('BB-LEARN-03: A failed progress write never blocks finishing a lesson',
     await clickFinish(host);
     expect(useVamsStore.getState().appMode).toBe('Author');
     expect(readProgress().completed).toContain('transforms-exercise-4');
+    expect(courseMap.go).toHaveBeenCalledWith('/learn#transforms');
   });
 
   it('finishes and returns to Author mode when storage throws', async () => {
@@ -106,6 +110,7 @@ describe('BB-LEARN-03: A failed progress write never blocks finishing a lesson',
       expect(setItem).toHaveBeenCalled();
       expect(useVamsStore.getState().appMode).toBe('Author');
       expect(useVamsStore.getState().activeLessonId).toBeNull();
+      expect(courseMap.go).toHaveBeenCalledWith('/learn#transforms');
     } finally {
       setItem.mockRestore();
     }

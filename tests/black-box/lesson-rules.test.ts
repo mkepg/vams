@@ -7,6 +7,7 @@
  *  - No lesson text uses the banned wording
  *  - Waiting steps in the sections on the bar carry hints and a task
  *  - Waiting steps without a widget can be solved, and solving them makes them pass
+ *  - Every lesson closes with a recap whose calls are in the code of its last step
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -18,6 +19,8 @@ import { SAMPLE_LESSONS } from '@/features/lesson-engine/model/sample-lessons';
 import { waitsForStudent } from '@/features/lesson-engine/model/step-rules';
 import { useVamsStore } from '@/core/store';
 import { solvedStepScene } from '../helpers/lesson-scene';
+import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
+import { outlineCode, findCallLine } from '@/features/code-generation/model/code-outline';
 
 /** Sections whose lessons already meet the full bar. The content work adds each one as it lands. */
 export const SECTIONS_ON_THE_BAR: CurriculumSection[] = [];
@@ -35,6 +38,7 @@ export function taughtText(lesson: Lesson): string {
   for (const step of lesson.steps) {
     parts.push(step.narration);
     if (step.hints) parts.push(...step.hints);
+    if (step.recap) parts.push(...step.recap.calls);
   }
   return parts.join('\n');
 }
@@ -44,6 +48,7 @@ function allText(lesson: Lesson): string {
   const parts = [lesson.title, taughtText(lesson)];
   for (const step of lesson.steps) {
     if (step.task) parts.push(step.task);
+    if (step.recap) parts.push(...step.recap.points);
     if (step.goals) parts.push(...step.goals.map((g) => g.label));
     const ex = step.exercise;
     if (ex) {
@@ -175,5 +180,57 @@ describe('BB-LRULE-04: Waiting steps can be solved, and solving them makes them 
       });
     }
     expect(bad).toEqual([]);
+  });
+});
+
+describe('BB-LRULE-05: Every lesson closes with a recap, and its calls are in the code', () => {
+  afterEach(() => {
+    useVamsStore.getState().clearLessonState();
+  });
+
+  it('the recap sample is under the rules', () => {
+    expect(lessonsUnderRules().map((l) => l.id)).toContain('sample-recap');
+  });
+
+  it('the last step of every lesson under the rules has 1-3 points and at least one call', () => {
+    const bad: string[] = [];
+    for (const lesson of lessonsUnderRules()) {
+      const recap = lesson.steps[lesson.steps.length - 1].recap;
+      const ok =
+        !!recap &&
+        recap.points.length >= 1 &&
+        recap.points.length <= 3 &&
+        recap.points.every((p) => p.trim()) &&
+        recap.calls.length >= 1;
+      if (!ok) bad.push(lesson.id);
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it("every recap call is found in the code generated for its step's scene", () => {
+    const bad: string[] = [];
+    for (const lesson of lessonsUnderRules()) {
+      const last = lesson.steps.length - 1;
+      const recap = lesson.steps[last].recap;
+      if (!recap) continue;
+      solvedStepScene(lesson, last);
+      const s = useVamsStore.getState();
+      const outline = outlineCode(
+        generateCodeFromState(
+          { objects: s.objects, canvasBackgroundColor: s.canvasBackgroundColor, callbacks: s.callbacks, viewportLimits: s.viewportLimits, textures: s.getAllTextures() },
+          { width: 800, height: 600 },
+        ),
+      );
+      for (const call of recap.calls) {
+        if (findCallLine(outline, null, call) === null) bad.push(`${lesson.id}: ${call}`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('taughtText counts the recap calls', () => {
+    const lesson = SAMPLE_LESSONS['sample-recap'];
+    expect(lesson.steps.some((step) => step.narration.includes('glScalef'))).toBe(false);
+    expect(taughtText(lesson)).toMatch(/\bglScalef\b/);
   });
 });

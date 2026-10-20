@@ -69,7 +69,40 @@ export const SAMPLE_LESSONS: Record<string, Lesson> = {
           if (!t.vertices.every((v) => v.color.toLowerCase() === RED)) state.setAllVertexColors(t.id, RED);
         },
       },
-      { narration: 'Done.' },
+      {
+        narration: 'Done.',
+        recap: {
+          points: ['Goals tick as you meet them, and undo un-ticks them.'],
+          calls: ['glTranslatef', 'glRotatef'],
+        },
+      },
+    ],
+  },
+  'sample-recap': {
+    id: 'sample-recap',
+    title: 'Translate, Rotate, Scale',
+    type: 'demo',
+    section: 'Transforms',
+    steps: [
+      {
+        narration: 'Here is a triangle that has been moved, turned and stretched.',
+        action: (state) => {
+          state.addCustomObject('TRIANGLES', [{ x: 0, y: 0.5 }, { x: -0.5, y: -0.5 }, { x: 0.5, y: -0.5 }]);
+          const id = useVamsStore.getState().objects[0]?.id;
+          if (!id) return;
+          state.updateObjectTransform(id, { translateX: 0.3, translateY: 0.1, rotate: 30, scaleX: 1.5, scaleY: 0.8 });
+        },
+      },
+      {
+        narration: "You've met the three transforms.",
+        recap: {
+          points: [
+            'Translate moves, rotate turns, scale stretches.',
+            'They apply in reverse code order: scale first, move last.',
+          ],
+          calls: ['glTranslatef', 'glRotatef', 'glScalef'],
+        },
+      },
     ],
   },
 };
