@@ -71,6 +71,19 @@ export function resetLessonScene(): void {
   });
 }
 
+/**
+ * Rebuilds the scene a student finds on reaching step `index`, before its action runs: every
+ * earlier step's action, then its solve when it has one, which stands in for the student's own work.
+ * The step's own solve never runs here.
+ */
+export function replayStepsBefore(lesson: Lesson, index: number): void {
+  for (let i = 0; i < index; i++) {
+    const pastStep = lesson.steps[i];
+    pastStep.action?.(useVamsStore.getState());
+    pastStep.solve?.(useVamsStore.getState());
+  }
+}
+
 export function useLessonRunner(): LessonRunner {
   const {
     appMode,
@@ -231,11 +244,8 @@ export function useLessonRunner(): LessonRunner {
       // The rebuilt scene is not the student's edit: the code panel marks none of its values.
       store.markSceneSwap();
 
-      // Replay every step BEFORE the current one to recreate the pre-state.
-      for (let i = 0; i < currentStepIndex; i++) {
-        const pastStep = lesson.steps[i];
-        if (pastStep.action) pastStep.action(useVamsStore.getState());
-      }
+      // Replay every step BEFORE the current one, solved, to recreate the pre-state.
+      replayStepsBefore(lesson, currentStepIndex);
 
       // Snapshot pre-state (= state at the end of step N-1, or empty if N=0).
       preCode = snapshotCode();

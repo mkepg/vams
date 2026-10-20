@@ -1097,3 +1097,60 @@ describe('BB-LCOL-41: The sample lessons exist only with the flag, and never in 
     }
   });
 });
+
+describe("BB-LCOL-42: Rebuilding a lesson's scene replays the earlier steps' solve", () => {
+  const ID = 'test-replay-solve-lesson';
+  const movedRight = (s: ReturnType<typeof useVamsStore.getState>) =>
+    s.objects.length === 1 && Math.abs(s.objects[0].transform.translateX - 0.5) <= 0.01;
+  it('opens a later step, after Back or a jump, on the scene the goals step left', async () => {
+    LESSON_REGISTRY[ID] = {
+      id: ID,
+      title: 'Replay solve',
+      type: 'exercise',
+      section: 'Transforms',
+      steps: [
+        {
+          narration: 'Move the triangle right.',
+          action: (state) => state.addCustomObject('TRIANGLES', [{ x: 0, y: 0.5 }, { x: -0.5, y: -0.5 }, { x: 0.5, y: -0.5 }]),
+          goals: [{ label: 'At x 0.5', check: movedRight }],
+          solve: (state) => state.updateObjectTransform(state.objects[0].id, { translateX: 0.5 }),
+        },
+        { narration: 'It moved.' },
+        { narration: 'Still there.' },
+      ],
+    };
+    try {
+      startLesson(ID);
+      const host = mount(h(RunnerProbe, {}));
+      await settle();
+      expect(runner.canAdvance).toBe(false);
+      useVamsStore.getState().updateObjectTransform(useVamsStore.getState().objects[0].id, { translateX: 0.5 });
+      await settle();
+      runner.next();
+      await settle();
+      runner.next();
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(2);
+      // Back rebuilds step 2 from scratch: step 1's solve stands in for the student's work.
+      runner.back();
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+      expect(movedRight(useVamsStore.getState())).toBe(true);
+      // A jump rebuilds too.
+      useVamsStore.getState().setCurrentStep(0);
+      await settle();
+      useVamsStore.getState().setCurrentStep(2);
+      await settle();
+      expect(movedRight(useVamsStore.getState())).toBe(true);
+      // The current step's own solve never runs on a rebuild.
+      useVamsStore.getState().setCurrentStep(0);
+      await settle();
+      expect(useVamsStore.getState().objects[0].transform.translateX).toBe(0);
+      expect(runner.canAdvance).toBe(false);
+      unmount(host);
+    } finally {
+      useVamsStore.getState().clearLessonState();
+      delete LESSON_REGISTRY[ID];
+    }
+  });
+});
