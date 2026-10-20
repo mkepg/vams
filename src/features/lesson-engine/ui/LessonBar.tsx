@@ -307,12 +307,18 @@ function LessonBarBody() {
           ))}
         </ul>
       )}
-      {hint && (
-        <p className="lesson-bar__hint">
-          <Lightbulb size={14} strokeWidth={1.75} aria-hidden="true" />
-          <span>{hint}</span>
-          <span className="lesson-bar__hint-count">{Math.min(hintsShown, hints.length)} of {hints.length}</span>
-        </p>
+      {/* Mounted for the whole of a step with hints, before any shows, so a hint that appears or
+          changes is announced. It lays out no box of its own. */}
+      {hints.length > 0 && (
+        <div className="lesson-bar__hint-live" aria-live="polite">
+          {hint && (
+            <p className="lesson-bar__hint">
+              <Lightbulb size={14} strokeWidth={1.75} aria-hidden="true" />
+              <span>{hint}</span>
+              <span className="lesson-bar__hint-count">{Math.min(hintsShown, hints.length)} of {hints.length}</span>
+            </p>
+          )}
+        </div>
       )}
       {showTask && (
         <p className={done ? 'lesson-bar__task is-done' : 'lesson-bar__task'}>

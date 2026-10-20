@@ -1296,3 +1296,30 @@ describe('BB-LCOL-47: The disabled Next uses the action-off tokens in both theme
     expect(rule![1]).toMatch(/color:\s*var\(--on-action-off\);/);
   });
 });
+
+describe('BB-LCOL-48: A shown hint is announced politely, and so is the next one', () => {
+  it('puts the hint inside a polite live region that stays mounted from the first hint to the next', async () => {
+    const hints = SAMPLE_LESSONS['sample-goals'].steps[0].hints!;
+    const host = await startGoalsBar();
+    try {
+      const live = host.querySelector<HTMLElement>('.lesson-bar__hint-live')!;
+      expect(live).not.toBeNull();
+      expect(live.getAttribute('aria-live')).toBe('polite');
+      expect(live.textContent).toBe('');
+      buttonNamed(host, 'Stuck?')!.click();
+      await settle();
+      buttonNamed(host, 'Show a hint')!.click();
+      await settle();
+      expect(host.querySelector('.lesson-bar__hint-live')).toBe(live);
+      expect(live.contains(host.querySelector('.lesson-bar__hint'))).toBe(true);
+      expect(live.textContent).toContain(hints[0]);
+      buttonNamed(host, 'Show another hint')!.click();
+      await settle();
+      expect(host.querySelector('.lesson-bar__hint-live')).toBe(live);
+      expect(live.textContent).toContain(hints[1]);
+      expect(live.textContent).not.toContain(hints[0]);
+    } finally {
+      unmount(host);
+    }
+  });
+});

@@ -134,6 +134,9 @@
     font-variant-numeric: tabular-nums;
   }
 
+  // The hint's live region: no box, so the hint is the bar's own grid row and an empty region adds no gap.
+  &__hint-live { display: contents; }
+
   // The hint: a second, quieter voice under the goals.
   &__hint {
     display: flex;
