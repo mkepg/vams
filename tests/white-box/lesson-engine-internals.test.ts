@@ -12,6 +12,8 @@
 import { describe, it, expect } from 'vitest';
 import { useVamsStore } from '@/core/store';
 import { LESSON_REGISTRY, getLessonById } from '@/features/lesson-engine/model/lesson-registry';
+import { waitsForStudent, canSkip, goalLabelParts } from '@/features/lesson-engine/model/step-rules';
+import type { LessonStep } from '@/core/types/lesson';
 import { addTriangle, getState } from '../helpers/store';
 
 describe('WB-LESSON-01: Setting a lesson backs up scene + callbacks + viewport + bg', () => {
@@ -118,5 +120,70 @@ describe('WB-LESSON-06: Every successCheck reads only from VamsState', () => {
       }
     }
     expect(errors).toBe(0);
+  });
+});
+
+const mcq: LessonStep['exercise'] = {
+  kind: 'multiple-choice',
+  prompt: 'p',
+  options: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }],
+  correctId: 'a',
+};
+
+describe('WB-LESSON-07: waitsForStudent', () => {
+  it('is false for a pacing step with only waitForUser', () => {
+    expect(waitsForStudent({ narration: 'x', waitForUser: true })).toBe(false);
+  });
+
+  it('is true for a successCheck, goals or an exercise', () => {
+    expect(waitsForStudent({ narration: 'x', successCheck: () => true })).toBe(true);
+    expect(waitsForStudent({ narration: 'x', goals: [{ label: 'a', check: () => true }] })).toBe(true);
+    expect(waitsForStudent({ narration: 'x', exercise: mcq })).toBe(true);
+  });
+
+  it('is false for an empty goals list', () => {
+    expect(waitsForStudent({ narration: 'x', goals: [] })).toBe(false);
+  });
+});
+
+describe('WB-LESSON-08: canSkip', () => {
+  it('is true for a waiting step with solve, and for one with an exercise', () => {
+    expect(canSkip({ narration: 'x', successCheck: () => true, solve: () => {} })).toBe(true);
+    expect(canSkip({ narration: 'x', exercise: mcq })).toBe(true);
+  });
+
+  it('is false for a waiting step with neither', () => {
+    expect(canSkip({ narration: 'x', successCheck: () => true })).toBe(false);
+  });
+
+  it('is false for a step that does not wait, even with solve', () => {
+    expect(canSkip({ narration: 'x', solve: () => {} })).toBe(false);
+  });
+});
+
+describe('WB-LESSON-09: goalLabelParts', () => {
+  it('splits out a coordinate group', () => {
+    expect(goalLabelParts('At (0.5, 0.2)')).toEqual([
+      { text: 'At ', num: false },
+      { text: '(0.5, 0.2)', num: true },
+    ]);
+  });
+
+  it('keeps the degree sign with the number', () => {
+    expect(goalLabelParts('Turned 45°')).toEqual([
+      { text: 'Turned ', num: false },
+      { text: '45°', num: true },
+    ]);
+  });
+
+  it('leaves a label without numbers whole', () => {
+    expect(goalLabelParts('Red')).toEqual([{ text: 'Red', num: false }]);
+  });
+
+  it('keeps a true minus inside the number part', () => {
+    expect(goalLabelParts('Width −0.5')).toEqual([
+      { text: 'Width ', num: false },
+      { text: '−0.5', num: true },
+    ]);
   });
 });
