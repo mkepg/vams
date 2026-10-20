@@ -1489,3 +1489,13 @@ describe('BB-LCOL-53: The recap lists its points and the calls, and a call opens
     }
   });
 });
+
+describe("BB-LCOL-54: The recap's points are set at the narration's size", () => {
+  it('gives .lesson-bar__learned the --text-md font size', () => {
+    const scss = readFileSync('src/features/lesson-engine/ui/lesson-bar.scss', 'utf8');
+    const start = scss.indexOf('&__learned {');
+    expect(start).toBeGreaterThan(-1);
+    const block = scss.slice(start, scss.indexOf('\n  }', start));
+    expect(block).toMatch(/font-size:\s*var\(--text-md\)/);
+  });
+});
