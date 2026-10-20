@@ -144,6 +144,8 @@
   }
   &.is-progress &__mark { background: var(--accent); border-color: var(--accent); }
   &.is-complete &__mark { border: 0; color: var(--ink); }
+  // Skipped is the not-started ring with a short dash inside.
+  &.is-skipped &__mark::after { content: ''; width: 6px; height: 1.5px; background: var(--ink-faint); }
   &__title { font-size: var(--text-md); line-height: var(--lh-md); }
   &__meta { font-size: var(--text-sm); color: var(--ink-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
 }

@@ -7,11 +7,13 @@ export const PROGRESS_KEY = 'vams-lesson-progress';
 export interface LessonProgress {
   version: 1;
   completed: string[];
+  /** Lessons the student used Skip in and has not finished since. A finished lesson is never listed here. */
+  skipped: string[];
   /** The lesson the student left mid-way; shown as "in progress". Starting it again begins at step 1. */
   current: { lessonId: string; step: number } | null;
 }
 
-const empty = (): LessonProgress => ({ version: 1, completed: [], current: null });
+const empty = (): LessonProgress => ({ version: 1, completed: [], skipped: [], current: null });
 
 type Listener = (progress: LessonProgress) => void;
 const listeners = new Set<Listener>();
@@ -23,12 +25,13 @@ export function readProgress(): LessonProgress {
     const data = JSON.parse(raw) as Partial<LessonProgress> | null;
     if (!data || typeof data !== 'object' || data.version !== 1 || !Array.isArray(data.completed)) return empty();
     const completed = [...new Set(data.completed.filter(isLesson))];
+    const skipped = Array.isArray(data.skipped) ? [...new Set(data.skipped.filter(isLesson))] : [];
     const c = data.current;
     const current =
       c && typeof c === 'object' && isLesson(c.lessonId) && Number.isInteger(c.step) && c.step >= 0
         ? { lessonId: c.lessonId, step: c.step }
         : null;
-    return { version: 1, completed, current };
+    return { version: 1, completed, skipped, current };
   } catch {
     return empty();
   }
@@ -48,6 +51,18 @@ export function markLessonComplete(id: string): void {
   write({
     version: 1,
     completed: progress.completed.includes(id) ? progress.completed : [...progress.completed, id],
+    skipped: progress.skipped.filter((s) => s !== id),
+    current: progress.current?.lessonId === id ? null : progress.current,
+  });
+}
+
+/** Records a lesson as skipped unless it is already done, and stops it reading as left mid-way. */
+export function markLessonSkipped(id: string): void {
+  const progress = readProgress();
+  if (progress.completed.includes(id)) return;
+  write({
+    ...progress,
+    skipped: progress.skipped.includes(id) ? progress.skipped : [...progress.skipped, id],
     current: progress.current?.lessonId === id ? null : progress.current,
   });
 }

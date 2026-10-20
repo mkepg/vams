@@ -10,6 +10,7 @@ import { renderToString } from 'preact-render-to-string';
 import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
 import { COURSE, LESSON_CATALOG, catalogFor, isCatalogLesson, lessonHref } from '@/features/lesson-engine/model/catalog';
 import { PROGRESS_KEY, useLessonProgress, type LessonProgress } from '@/features/lesson-engine/model/progress';
+import { courseOrder, firstLessonToStudy } from '@/features/lesson-engine/model/catalog';
 import { doneCount, lessonStatus, nextUp } from '@/pages/learn/model/learn-progress';
 import LearnPage from '@/pages/learn';
 import { LEARN_COPY } from '@/pages/learn/model/copy';
@@ -30,7 +31,7 @@ function mount(vnode: VNode) {
 function store(progress: Partial<LessonProgress>) {
   localStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, completed: [], current: null, ...progress }));
 }
-const progressOf = (p: Partial<LessonProgress>): LessonProgress => ({ version: 1, completed: [], current: null, ...p });
+const progressOf = (p: Partial<LessonProgress>): LessonProgress => ({ version: 1, completed: [], skipped: [], current: null, ...p });
 const entry = (id: string) => LESSON_CATALOG.find((lesson) => lesson.id === id)!;
 
 afterEach(() => {
@@ -281,5 +282,48 @@ describe('BB-LPAGE-11: The page never loads the editor store or the lesson files
     expect(files.some((f) => f.endsWith('/src/features/lesson-engine/model/catalog.ts'))).toBe(true);
     expect(files.filter((f) => f.includes('/src/core/store/'))).toEqual([]);
     expect(files.filter((f) => /(-lessons|lesson-registry)\.ts$/.test(f))).toEqual([]);
+  });
+});
+
+describe('BB-LPAGE-12: A skipped lesson has its own status', () => {
+  it('reads skipped, and in progress wins when the lesson is also left mid-way', () => {
+    const lesson = entry('pipeline-demo-2');
+    expect(lessonStatus(lesson, progressOf({ skipped: [lesson.id] }))).toEqual({
+      kind: 'skipped',
+      meta: 'Skipped',
+      spoken: 'skipped',
+    });
+    expect(lessonStatus(lesson, progressOf({ skipped: [lesson.id], current: { lessonId: lesson.id, step: 1 } })).kind).toBe('progress');
+    expect(lessonStatus(lesson, progressOf({ skipped: [lesson.id], completed: [lesson.id] })).kind).toBe('complete');
+  });
+});
+
+describe('BB-LPAGE-13: Next up passes over skipped lessons until nothing else is left', () => {
+  it('moves past skipped lessons, then returns to the first skipped one', () => {
+    const order = courseOrder().map((l) => l.id);
+    const first = progressOf({ skipped: [order[0], order[1]] });
+    expect(nextUp(first)!.id).toBe(order[2]);
+    expect(firstLessonToStudy(first.completed, first.skipped)).toBe(order[2]);
+
+    const last = progressOf({ completed: order.filter((id) => id !== order[3]), skipped: [order[3]] });
+    expect(nextUp(last)!.id).toBe(order[3]);
+    expect(firstLessonToStudy(last.completed, last.skipped)).toBe(order[3]);
+
+    const mixed = progressOf({ completed: order.slice(2), skipped: [order[1], order[0]] });
+    expect(nextUp(mixed)!.id).toBe(order[0]);
+    expect(firstLessonToStudy(mixed.completed, mixed.skipped)).toBe(order[0]);
+  });
+});
+
+describe('BB-LPAGE-14: A skipped lesson shows on its row and does not count as done', () => {
+  it('marks the row is-skipped with the meta "Skipped"', async () => {
+    store({ skipped: ['pipeline-demo-2'] });
+    const host = mount(h(LearnPage, {}));
+    await settle();
+    const row = rowFor(host, 'pipeline-demo-2');
+    expect(row.classList.contains('is-skipped')).toBe(true);
+    expect(row.querySelector('.learn-row__meta')!.textContent).toBe('Skipped');
+    expect(row.getAttribute('aria-label')).toBe(`${entry('pipeline-demo-2').title}, skipped`);
+    expect(doneCount(progressOf({ skipped: ['pipeline-demo-2'] }))).toBe(0);
   });
 });

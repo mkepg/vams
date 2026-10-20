@@ -11,6 +11,7 @@ import {
   PROGRESS_KEY,
   markLessonComplete,
   readProgress,
+  markLessonSkipped,
   recordLessonLeft,
 } from '@/features/lesson-engine/model/progress';
 import { COURSE, lessonsFor } from '@/features/lesson-engine/model/course';
@@ -50,7 +51,7 @@ describe('BB-LEARN-01: Progress records completion and the lesson left mid-way',
     expect(readProgress().current).toEqual({ lessonId: 'transforms-exercise-1', step: 1 });
     markLessonComplete('transforms-exercise-1');
     markLessonComplete('transforms-exercise-1');
-    expect(readProgress()).toEqual({ version: 1, completed: ['transforms-exercise-1'], current: null });
+    expect(readProgress()).toEqual({ version: 1, completed: ['transforms-exercise-1'], skipped: [], current: null });
   });
 });
 
@@ -58,14 +59,14 @@ describe('BB-LEARN-02: Unreadable or foreign progress reads as clean progress', 
   it('ignores bad JSON, wrong versions, unknown ids and prototype keys', () => {
     for (const raw of ['{', '"x"', '{"version":2,"completed":[],"current":null}', '{"version":1}']) {
       localStorage.setItem(PROGRESS_KEY, raw);
-      expect(readProgress()).toEqual({ version: 1, completed: [], current: null });
+      expect(readProgress()).toEqual({ version: 1, completed: [], skipped: [], current: null });
     }
     localStorage.setItem(PROGRESS_KEY, JSON.stringify({
       version: 1,
       completed: ['toString', 'pipeline-demo-1', 42, 'pipeline-demo-1'],
       current: { lessonId: '__proto__', step: 1 },
     }));
-    expect(readProgress()).toEqual({ version: 1, completed: ['pipeline-demo-1'], current: null });
+    expect(readProgress()).toEqual({ version: 1, completed: ['pipeline-demo-1'], skipped: [], current: null });
   });
 });
 
@@ -260,5 +261,52 @@ describe('BB-LEARN-12: The drawer links to the full course map', () => {
     const head = document.querySelector('.learn-drawer__head')!;
     expect(head.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(link.compareDocumentPosition(document.querySelector('.learn-rail')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+describe('BB-LEARN-13: Progress saved before skipping existed reads with an empty skipped list', () => {
+  it('fills in, filters and de-duplicates skipped', () => {
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, completed: ['pipeline-demo-1'], current: null }));
+    expect(readProgress()).toEqual({ version: 1, completed: ['pipeline-demo-1'], skipped: [], current: null });
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, completed: [], skipped: 'x', current: null }));
+    expect(readProgress().skipped).toEqual([]);
+    localStorage.setItem(
+      PROGRESS_KEY,
+      JSON.stringify({ version: 1, completed: [], skipped: ['pipeline-demo-2', 'pipeline-demo-2', 'nope'], current: null }),
+    );
+    expect(readProgress().skipped).toEqual(['pipeline-demo-2']);
+  });
+});
+
+describe('BB-LEARN-14: Skipping a lesson is recorded until it is finished', () => {
+  it('records skipped, clears the lesson left mid-way, and moves it to completed on finishing', () => {
+    recordLessonLeft('pipeline-demo-2', 1);
+    markLessonSkipped('pipeline-demo-2');
+    expect(readProgress()).toEqual({ version: 1, completed: [], skipped: ['pipeline-demo-2'], current: null });
+    markLessonComplete('pipeline-demo-2');
+    expect(readProgress()).toEqual({ version: 1, completed: ['pipeline-demo-2'], skipped: [], current: null });
+    markLessonSkipped('pipeline-demo-2');
+    expect(readProgress()).toEqual({ version: 1, completed: ['pipeline-demo-2'], skipped: [], current: null });
+  });
+
+  it('keeps a lesson left mid-way when another lesson is skipped', () => {
+    recordLessonLeft('pipeline-demo-1', 2);
+    markLessonSkipped('pipeline-demo-2');
+    expect(readProgress().current).toEqual({ lessonId: 'pipeline-demo-1', step: 2 });
+  });
+});
+
+describe('BB-LEARN-15: The drawer shows a skipped lesson', () => {
+  it('gives it the meta "Skipped" and the class is-skipped', async () => {
+    markLessonSkipped('pipeline-demo-2');
+    useVamsStore.setState({ learnOpen: true, activeSection: 'Pipeline' });
+    mount(h(LearnDrawer, {}));
+    await settle();
+    const title = [...document.querySelectorAll('.learn-lesson__title')].find(
+      (e) => e.textContent === LESSON_REGISTRY['pipeline-demo-2'].title,
+    )!;
+    const row = title.closest('.learn-lesson')!;
+    expect(row.classList.contains('is-skipped')).toBe(true);
+    expect(row.querySelector('.learn-lesson__meta')!.textContent).toBe('Skipped');
   });
 });

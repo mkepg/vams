@@ -132,8 +132,13 @@ export function courseOrder(): LessonEntry[] {
   });
 }
 
-/** The first lesson in course order the student has not completed, or the course's first lesson once all are done. */
-export function firstLessonToStudy(completed: readonly string[]): string {
+/**
+ * The first lesson in course order that is neither done nor skipped; once none is left, the first skipped
+ * lesson; once every lesson is done, the course's first lesson.
+ */
+export function firstLessonToStudy(completed: readonly string[], skipped: readonly string[] = []): string {
   const order = courseOrder();
-  return (order.find((lesson) => !completed.includes(lesson.id)) ?? order[0]).id;
+  const open = order.find((lesson) => !completed.includes(lesson.id) && !skipped.includes(lesson.id));
+  const left = order.find((lesson) => !completed.includes(lesson.id));
+  return (open ?? left ?? order[0]).id;
 }

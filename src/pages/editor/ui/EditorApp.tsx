@@ -26,8 +26,11 @@ import { useEditorLink } from '../model/useEditorLink';
 import { useCorruptSaveNotice } from '../model/recovery';
 import EditorShell from './EditorShell';
 
-/** The tour's "Start learning": the first lesson in course order the student has not completed. */
-const startLearning = () => void startLesson(firstLessonToStudy(readProgress().completed));
+/** The tour's "Start learning": the first lesson in course order the student has neither completed nor skipped. */
+const startLearning = () => {
+  const { completed, skipped } = readProgress();
+  void startLesson(firstLessonToStudy(completed, skipped));
+};
 
 export default function EditorApp() {
   useKeyboardShortcuts();

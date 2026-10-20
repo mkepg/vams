@@ -14,6 +14,7 @@ function lessonState(lesson: Lesson, progress: LessonProgress) {
   if (progress.current?.lessonId === lesson.id) {
     return { kind: 'progress' as const, meta: `Step ${progress.current.step + 1} of ${lesson.steps.length}` };
   }
+  if (progress.skipped.includes(lesson.id)) return { kind: 'skipped' as const, meta: 'Skipped' };
   return { kind: 'new' as const, meta: `${lesson.steps.length} steps` };
 }
 
@@ -64,7 +65,7 @@ export default function LearnDrawer() {
             <li key={lesson.id}>
               <button type="button" className={`learn-lesson is-${state.kind}`} onClick={() => choose(lesson.id)}>
                 <span className="learn-lesson__mark" aria-hidden="true">
-                  {state.kind === 'complete' ? <Check size={13} /> : state.kind === 'progress' ? '●' : '○'}
+                  {state.kind === 'complete' ? <Check size={13} /> : state.kind === 'progress' ? '●' : state.kind === 'skipped' ? null : '○'}
                 </span>
                 <span className="learn-lesson__title">{lesson.title}</span>
                 <span className="learn-lesson__meta">{state.meta}</span>
