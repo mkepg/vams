@@ -54,9 +54,13 @@ function allText(lesson: Lesson): string {
     if (step.goals) parts.push(...step.goals.map((g) => g.label));
     const ex = step.exercise;
     if (ex) {
-      parts.push(ex.prompt);
-      if (ex.kind === 'multiple-choice') parts.push(...ex.options.map((o) => o.label));
-      else parts.push(...ex.items.map((i) => i.label));
+      if (ex.kind === 'code') {
+        parts.push(ex.template, ...ex.blanks.map((b) => b.wrong));
+      } else {
+        parts.push(ex.prompt);
+        if (ex.kind === 'multiple-choice') parts.push(...ex.options.map((o) => o.label));
+        else parts.push(...ex.items.map((i) => i.label));
+      }
     }
   }
   return parts.join('\n');

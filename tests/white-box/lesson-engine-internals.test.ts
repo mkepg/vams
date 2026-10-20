@@ -14,6 +14,7 @@ import { useVamsStore } from '@/core/store';
 import { LESSON_REGISTRY, getLessonById } from '@/features/lesson-engine/model/lesson-registry';
 import { waitsForStudent, canSkip, goalLabelParts } from '@/features/lesson-engine/model/step-rules';
 import type { LessonStep } from '@/core/types/lesson';
+import { templateParts, checkBlank, formatBlankNumber } from '@/features/lesson-engine/model/code-blanks';
 import { addTriangle, getState } from '../helpers/store';
 
 describe('WB-LESSON-01: Setting a lesson backs up scene + callbacks + viewport + bg', () => {
@@ -185,5 +186,55 @@ describe('WB-LESSON-09: goalLabelParts', () => {
       { text: 'Width ', num: false },
       { text: '−0.5', num: true },
     ]);
+  });
+});
+
+describe('WB-LESSON-10: templateParts splits a code line at its blanks', () => {
+  it('splits text and blank numbers', () => {
+    expect(templateParts('glTranslatef({0}, {1}, 0.0f);')).toEqual(['glTranslatef(', 0, ', ', 1, ', 0.0f);']);
+  });
+
+  it('gives one string for a template with no blanks', () => {
+    expect(templateParts('glFlush();')).toEqual(['glFlush();']);
+  });
+
+  it('gives two numbers for two adjacent blanks', () => {
+    expect(templateParts('{0}{1}')).toEqual([0, 1]);
+  });
+});
+
+describe('WB-LESSON-11: checkBlank judges typed numbers and names', () => {
+  it.each(['0.5', '.5', '0.50', '0.5f', '0.505', ' 0.5 '])('accepts %j for 0.5', (typed) => {
+    expect(checkBlank(typed, 0.5)).toBe('right');
+  });
+
+  it.each(['0.52', '0.', '-', '0.5ff', '0..5', 'abc'])('rejects %j for 0.5', (typed) => {
+    expect(checkBlank(typed, 0.5)).toBe('wrong');
+  });
+
+  it.each(['', '   '])('calls %j empty', (typed) => {
+    expect(checkBlank(typed, 0.5)).toBe('empty');
+  });
+
+  it('accepts a negative answer', () => {
+    expect(checkBlank('-0.25', -0.25)).toBe('right');
+  });
+
+  it('compares a name exactly after trimming', () => {
+    expect(checkBlank('GL_TRIANGLES', 'GL_TRIANGLES')).toBe('right');
+    expect(checkBlank(' GL_TRIANGLES ', 'GL_TRIANGLES')).toBe('right');
+    expect(checkBlank('gl_triangles', 'GL_TRIANGLES')).toBe('wrong');
+    expect(checkBlank('GL_TRIANGLE', 'GL_TRIANGLES')).toBe('wrong');
+  });
+});
+
+describe('WB-LESSON-12: formatBlankNumber writes what a student would type', () => {
+  it.each([
+    [0.5, '0.5'],
+    [-0.25, '-0.25'],
+    [45, '45'],
+    [0.12345, '0.1235'],
+  ])('formats %s as %s', (n, text) => {
+    expect(formatBlankNumber(n)).toBe(text);
   });
 });

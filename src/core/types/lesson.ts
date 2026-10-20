@@ -23,6 +23,16 @@ export type ExerciseWidget =
       prompt: string;
       items: { id: string; label: string }[];
       correctOrder: string[];
+    }
+  | {
+      kind: 'code';
+      /** The line, with {0}, {1}, … where the blanks go. */
+      template: string;
+      blanks: {
+        answer: (state: VamsState) => number | string;
+        tolerance?: number; // numbers only, default 0.01
+        wrong: string; // the few words shown under a wrong blank
+      }[];
     };
 
 export interface LessonStep {
