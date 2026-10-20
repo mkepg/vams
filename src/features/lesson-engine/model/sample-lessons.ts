@@ -10,7 +10,7 @@ import { useVamsStore } from '@/core/store';
 
 const RED = '#ff0000';
 
-/** The goals sample's triangle: the only object its scene has. */
+/** A sample's triangle: the only object its scene has. */
 const triangle = (state: VamsState) => state.objects.find((o) => o.type === 'TRIANGLES');
 
 export const SAMPLE_LESSONS: Record<string, Lesson> = {
@@ -101,6 +101,43 @@ export const SAMPLE_LESSONS: Record<string, Lesson> = {
             'They apply in reverse code order: scale first, move last.',
           ],
           calls: ['glTranslatef', 'glRotatef', 'glScalef'],
+        },
+      },
+    ],
+  },
+  'sample-predict': {
+    id: 'sample-predict',
+    title: 'Translate, Rotate, Scale',
+    type: 'demo',
+    section: 'Transforms',
+    steps: [
+      {
+        narration: 'Here is a white triangle at the centre.',
+        // A new shape's vertices are white.
+        action: (state) =>
+          state.addCustomObject('TRIANGLES', [{ x: 0, y: 0.5 }, { x: -0.5, y: -0.5 }, { x: 0.5, y: -0.5 }]),
+      },
+      {
+        narration: "We're about to set Translate X to 0.4. Where will the triangle go?",
+        predict: {
+          options: [
+            { id: 'right', label: 'Right', why: 'It slid right. X is the horizontal axis.' },
+            { id: 'up', label: 'Up', why: 'It slid right. X is the horizontal axis; up would be Y.' },
+            { id: 'wider', label: 'It grows wider', why: 'Translate moves a shape; scale changes its size.' },
+            { id: 'run', label: 'Nowhere until Run', why: 'The scene redraws as soon as a value changes.' },
+          ],
+          correctId: 'right',
+        },
+        action: (state) => {
+          const t = triangle(state);
+          if (t) state.updateObjectTransform(t.id, { translateX: 0.4 });
+        },
+      },
+      {
+        narration: 'Done.',
+        recap: {
+          points: ['Translate X moves a shape along the horizontal axis.'],
+          calls: ['glTranslatef'],
         },
       },
     ],

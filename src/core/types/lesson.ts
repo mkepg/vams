@@ -53,6 +53,9 @@ export interface LessonStep {
    */
   solve?: (state: VamsState) => void;
 
+  /** Ask before the step's action runs; the action runs once an answer is picked. */
+  predict?: { options: { id: string; label: string; why: string }[]; correctId: string };
+
   /** The lesson's closing points and the calls it taught. */
   recap?: { points: string[]; calls: string[] };
 

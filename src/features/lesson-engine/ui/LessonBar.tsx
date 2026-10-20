@@ -212,6 +212,10 @@ function LessonBarBody() {
   // On a goals step the goals are the task: the line appears only once the step is done.
   const showTask = goals ? done : !!(step.successCheck || step.exercise || step.task);
 
+  const predict = step.predict ?? null;
+  const picked = predict && runner.predictAnswer ? predict.options.find((o) => o.id === runner.predictAnswer) ?? null : null;
+  const pickedRight = !!picked && picked.id === predict?.correctId;
+
   const help = showHelp && (
     <span className="lesson-bar__stuck" ref={helpRef}>
       {!stuck ? (
@@ -266,6 +270,44 @@ function LessonBarBody() {
       {progress}
       {meta}
       <p className="lesson-bar__narration" aria-live="polite">{step.narration}</p>
+      {predict && !picked && (
+        <div className="lesson-bar__choices" role="group" aria-label="Your prediction">
+          {predict.options.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              className="lesson-bar__choice"
+              onClick={() => {
+                // The answers give way to the verdict, so focus moves on to the lit Next.
+                refocusHelp.current = 'next';
+                runner.pick(option.id);
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {/* Mounted for the whole of a predict step, before the pick, so the verdict is announced.
+          It lays out no box of its own. */}
+      {predict && (
+        <div className="lesson-bar__verdict-live" aria-live="polite">
+          {picked && (
+            <p className="lesson-bar__verdict">
+              <span className={pickedRight ? 'lesson-bar__pick' : 'lesson-bar__pick is-wrong'}>
+                {pickedRight ? (
+                  <Check size={14} strokeWidth={1.75} aria-hidden="true" />
+                ) : (
+                  <X size={14} strokeWidth={1.75} aria-hidden="true" />
+                )}
+                {picked.label}
+                <span className="sr-only">{pickedRight ? ', right' : ', not quite'}</span>
+              </span>
+              <span>{picked.why}</span>
+            </p>
+          )}
+        </div>
+      )}
       {step.recap && (
         <>
           <ul className="lesson-bar__learned">

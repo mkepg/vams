@@ -11,6 +11,7 @@ import type { Lesson } from '@/core/types/lesson';
 import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import { SegmentedControl } from '@/shared/ui/controls';
 import { LESSON_REGISTRY, getLessonById } from '@/features/lesson-engine/model/lesson-registry';
+import * as registry from '@/features/lesson-engine/model/lesson-registry';
 import { SAMPLE_LESSONS } from '@/features/lesson-engine/model/sample-lessons';
 import { LESSON_CATALOG, courseOrder, nextInCourse } from '@/features/lesson-engine/model/catalog';
 import { PROGRESS_KEY } from '@/features/lesson-engine/model/progress';
@@ -1507,5 +1508,178 @@ describe("BB-LCOL-54: The recap's points are set at the narration's size", () =>
     const sizes = [...own.matchAll(/font-size\s*:\s*([^;]+);/g)].map((m) => m[1].trim());
     expect(sizes).toEqual(['var(--text-md)']);
     expect(own).not.toContain('--text-base');
+  });
+});
+
+/** Starts the predict sample with the sample lessons built in, and opens its predict step. */
+async function startPredictBar() {
+  vi.stubEnv('VITE_LESSON_SAMPLES', '1');
+  startLesson('sample-predict');
+  const host = mount(h(LessonBar, {}));
+  await settle();
+  buttonNamed(host, 'Next')!.click();
+  await settle();
+  return host;
+}
+const predictTriangle = () => useVamsStore.getState().objects.find((o) => o.type === 'TRIANGLES')!;
+const choiceButtons = (host: HTMLElement) => [...host.querySelectorAll<HTMLButtonElement>('button.lesson-bar__choice')];
+const choiceNamed = (host: HTMLElement, label: string) => choiceButtons(host).find((b) => b.textContent === label)!;
+
+describe("BB-LCOL-55: A predict step holds its action and Next until the student picks", () => {
+  it('shows four answers in a group, leaves the triangle where it was, and ArrowRight stays put', async () => {
+    const host = await startPredictBar();
+    try {
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+      expect(host.querySelector('.lesson-bar__narration')!.textContent).toBe(
+        "We're about to set Translate X to 0.4. Where will the triangle go?",
+      );
+      expect(predictTriangle().transform.translateX).toBe(0);
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+      key(document.body, 'ArrowRight');
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+      const group = host.querySelector('div.lesson-bar__choices')!;
+      expect(group.getAttribute('role')).toBe('group');
+      expect(group.getAttribute('aria-label')).toBe('Your prediction');
+      expect(choiceButtons(host).map((b) => b.textContent)).toEqual(['Right', 'Up', 'It grows wider', 'Nowhere until Run']);
+      expect(choiceButtons(host).every((b) => b.closest('.lesson-bar__choices') === group)).toBe(true);
+      expect(host.querySelector('.lesson-bar__verdict')).toBeNull();
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-56: A wrong pick runs the action, says why, and lights Next', () => {
+  it('moves the triangle to 0.4, shows "Up" marked wrong with its why, announced politely', async () => {
+    const host = await startPredictBar();
+    try {
+      const live = host.querySelector('.lesson-bar__verdict-live')!;
+      expect(live.getAttribute('aria-live')).toBe('polite');
+      choiceNamed(host, 'Up').click();
+      await settle();
+      expect(predictTriangle().transform.translateX).toBeCloseTo(0.4);
+      expect(host.querySelector('.lesson-bar__choices')).toBeNull();
+      const verdict = host.querySelector('p.lesson-bar__verdict')!;
+      expect(verdict.closest('[aria-live="polite"]')).toBe(live);
+      const pick = verdict.querySelector('.lesson-bar__pick')!;
+      expect(pick.classList.contains('is-wrong')).toBe(true);
+      expect(pick.textContent).toContain('Up');
+      expect(pick.querySelector('svg.lucide-x')).not.toBeNull();
+      expect(verdict.textContent).toContain('It slid right. X is the horizontal axis; up would be Y.');
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(false);
+      // The answers are gone, so focus moves on to the lit Next.
+      expect(document.activeElement).toBe(buttonNamed(host, 'Next'));
+      // The pick changed the code, so the step shows Code with the changed line marked.
+      expect(useVamsStore.getState().changedCodeLines.length).toBeGreaterThan(0);
+      key(document.body, 'ArrowRight');
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(2);
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe("BB-LCOL-57: A predict step's action runs once, and Back keeps the answer", () => {
+  it('runs the action for the pick and once for the rebuild, and the scene has it applied once', async () => {
+    const original = SAMPLE_LESSONS['sample-predict'];
+    let runs = 0;
+    const copy: Lesson = {
+      ...original,
+      steps: original.steps.map((step, i) =>
+        i !== 1
+          ? step
+          : {
+              ...step,
+              action: (state) => {
+                runs++;
+                const t = state.objects.find((o) => o.type === 'TRIANGLES')!;
+                state.updateObjectTransform(t.id, { translateX: t.transform.translateX + 0.4 });
+              },
+            },
+      ),
+    };
+    const getLesson = registry.getLessonById;
+    const spy = vi.spyOn(registry, 'getLessonById').mockImplementation((id) => (id === 'sample-predict' ? copy : getLesson(id)));
+    const host = await startPredictBar();
+    try {
+      expect(runs).toBe(0);
+      choiceNamed(host, 'Right').click();
+      await settle();
+      expect(runs).toBe(1);
+      buttonNamed(host, 'Next')!.click();
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(2);
+      expect(runs).toBe(1);
+      buttonNamed(host, 'Back')!.click();
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+      expect(runs).toBe(2);
+      expect(predictTriangle().transform.translateX).toBeCloseTo(0.4);
+      expect(host.querySelector('.lesson-bar__choices')).toBeNull();
+      expect(host.querySelector('p.lesson-bar__verdict .lesson-bar__pick')!.textContent).toContain('Right');
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(false);
+    } finally {
+      unmount(host);
+      spy.mockRestore();
+    }
+  });
+});
+
+describe('BB-LCOL-58: A right pick shows a tick and is not marked wrong', () => {
+  it('shows a Check before "Right", with no is-wrong', async () => {
+    const host = await startPredictBar();
+    try {
+      choiceNamed(host, 'Right').click();
+      await settle();
+      const pick = host.querySelector('p.lesson-bar__verdict .lesson-bar__pick')!;
+      expect(pick.classList.contains('is-wrong')).toBe(false);
+      expect(pick.querySelector('svg.lucide-check')).not.toBeNull();
+      expect(pick.querySelector('svg.lucide-x')).toBeNull();
+      expect(pick.textContent).toContain('Right');
+      expect(host.querySelector('p.lesson-bar__verdict')!.textContent).toContain('It slid right. X is the horizontal axis.');
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-59: The wrong-answer text colour is a token in both themes', () => {
+  it('defines --warning-text for light and dark, and the wrong pick uses it', () => {
+    const tokens = readFileSync('src/shared/styles/_tokens.scss', 'utf8');
+    const darkAt = tokens.indexOf("[data-theme='dark'] {");
+    const light = tokens.slice(tokens.indexOf(':root {'), darkAt);
+    const dark = tokens.slice(darkAt, tokens.indexOf('\n}', darkAt));
+    expect(light).toMatch(/--warning-text:\s*#92400e;/);
+    expect(dark).toMatch(/--warning-text:\s*#fbbf24;/);
+    const scss = readFileSync('src/features/lesson-engine/ui/lesson-bar.scss', 'utf8');
+    expect(scss).toMatch(/is-wrong svg\s*\{[^}]*color:\s*var\(--warning-text\);/);
+  });
+});
+
+describe('BB-LCOL-60: Starting another lesson clears the answers of the last run', () => {
+  it('asks the prediction again after the predict sample, the recap sample, then the predict sample', async () => {
+    const host = await startPredictBar();
+    try {
+      choiceNamed(host, 'Up').click();
+      await settle();
+      expect(host.querySelector('.lesson-bar__verdict')).not.toBeNull();
+      useVamsStore.getState().clearLessonState();
+      useVamsStore.getState().setActiveLesson('sample-recap');
+      await settle();
+      expect(host.querySelector('.lesson-bar__step')!.textContent).toBe('Step 1 of 2');
+      useVamsStore.getState().clearLessonState();
+      useVamsStore.getState().setActiveLesson('sample-predict');
+      await settle();
+      useVamsStore.getState().setCurrentStep(1);
+      await settle();
+      expect(host.querySelector('.lesson-bar__verdict')).toBeNull();
+      expect(choiceButtons(host)).toHaveLength(4);
+      expect(predictTriangle().transform.translateX).toBe(0);
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+    } finally {
+      unmount(host);
+    }
   });
 });

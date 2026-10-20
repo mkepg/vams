@@ -147,6 +147,80 @@
     }
   }
 
+  // Predict: the answers are words in a line, divided by hairlines.
+  &__choices {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: 0;
+    font-size: var(--text-base);
+  }
+
+  &__choice {
+    padding: 3px 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: var(--ink-muted);
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: var(--rule-strong);
+    text-underline-offset: 4px;
+
+    &:hover,
+    &:focus-visible {
+      color: var(--ink);
+      text-decoration-color: var(--accent);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 2px;
+      border-radius: var(--radius-s);
+    }
+  }
+
+  &__choice + &__choice::before {
+    content: '';
+    display: inline-block;
+    width: 1px;
+    height: 12px;
+    margin: 0 14px;
+    vertical-align: -1px;
+    background: var(--rule-strong);
+  }
+
+  // The verdict's live region: no box, so the verdict is the bar's own grid row.
+  &__verdict-live { display: contents; }
+
+  // After a pick the row collapses to the answer and one sentence of why.
+  &__verdict {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 0;
+    font-size: var(--text-base);
+    line-height: 1.55;
+    color: var(--ink-muted);
+  }
+
+  &__pick {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--ink);
+    font-weight: 600;
+    white-space: nowrap;
+
+    svg {
+      flex: none;
+      color: var(--success);
+      transform: translateY(1px);
+    }
+
+    &.is-wrong svg { color: var(--warning-text); }
+  }
+
   &__modes {
     justify-self: start;
 

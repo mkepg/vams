@@ -8,6 +8,7 @@
  *  - Waiting steps in the sections on the bar carry hints and a task
  *  - Waiting steps without a widget can be solved, and solving them makes them pass
  *  - Every lesson closes with a recap whose calls are in the code of its last step
+ *  - Every predict step offers 2-4 answers, each with a why, one of them right, and has an action
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -39,6 +40,7 @@ export function taughtText(lesson: Lesson): string {
     parts.push(step.narration);
     if (step.hints) parts.push(...step.hints);
     if (step.recap) parts.push(...step.recap.calls);
+    if (step.predict) for (const o of step.predict.options) parts.push(o.label, o.why);
   }
   return parts.join('\n');
 }
@@ -232,5 +234,37 @@ describe('BB-LRULE-05: Every lesson closes with a recap, and its calls are in th
     const lesson = SAMPLE_LESSONS['sample-recap'];
     expect(lesson.steps.some((step) => step.narration.includes('glScalef'))).toBe(false);
     expect(taughtText(lesson)).toMatch(/\bglScalef\b/);
+  });
+});
+
+describe('BB-LRULE-06: Predict steps offer 2-4 answers with a why each, one right, and an action', () => {
+  it('the predict sample is under the rules', () => {
+    expect(lessonsUnderRules().map((l) => l.id)).toContain('sample-predict');
+  });
+
+  it('every predict step under the rules is well formed', () => {
+    const bad: string[] = [];
+    for (const lesson of lessonsUnderRules()) {
+      lesson.steps.forEach((step, i) => {
+        const p = step.predict;
+        if (!p) return;
+        const ids = p.options.map((o) => o.id);
+        const ok =
+          p.options.length >= 2 &&
+          p.options.length <= 4 &&
+          new Set(ids).size === ids.length &&
+          p.options.every((o) => o.label.trim() && o.why.trim()) &&
+          ids.includes(p.correctId) &&
+          !!step.action;
+        if (!ok) bad.push(`${lesson.id}#${i + 1}`);
+      });
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('taughtText counts the answer labels and whys', () => {
+    const text = taughtText(SAMPLE_LESSONS['sample-predict']);
+    expect(text).toContain('It grows wider');
+    expect(text).toContain('Translate moves a shape; scale changes its size.');
   });
 });

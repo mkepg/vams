@@ -12,6 +12,12 @@ import { useCanvasSize } from '@/shared/lib/use-canvas-size';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { resolveChangedLines } from '@/features/code-generation/model/code-diff';
 
+interface PredictAnswers {
+  lessonId: string | null;
+  byStep: Record<number, string>;
+}
+const NO_ANSWERS: Record<number, string> = {};
+
 const DEFAULT_LESSON_VIEWPORT = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
 
 const ARROW_KEY_OWNERS = [
@@ -48,6 +54,10 @@ export interface LessonRunner {
   nextLesson: { id: string; title: string } | null;
   /** The lesson is its section's last: Finish then opens the course map at the section. */
   finishGoesToMap: boolean;
+  /** The answer picked on this predict step in this run, or null before a pick. */
+  predictAnswer: string | null;
+  /** Records the predict step's answer and runs its action, as a step forward would. Once per step. */
+  pick: (optionId: string) => void;
   mcAnswer: string | null;
   setMcAnswer: (id: string | null) => void;
   orderAnswer: string[] | null;
@@ -93,6 +103,47 @@ export function replayStepsBefore(lesson: Lesson, index: number): void {
     const pastStep = lesson.steps[i];
     pastStep.action?.(useVamsStore.getState());
     pastStep.solve?.(useVamsStore.getState());
+  }
+}
+
+/**
+ * Shows a step: runs its action (when `runAction`) between two snapshots of the generated code,
+ * marks the lines it changed, sets the step's focus, journey stage and pointer diagram step, and
+ * opens the pane it is about. Both snapshots use the same canvas size, so a window-size-only
+ * difference (the `glutInitWindowSize` line) never shows as a change. Call inside a batch.
+ */
+function showStep(lesson: Lesson, step: LessonStep, canvasSize: { width: number; height: number }, runAction: boolean): void {
+  const store = useVamsStore.getState();
+  const snapshotCode = () => {
+    const s = useVamsStore.getState();
+    return generateCodeFromState(
+      {
+        objects: s.objects,
+        canvasBackgroundColor: s.canvasBackgroundColor,
+        callbacks: s.callbacks,
+        viewportLimits: s.viewportLimits,
+      },
+      canvasSize,
+    );
+  };
+
+  const preCode = snapshotCode();
+  if (runAction) step.action?.(useVamsStore.getState());
+  const postCode = snapshotCode();
+
+  const focus = effectiveFocus(lesson, step);
+  store.setLessonFocusPanel(focus);
+  store.setJourneyStageOverride(step.mathStage ?? null);
+  selectForFocus(focus);
+  store.setDmaDriverStep(step.dmaStep ?? null);
+
+  const changed = resolveChangedLines(preCode, postCode, step.codeChangeFocus);
+  store.setChangedCodeLines(changed);
+  // A step about the math shows Math; one about the code, or one that changed it, shows Code.
+  const pane = step.pane ?? (changed.length > 0 ? 'code' : null);
+  if (pane) {
+    store.setCodePane(pane);
+    store.setCodeHidden(false);
   }
 }
 
@@ -191,19 +242,18 @@ export function useLessonRunner(): LessonRunner {
     }
   }, [activeLessonId, currentStepIndex, step]);
 
-  /* ------------------------------------------------------------------ */
-  /*  Step execution + change-highlight diff.                            */
-  /*                                                                    */
-  /*  We snapshot the generated code immediately before and after the   */
-  /*  step's action mutates state, run a line-level diff, and write the */
-  /*  result into `changedCodeLines`. SceneCodePanel reads that and     */
-  /*  passes it to CodeViewer, which draws the change highlight + auto- */
-  /*  scrolls vertically to the topmost change.                         */
-  /*                                                                    */
-  /*  Both snapshots use the SAME canvas size, so window-size-only      */
-  /*  differences (the `glutInitWindowSize` line) never show up as a    */
-  /*  spurious change.                                                  */
-  /* ------------------------------------------------------------------ */
+  // Predict answers for this run of the lesson, by step index. Any change of lesson starts a new
+  // run. The ref is what the step effect reads, so a rebuild knows whether the step's action ran.
+  const [answers, setAnswers] = useState<PredictAnswers>(() => ({ lessonId: activeLessonId, byStep: {} }));
+  if (answers.lessonId !== activeLessonId) setAnswers({ lessonId: activeLessonId, byStep: {} });
+  const answersRef = useRef(answers);
+  const runAnswers = answers.lessonId === activeLessonId ? answers.byStep : NO_ANSWERS;
+
+  /*
+   * Step execution. On a step forward the step's action runs on the scene as it stands; on any
+   * other move (Back, a jump, the lesson's start) the scene is rebuilt from scratch first. Either
+   * way the step is then shown through showStep. A predict step's action waits for an answer.
+   */
   useEffect(() => {
     if (!lesson || !activeLessonId) return;
 
@@ -214,74 +264,25 @@ export function useLessonRunner(): LessonRunner {
     const isForwardOne =
       sameLessonAsBefore && currentStepIndex === lastStepIndexRef.current + 1;
 
+    if (!sameLessonAsBefore) answersRef.current = { lessonId: activeLessonId, byStep: {} };
+
     const store = useVamsStore.getState();
     store.startBatch();
 
-    const cs = canvasSizeRef.current;
-    const currentStep = lesson.steps[currentStepIndex];
-
-    const snapshotCode = () => {
-      const s = useVamsStore.getState();
-      return generateCodeFromState(
-        {
-          objects: s.objects,
-          canvasBackgroundColor: s.canvasBackgroundColor,
-          callbacks: s.callbacks,
-          viewportLimits: s.viewportLimits,
-        },
-        cs,
-      );
-    };
-
-    let preCode = '';
-    let postCode = '';
-
-    if (isForwardOne) {
-      preCode = snapshotCode();
-
-      if (currentStep.action) currentStep.action(useVamsStore.getState());
-
-      postCode = snapshotCode();
-
-      const focus = effectiveFocus(lesson, currentStep);
-      store.setLessonFocusPanel(focus);
-      store.setJourneyStageOverride(currentStep.mathStage ?? null);
-      selectForFocus(focus);
-      store.setDmaDriverStep(currentStep.dmaStep ?? null);
-    } else {
-      // Non-linear navigation (Back, lesson-start, jump): rebuild from scratch.
-      // Reset every piece of pedagogically-relevant state so step replay starts
-      // from a clean baseline — including viewportLimits, which Stage 4 lessons
-      // mutate.
+    if (!isForwardOne) {
+      // Reset every piece of pedagogically-relevant state so step replay starts from a clean
+      // baseline, including viewportLimits, which Stage 4 lessons mutate.
       resetLessonScene();
       // The rebuilt scene is not the student's edit: the code panel marks none of its values.
       store.markSceneSwap();
-
       // Replay every step BEFORE the current one, solved, to recreate the pre-state.
       replayStepsBefore(lesson, currentStepIndex);
-
-      // Snapshot pre-state (= state at the end of step N-1, or empty if N=0).
-      preCode = snapshotCode();
-
-      // Now run step N's action and snapshot post-state.
-      if (currentStep.action) currentStep.action(useVamsStore.getState());
-      postCode = snapshotCode();
-
-      const focus = effectiveFocus(lesson, currentStep);
-      store.setLessonFocusPanel(focus);
-      store.setJourneyStageOverride(currentStep.mathStage ?? null);
-      selectForFocus(focus);
-      store.setDmaDriverStep(currentStep.dmaStep ?? null);
     }
 
-    const changed = resolveChangedLines(preCode, postCode, currentStep.codeChangeFocus);
-    store.setChangedCodeLines(changed);
-    // A step about the math shows Math; one about the code, or one that changed it, shows Code.
-    const pane = currentStep.pane ?? (changed.length > 0 ? 'code' : null);
-    if (pane) {
-      store.setCodePane(pane);
-      store.setCodeHidden(false);
-    }
+    const currentStep = lesson.steps[currentStepIndex];
+    const saved = answersRef.current;
+    const answered = saved.lessonId === activeLessonId && currentStepIndex in saved.byStep;
+    showStep(lesson, currentStep, canvasSizeRef.current, !currentStep.predict || answered);
 
     store.endBatch();
     lastExecutedStepRef.current = stepKey;
@@ -323,7 +324,10 @@ export function useLessonRunner(): LessonRunner {
     return true;
   }, [step, goalBits, mcAnswer, orderAnswer, objects, callbacks, viewportLimits]);
 
-  const canAdvance = !!step && (!waitsForStudent(step) || isStepSuccess);
+  const predictAnswer = runAnswers[currentStepIndex] ?? null;
+  // A prediction never gates on being right, only on being made.
+  const canAdvance =
+    !!step && (!waitsForStudent(step) || isStepSuccess) && (!step.predict || predictAnswer !== null);
   const canSkip = !!step && stepCanSkip(step) && !isStepSuccess;
 
   const handleSkip = useCallback(() => {
@@ -344,6 +348,25 @@ export function useLessonRunner(): LessonRunner {
     setSkipped(true);
   }, [step, canSkip]);
 
+  const handlePick = useCallback(
+    (optionId: string) => {
+      if (!lesson || !activeLessonId || !step?.predict || predictAnswer !== null) return;
+      if (!step.predict.options.some((o) => o.id === optionId)) return;
+      const prev = answersRef.current.lessonId === activeLessonId ? answersRef.current.byStep : NO_ANSWERS;
+      const next = { lessonId: activeLessonId, byStep: { ...prev, [currentStepIndex]: optionId } };
+      answersRef.current = next;
+      setAnswers(next);
+      const store = useVamsStore.getState();
+      store.startBatch();
+      try {
+        showStep(lesson, step, canvasSizeRef.current, true);
+      } finally {
+        useVamsStore.getState().endBatch();
+      }
+    },
+    [lesson, activeLessonId, step, predictAnswer, currentStepIndex],
+  );
+
   const handleNext = useCallback(() => {
     if (lesson && currentStepIndex < lesson.steps.length - 1) {
       setCurrentStep(currentStepIndex + 1);
@@ -358,6 +381,8 @@ export function useLessonRunner(): LessonRunner {
     clearLessonState();
     setAppMode('Author');
     setSkipped(false);
+    answersRef.current = { lessonId: null, byStep: {} };
+    setAnswers(answersRef.current);
     lastExecutedStepRef.current = null;
     lastStepIndexRef.current = -1;
   }, [clearLessonState, setAppMode]);
@@ -436,6 +461,8 @@ export function useLessonRunner(): LessonRunner {
     skipped,
     nextLesson: active ? nextLesson : null,
     finishGoesToMap: active && finishGoesToMap,
+    predictAnswer: active ? predictAnswer : null,
+    pick: handlePick,
     mcAnswer,
     setMcAnswer,
     orderAnswer,
