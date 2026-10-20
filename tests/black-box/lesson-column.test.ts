@@ -1491,11 +1491,21 @@ describe('BB-LCOL-53: The recap lists its points and the calls, and a call opens
 });
 
 describe("BB-LCOL-54: The recap's points are set at the narration's size", () => {
-  it('gives .lesson-bar__learned the --text-md font size', () => {
+  it("sets .lesson-bar__learned's own font-size to --text-md and nothing else", () => {
     const scss = readFileSync('src/features/lesson-engine/ui/lesson-bar.scss', 'utf8');
-    const start = scss.indexOf('&__learned {');
-    expect(start).toBeGreaterThan(-1);
-    const block = scss.slice(start, scss.indexOf('\n  }', start));
-    expect(block).toMatch(/font-size:\s*var\(--text-md\)/);
+    const open = /&__learned\s*\{/.exec(scss);
+    expect(open).not.toBeNull();
+    let depth = 1;
+    let own = '';
+    for (let i = open!.index + open![0].length; i < scss.length && depth > 0; i++) {
+      const ch = scss[i];
+      if (ch === '{') depth++;
+      else if (ch === '}') depth--;
+      else if (depth === 1) own += ch;
+    }
+    // Nested rules (li, svg) leave their selectors in `own`, but their declarations are dropped.
+    const sizes = [...own.matchAll(/font-size\s*:\s*([^;]+);/g)].map((m) => m[1].trim());
+    expect(sizes).toEqual(['var(--text-md)']);
+    expect(own).not.toContain('--text-base');
   });
 });
