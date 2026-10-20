@@ -1154,3 +1154,145 @@ describe("BB-LCOL-42: Rebuilding a lesson's scene replays the earlier steps' sol
     }
   });
 });
+
+/** Starts the goals sample with the sample lessons built in, and mounts the lesson bar. */
+async function startGoalsBar() {
+  vi.stubEnv('VITE_LESSON_SAMPLES', '1');
+  startLesson('sample-goals');
+  const host = mount(h(LessonBar, {}));
+  await settle();
+  return host;
+}
+const goalItems = (host: HTMLElement) => [...host.querySelectorAll<HTMLElement>('.lesson-bar__goal')];
+
+describe('BB-LCOL-43: A goals step lists its goals, hides the task line and holds Next', () => {
+  it('shows three goals with the met one marked and the numbers set apart', async () => {
+    const host = await startGoalsBar();
+    try {
+      expect(host.querySelector('ul.lesson-bar__goals')!.getAttribute('aria-label')).toBe('Goals');
+      const goals = goalItems(host);
+      expect(goals).toHaveLength(3);
+      expect(goals[0].classList.contains('is-met')).toBe(true);
+      expect(goals[0].querySelector('.lesson-bar__goal-label')!.textContent).toBe('Red');
+      expect(goals[0].querySelector('.sr-only')!.textContent).toBe(', met');
+      expect(goals[1].classList.contains('is-met')).toBe(false);
+      expect(goals[1].querySelector('.sr-only')).toBeNull();
+      expect(goals[1].querySelector('.lesson-bar__num')!.textContent).toBe('(0.5, 0.2)');
+      expect(goals[1].querySelector('.lesson-bar__goal-label')!.textContent).toBe('At (0.5, 0.2)');
+      expect(host.querySelector('.lesson-bar__task')).toBeNull();
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-44: Stuck? opens into Show a hint and Skip this step, and shows one hint at a time', () => {
+  it('hands focus to the first link, counts the hints, and leaves only Skip after the last', async () => {
+    const hints = SAMPLE_LESSONS['sample-goals'].steps[0].hints!;
+    const host = await startGoalsBar();
+    try {
+      expect(host.querySelector('.lesson-bar__hint')).toBeNull();
+      buttonNamed(host, 'Stuck?')!.click();
+      await settle();
+      expect(buttonNamed(host, 'Stuck?')).toBeUndefined();
+      expect(buttonNamed(host, 'Skip this step')).toBeDefined();
+      expect(document.activeElement).toBe(buttonNamed(host, 'Show a hint'));
+
+      buttonNamed(host, 'Show a hint')!.click();
+      await settle();
+      const hint = host.querySelector('.lesson-bar__hint')!;
+      expect(hint.textContent).toContain(hints[0]);
+      expect(hint.querySelector('.lesson-bar__hint-count')!.textContent).toBe('1 of 3');
+      expect(buttonNamed(host, 'Show a hint')).toBeUndefined();
+      expect(document.activeElement).toBe(buttonNamed(host, 'Show another hint'));
+
+      buttonNamed(host, 'Show another hint')!.click();
+      await settle();
+      expect(host.querySelector('.lesson-bar__hint')!.textContent).toContain(hints[1]);
+      expect(host.querySelector('.lesson-bar__hint')!.textContent).not.toContain(hints[0]);
+      buttonNamed(host, 'Show another hint')!.click();
+      await settle();
+      expect(host.querySelector('.lesson-bar__hint')!.textContent).toContain(hints[2]);
+      expect(host.querySelector('.lesson-bar__hint-count')!.textContent).toBe('3 of 3');
+      const left = [...host.querySelectorAll<HTMLButtonElement>('.lesson-bar__stuck button')].map((b) => b.textContent?.trim());
+      expect(left).toEqual(['Skip this step']);
+      expect(document.activeElement).toBe(buttonNamed(host, 'Skip this step'));
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-45: Skip this step ticks every goal and lights Next', () => {
+  it('meets the goals, removes Stuck? and the hint, and reads Done with the task', async () => {
+    const host = await startGoalsBar();
+    try {
+      buttonNamed(host, 'Stuck?')!.click();
+      await settle();
+      buttonNamed(host, 'Show a hint')!.click();
+      await settle();
+      buttonNamed(host, 'Skip this step')!.click();
+      await settle();
+      expect(goalItems(host).map((g) => g.classList.contains('is-met'))).toEqual([true, true, true]);
+      const next = buttonNamed(host, 'Next')!;
+      expect(next.disabled).toBe(false);
+      expect(document.activeElement).toBe(next);
+      expect(host.querySelector('.lesson-bar__stuck')).toBeNull();
+      expect(buttonNamed(host, 'Stuck?')).toBeUndefined();
+      expect(host.querySelector('.lesson-bar__hint')).toBeNull();
+      const task = host.querySelector('.lesson-bar__task')!;
+      expect(task.classList.contains('is-done')).toBe(true);
+      expect(task.textContent).toBe('Done · Red, at (0.5, 0.2), turned 45°');
+      expect(useVamsStore.getState().currentStepIndex).toBe(0);
+
+      // A step opened again starts with Stuck? closed and no hint showing.
+      next.click();
+      await settle();
+      buttonNamed(host, 'Back')!.click();
+      await settle();
+      expect(buttonNamed(host, 'Stuck?')).toBeDefined();
+      expect(host.querySelector('.lesson-bar__hint')).toBeNull();
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-46: A waiting step with no hints and no way to skip shows no Stuck?', () => {
+  it('leaves Stuck? out of the first step of Translate to Position', async () => {
+    const step = LESSON_REGISTRY['transforms-exercise-1'].steps[0];
+    expect(step.hints ?? []).toEqual([]);
+    expect(step.solve).toBeUndefined();
+    expect(step.exercise).toBeUndefined();
+    startLesson('transforms-exercise-1');
+    const host = mount(h(LessonBar, {}));
+    try {
+      await settle();
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+      expect(buttonNamed(host, 'Stuck?')).toBeUndefined();
+      expect(host.querySelector('.lesson-bar__stuck')).toBeNull();
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-47: The disabled Next uses the action-off tokens in both themes', () => {
+  it('defines --action-off and --on-action-off for light and dark, and the bar uses them', () => {
+    const tokens = readFileSync('src/shared/styles/_tokens.scss', 'utf8');
+    const darkAt = tokens.indexOf("[data-theme='dark'] {");
+    const light = tokens.slice(tokens.indexOf(':root {'), darkAt);
+    const dark = tokens.slice(darkAt, tokens.indexOf('\n}', darkAt));
+    expect(light).toMatch(/--action-off:\s*#dde3f0;/);
+    expect(light).toMatch(/--on-action-off:\s*#4a536c;/);
+    expect(dark).toMatch(/--action-off:\s*#232b40;/);
+    expect(dark).toMatch(/--on-action-off:\s*#9aa3bb;/);
+    const scss = readFileSync('src/features/lesson-engine/ui/lesson-bar.scss', 'utf8');
+    const rule = scss.match(/&__next[^{]*:disabled\s*\{([^}]*)\}/);
+    expect(rule).not.toBeNull();
+    expect(rule![1]).toMatch(/opacity:\s*1;/);
+    expect(rule![1]).toMatch(/background:\s*var\(--action-off\);/);
+    expect(rule![1]).toMatch(/color:\s*var\(--on-action-off\);/);
+  });
+});

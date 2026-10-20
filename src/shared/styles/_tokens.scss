@@ -51,6 +51,9 @@ $header-height: 3.7rem;
   --on-accent: #ffffff;
   --accent-text: #2f4de0;
   --accent-tint: rgba(47, 77, 224, 0.12);
+  /* A primary action that is not available yet (the lesson bar's Next): a quiet fill whose label keeps 4.5:1. */
+  --action-off: #dde3f0;
+  --on-action-off: #4a536c;
   --rail-pill-hover: var(--paper-sunken);
   --rail-pill-active: var(--accent-tint);
   --tour-scrim: rgba(0, 0, 0, 0.55);
@@ -184,6 +187,8 @@ $header-height: 3.7rem;
   --on-accent: #ffffff;
   --accent-text: #9cadff;
   --accent-tint: rgba(71, 98, 245, 0.20);
+  --action-off: #232b40;
+  --on-action-off: #9aa3bb;
   --rail-pill-hover: var(--paper-sunken);
   --rail-pill-active: var(--accent-tint);
   --tour-scrim: rgba(0, 0, 0, 0.55);

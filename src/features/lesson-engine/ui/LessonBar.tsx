@@ -1,9 +1,21 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, X } from 'lucide-react';
+import {
+  CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  Circle,
+  CircleCheck,
+  CircleHelp,
+  Lightbulb,
+  X,
+} from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import type { PipelineMode } from '@/core/store/types';
 import { Button, SegmentedControl } from '@/shared/ui/controls';
 import { useLessonRunner } from '../model/useLessonRunner';
+import { goalLabelParts, waitsForStudent } from '../model/step-rules';
 import MultipleChoiceWidget from './exercise-widgets/MultipleChoiceWidget';
 import OrderListWidget from './exercise-widgets/OrderListWidget';
 import './lesson-bar.scss';
@@ -51,6 +63,35 @@ function LessonBarBody() {
     setFoldedFor(stepKey);
     if (folded) setFolded(false);
   }
+
+  // Help is per step too: a new step starts with Stuck? closed and no hint showing.
+  const [stuck, setStuck] = useState(false);
+  const [hintsShown, setHintsShown] = useState(0);
+  const [helpFor, setHelpFor] = useState(stepKey);
+  // A help control that is pressed may be replaced (Stuck? by its links, the last Show by Skip,
+  // Skip by a lit Next), so focus moves to whatever now stands in its place.
+  const refocusHelp = useRef<'help' | 'next' | null>(null);
+  const helpRef = useRef<HTMLSpanElement>(null);
+  if (stepKey !== helpFor) {
+    setHelpFor(stepKey);
+    if (stuck) setStuck(false);
+    if (hintsShown) setHintsShown(0);
+  }
+  // A focus hand-off still waiting when the step changes belongs to the old step.
+  useLayoutEffect(() => {
+    refocusHelp.current = null;
+  }, [stepKey]);
+  useLayoutEffect(() => {
+    const target = refocusHelp.current;
+    if (!target) return;
+    const bar = titleRef.current?.closest('.lesson-bar');
+    const next = bar?.querySelector<HTMLButtonElement>('.lesson-bar__next:not(:disabled)');
+    // Skip's solve lands through the store; wait for the render that lights Next.
+    if (target === 'next' && !next) return;
+    refocusHelp.current = null;
+    const link = target === 'help' ? helpRef.current?.querySelector<HTMLButtonElement>('button') : null;
+    (link ?? next ?? titleRef.current)?.focus();
+  });
 
   // Starting a lesson from the Learn drawer closes the drawer, which drops focus to the page or
   // back to the Learn button. Hand it to the lesson title; never take it from elsewhere.
@@ -153,6 +194,64 @@ function LessonBarBody() {
   }
 
   const done = canAdvance;
+  const goals = runner.goals && runner.goals.length > 0 ? runner.goals : null;
+  const hints = step.hints ?? [];
+  const moreHints = hintsShown < hints.length;
+  // Stuck? is for a waiting step that has something to offer, and only until the step passes.
+  const showHelp = waitsForStudent(step) && !done && (moreHints || runner.canSkip);
+  const hint = !done && hintsShown > 0 ? hints[Math.min(hintsShown, hints.length) - 1] : null;
+  // On a goals step the goals are the task: the line appears only once the step is done.
+  const showTask = goals ? done : !!(step.successCheck || step.exercise || step.task);
+
+  const help = showHelp && (
+    <span className="lesson-bar__stuck" ref={helpRef}>
+      {!stuck ? (
+        <button
+          type="button"
+          key="stuck"
+          className="lesson-bar__stuck-open"
+          onClick={() => {
+            refocusHelp.current = 'help';
+            setStuck(true);
+          }}
+        >
+          <CircleHelp size={14} strokeWidth={1.75} aria-hidden="true" />
+          Stuck?
+        </button>
+      ) : (
+        <>
+          {moreHints && (
+            <button
+              type="button"
+              key="hint"
+              className="lesson-bar__link"
+              onClick={() => {
+                refocusHelp.current = 'help';
+                setHintsShown(hintsShown + 1);
+              }}
+            >
+              {hintsShown > 0 ? 'Show another hint' : 'Show a hint'}
+            </button>
+          )}
+          {moreHints && runner.canSkip && <span key="sep" className="lesson-bar__link-sep" aria-hidden="true">·</span>}
+          {runner.canSkip && (
+            <button
+              type="button"
+              key="skip"
+              className="lesson-bar__link"
+              onClick={() => {
+                refocusHelp.current = 'next';
+                runner.skip();
+              }}
+            >
+              Skip this step
+            </button>
+          )}
+        </>
+      )}
+    </span>
+  );
+
   return (
     <section className="lesson-bar" aria-label="Lesson">
       {progress}
@@ -189,13 +288,40 @@ function LessonBarBody() {
           )}
         </div>
       )}
-      {(step.successCheck || step.exercise || step.task) && (
+      {goals && (
+        <ul className="lesson-bar__goals" aria-label="Goals">
+          {goals.map((goal, i) => (
+            <li key={i} className={goal.met ? 'lesson-bar__goal is-met' : 'lesson-bar__goal'}>
+              {goal.met ? (
+                <CircleCheck size={14} strokeWidth={1.75} aria-hidden="true" />
+              ) : (
+                <Circle size={14} strokeWidth={1.75} aria-hidden="true" />
+              )}
+              <span className="lesson-bar__goal-label">
+                {goalLabelParts(goal.label).map((part, j) =>
+                  part.num ? <span key={j} className="lesson-bar__num">{part.text}</span> : part.text,
+                )}
+              </span>
+              {goal.met && <span className="sr-only">, met</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {hint && (
+        <p className="lesson-bar__hint">
+          <Lightbulb size={14} strokeWidth={1.75} aria-hidden="true" />
+          <span>{hint}</span>
+          <span className="lesson-bar__hint-count">{Math.min(hintsShown, hints.length)} of {hints.length}</span>
+        </p>
+      )}
+      {showTask && (
         <p className={done ? 'lesson-bar__task is-done' : 'lesson-bar__task'}>
           <span className="lesson-bar__dot" aria-hidden="true" />
           {done ? (step.task ? `Done · ${step.task}` : 'Done') : step.task ?? 'Waiting for you'}
         </p>
       )}
       <div className="lesson-bar__nav">
+        {help}
         <Button
           variant="quiet"
           className="lesson-bar__back"
