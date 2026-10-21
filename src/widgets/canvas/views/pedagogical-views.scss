@@ -104,6 +104,11 @@
   gap: 22px;
   padding: 18px var(--space-1) 0;
 
+  /* In a narrow pane the figure gives up some width, so the program line keeps to one line. */
+  @container (max-width: 680px) {
+    grid-template-columns: 210px minmax(0, 1fr);
+    gap: var(--space-4);
+  }
   @container (max-width: 520px) {
     grid-template-columns: minmax(0, 1fr);
     justify-items: center;
@@ -112,6 +117,12 @@
 
 .pipeline-focus__figure {
   line-height: 0;
+
+  .stage-figure {
+    width: 100%;
+    max-width: 270px;
+    height: auto;
+  }
 }
 
 .pipeline-focus__text {
@@ -171,8 +182,16 @@
     font-size: var(--text-sm);
     font-weight: 500;
     color: var(--accent-text);
-    overflow-wrap: anywhere;
   }
+
+  /* The call and its arguments each stay whole; the line breaks after the opening parenthesis
+     only when it can't fit, and inside the arguments only when they can't fit a line of their own. */
+  .pipeline-focus__call,
+  .pipeline-focus__args {
+    display: inline-block;
+    max-width: 100%;
+  }
+  .pipeline-focus__call { white-space: nowrap; }
 
   &:hover code { text-decoration: underline; text-underline-offset: 3px; }
   &:focus-visible {
@@ -229,7 +248,8 @@
   opacity: var(--accent-tint-opacity);
 }
 
-.stage-figure__grid line {
+.stage-figure__grid line,
+.stage-figure__grid rect {
   stroke: var(--rule);
   stroke-width: 0.6;
 }

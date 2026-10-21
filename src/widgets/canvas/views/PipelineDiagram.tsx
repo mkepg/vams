@@ -13,6 +13,18 @@ import './pedagogical-views.scss';
 
 const LAST = (STAGES.length - 1) as StageIndex;
 
+/** A program line as the call up to its opening parenthesis, then its arguments, each kept whole where it fits. */
+function ProgramLineText({ text }: { text: string }) {
+  const open = text.indexOf('(');
+  if (open < 0) return <>{text}</>;
+  return (
+    <>
+      <span className="pipeline-focus__call">{text.slice(0, open + 1)}</span>
+      <span className="pipeline-focus__args">{text.slice(open + 1)}</span>
+    </>
+  );
+}
+
 /**
  * The pipeline as a strip of seven small drawings of the student's shape, over one large drawing of the
  * chosen stage with its sentence, the line from the program that does it, and a link to the same stage in Math.
@@ -116,7 +128,9 @@ export default function PipelineDiagram() {
                       onClick={() => requestExplain(line.request)}
                     >
                       <span className="pipeline-focus__line-number">{line.line + 1}</span>
-                      <code>{line.text}</code>
+                      <code>
+                        <ProgramLineText text={line.text} />
+                      </code>
                     </button>
                   </>
                 )}

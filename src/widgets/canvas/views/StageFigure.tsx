@@ -158,18 +158,25 @@ export default function StageFigure({ stage, subject, size, animate }: StageFigu
   const grid = pixelGrid(subject.volume, ACROSS);
   const cellW = ((v.maxX - v.minX) * k) / grid.cols;
   const cellH = ((v.maxY - v.minY) * k) / grid.rows;
+  /** The pixel grid. Where its cells are too small to rule singly, every few cells, so it still reads as a grid. */
   const gridLines = () => {
-    if (Math.min(cellW, cellH) < 4) return null;
+    const cell = Math.min(cellW, cellH);
+    const step = cell >= 4 ? 1 : Math.ceil(4 / Math.max(cell, 1e-6));
     const lines = [];
-    for (let i = 0; i <= grid.cols; i++) {
+    for (let i = step; i < grid.cols; i += step) {
       const x = X(v.minX) + i * cellW;
       lines.push(<line key={`c${i}`} x1={x} y1={Y(v.maxY)} x2={x} y2={Y(v.minY)} />);
     }
-    for (let j = 0; j <= grid.rows; j++) {
+    for (let j = step; j < grid.rows; j += step) {
       const y = Y(v.maxY) + j * cellH;
       lines.push(<line key={`r${j}`} x1={X(v.minX)} y1={y} x2={X(v.maxX)} y2={y} />);
     }
-    return <g className="stage-figure__grid">{lines}</g>;
+    return (
+      <g className="stage-figure__grid">
+        {volumeRect({ fill: 'none' })}
+        {lines}
+      </g>
+    );
   };
   const colourOf = (f: Fragment, coloured: boolean) => {
     if (!coloured) return 'var(--ink-muted)';
@@ -202,7 +209,7 @@ export default function StageFigure({ stage, subject, size, animate }: StageFigu
       body = (
         <>
           {volumeRect(dashed)}
-          {dots(subject.stored, r, 'var(--ink)', labels, (i) => ({ animationDelay: `${(i * 0.08).toFixed(2)}s` }), anim('stage-figure__pop'))}
+          {dots(subject.stored, r, 'var(--ink)', labels, (i) => ({ animationDelay: `${((i / subject.stored.length) * 0.35).toFixed(3)}s` }), anim('stage-figure__pop'))}
         </>
       );
       break;
