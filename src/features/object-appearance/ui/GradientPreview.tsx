@@ -1,4 +1,4 @@
-import type { SceneNodeType, Vertex } from '@/core/types/scene';
+import type { SceneNodeType, ShadingModel, Vertex } from '@/core/types/scene';
 import { pixelGrid, rasterise } from '@/entities/scene/model/rasterise';
 import { gradientColours } from '../lib/gradient';
 
@@ -9,6 +9,8 @@ export interface GradientPreviewProps {
   vertices: readonly Vertex[];
   type: SceneNodeType;
   colors: readonly string[];
+  /** The shape's own glShadeModel, so Flat previews show the one colour Flat draws. */
+  shading?: ShadingModel;
 }
 
 /** The frame is the shape's own bounding box, padded; a flat box is widened so it never divides by zero. */
@@ -28,10 +30,10 @@ function frameOf(vertices: readonly Vertex[]) {
 }
 
 /** The selected shape, already painted with one Quick Gradient: a coarse pixel picture of what OpenGL would draw. */
-export default function GradientPreview({ vertices, type, colors }: GradientPreviewProps) {
+export default function GradientPreview({ vertices, type, colors, shading = 'SMOOTH' }: GradientPreviewProps) {
   const grid = pixelGrid(frameOf(vertices), ACROSS);
   const fragments = type === 'TEXT' || type === 'GROUP' ? [] : rasterise(
-    { type, corners: vertices.map((v) => ({ x: v.x, y: v.y })), colours: gradientColours(vertices, colors), uvs: null, shading: 'SMOOTH' },
+    { type, corners: vertices.map((v) => ({ x: v.x, y: v.y })), colours: gradientColours(vertices, colors), uvs: null, shading },
     grid,
     false,
   );

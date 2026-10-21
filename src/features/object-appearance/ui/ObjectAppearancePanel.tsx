@@ -224,7 +224,7 @@ export default function ObjectAppearancePanel() {
                       aria-label={preset.label}
                       onClick={() => handlePresetGradient(preset.colors)}
                     >
-                      <GradientPreview vertices={selectedObject.vertices} type={selectedObject.type} colors={preset.colors} />
+                      <GradientPreview vertices={selectedObject.vertices} type={selectedObject.type} colors={preset.colors} shading={selectedObject.shading} />
                       <span className="gradient-preview__label" aria-hidden="true">{preset.label}</span>
                     </button>
                   ))}

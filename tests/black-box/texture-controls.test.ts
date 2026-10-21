@@ -145,4 +145,22 @@ describe("BB-TEX-07: A preview paints the selected shape's own outline", () => {
     expect(() => draw('POINTS', [v(0, 0, 0)])).not.toThrow();
     expect(() => draw('LINES', [v(0, 0, 0), v(0, 0, 1)])).not.toThrow();
   });
+
+  it('renders a shape with a non-finite corner without throwing', () => {
+    expect(gradientColours([v(Number.NaN, 0, 0), v(1, 1, 1), v(0, 1, 2)], RGB)).toHaveLength(3);
+    expect(() => draw('TRIANGLES', [v(Number.NaN, 0, 0), v(1, 1, 1), v(0, 1, 2)])).not.toThrow();
+  });
+
+  it("follows the shape's shading: Flat paints one colour, Smooth blends", () => {
+    const tri = [v(-0.5, -0.5, 0), v(0.5, -0.5, 1), v(0, 0.5, 2)];
+    const fills = (shading: 'FLAT' | 'SMOOTH') => {
+      const host = document.createElement('div');
+      render(h(GradientPreview, { vertices: tri, type: 'TRIANGLES', colors: RGB, shading }), host);
+      const set = new Set([...host.querySelectorAll('svg rect')].map((r) => r.getAttribute('fill')));
+      render(null, host);
+      return set.size;
+    };
+    expect(fills('FLAT')).toBe(1);
+    expect(fills('SMOOTH')).toBeGreaterThan(10);
+  });
 });

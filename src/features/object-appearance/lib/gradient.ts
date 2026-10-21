@@ -66,6 +66,7 @@ export function gradientColours(vertices: readonly Vertex[], colors: readonly st
     } else {
       position = numVertices > 1 ? i / (numVertices - 1) : 0;
     }
-    return getGradientColor(colors, position);
+    // A corner with no real position starts the run rather than breaking it.
+    return getGradientColor(colors, Number.isFinite(position) ? position : 0);
   });
 }
