@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { demoSubject } from '../model/pipeline-subject';
 import type { StageIndex } from '../model/stage-lines';
 import StageFigure from './StageFigure';
 import './pedagogical-views.scss';
 
 /** Room left round the drawing, in CSS px. */
-const MARGIN = 32;
+const MARGIN = 12;
+/** The frame's growth round the viewing volume, as a share of it. */
+const FRAME_MARGIN = 0.04;
 /** The drawing's width before the stage has been measured. */
 const FALLBACK = 360;
 
@@ -18,7 +20,7 @@ export default function QuizFigure({ stage }: { stage: StageIndex }) {
   const [size, setSize] = useState(FALLBACK);
   const subject = useMemo(() => demoSubject(), []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
     const measure = () => {
@@ -33,7 +35,7 @@ export default function QuizFigure({ stage }: { stage: StageIndex }) {
 
   return (
     <div ref={box} className="quiz-figure">
-      <StageFigure stage={stage} subject={subject} size={size} animate={false} />
+      <StageFigure stage={stage} subject={subject} size={size} animate={false} margin={FRAME_MARGIN} />
     </div>
   );
 }

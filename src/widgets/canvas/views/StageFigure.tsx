@@ -14,6 +14,8 @@ interface StageFigureProps {
   size: number;
   /** Animate the change from the stage before, once. Reduced motion turns it off in the styles. */
   animate: boolean;
+  /** Grow the frame by this share of the viewing volume on each side; the strip and focus use the default 20%. */
+  margin?: number;
 }
 
 /** Stages 4 to 6 draw the shape on a grid this many pixels across the viewing volume. */
@@ -90,9 +92,15 @@ function clipped(prims: Pt[][], v: Subject['volume']): Pt[][] {
  * One stage of the pipeline, drawn from the subject's own corners on its viewing volume plus a margin.
  * Pure SVG, so it reads the same in both themes through the tokens.
  */
-export default function StageFigure({ stage, subject, size, animate }: StageFigureProps) {
+export default function StageFigure({ stage, subject, size, animate, margin }: StageFigureProps) {
   const small = size < 100;
-  const frame = figureFrame(subject.volume);
+  const frame = (() => {
+    if (margin === undefined) return figureFrame(subject.volume);
+    const v0 = subject.volume;
+    const dx = (v0.maxX - v0.minX) * margin;
+    const dy = (v0.maxY - v0.minY) * margin;
+    return { minX: v0.minX - dx, maxX: v0.maxX + dx, minY: v0.minY - dy, maxY: v0.maxY + dy };
+  })();
   const fw = frame.maxX - frame.minX;
   const fh = frame.maxY - frame.minY;
   const k0 = size / Math.max(fw, fh);

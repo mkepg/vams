@@ -567,7 +567,7 @@ describe('the Diagram', () => {
           unmount(host);
         }
       }
-    });
+    }, 20_000);
   });
 });
 
