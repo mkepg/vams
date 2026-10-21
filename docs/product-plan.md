@@ -121,7 +121,7 @@ The workspace has a top bar and three working regions:
 - **Rail and panel**: a slim labelled rail on the left with Add, Scene and Settings, a divider, then Callbacks, and Hide at the bottom. One panel shows beside it at a time:
   - *Add*: the ten primitives by OpenGL name in three groups (points and lines, triangles, quads and polygons), Text, and the prepared sample scenes.
   - *Scene*: the object hierarchy with its toolbar (Select several, Group, Duplicate, Delete), and below it the selected object's inspector with groups in pipeline order (Vertices, Buffers, Transform, Appearance, Texture), each naming its OpenGL call.
-  - *Settings*: the scene's settings (Background, Viewing volume, Texture library).
+  - *Settings*: the scene's settings (Background and Viewing volume).
   - *Callbacks*: the GLUT callbacks and their rules. The rail item's badge counts the valid callbacks.
 
   The rail opens on Add for an empty scene and on Scene otherwise, and selecting an object always switches it to Scene. Hide is temporary: any rail click, selection or lesson step shows the panel again. Below 1100 px the panel opens as a drawer over the canvas, beside the rail.
@@ -484,7 +484,7 @@ Covers: `glGenTextures`, `glBindTexture`, `glTexImage2D`, `glTexParameteri` (fil
 
 ### Workspace Configuration
 
-- **Inspector:** all prior tools + the texture library in scene settings (upload button, thumbnail list, delete) + the Texture group for the selected object: texture attachment control (apply a loaded texture), filter mode toggle (Nearest / Linear), wrap mode toggle (Repeat / Clamp), and the UV editor.
+- **Inspector:** all prior tools + the Texture group for the selected object, which holds everything texture: an image picker (None, the five samples, the student's uploads with a remove button each, and an Upload tile), filter (NEAREST / LINEAR) and wrap (REPEAT / CLAMP) side by side with the `glTexParameteri` line for the last change, and the UV editor (the shape's outline over its image with numbered corners, Fit, Tile 2 × 2, Flip U and Flip V, zoom buttons, and the exact u, v values behind a disclosure). Settings has no texture controls.
 - **Viewport:** textured objects render with the applied texture. The canvas reflects filter and wrap settings visually.
 - **UV Editor:** a compact inline panel in the Texture group showing the attached texture at small scale with draggable UV handles, one per vertex. Handles can be dragged outside `[0, 1]` to demonstrate wrap behavior.
 - **Code Panel:** texture setup in `init()`; per-object bind + `glTexCoord2f` + `glVertex2f` in `display()`.
@@ -504,7 +504,7 @@ When loading a project, if a scene object references a texture that is not prese
 
 ### Sample Textures
 
-VAMS ships with a small set of sample textures available directly from the texture library without uploading, including at minimum a seamless pattern, a checker pattern useful for UV debugging, and a UV test pattern.
+VAMS ships with five sample textures in the Texture group's picker, each teaching one idea: **UV grid** (graph paper with a red u axis, a blue v axis and a flag, so a flipped, swapped or stretched mapping shows), **Sprite sheet** (four icons in a 2 × 2 grid, for UVs from 0 to 0.5), **Pixel fox** (16 × 16 pixels, for `GL_NEAREST` against `GL_LINEAR`), **Brick wall** (tiles seamlessly, for `GL_REPEAT` with UVs past 1) and **Coloured edges** (a coloured band on each edge, for `GL_CLAMP_TO_EDGE`).
 
 ### Demos (minimum 4)
 
@@ -523,7 +523,7 @@ VAMS ships with a small set of sample textures available directly from the textu
 
 ### Acceptance Criteria
 
-- [ ] Uploading an image adds it to the texture library with a thumbnail.
+- [ ] Uploading an image in the Texture group adds it to the picker with a thumbnail and applies it to the selected shape.
 - [ ] Attaching a texture renders it correctly on the canvas.
 - [ ] Toggling filter mode changes the rendered result (blocky vs smooth on zoom).
 - [ ] Toggling wrap mode changes the rendered result for out-of-bounds UVs.

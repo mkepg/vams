@@ -82,6 +82,7 @@ Four projects, in this order. Each has its own spec and plan.
 3. **Share link and QR code** (item 8). Complete (2026-10-17): [spec](2026-10-16-editor-chrome-share-design.md), [plan](../plans/2026-10-16-editor-chrome-share.md). It also redesigned the top bar and drew the canvas as the program's window.
 4. **Lesson content:** more, deeper and better lessons, including item 11 and the `task` and `pane` text the lesson bar uses. Lesson data may land until Nov 2. The owner's concern, in their words: "I feel a lack of content for each lesson, it lacks quantity and quality as well as depth." Item 11 also covers tidying the lessons shown on stage.
    Status: the lesson blocks (goals, hints and Skip, recap, predict then see, fill in the code) landed 2026-10-21. The lesson content follows section by section until Nov 2.
+   Editor work for it (2026-10-22): the Pipeline illustrations were redrawn over the student's own shape (Diagram strip, Raster vs vector, Which Stage? on the canvas), the texture samples and Quick Gradients replaced, and every texture control gathered into the shape's Texture group ([spec](2026-10-21-pipeline-illustrations-textures-design.md)).
 
 ### Below the line
 

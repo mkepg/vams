@@ -233,14 +233,14 @@ export const HELP_TOPICS: HelpTopic[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: 'The Pipeline section explains how vertices travel from your code to pixels on screen. Its lessons show the canvas in three views, and while a Pipeline lesson runs the lesson bar has a switch between them.',
+        text: 'The Pipeline section explains how vertices travel from your code to pixels on screen. In this section the canvas header has a switch between three views: Playground, Diagram and Raster vs vector. It is there in your own scenes and during lessons.',
       },
       {
         kind: 'definitions',
         items: [
           { term: 'Coordinate Playground', description: 'The live editing canvas, so you can experiment while thinking about the pipeline.' },
-          { term: 'Pipeline Diagram', description: 'The fixed-function pipeline stages laid out in order; click a stage to focus it.' },
-          { term: 'Raster vs. Vector', description: 'Compares the ideal vector geometry against the rasterized (pixelated) result.' },
+          { term: 'Pipeline Diagram', description: 'A strip of the stages in order, each drawn with your selected shape (or a triangle when the scene is empty), with the program line that does that stage. Click a stage, or use the arrow keys, to see it large.' },
+          { term: 'Raster vs. Vector', description: 'Your shape as exact vector geometry beside the pixels OpenGL fills for it. Change the pixels across, and turn GLUT_MULTISAMPLE on or off to see the edges soften.' },
         ],
       },
       { kind: 'heading', text: 'From vertex to pixel' },
