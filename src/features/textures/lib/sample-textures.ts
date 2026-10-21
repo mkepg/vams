@@ -228,7 +228,7 @@ function fbm(x: number, y: number, period: number, seed: number, octaves = 4): n
 const mix = (a: Rgb, b: Rgb, t: number): Rgb => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
 /**
- * Brick wall: 8 rows of 64 × 32 px bricks with 4 px mortar; odd rows shift by half a brick.
+ * Brick wall: 8 rows of 64 Ã— 32 px bricks with 4 px mortar; odd rows shift by half a brick.
  * Every position is read modulo the image and the noise repeats at the edge, so the left column
  * matches the right and the top row matches the bottom.
  */
