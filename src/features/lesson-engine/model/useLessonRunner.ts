@@ -433,9 +433,11 @@ export function useLessonRunner(): LessonRunner {
 
   const handlePick = useCallback(
     (optionId: string) => {
-      if (!lesson || !activeLessonId || !step?.predict || predictAnswer !== null) return;
+      if (!lesson || !activeLessonId || !step?.predict) return;
       if (!step.predict.options.some((o) => o.id === optionId)) return;
+      // The ref, not this render's answer: a second pick before the re-render must not run the action again.
       const prev = answersRef.current.lessonId === activeLessonId ? answersRef.current.byStep : NO_ANSWERS;
+      if (currentStepIndex in prev) return;
       const next = { lessonId: activeLessonId, byStep: { ...prev, [currentStepIndex]: optionId } };
       answersRef.current = next;
       setAnswers(next);
@@ -447,7 +449,7 @@ export function useLessonRunner(): LessonRunner {
         useVamsStore.getState().endBatch();
       }
     },
-    [lesson, activeLessonId, step, predictAnswer, currentStepIndex],
+    [lesson, activeLessonId, step, currentStepIndex],
   );
 
   const handleNext = useCallback(() => {

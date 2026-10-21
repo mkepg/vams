@@ -1892,3 +1892,34 @@ describe('BB-LCOL-65: A goal check, blank answer or success check that throws co
     }
   });
 });
+
+describe('BB-LCOL-66: Two picks before a re-render run the prediction once', () => {
+  it('keeps the first pick and runs the action a single time', async () => {
+    const original = SAMPLE_LESSONS['sample-predict'];
+    let runs = 0;
+    const copy: Lesson = {
+      ...original,
+      steps: original.steps.map((step, i) => (i !== 1 ? step : { ...step, action: () => void runs++ })),
+    };
+    const getLesson = registry.getLessonById;
+    const spy = vi.spyOn(registry, 'getLessonById').mockImplementation((id) => (id === 'sample-predict' ? copy : getLesson(id)));
+    vi.stubEnv('VITE_LESSON_SAMPLES', '1');
+    startLesson('sample-predict');
+    const host = mount(h(RunnerProbe, {}));
+    try {
+      await settle();
+      runner.next();
+      await settle();
+      expect(runs).toBe(0);
+      const pick = runner.pick;
+      pick('up');
+      pick('right');
+      await settle();
+      expect(runs).toBe(1);
+      expect(runner.predictAnswer).toBe('up');
+    } finally {
+      unmount(host);
+      spy.mockRestore();
+    }
+  });
+});
