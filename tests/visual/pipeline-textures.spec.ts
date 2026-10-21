@@ -84,3 +84,34 @@ for (const [id, theme] of QUIZ) {
     await expect(page).toHaveScreenshot(`pt-quiz-raster-${theme}-1280.png`);
   });
 }
+
+test('VIS-PT-07: Quick Gradients as previews of the selected triangle, light, 1280', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.addInitScript(() => {
+    window.localStorage.setItem('vams-theme', 'light');
+    window.localStorage.setItem('vams-storage', JSON.stringify({ state: { hasSeenWelcome: true }, version: 11 }));
+    const css = '.update-notice, [data-sonner-toaster] { display: none !important; } .scene-title__state { visibility: hidden !important; }';
+    const inject = () => {
+      const style = document.createElement('style');
+      style.textContent = css;
+      (document.head ?? document.documentElement).appendChild(style);
+    };
+    if (document.documentElement) inject();
+    else document.addEventListener('DOMContentLoaded', inject, { once: true });
+  });
+  await page.goto('/app?scene=triangle');
+  await page.waitForSelector('.editor');
+  await page.getByRole('treeitem', { name: 'Triangle' }).click();
+  const group = page.locator('[data-group="appearance"]');
+  const header = group.locator('.inspector-group__header');
+  if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
+  await group.getByRole('radio', { name: 'Per vertex' }).click();
+  await expect(group.locator('button.gradient-preview')).toHaveCount(5);
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  });
+  const presets = group.locator('.gradient-presets');
+  await presets.scrollIntoViewIfNeeded();
+  await expect(presets).toHaveScreenshot('pt-quick-gradients-light-1280.png');
+});

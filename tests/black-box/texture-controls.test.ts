@@ -3,10 +3,15 @@
  * The built-in sample textures and the lessons that name them.
  */
 import { describe, it, expect } from 'vitest';
+import { h, render } from 'preact';
 import { useVamsStore } from '@/core/store';
 import { ATLAS_ICONS, FOX_PALETTE, FOX_SPRITE, SAMPLE_TEXTURE_SPECS } from '@/features/textures/lib/sample-textures';
 import { getPreset } from '@/entities/project/model/scene-presets';
 import { TEXTURES_LESSONS } from '@/features/lesson-engine/model/textures-lessons';
+import { GRADIENT_PRESETS, gradientColours } from '@/features/object-appearance/lib/gradient';
+import GradientPreview from '@/features/object-appearance/ui/GradientPreview';
+import ObjectAppearancePanel from '@/features/object-appearance/ui/ObjectAppearancePanel';
+import { addQuad, addTriangle } from '../helpers/store';
 
 describe('BB-TEX-01: The samples are the teaching set, in order', () => {
   it('lists five samples with these ids, names and sizes', () => {
@@ -55,5 +60,89 @@ describe('BB-TEX-04: The sprite sheet keeps its corners', () => {
     expect(text).not.toContain('Crate');
     expect(text).toContain('Brick wall');
     expect(text).not.toContain('Tiling Bricks');
+  });
+});
+
+const RGB = ['#ff0000', '#00ff00', '#0000ff'];
+const v = (x: number, y: number, i = 0) => ({ id: `v${i}`, x, y, color: '#ffffff' });
+
+describe("BB-TEX-05: Gradient colours follow today's rule", () => {
+  it('colours a triangle by x: red, blue, green', () => {
+    const tri = [v(-0.5, -0.5, 0), v(0.5, -0.5, 1), v(0, 0.5, 2)];
+    expect(gradientColours(tri, RGB)).toEqual(['#ff0000', '#0000ff', '#00ff00']);
+  });
+
+  it('uses y when the shape is a vertical line', () => {
+    expect(gradientColours([v(0.2, -1, 0), v(0.2, 1, 1)], ['#000000', '#ffffff'])).toEqual(['#000000', '#ffffff']);
+    expect(gradientColours([v(0.2, 1, 0), v(0.2, -1, 1)], ['#000000', '#ffffff'])).toEqual(['#ffffff', '#000000']);
+  });
+
+  it('uses vertex order when the shape is flat, and gives a polygon one colour per vertex', () => {
+    const hexagon = [0, 1, 2, 3, 4, 5].map((i) => v(0.1, 0.1, i));
+    const out = gradientColours(hexagon, ['#000000', '#ffffff']);
+    expect(out).toHaveLength(6);
+    expect(out[0]).toBe('#000000');
+    expect(out[5]).toBe('#ffffff');
+    expect(out[1]).toBe('#333333');
+    const poly = [[-1, 0], [-0.5, 0.8], [0.5, 0.8], [1, 0], [0.5, -0.8], [-0.5, -0.8]].map(([x, y], i) => v(x, y, i));
+    expect(gradientColours(poly, RGB)).toHaveLength(6);
+  });
+});
+
+describe('BB-TEX-06: The five presets show as previews and apply in one step', () => {
+  it('lists the five presets in order', () => {
+    expect(GRADIENT_PRESETS.map((p) => p.label)).toEqual(['RGB corners', 'Black to white', 'Sunset', 'Ocean', 'Neon']);
+    expect(GRADIENT_PRESETS[2].colors).toEqual(['#ff5e3a', '#ffd166', '#c9184a']);
+  });
+
+  it('shows five labelled buttons in Per vertex mode; a click applies the colours as one undo step', async () => {
+    const tri = addTriangle();
+    useVamsStore.setState({ selectedObjectId: tri.id });
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    render(h(ObjectAppearancePanel, {}), host);
+    const wait = () => new Promise((r) => setTimeout(r, 0));
+    await wait();
+    const perVertex = [...host.querySelectorAll('[role="radio"]')].find((r) => r.textContent === 'Per vertex') as HTMLElement;
+    perVertex.click();
+    await wait();
+    const buttons = [...host.querySelectorAll('button.gradient-preview')] as HTMLButtonElement[];
+    expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual(['RGB corners', 'Black to white', 'Sunset', 'Ocean', 'Neon']);
+    await new Promise((r) => setTimeout(r, 80));
+    const before = useVamsStore.getState().objects.find((o) => o.id === tri.id)!.vertices.map((x) => x.color);
+    const undoDepth = useVamsStore.getState().past.length;
+    buttons[2].click();
+    await wait();
+    const after = useVamsStore.getState().objects.find((o) => o.id === tri.id)!;
+    expect(after.vertices.map((x) => x.color)).toEqual(gradientColours(after.vertices, GRADIENT_PRESETS[2].colors));
+    expect(useVamsStore.getState().past.length).toBe(undoDepth + 1);
+    useVamsStore.getState().undo();
+    expect(useVamsStore.getState().objects.find((o) => o.id === tri.id)!.vertices.map((x) => x.color)).toEqual(before);
+    render(null, host);
+    host.remove();
+  });
+});
+
+describe("BB-TEX-07: A preview paints the selected shape's own outline", () => {
+  const draw = (type: Parameters<typeof GradientPreview>[0]['type'], vertices: ReturnType<typeof v>[]) => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    render(h(GradientPreview, { vertices, type, colors: RGB }), host);
+    const rects = host.querySelectorAll('svg rect').length;
+    render(null, host);
+    host.remove();
+    return rects;
+  };
+
+  it('draws rects for a quad', () => {
+    const quad = addQuad();
+    expect(draw('QUADS', quad.vertices)).toBeGreaterThan(100);
+  });
+
+  it('renders a 2-vertex triangle shape without throwing', () => {
+    expect(() => draw('TRIANGLES', [v(0, 0, 0), v(1, 1, 1)])).not.toThrow();
+    expect(() => draw('LINES', [v(0.3, -1, 0), v(0.3, 1, 1)])).not.toThrow();
+    expect(() => draw('POINTS', [v(0, 0, 0)])).not.toThrow();
+    expect(() => draw('LINES', [v(0, 0, 0), v(0, 0, 1)])).not.toThrow();
   });
 });
