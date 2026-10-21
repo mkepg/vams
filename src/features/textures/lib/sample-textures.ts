@@ -57,46 +57,55 @@ function buildCanvas(
   return canvas.toDataURL('image/png');
 }
 
-/** UV grid: a checker tinted by (u, v), a letter F that shows flips, and the corner coordinates. */
+/**
+ * UV grid: graph paper with the u axis in red along the bottom and the v axis in blue up the
+ * left, meeting at 0,0. A flag on a pole points one way only, so any flip or swap shows.
+ */
 function drawUvGrid(ctx: CanvasRenderingContext2D, size: number) {
-  const cells = 8;
-  const cell = size / cells;
-  for (let j = 0; j < cells; j++) {
-    for (let i = 0; i < cells; i++) {
-      const u = i / (cells - 1);
-      const v = 1 - j / (cells - 1);
-      const k = (i + j) % 2 === 0 ? 1 : 0.78;
-      const r = Math.round((70 + 150 * u) * k);
-      const g = Math.round((80 + 120 * v) * k);
-      const b = Math.round(205 * k);
-      ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-      ctx.fillRect(i * cell, j * cell, cell, cell);
-    }
+  const minor = size / 16;
+  ctx.fillStyle = '#f6f8fd';
+  ctx.fillRect(0, 0, size, size);
+  ctx.lineWidth = 1;
+  for (let k = 0; k <= 16; k++) {
+    const at = k * minor + 0.5;
+    ctx.strokeStyle = k % 4 === 0 ? '#b8c4de' : '#dbe2f1';
+    ctx.beginPath();
+    ctx.moveTo(at, 0);
+    ctx.lineTo(at, size);
+    ctx.moveTo(0, at);
+    ctx.lineTo(size, at);
+    ctx.stroke();
   }
 
-  // The F, built from rectangles: a white outline first, then the dark letter on top.
-  const parts: [number, number, number, number][] = [
-    [94, 80, 26, 94],
-    [94, 80, 66, 26],
-    [94, 116, 52, 24],
-  ];
-  const pad = 4;
-  ctx.fillStyle = '#ffffff';
-  for (const [x, y, w, h] of parts) ctx.fillRect(x - pad, y - pad, w + 2 * pad, h + 2 * pad);
-  ctx.fillStyle = INK;
-  for (const [x, y, w, h] of parts) ctx.fillRect(x, y, w, h);
+  const axis = 6;
+  ctx.fillStyle = '#e5484d';
+  ctx.fillRect(0, size - axis, size, axis);
+  ctx.fillStyle = '#2f4de0';
+  ctx.fillRect(0, 0, axis, size);
 
-  ctx.font = 'bold 17px monospace';
-  const label = (text: string, x: number, y: number) => {
-    ctx.fillStyle = 'rgba(18, 24, 39, 0.82)';
-    ctx.fillRect(x - 4, y - 16, 42, 22);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(text, x, y);
-  };
-  label('0,0', 8, size - 10);
-  label('1,0', size - 46, size - 10);
-  label('0,1', 8, 22);
-  label('1,1', size - 46, 22);
+  ctx.font = 'bold 14px monospace';
+  ctx.fillStyle = '#e5484d';
+  ctx.fillText('u → 1', size - 58, size - 14);
+  ctx.save();
+  ctx.translate(22, 66);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = '#2f4de0';
+  ctx.fillText('v → 1', 0, 0);
+  ctx.restore();
+  ctx.fillStyle = INK;
+  ctx.fillText('0,0', 12, size - 14);
+
+  // The flag: pole, foot and a pennant pointing towards +u, near the top.
+  ctx.fillStyle = INK;
+  ctx.fillRect(96, 70, 8, 120);
+  ctx.fillRect(84, 186, 32, 8);
+  ctx.fillStyle = '#f5a524';
+  ctx.beginPath();
+  ctx.moveTo(104, 70);
+  ctx.lineTo(170, 92);
+  ctx.lineTo(104, 114);
+  ctx.closePath();
+  ctx.fill();
 }
 
 /** Sprite sheet: four icons in a 2 × 2 grid, so showing one icon means UVs from 0 to 0.5. */

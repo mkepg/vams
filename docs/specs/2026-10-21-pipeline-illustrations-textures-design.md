@@ -134,7 +134,7 @@ The teaching set replaces today's samples. All of them are drawn by code (as `fe
 
 | Id | Name | Size | Teaches |
 | --- | --- | --- | --- |
-| `sample-uv-grid` (new) | UV grid | 256 × 256 | Labelled corners (0,0 · 1,0 · 0,1 · 1,1) and a large letter F, so a flipped or stretched `glTexCoord2f` is obvious |
+| `sample-uv-grid` (new) | UV grid | 256 × 256 | Graph paper with the u axis in red along the bottom, the v axis in blue up the left, 0,0 where they meet, and a flag that points one way, so a flipped, swapped or stretched `glTexCoord2f` is obvious |
 | `sample-atlas` (kept) | Sprite sheet | 256 × 256 | Four icons in a 2 × 2 grid: red heart top-left, gold coin top-right, blue gem bottom-left, green star bottom-right (the same corners as today's heart, coin, diamond and crate). One icon is UVs 0 to 0.5. |
 | `sample-pixel` (kept) | Pixel fox | 64 × 64, drawn as a 16 × 16 sprite in 4 × 4 blocks | `GL_NEAREST` keeps it crisp; `GL_LINEAR` blurs it |
 | `sample-bricks` (kept) | Brick wall | 256 × 256 | Tiles seamlessly, for `GL_REPEAT` with UVs past 1 |
