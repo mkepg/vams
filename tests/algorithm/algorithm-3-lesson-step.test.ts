@@ -97,7 +97,11 @@ describe('ALG-3-02: Success-detection accuracy on artificial pass/fail scenarios
       }),
     ];
 
-    const allChecks = Object.values(LESSON_REGISTRY).flatMap((l) => l.steps).filter((s) => s.successCheck);
+    // A step detects success with its successCheck and with each of its goals.
+    const allChecks = Object.values(LESSON_REGISTRY)
+      .flatMap((l) => l.steps)
+      .flatMap((s) => [...(s.successCheck ? [s.successCheck] : []), ...(s.goals ?? []).map((g) => g.check)])
+      .map((check) => ({ successCheck: check }));
     let truePositives = 0;
     let trueNegatives = 0;
 

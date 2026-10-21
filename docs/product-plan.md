@@ -276,20 +276,24 @@ Run is a transient canvas state, not a mode. While it runs, keys, clicks, drags,
 
 ### Demos (minimum 4)
 
-1. **"Drawing a Triangle"** — adds a triangle vertex by vertex, narrating each step. Both the viewport and code panel update in sync.
-2. **"Float vs Byte Colors"** — toggles an object's color mode and narrates the conversion shown in the math panel.
-3. **"Barycentric Color Across a Triangle"** — sets per-vertex colors, demonstrates interpolation, narrates the formula in the math panel.
-4. **"Line Stippling"** — applies stipple to a line, demonstrates different patterns.
-5. **"Hooking Up Callbacks"**: registers a keyboard handler with a rule, narrates the generated switch case and its registration, and runs it.
+1. **"Your First Triangle"** — a triangle appears and the narration walks `glBegin`, `glColor3f`, `glVertex2f` and `glEnd`; the student predicts what hiding it does to the code.
+2. **"The Geometry Alphabet: Points to Polygons"** — the same corners under `GL_POINTS` (with `glPointSize`), `GL_LINES`, `GL_LINE_STRIP`, `GL_LINE_LOOP`, `GL_TRIANGLES`, `GL_QUADS` and `GL_POLYGON`, with predictions of how many lines and shapes appear.
+3. **"Strips and Fans"** — `GL_TRIANGLE_STRIP`, `GL_TRIANGLE_FAN` and `GL_QUAD_STRIP`, with predictions of how many triangles and quads a corner count makes.
+4. **"Painting with Barycentrics"** — per-vertex colours blended across the face, the Coloured stage in Math, `glShadeModel` with `GL_SMOOTH` and `GL_FLAT`, and the same colours as `glColor3ub`.
+5. **"Styling Lines (Width & Stipple)"** — `glLineWidth`, the stipple pattern's bits and factor, and `GL_LINE_STIPPLE` switched on and off.
+6. **"Rendering Text in OpenGL"** — `glRasterPos2f`, `glutBitmapCharacter` and `GLUT_BITMAP_9_BY_15`, and why the colour comes before the raster position.
+7. **"Hooking Up Callbacks"** — keyboard, special keys, mouse and motion callbacks with a rule each, their registrations, `windowToWorld` with `glutGet`, and Run.
+8. **"When the Window Changes Size"** — `glutReshapeFunc`, `glViewport`, and Stretch against Keep proportions.
 
 ### Exercises (minimum 4)
 
-1. **"Build a Triangle"** — add a non-degenerate triangle to an empty scene.
-2. **"Match the Color"** — match a target color swatch using the color picker, within a defined tolerance.
-3. **"Toggle to Byte Color"** — switch a given object from float to byte color mode and match a target byte value.
-4. **"Enable Stippling"** — apply a stipple with specified factor and pattern to a given line.
-5. **"Hooking up the Mouse"**: register a Mouse callback with a rule that moves a shape to the pointer on a left-button press. Success when that rule exists on a valid handler.
-6. **"Drive with the Arrow Keys"**: register Special keys with a → rule that translates a shape right and a ← rule that translates the same shape left.
+1. **"Quad Assembly"** — build a `GL_QUADS` shape, then a two-quad `GL_QUAD_STRIP`.
+2. **"Neon Gradient"** — colour one corner green and one magenta, then switch the colours to `glColor3ub`.
+3. **"Dotted Outline"** — make an outline dotted, at least 3 pixels wide, with a stipple factor of 3.
+4. **"Hello World!"** — add a label, then split it over two lines.
+5. **"Hooking up the Mouse"** — a left click moves a shape to the pointer, a right click resets it, and a drag moves it.
+6. **"Drive with the Arrow Keys"** — Special keys rules for all four arrows.
+7. **"Draw It Yourself"** — the section's capstone: a two-colour filled shape, a styled line and a label, then the filled shape's `glBegin`, first `glColor3f`, first `glVertex2f` and `glEnd` written by hand.
 
 ### Acceptance Criteria
 

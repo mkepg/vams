@@ -574,7 +574,7 @@ describe('BB-LCOL-22: A demo scrolls to the focused group on its final layout', 
     buttonNamed(host, 'Next')!.click();
     await settle();
     expect(narrationAtScroll.length).toBeGreaterThan(0);
-    for (const text of narrationAtScroll) expect(text).toContain('Stippling');
+    for (const text of narrationAtScroll) expect(text).toContain('stipple pattern of 16 bits');
     unmount(host);
   });
 });

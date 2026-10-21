@@ -43,7 +43,7 @@ test('VIS-LEARN-01: First visit, light, 1280', async ({ page }) => {
 
 test('VIS-LEARN-02: Some progress, dark, 1280', async ({ page }) => {
   await open(page, 'dark', SOME_PROGRESS);
-  await expect(page.locator('.learn__status')).toHaveText('3 of 48 lessons done');
+  await expect(page.locator('.learn__status')).toHaveText('3 of 51 lessons done');
   await expect(page).toHaveScreenshot('learn-progress-dark-1280.png', { fullPage: true });
 });
 
