@@ -1,13 +1,15 @@
 import type { TextureAsset } from '@/core/types/textures';
 
 /** The built-in samples, in picker order. Each one is drawn to show a single idea. */
-export const SAMPLE_TEXTURE_SPECS: readonly { id: string; name: string; width: number; height: number }[] = [
+export const SAMPLE_TEXTURE_SPECS = [
   { id: 'sample-uv-grid', name: 'UV grid', width: 256, height: 256 },
   { id: 'sample-atlas', name: 'Sprite sheet', width: 256, height: 256 },
   { id: 'sample-pixel', name: 'Pixel fox', width: 64, height: 64 },
   { id: 'sample-bricks', name: 'Brick wall', width: 256, height: 256 },
   { id: 'sample-edges', name: 'Coloured edges', width: 256, height: 256 },
-];
+] as const satisfies readonly { id: string; name: string; width: number; height: number }[];
+
+type SampleId = (typeof SAMPLE_TEXTURE_SPECS)[number]['id'];
 
 /** The sprite sheet's icons: top-left, top-right, bottom-left, bottom-right. */
 export const ATLAS_ICONS = ['heart', 'coin', 'gem', 'star'] as const;
@@ -16,7 +18,7 @@ export const ATLAS_ICONS = ['heart', 'coin', 'gem', 'star'] as const;
 export const FOX_SPRITE: readonly string[] = [
   '................',
   '....kk....kk....',
-  '...kpok..kopk...',
+  '...kook..kook...',
   '...koookkoook...',
   '...kooooooook...',
   '..kooooooooook..',
@@ -186,25 +188,76 @@ function drawPixelFox(ctx: CanvasRenderingContext2D, size: number) {
   });
 }
 
+type Rgb = [number, number, number];
+
+function hash(x: number, y: number, seed: number): number {
+  let h = (x * 374761393 + y * 668265263 + seed * 1442695041) | 0;
+  h = (h ^ (h >>> 13)) * 1274126177;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+}
+
+/** Value noise that repeats every `period` lattice cells, so the result tiles. */
+function noise(x: number, y: number, period: number, seed: number): number {
+  const xi = Math.floor(x);
+  const yi = Math.floor(y);
+  const xf = x - xi;
+  const yf = y - yi;
+  const wrap = (a: number) => ((a % period) + period) % period;
+  const ease = (t: number) => t * t * (3 - 2 * t);
+  const a = hash(wrap(xi), wrap(yi), seed);
+  const b = hash(wrap(xi + 1), wrap(yi), seed);
+  const c = hash(wrap(xi), wrap(yi + 1), seed);
+  const d = hash(wrap(xi + 1), wrap(yi + 1), seed);
+  const u = ease(xf);
+  const v = ease(yf);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+
+function fbm(x: number, y: number, period: number, seed: number, octaves = 4): number {
+  let total = 0;
+  let amp = 0.5;
+  let freq = 1;
+  for (let o = 0; o < octaves; o++) {
+    total += amp * noise(x * freq, y * freq, period * freq, seed + o);
+    amp *= 0.5;
+    freq *= 2;
+  }
+  return total;
+}
+
+const mix = (a: Rgb, b: Rgb, t: number): Rgb => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+
 /**
- * Brick wall: 8 rows of 64 Ã— 32 px bricks. Odd rows shift by half a brick and each brick is also
- * drawn one image-width to either side, so the left column matches the right and the top matches the bottom.
+ * Brick wall: 8 rows of 64 × 32 px bricks with 4 px mortar; odd rows shift by half a brick.
+ * Every position is read modulo the image and the noise repeats at the edge, so the left column
+ * matches the right and the top row matches the bottom.
  */
 function drawBrickWall(ctx: CanvasRenderingContext2D, size: number) {
   const rows = 8;
   const brickH = size / rows;
   const brickW = size / 4;
-  const mortar = 4;
-  ctx.fillStyle = '#c4beb2';
-  ctx.fillRect(0, 0, size, size);
-  const tones = ['#a8402c', '#9a3a28', '#b04a32', '#8f3426'];
-  for (let r = 0; r < rows; r++) {
-    const offset = r % 2 ? brickW / 2 : 0;
-    for (let c = -1; c <= 4; c++) {
-      ctx.fillStyle = tones[(((c + r * 3) % tones.length) + tones.length) % tones.length];
-      ctx.fillRect(c * brickW + offset + mortar / 2, r * brickH + mortar / 2, brickW - mortar, brickH - mortar);
+  const image = ctx.createImageData(size, size);
+  for (let y = 0; y < size; y++) {
+    const row = Math.floor(y / brickH);
+    const shift = row % 2 ? brickW / 2 : 0;
+    for (let x = 0; x < size; x++) {
+      const along = (x + shift) % size;
+      const col = Math.floor(along / brickW);
+      const inX = along % brickW;
+      const inY = y % brickH;
+      const n = fbm((x / size) * 8, (y / size) * 8, 8, 3);
+      const isMortar = inX < 2 || inX >= brickW - 2 || inY < 2 || inY >= brickH - 2;
+      const colour = isMortar
+        ? mix([196, 190, 178], [150, 144, 132], n)
+        : mix(mix([168, 64, 44], [122, 44, 34], hash(col + (shift ? 7 : 0), row, 11)), [70, 30, 24], n * 0.55);
+      const i = (y * size + x) * 4;
+      image.data[i] = Math.round(colour[0]);
+      image.data[i + 1] = Math.round(colour[1]);
+      image.data[i + 2] = Math.round(colour[2]);
+      image.data[i + 3] = 255;
     }
   }
+  ctx.putImageData(image, 0, 0);
 }
 
 /** Coloured edges: a light field with an 18 px band of a different colour on each edge. */
@@ -220,9 +273,20 @@ function drawColouredEdges(ctx: CanvasRenderingContext2D, size: number) {
   ctx.fillRect(0, 0, size, band);
   ctx.fillStyle = '#f5a524';
   ctx.fillRect(0, size - band, size, band);
+
+  // A right-pointing arrow in the middle, drawn from a shaft and a triangular head.
+  const mid = size / 2;
+  ctx.fillStyle = INK;
+  ctx.fillRect(mid - 36, mid - 5, 48, 10);
+  ctx.beginPath();
+  ctx.moveTo(mid + 10, mid - 20);
+  ctx.lineTo(mid + 38, mid);
+  ctx.lineTo(mid + 10, mid + 20);
+  ctx.closePath();
+  ctx.fill();
 }
 
-const PAINTERS: Record<string, (ctx: CanvasRenderingContext2D, size: number) => void> = {
+const PAINTERS: Record<SampleId, (ctx: CanvasRenderingContext2D, size: number) => void> = {
   'sample-uv-grid': drawUvGrid,
   'sample-atlas': drawSpriteSheet,
   'sample-pixel': drawPixelFox,
