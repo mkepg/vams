@@ -91,11 +91,15 @@ export function assemblyFor(type: PrimitiveType, index: number, count: number): 
  * The vertex whose colour a flat-shaded primitive takes, as OpenGL picks it: a polygon's first,
  * a quad strip quad's highest-numbered (2i + 2, counting from 1), otherwise the primitive's last.
  */
-export function provokingVertex(type: PrimitiveType, index: number, count: number): number {
-  const members = assemblyFor(type, index, count).members[0];
-  if (!members) return index;
+export function provokingOf(type: PrimitiveType, members: readonly number[]): number {
   if (type === 'POLYGON') return members[0];
   // A quad strip's members are listed in drawing order (2j, 2j+1, 2j+3, 2j+2); OpenGL uses 2j+3.
   if (type === 'QUAD_STRIP') return Math.max(...members);
   return members[members.length - 1];
+}
+
+/** The vertex whose colour the primitive containing `index` takes under flat shading; `index` itself when it is in none. */
+export function provokingVertex(type: PrimitiveType, index: number, count: number): number {
+  const members = assemblyFor(type, index, count).members[0];
+  return members ? provokingOf(type, members) : index;
 }

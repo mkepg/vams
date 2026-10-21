@@ -3,6 +3,7 @@ import { JOURNEY_STAGES, JOURNEY_STAGE_TITLES, type JourneyStageId } from '@/cor
 import type { PrimitiveType, ResizeMode, SceneNode, TransformState, ViewportLimits } from '@/core/types/scene';
 import { keepProportionsView } from '@/core/callbacks/reshape-view';
 import type { TextureAsset, TextureWrap, UV } from '@/core/types/textures';
+import { chainOf } from '@/entities/scene/model/pipeline-geometry';
 import { assemblyFor, provokingVertex } from '@/entities/scene/model/primitive-assembly';
 import { deduplicate } from '@/entities/scene/model/vertex-dedup';
 import { fmt, int, short } from '@/shared/lib/format-number';
@@ -123,18 +124,6 @@ function stage(id: JourneyStageId, sentence: string, rows: WorkingRow[], result:
 
 function blankStages(): JourneyStage[] {
   return JOURNEY_STAGES.map((id) => stage(id, STAGE_INFO[id].description, [], null, null));
-}
-
-/** The object, then each enclosing group, innermost first. */
-function chainOf(node: SceneNode, objects: readonly SceneNode[]): SceneNode[] {
-  const byId = new Map(objects.map((o) => [o.id, o]));
-  const chain = [node];
-  let parent = node.parentId ? byId.get(node.parentId) : undefined;
-  while (parent && !chain.includes(parent)) {
-    chain.push(parent);
-    parent = parent.parentId ? byId.get(parent.parentId) : undefined;
-  }
-  return chain;
 }
 
 /** Scale, then rotate, then move, for the object and then each enclosing group. */
