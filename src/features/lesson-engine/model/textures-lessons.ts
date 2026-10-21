@@ -44,7 +44,7 @@ export const TEXTURES_LESSONS: Record<string, Lesson> = {
       },
       {
         narration:
-          "Now, we will bind the 'Tiling Bricks' image to this quad. Watch the generated code update.",
+          "Now, we will bind the 'Brick wall' image to this quad. Watch the generated code update.",
         waitForUser: true,
         focusPanel: 'texture-attach',
         action: (state: VamsState) => {
@@ -72,7 +72,7 @@ export const TEXTURES_LESSONS: Record<string, Lesson> = {
     steps: [
       {
         narration:
-          "In 2D games, developers pack multiple sprites into a single image called a 'Texture Atlas'. Let's apply one.",
+          "In 2D games, developers pack multiple sprites into a single image called a 'Texture Atlas'. Let's apply one: the 'Sprite sheet' sample.",
         waitForUser: true,
         action: (state: VamsState) => {
           state.addCustomObject('QUADS', QUAD_VERTS);
@@ -130,7 +130,7 @@ export const TEXTURES_LESSONS: Record<string, Lesson> = {
       },
       {
         narration:
-          "We've attached a tiny 64x64 pixel art sprite. By default, OpenGL uses GL_LINEAR filtering, which blends neighboring pixels together. The result is a blurry, smeared image.",
+          "We've attached the 'Pixel fox', a tiny 64x64 pixel art sprite. By default, OpenGL uses GL_LINEAR filtering, which blends neighboring pixels together. The result is a blurry, smeared image.",
         waitForUser: true,
         focusPanel: 'texture-attach',
       },
@@ -254,7 +254,7 @@ export const TEXTURES_LESSONS: Record<string, Lesson> = {
     steps: [
       {
         narration:
-          "Your turn! I've placed a quad on the screen. Use the Apply Texture panel to attach the 'Tiling Bricks' sample to it.",
+          "Your turn! I've placed a quad on the screen. Use the Texture group to attach the 'Brick wall' sample to it.",
         waitForUser: true,
         focusPanel: 'texture-attach',
         action: (state: VamsState) => {
@@ -281,7 +281,7 @@ export const TEXTURES_LESSONS: Record<string, Lesson> = {
     steps: [
       {
         narration:
-          "We have a full Texture Atlas rendered on a quad. Using the UV Editor, isolate the Green Crate (the bottom-right item).",
+          "We have the full Sprite sheet rendered on a quad. Using the UV coordinates, isolate the green star (the bottom-right item).",
         waitForUser: true,
         focusPanel: 'uv-editor',
         action: (state: VamsState) => {
@@ -346,7 +346,7 @@ export const TEXTURES_LESSONS: Record<string, Lesson> = {
     steps: [
       {
         narration:
-          "Let's turn this stretched quad into a tiled brick floor. Step one: In the Apply Texture panel, change the Wrap mode to GL_REPEAT. This permits the image to loop.",
+          "Let's turn this stretched quad into a tiled brick floor. Step one: In the Texture group, change the Wrap mode to GL_REPEAT. This permits the image to loop.",
         waitForUser: true,
         focusPanel: 'texture-attach',
         action: (state: VamsState) => {
@@ -364,7 +364,7 @@ export const TEXTURES_LESSONS: Record<string, Lesson> = {
       },
       {
         narration:
-          "Step two: Look at the UV Editor. The dashed square represents one copy of the image. Drag the handles outward until your selection area is large enough to fit approximately two of those dashed squares inside it.",
+          "Step two: Look at the UV coordinates. The dashed square represents one copy of the image. Drag the handles outward until your selection area is large enough to fit approximately two of those dashed squares inside it.",
         waitForUser: true,
         focusPanel: 'uv-editor',
         successCheck: (state: VamsState) => {

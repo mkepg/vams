@@ -34,7 +34,6 @@ const GROUP_STAGE: Record<InspectorGroupId, JourneyStageId | null> = {
   texture: 'coloured',
   background: 'rasterised',
   'viewing-volume': 'projected',
-  'texture-library': 'coloured',
   callbacks: null,
 };
 
@@ -50,7 +49,7 @@ export function stageForPlace(place: FocusPlace): JourneyStageId | null {
   switch (place.area) {
     case 'scene':
       return place.target === 'list' ? 'transformed' : 'assembled';
-    case 'lesson-card':
+    case 'canvas-header':
       return 'rasterised';
     default:
       return GROUP_STAGE[place.group];

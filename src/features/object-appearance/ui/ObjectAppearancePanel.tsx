@@ -3,9 +3,11 @@ import { useState, useEffect, useRef } from 'react';
 import { Palette } from 'lucide-react';
 import { useVamsStore } from "@/core/store";
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
-import { Button, ColorField, SegmentedControl, type SegmentOption } from '@/shared/ui/controls';
+import { ColorField, SegmentedControl, type SegmentOption } from '@/shared/ui/controls';
 import type { ColorMode } from '@/core/types/scene';
 import BackgroundColorPanel from './BackgroundColorPanel';
+import GradientPreview from './GradientPreview';
+import { GRADIENT_PRESETS, gradientColours } from '../lib/gradient';
 
 type EmissionOption = '3f' | '3ub';
 const EMISSION_OPTIONS: SegmentOption<EmissionOption>[] = [
@@ -18,41 +20,6 @@ const APPLICATION_OPTIONS: SegmentOption<'OBJECT' | 'VERTEX'>[] = [
   { value: 'OBJECT', label: 'Uniform', title: 'Apply one uniform color to the entire object' },
   { value: 'VERTEX', label: 'Per vertex', title: 'Paint individual vertices for interpolated gradients' },
 ];
-
-const GRADIENT_PRESETS: { label: string; colors: string[] }[] = [
-  { label: 'Red → Blue', colors: ['#ff0000', '#0000ff'] },
-  { label: 'Rainbow', colors: ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff'] },
-  { label: 'Warm', colors: ['#ff6b35', '#f7931e', '#fdc500'] },
-  { label: 'Cool', colors: ['#667eea', '#764ba2', '#f093fb'] },
-];
-
-const getGradientColor = (colors: string[], position: number): string => {
-  if (colors.length === 0) return '#ffffff';
-  if (colors.length === 1) return colors[0];
-  if (position <= 0) return colors[0];
-  if (position >= 1) return colors[colors.length - 1];
-
-  const segment = 1 / (colors.length - 1);
-  const index = Math.floor(position / segment);
-  const factor = (position - index * segment) / segment;
-
-  const c1 = colors[index];
-  const c2 = colors[index + 1];
-
-  const r1 = parseInt(c1.substring(1, 3), 16);
-  const g1 = parseInt(c1.substring(3, 5), 16);
-  const b1 = parseInt(c1.substring(5, 7), 16);
-
-  const r2 = parseInt(c2.substring(1, 3), 16);
-  const g2 = parseInt(c2.substring(3, 5), 16);
-  const b2 = parseInt(c2.substring(5, 7), 16);
-
-  const r = Math.round(r1 + factor * (r2 - r1));
-  const g = Math.round(g1 + factor * (g2 - g1));
-  const b = Math.round(b1 + factor * (b2 - b1));
-
-  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-};
 
 export default function ObjectAppearancePanel() {
   const {
@@ -136,38 +103,12 @@ export default function ObjectAppearancePanel() {
     endBatch();
   };
 
-  const handlePresetGradient = (colors: string[]) => {
+  const handlePresetGradient = (colors: readonly string[]) => {
     if (!selectedObjectId) return;
     pushToHistory();
     startBatch();
-    
-    const numVertices = selectedObject.vertices.length;
-    let minX = Infinity, maxX = -Infinity;
-    let minY = Infinity, maxY = -Infinity;
-    
-    selectedObject.vertices.forEach(v => {
-      if (v.x < minX) minX = v.x;
-      if (v.x > maxX) maxX = v.x;
-      if (v.y < minY) minY = v.y;
-      if (v.y > maxY) maxY = v.y;
-    });
-
-    const width = maxX - minX;
-    const height = maxY - minY;
-    
-    const useY = width < 0.0001 && height > 0.0001;
-    const range = useY ? height : width;
-
-    selectedObject.vertices.forEach((v, i) => {
-      let position = 0;
-      if (range > 0.0001) {
-         position = useY ? (v.y - minY) / range : (v.x - minX) / range;
-      } else {
-         position = numVertices > 1 ? i / (numVertices - 1) : 0;
-      }
-      const interpolatedColor = getGradientColor(colors, position);
-      updateVertexColor(selectedObjectId, v.id, interpolatedColor);
-    });
+    const painted = gradientColours(selectedObject.vertices, colors);
+    selectedObject.vertices.forEach((v, i) => updateVertexColor(selectedObjectId, v.id, painted[i]));
     endBatch();
   };
 
@@ -276,9 +217,16 @@ export default function ObjectAppearancePanel() {
                 <div className="shading-header">Quick Gradients</div>
                 <div className="preset-buttons">
                   {GRADIENT_PRESETS.map((preset) => (
-                    <Button key={preset.label} variant="quiet" onClick={() => handlePresetGradient(preset.colors)}>
-                      {preset.label}
-                    </Button>
+                    <button
+                      key={preset.label}
+                      type="button"
+                      className="gradient-preview"
+                      aria-label={preset.label}
+                      onClick={() => handlePresetGradient(preset.colors)}
+                    >
+                      <GradientPreview vertices={selectedObject.vertices} type={selectedObject.type} colors={preset.colors} shading={selectedObject.shading} />
+                      <span className="gradient-preview__label" aria-hidden="true">{preset.label}</span>
+                    </button>
                   ))}
                 </div>
               </div>

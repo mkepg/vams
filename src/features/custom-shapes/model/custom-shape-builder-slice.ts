@@ -13,6 +13,8 @@ export const createCustomShapeBuilderSlice: StateCreator<VamsState, [], [], Cust
       pendingVertexStride: stride ?? null,
       interactionMode: 'VERTEX_PLACE',
       selectedObjectId: null,
+      // Placing vertices needs the canvas in view, not a Pipeline illustration.
+      pipelineMode: 'Playground',
     }),
   cancelCustomShape: () =>
     set({

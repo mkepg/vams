@@ -1,16 +1,36 @@
 import './textures-panels.scss';
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Grid3x3, RotateCcw, LocateFixed } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
-import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
-import { Button, DataTable, GlHint, NumberField, type DataColumn } from '@/shared/ui/controls';
+import { Button, DataTable, NumberField, Panel, type DataColumn } from '@/shared/ui/controls';
+import { presetUVs, type UVPreset } from '../lib/uv-presets';
+import type { UV } from '@/core/types/textures';
+
+const ZOOM_STEP = 1.25;
+const clampZoom = (zoom: number) => Math.max(0.05, Math.min(20.0, zoom));
+
+/** A square view holding the 0..1 square and every UV, with a margin round them. */
+function fitView(uvs: readonly UV[] | null | undefined) {
+  let minU = 0, maxU = 1, minV = 0, maxV = 1;
+  for (const { u, v } of uvs ?? []) {
+    if (!Number.isFinite(u) || !Number.isFinite(v)) continue;
+    minU = Math.min(minU, u); maxU = Math.max(maxU, u);
+    minV = Math.min(minV, v); maxV = Math.max(maxV, v);
+  }
+  return { cx: (minU + maxU) / 2, cy: (minV + maxV) / 2, zoom: clampZoom(Math.max(maxU - minU, maxV - minV) * 1.3) };
+}
+const PRESETS: { preset: UVPreset; label: string; title: string }[] = [
+  { preset: 'fit', label: 'Fit', title: 'Fit the image once over the shape' },
+  { preset: 'tile', label: 'Tile 2 × 2', title: 'Repeat the image twice each way (UVs from 0 to 2)' },
+  { preset: 'flip-u', label: 'Flip U', title: 'Mirror the image left to right (u becomes 1 − u)' },
+  { preset: 'flip-v', label: 'Flip V', title: 'Mirror the image top to bottom (v becomes 1 − v)' },
+];
 
 export default function UVEditorPanel() {
   const objects = useVamsStore((s) => s.objects);
   const selectedObjectId = useVamsStore((s) => s.selectedObjectId);
   const getTextureById = useVamsStore((s) => s.getTextureById);
   const updateUV = useVamsStore((s) => s.updateUV);
-  const resetUVsToDefault = useVamsStore((s) => s.resetUVsToDefault);
+  const setUVs = useVamsStore((s) => s.setUVs);
   const startBatch = useVamsStore((s) => s.startBatch);
   const endBatch = useVamsStore((s) => s.endBatch);
   const pushToHistory = useVamsStore((s) => s.pushToHistory);
@@ -19,7 +39,14 @@ export default function UVEditorPanel() {
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
 
   // --- Navigable Camera State ---
-  const [camera, setCamera] = useState({ cx: 0.5, cy: 0.5, zoom: 2.0 });
+  // The view fits the shape's UVs when it opens and whenever another shape is selected.
+  const uvsOf = (id: string | null) => objects.find((o) => o.id === id)?.uvs;
+  const [camera, setCamera] = useState(() => fitView(uvsOf(selectedObjectId)));
+  const [cameraFor, setCameraFor] = useState(selectedObjectId);
+  if (cameraFor !== selectedObjectId) {
+    setCameraFor(selectedObjectId);
+    setCamera(fitView(uvsOf(selectedObjectId)));
+  }
   const cameraRef = useRef(camera);
   useEffect(() => { cameraRef.current = camera; }, [camera]);
 
@@ -74,7 +101,7 @@ export default function UVEditorPanel() {
       const v = curViewMinY + (1 - sy) * cam.zoom;
 
       const zoomFactor = delta > 0 ? 1.15 : 1 / 1.15;
-      const newZoom = Math.max(0.05, Math.min(20.0, cam.zoom * zoomFactor));
+      const newZoom = clampZoom(cam.zoom * zoomFactor);
 
       // Adjust center to keep the coordinate pinned to the cursor
       const newCx = u + newZoom / 2 - sx * newZoom;
@@ -91,17 +118,9 @@ export default function UVEditorPanel() {
   const selected = objects.find((o) => o.id === selectedObjectId);
   if (!selected || !selected.texture || !selected.uvs || selected.uvs.length === 0) {
     return (
-      <CollapsibleSection
-        panelId="uv-editor"
-        title="UV Editor"
-        icon={<Grid3x3 size={14} />}
-        defaultOpen={true}
-        hint="glTexCoord2f"
-      >
-        <div className="uve-empty">
-          Apply a texture to a primitive to edit its UV coordinates.
-        </div>
-      </CollapsibleSection>
+      <Panel panelId="uv-editor" title="UV coordinates" hint="glTexCoord2f" defaultOpen>
+        <p className="uve-empty">Pick an image above, then place it on the shape here.</p>
+      </Panel>
     );
   }
 
@@ -167,6 +186,13 @@ export default function UVEditorPanel() {
       endBatch();
       setDraggingIdx(null);
     }
+  };
+
+  const zoomBy = (factor: number) => setCamera((prev) => ({ ...prev, zoom: clampZoom(prev.zoom * factor) }));
+  const applyPreset = (preset: UVPreset) => {
+    const next = presetUVs(preset, selected.vertices, uvs);
+    setUVs(selected.id, next);
+    setCamera(fitView(next));
   };
 
   // --- Typed coordinates: the keyboard path to every handle ---
@@ -237,32 +263,18 @@ export default function UVEditorPanel() {
   const unitSize = 1 / viewSpan;
 
   return (
-    <CollapsibleSection
-      panelId="uv-editor"
-      title="UV Editor"
-      icon={<Grid3x3 size={14} />}
-      defaultOpen={true}
-      hint="glTexCoord2f"
-    >
+    <Panel panelId="uv-editor" title="UV coordinates" hint="glTexCoord2f" defaultOpen>
       <div className="uve-panel">
         <div
           className="uve-stage"
           ref={stageRef}
+          title="Drag a corner to move its UV. Shift + drag pans, Shift + scroll zooms."
           onPointerDown={onStagePointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerLeave={onPointerUp}
           onContextMenu={(e) => e.preventDefault()}
         >
-          <Button
-            variant="quiet"
-            iconOnly
-            label="Recenter Camera"
-            icon={<LocateFixed size={14} />}
-            className="uve-recenter"
-            onClick={() => setCamera({ cx: 0.5, cy: 0.5, zoom: 2.0 })}
-          />
-          
           <svg
             className="uve-stage-svg"
             viewBox="0 0 1 1"
@@ -276,18 +288,18 @@ export default function UVEditorPanel() {
               )}
             </defs>
 
-            {/* Background Texture */}
+            {/* The texture, tiled under REPEAT, then dimmed so the shape reads on top. */}
             {tex && isRepeat ? (
               <rect x="0" y="0" width="1" height="1" fill="url(#bg-tex)" />
             ) : tex ? (
               <image href={tex.dataUrl} x={unitTL.x} y={unitTL.y} width={unitSize} height={unitSize} preserveAspectRatio="none" style={{ imageRendering: 'pixelated' }} />
             ) : null}
+            <rect className="uve-dim" x="0" y="0" width="1" height="1" />
 
-            {/* Unit square outlines */}
-            <rect x={unitTL.x} y={unitTL.y} width={unitSize} height={unitSize} fill="none" stroke="rgba(0,0,0,0.8)" strokeWidth={0.005} />
-            <rect x={unitTL.x} y={unitTL.y} width={unitSize} height={unitSize} fill="none" stroke="#fbbf24" strokeWidth={0.0025} strokeDasharray="0.01 0.01" />
+            {/* The 0..1 square */}
+            <rect className="uve-unit" x={unitTL.x} y={unitTL.y} width={unitSize} height={unitSize} />
 
-            {/* Edges */}
+            {/* The shape's outline */}
             <g className="uve-edges">
               {edges.map(([a, b], i) => {
                 const pa = uvToSvg(uvs[a].u, uvs[a].v);
@@ -296,7 +308,7 @@ export default function UVEditorPanel() {
               })}
             </g>
 
-            {/* Vertices */}
+            {/* Numbered corners */}
             {uvs.map((uv, i) => {
               const p = uvToSvg(uv.u, uv.v);
               return (
@@ -320,32 +332,33 @@ export default function UVEditorPanel() {
               );
             })}
           </svg>
+          <div className="uve-zoom" role="group" aria-label="Zoom">
+            <button type="button" aria-label="Zoom out" onClick={() => zoomBy(ZOOM_STEP)}>−</button>
+            <button type="button" aria-label="Fit the view" onClick={() => setCamera(fitView(uvs))}>Fit</button>
+            <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1 / ZOOM_STEP)}>+</button>
+          </div>
         </div>
-        <div className="uve-foot">
-          <span className="uve-foot-hint">
-            Drag handles to edit UVs. <strong>Shift + Drag</strong> to pan. <strong>Shift + Scroll</strong> to zoom.
-          </span>
-          <Button
-            variant="quiet"
-            className="uve-reset"
-            icon={<RotateCcw size={13} />}
-            onClick={() => resetUVsToDefault(selected.id)}
-            title="Reset UVs to default unit-square mapping"
-          >
-            Reset
-          </Button>
+        <div className="uve-presets" role="group" aria-label="UV presets">
+          {PRESETS.map(({ preset, label, title }) => (
+            <Button key={preset} title={title} onClick={() => applyPreset(preset)}>
+              {label}
+            </Button>
+          ))}
         </div>
-        <div className="uve-table">
-          <GlHint call="glTexCoord2f" args="u, v" />
+        <details className="uve-exact">
+          <summary>
+            <span>Exact values</span>
+            <span className="uve-exact__count">{uvs.length} {uvs.length === 1 ? 'vertex' : 'vertices'}</span>
+          </summary>
           <DataTable
-            caption="Texture coordinates"
+            caption="Texture coordinates, glTexCoord2f(u, v)"
             columns={uvColumns}
             rows={uvs}
             rowKey={(_uv, i) => String(i)}
             activeRowKey={draggingIdx !== null ? String(draggingIdx) : null}
           />
-        </div>
+        </details>
       </div>
-    </CollapsibleSection>
+    </Panel>
   );
 }

@@ -1,5 +1,6 @@
 import type { InspectorGroupId } from '@/core/inspector/groups';
 import type { JourneyStageId } from '@/core/inspector/journey-stage';
+import type { StageIndex } from '@/core/types/lesson';
 import type {
   PrimitiveType,
   SceneNode,
@@ -24,6 +25,7 @@ import type {
 } from '@/core/types/scene';
 
 import type {
+  TextureAsset,
   TextureFilter,
   TextureWrap,
   UV,
@@ -64,6 +66,8 @@ export interface SceneSlice {
   updateTextureFilter: (objectId: string, filter: TextureFilter) => void;
   updateTextureWrap: (objectId: string, wrap: TextureWrap) => void;
   updateUV: (objectId: string, vertexIndex: number, uv: UV) => void;
+  /** Replaces every UV in one undo step; ignored when the count doesn't match the vertices. */
+  setUVs: (objectId: string, uvs: UV[]) => void;
   resetUVsToDefault: (objectId: string) => void;
 }
 export interface InteractionSlice {
@@ -111,6 +115,8 @@ export interface HistorySnapshot {
   pendingMinVertices: number;
   pendingVertexStride: number | null;
   callbacks: CallbacksState;
+  /** Uploads, so undoing a removal brings the image back with its attachments. */
+  uploadedTextures: TextureAsset[];
   timestamp: number;
 }
 export interface HistorySlice {
@@ -232,6 +238,8 @@ export interface LessonSlice {
   viewportLimitsBackup: ViewportLimits | null;
   uploadedTexturesBackup: import('@/core/types/textures').TextureAsset[] | null;
   lessonFocusPanel: string | null;
+  /** The stage a "Which Stage?" step's picture shows; null on every other step. */
+  quizPipelineStage: StageIndex | null;
   dmaDriverStep: number | null;
   changedCodeLines: number[]
   /** The student's Code / Math switch and Hide from before the lesson; restored when it ends. */
@@ -241,6 +249,7 @@ export interface LessonSlice {
   setExerciseAnswer: (stepId: string, answer: unknown) => void;
   setSuccessState: (success: boolean) => void;
   setLessonFocusPanel: (panelId: string | null) => void;
+  setQuizPipelineStage: (stage: StageIndex | null) => void;
   setDmaDriverStep: (index: number | null) => void;
   clearLessonState: () => void;
   setChangedCodeLines: (lines: number[]) => void;

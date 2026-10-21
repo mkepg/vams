@@ -7,10 +7,12 @@ import ObjectTransformPanel from '@/features/object-transform/ui/ObjectTransform
 import ObjectAppearancePanel from '@/features/object-appearance/ui/ObjectAppearancePanel';
 import BackgroundColorPanel from '@/features/object-appearance/ui/BackgroundColorPanel';
 import LineStylePanel, { LINE_TYPES } from '@/features/line-style/ui/LineStylePanel';
-import TextureAttachmentPanel, { TEXTUREABLE_TYPES } from '@/features/textures/ui/TextureAttachmentPanel';
+import { TEXTUREABLE_TYPES } from '@/features/textures/lib/textureable';
+import TexturePicker from '@/features/textures/ui/TexturePicker';
+import TextureParams from '@/features/textures/ui/TextureParams';
 import UVEditorPanel from '@/features/textures/ui/UVEditorPanel';
 import OrthoEditorPanel from '@/features/ortho-editor/ui/OrthoEditorPanel';
-import TextureLibraryPanel from '@/features/textures/ui/TextureLibraryPanel';
+import { Panel } from '@/shared/ui/controls';
 
 export interface GroupDef {
   id: InspectorGroupId;
@@ -56,7 +58,10 @@ export const OBJECT_GROUP_DEFS: GroupDef[] = [
     applies: (o) => TEXTUREABLE_TYPES.has(o.type),
     render: () => (
       <>
-        <TextureAttachmentPanel />
+        <Panel panelId="texture-attach" title="Image" hint="glTexImage2D" defaultOpen>
+          <TexturePicker />
+          <TextureParams />
+        </Panel>
         <UVEditorPanel />
       </>
     ),
@@ -67,5 +72,4 @@ export const SETTINGS_GROUP_DEFS: GroupDef[] = [
   // The settings show with an object selected during a settings focus, so Background never reads the selection.
   { id: 'background', title: 'Background', hint: () => 'glClearColor', render: () => <BackgroundColorPanel /> },
   { id: 'viewing-volume', title: 'Viewing volume', hint: () => 'glOrtho', render: () => <OrthoEditorPanel /> },
-  { id: 'texture-library', title: 'Texture library', hint: () => 'glGenTextures', render: () => <TextureLibraryPanel /> },
 ];

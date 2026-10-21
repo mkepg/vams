@@ -1,279 +1,146 @@
-import React from 'react';
-import {
-  ArrowDown,
-  Pencil,
-  Move3d,
-  Triangle,
-  Scissors,
-  Grid3x3,
-  Droplet,
-  Layers,
-} from 'lucide-react';
+import { useMemo, useRef } from 'react';
+import type { KeyboardEvent } from 'react';
 import { useVamsStore } from '@/core/store';
-import StageVisual from './pipeline-stage-visuals';
+import { JOURNEY_STAGE_TITLES } from '@/core/inspector/journey-stage';
+import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
+import { outlineCode } from '@/features/code-generation/model/code-outline';
+import { useCanvasSize } from '@/shared/lib/use-canvas-size';
+import { pipelineSubject } from '../model/pipeline-subject';
+import { STAGES, stageProgramLine, type StageIndex } from '../model/stage-lines';
+import { INTRO, stageSentence } from '../model/stage-copy';
+import StageFigure from './StageFigure';
 import './pedagogical-views.scss';
 
-interface PipelineStage {
-  title: string;
-  short: string;
-  desc: string;
-  detail: string;
-  icon: React.ReactNode;
-  kind: 'input' | 'process' | 'assembly' | 'clip' | 'raster' | 'fragment' | 'output';
-  inputType: string;
-  outputType: string;
-  glApis: string[];
+const LAST = (STAGES.length - 1) as StageIndex;
+
+/** A program line as the call up to its opening parenthesis, then its arguments, each kept whole where it fits. */
+function ProgramLineText({ text }: { text: string }) {
+  const open = text.indexOf('(');
+  if (open < 0) return <>{text}</>;
+  return (
+    <>
+      <span className="pipeline-focus__call">{text.slice(0, open + 1)}</span>
+      <span className="pipeline-focus__args">{text.slice(open + 1)}</span>
+    </>
+  );
 }
 
-const PIPELINE_STAGES: PipelineStage[] = [
-  {
-    title: 'Vertex Specification',
-    short: 'Input',
-    desc: 'Your code lists the corner points (vertices) that describe each shape.',
-    detail:
-      'This is where every shape begins. Your program hands OpenGL a list of vertices — each with a position and color — that the rest of the pipeline turns into pixels.',
-    icon: <Pencil size={16} strokeWidth={2.2} />,
-    kind: 'input',
-    inputType: 'C++ vertex list',
-    outputType: 'Vertex stream',
-    glApis: ['glBegin', 'glVertex3f', 'glColor3f', 'glEnd'],
-  },
-  {
-    title: 'Vertex Processing',
-    short: 'Transform',
-    desc: 'Each vertex is moved, rotated, or scaled into its final position.',
-    detail:
-      'Each vertex is multiplied by transformation matrices to land where it should — translated, rotated, scaled, and projected into the visible viewing area.',
-    icon: <Move3d size={16} strokeWidth={2.2} />,
-    kind: 'process',
-    inputType: 'Vertex stream',
-    outputType: 'Positioned verts',
-    glApis: ['glMatrixMode', 'glLoadIdentity', 'glTranslatef', 'glRotatef'],
-  },
-  {
-    title: 'Primitive Assembly',
-    short: 'Assemble',
-    desc: 'Vertices are connected into shapes — points, lines, or triangles.',
-    detail:
-      'Loose vertices are stitched into actual primitives. Three vertices may become a triangle, two may form a line — depending on the GL_* mode you chose.',
-    icon: <Triangle size={16} strokeWidth={2.2} />,
-    kind: 'assembly',
-    inputType: 'Positioned verts',
-    outputType: 'Primitives',
-    glApis: ['GL_TRIANGLES', 'GL_LINES', 'GL_QUADS', 'GL_POLYGON'],
-  },
-  {
-    title: 'Clipping',
-    short: 'Clip',
-    desc: 'Anything outside the viewable area gets cut away.',
-    detail:
-      'Shapes that sit partly outside the visible window have their offscreen parts sliced off. Triangles facing away from the camera may be discarded too, to save work.',
-    icon: <Scissors size={16} strokeWidth={2.2} />,
-    kind: 'clip',
-    inputType: 'Primitives',
-    outputType: 'Visible prims',
-    glApis: ['glEnable(GL_CULL_FACE)', 'glCullFace', 'glFrontFace'],
-  },
-  {
-    title: 'Rasterization',
-    short: 'Raster',
-    desc: 'Smooth shapes are sliced into a grid of square fragments.',
-    detail:
-      'This is where vector becomes raster. Every visible primitive is broken down into a grid of fragments — small candidate units that may eventually become pixels.',
-    icon: <Grid3x3 size={16} strokeWidth={2.2} />,
-    kind: 'raster',
-    inputType: 'Visible prims',
-    outputType: 'Fragments',
-    glApis: ['glViewport', 'glPolygonMode', 'glLineWidth'],
-  },
-  {
-    title: 'Fragment Processing',
-    short: 'Shade',
-    desc: 'Each fragment receives its final color.',
-    detail:
-      'Each fragment is colored individually. Textures and effects are applied here to decide what the fragment will actually look like on screen.',
-    icon: <Droplet size={16} strokeWidth={2.2} />,
-    kind: 'fragment',
-    inputType: 'Fragments',
-    outputType: 'Colored frags',
-    glApis: ['glTexImage2D', 'glFogf', 'glBlendFunc'],
-  },
-  {
-    title: 'Per-Sample Operations',
-    short: 'Output',
-    desc: 'Final checks decide which fragments become real pixels on screen.',
-    detail:
-      'The last gate before the screen. Fragments that pass depth and stencil tests are written to the framebuffer — and that is what you see.',
-    icon: <Layers size={16} strokeWidth={2.2} />,
-    kind: 'output',
-    inputType: 'Colored frags',
-    outputType: 'Screen pixels',
-    glApis: ['glDepthFunc', 'glStencilFunc', 'glClear', 'glFlush'],
-  },
-];
-
+/**
+ * The pipeline as a strip of seven small drawings of the student's shape, over one large drawing of the
+ * chosen stage with its sentence, the line from the program that does it, and a link to the same stage in Math.
+ */
 export default function PipelineDiagram() {
-  const activePipelineStage = useVamsStore(s => s.activePipelineStage);
-  const setActivePipelineStage = useVamsStore(s => s.setActivePipelineStage);
-  const appMode = useVamsStore(s => s.appMode);
+  const stage = useVamsStore((s) => s.activePipelineStage) as StageIndex | null;
+  const setActivePipelineStage = useVamsStore((s) => s.setActivePipelineStage);
+  const objects = useVamsStore((s) => s.objects);
+  const selectedObjectId = useVamsStore((s) => s.selectedObjectId);
+  const viewportLimits = useVamsStore((s) => s.viewportLimits);
+  const canvasBackgroundColor = useVamsStore((s) => s.canvasBackgroundColor);
+  const callbacks = useVamsStore((s) => s.callbacks);
+  const getAllTextures = useVamsStore((s) => s.getAllTextures);
+  const requestExplain = useVamsStore((s) => s.requestExplain);
+  const selectObject = useVamsStore((s) => s.selectObject);
+  const setJourneyStageOverride = useVamsStore((s) => s.setJourneyStageOverride);
+  const setCodePane = useVamsStore((s) => s.setCodePane);
+  const canvasSize = useCanvasSize();
+  // Re-render on uploads:
+  useVamsStore((s) => s.uploadedTextures);
 
-  const handleBackgroundClick = () => {
-    if (appMode === 'Author') setActivePipelineStage(null);
+  const subject = useMemo(
+    () => pipelineSubject({ objects, selectedObjectId, viewportLimits, canvasBackgroundColor }),
+    [objects, selectedObjectId, viewportLimits, canvasBackgroundColor],
+  );
+  // The same program the code panel shows, so the line found here is the line found there.
+  const outline = useMemo(
+    () =>
+      outlineCode(
+        generateCodeFromState({ objects, canvasBackgroundColor, callbacks, viewportLimits, textures: getAllTextures() }, canvasSize),
+      ),
+    [objects, canvasBackgroundColor, callbacks, viewportLimits, getAllTextures, canvasSize],
+  );
+  const line = stage === null ? null : stageProgramLine(stage, outline, subject);
+
+  const buttons = useRef<(HTMLButtonElement | null)[]>([]);
+  const choose = (next: StageIndex) => {
+    setActivePipelineStage(next);
+    buttons.current[next]?.focus();
+  };
+  const onStripKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    e.preventDefault();
+    if (e.key === 'ArrowRight') choose(stage === null ? 0 : (Math.min(LAST, stage + 1) as StageIndex));
+    else choose(stage === null ? LAST : (Math.max(0, stage - 1) as StageIndex));
   };
 
-  const handleNodeClick = (index: number, e: React.MouseEvent<HTMLDivElement>) => {
-    if (appMode === 'Author') {
-      e.stopPropagation();
-      setActivePipelineStage(activePipelineStage === index ? null : index);
-    }
+  const openMath = (i: StageIndex) => {
+    if (subject.node && selectedObjectId !== subject.node.id) selectObject(subject.node.id);
+    setJourneyStageOverride(STAGES[i].math);
+    setCodePane('math');
   };
-
-  const activeStage =
-    activePipelineStage !== null ? PIPELINE_STAGES[activePipelineStage] : null;
 
   return (
-    <div
-      className="pedagogical-overlay pipeline-diagram"
-      onClick={handleBackgroundClick}
-    >
-      <div className="diagram-container flowchart">
-        <header className="diagram-header">
-          <span className="eyebrow">The OpenGL Rendering Pipeline</span>
-          <h2>From Vertex to Pixel</h2>
-          <p className="subheading">
-            Seven steps turn the points you describe in code into the pixels you see
-            on screen. Click any step to see what happens inside it.
-          </p>
-        </header>
-
-        {/* Mini progress rail */}
-        <div className="stage-rail" role="tablist" aria-label="Pipeline stages">
-          {PIPELINE_STAGES.map((stage, index) => {
-            const isActive = activePipelineStage === index;
-            return (
-              <button
-                key={`rail-${stage.title}`}
-                type="button"
-                className={`rail-pip ${isActive ? 'active' : ''}`}
-                data-kind={stage.kind}
-                title={stage.title}
-                role="tab"
-                aria-selected={isActive}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (appMode === 'Author') {
-                    setActivePipelineStage(isActive ? null : index);
-                  }
-                }}
-              >
-                <span className="rail-index">{index + 1}</span>
-                <span className="rail-label">{stage.short}</span>
-              </button>
-            );
-          })}
+    <div className="pedagogical-overlay pipeline-diagram">
+      <div className="pipeline-diagram__sheet">
+        <div className="pipeline-strip" role="group" aria-label="Pipeline stages" onKeyDown={onStripKey}>
+          {STAGES.map((st, i) => (
+            <button
+              key={st.short}
+              ref={(el) => {
+                buttons.current[i] = el;
+              }}
+              type="button"
+              className={`pipeline-strip__stage${stage === i ? ' is-chosen' : ''}`}
+              aria-pressed={stage === i}
+              title={st.title}
+              onClick={() => setActivePipelineStage(i)}
+            >
+              <StageFigure stage={i as StageIndex} subject={subject} size={62} animate={false} />
+              <span className="pipeline-strip__number">{i + 1}</span>
+              <span className="pipeline-strip__name">{st.short}</span>
+            </button>
+          ))}
         </div>
 
-        <div className="stage-inspector" aria-live="polite">
-          {activeStage ? (
-            <div className="inspector-active" key={activePipelineStage}>
-              <div className="inspector-visual">
-                <StageVisual kind={activeStage.kind} />
-              </div>
-              <div className="inspector-body">
-                <span className="inspector-step">
-                  Stage {(activePipelineStage ?? 0) + 1} / {PIPELINE_STAGES.length}
-                </span>
-                <h3>{activeStage.title}</h3>
-                <p>{activeStage.detail}</p>
-
-                <div className="io-pills">
-                  <span className="io-pill in">
-                    <span className="io-label">IN</span>
-                    <span className="io-value">{activeStage.inputType}</span>
-                  </span>
-                  <span className="io-arrow" aria-hidden>→</span>
-                  <span className="io-pill out">
-                    <span className="io-label">OUT</span>
-                    <span className="io-value">{activeStage.outputType}</span>
-                  </span>
-                </div>
-
-                <div className="gl-apis">
-                  <span className="gl-apis-label">Key GL calls</span>
-                  <div className="gl-apis-chips">
-                    {activeStage.glApis.map((api) => (
-                      <code key={api} className="gl-chip">{api}</code>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="inspector-empty">
-              <span className="inspector-hint">
-                Select a stage below to see what happens inside it.
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div className="flowchart-path">
-          {PIPELINE_STAGES.map((stage, index) => {
-            const isActive = activePipelineStage === index;
-            const isDimmed =
-              activePipelineStage !== null && !isActive;
-            const nextStage = PIPELINE_STAGES[index + 1];
-
-            return (
-              <React.Fragment key={stage.title}>
-                <div
-                  className={`flow-node ${isActive ? 'active' : ''} ${
-                    isDimmed ? 'dimmed' : ''
-                  }`}
-                  data-kind={stage.kind}
-                  onClick={(e) => handleNodeClick(index, e)}
-                  title={appMode === 'Author' ? 'Click to inspect' : ''}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      if (appMode === 'Author') {
-                        setActivePipelineStage(isActive ? null : index);
-                      }
-                    }
-                  }}
-                >
-                  <div className="node-index">
-                    <span className="node-number">{index + 1}</span>
-                    <span className="node-kind">{stage.short}</span>
-                  </div>
-                  <div className="node-icon">{stage.icon}</div>
-                  <div className="node-content">
-                    <h4>{stage.title}</h4>
-                    <p>{stage.desc}</p>
-                  </div>
-                  <div className="node-chevron" aria-hidden="true">
-                    →
-                  </div>
-                </div>
-
-                {nextStage && (
-                  <div className={`flow-arrow ${isDimmed ? 'dimmed' : ''}`}>
-                    <span className="flow-data-type">{stage.outputType}</span>
-                    <ArrowDown size={18} />
-                  </div>
+        <div className="pipeline-focus">
+          <div className="pipeline-focus__figure">
+            <StageFigure stage={stage ?? LAST} subject={subject} size={270} animate={stage !== null} />
+          </div>
+          <div className="pipeline-focus__text" aria-live="polite">
+            {stage === null ? (
+              <>
+                <h2 className="pipeline-focus__title">{INTRO.title}</h2>
+                <p className="pipeline-focus__sentence">{INTRO.text}</p>
+              </>
+            ) : (
+              <>
+                <p className="pipeline-focus__kicker">
+                  Stage {stage + 1} of {STAGES.length}
+                </p>
+                <h2 className="pipeline-focus__title">{STAGES[stage].title}</h2>
+                <p className="pipeline-focus__sentence">{stageSentence(stage, subject, canvasSize)}</p>
+                {line && (
+                  <>
+                    <p className="pipeline-focus__label">In your program</p>
+                    <button
+                      type="button"
+                      className="pipeline-focus__line"
+                      title="Show this line in the code"
+                      onClick={() => requestExplain(line.request)}
+                    >
+                      <span className="pipeline-focus__line-number">{line.line + 1}</span>
+                      <code>
+                        <ProgramLineText text={line.text} />
+                      </code>
+                    </button>
+                  </>
                 )}
-              </React.Fragment>
-            );
-          })}
+                <button type="button" className="pipeline-focus__math" onClick={() => openMath(stage)}>
+                  See it in Math: {JOURNEY_STAGE_TITLES[STAGES[stage].math]} ›
+                </button>
+              </>
+            )}
+          </div>
         </div>
-
-        <footer className="diagram-footer">
-          <span className="legend-dot input" /> Application input
-          <span className="legend-dot process" /> GPU compute
-          <span className="legend-dot output" /> Framebuffer output
-        </footer>
       </div>
     </div>
   );

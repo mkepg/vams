@@ -83,7 +83,8 @@ const getGlobalMatrix = (objId: string, objects: SceneNode[]): number[] => {
   return mat;
 };
 
-function defaultUVsFor(vertices: SceneNode['vertices']): UV[] {
+/** UVs that fit the texture once over the shape's bounding box. */
+export function defaultUVsFor(vertices: SceneNode['vertices']): UV[] {
   if (vertices.length === 0) return [];
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const v of vertices) {
@@ -655,6 +656,15 @@ export const createSceneSlice: StateCreator<VamsState, [], [], SceneSlice> = (se
         uvs[vertexIndex] = uv;
         return { ...o, uvs };
       }),
+    }));
+  },
+
+  setUVs: (objectId, uvs) => {
+    const target = get().objects.find((o) => o.id === objectId);
+    if (!target || uvs.length !== target.vertices.length) return;
+    get().pushToHistory();
+    set((state) => ({
+      objects: state.objects.map((o) => (o.id === objectId ? { ...o, uvs: [...uvs] } : o)),
     }));
   },
 

@@ -9,6 +9,7 @@ import { useLayoutEffect } from 'preact/hooks';
 import { useVamsStore } from '@/core/store';
 import type { Lesson } from '@/core/types/lesson';
 import LessonBar from '@/features/lesson-engine/ui/LessonBar';
+import CanvasHeader from '@/widgets/canvas/ui/CanvasHeader';
 import { SegmentedControl } from '@/shared/ui/controls';
 import { LESSON_REGISTRY, getLessonById } from '@/features/lesson-engine/model/lesson-registry';
 import * as registry from '@/features/lesson-engine/model/lesson-registry';
@@ -516,13 +517,14 @@ describe('BB-LCOL-20: A per-object focus selects the newest object, and never cr
   });
 });
 
-describe('BB-LCOL-21: The Pipeline illustrations appear only during Pipeline lessons', () => {
+describe('BB-LCOL-21: The Pipeline illustrations appear in the Pipeline section, in both modes', () => {
   // The router mounts the PixiJS canvas, which cannot initialise under happy-dom; the decision it
   // renders from is checked directly.
-  it('shows the diagram in a Pipeline lesson and the scene canvas otherwise', () => {
-    expect(showsIllustration({ appMode: 'Author', activeSection: 'Pipeline', pipelineMode: 'Diagram' })).toBe(false);
-    expect(showsIllustration({ appMode: 'Lesson', activeSection: 'Pipeline', pipelineMode: 'Diagram' })).toBe(true);
-    expect(showsIllustration({ appMode: 'Lesson', activeSection: 'Pipeline', pipelineMode: 'Playground' })).toBe(false);
+  it('shows the diagram in the Pipeline section and the scene canvas otherwise', () => {
+    expect(showsIllustration({ activeSection: 'Pipeline', pipelineMode: 'Diagram', quizPipelineStage: null })).toBe(true);
+    expect(showsIllustration({ activeSection: 'Transforms', pipelineMode: 'Diagram', quizPipelineStage: null })).toBe(false);
+    expect(showsIllustration({ activeSection: 'Pipeline', pipelineMode: 'Playground', quizPipelineStage: null })).toBe(false);
+    expect(showsIllustration({ activeSection: 'Pipeline', pipelineMode: 'Playground', quizPipelineStage: 3 })).toBe(true);
   });
 });
 
@@ -600,10 +602,10 @@ describe('BB-LCOL-23: Leaving a lesson leaves the plain editor, and starting one
 
   it('forgets a group the student opened before the lesson, even in the same section', async () => {
     useVamsStore.setState({ activeSection: 'Transforms' });
-    // Texture library starts open, so the first toggle closes it and the second opens it again.
-    useVamsStore.getState().toggleGroup('texture-library');
-    useVamsStore.getState().toggleGroup('texture-library');
-    expect(useVamsStore.getState().lastOpenedGroup).toBe('texture-library');
+    // Viewing volume starts open, so the first toggle closes it and the second opens it again.
+    useVamsStore.getState().toggleGroup('viewing-volume');
+    useVamsStore.getState().toggleGroup('viewing-volume');
+    expect(useVamsStore.getState().lastOpenedGroup).toBe('viewing-volume');
     expect(await startLessonFromLearn('transforms-exercise-4')).toBe(true);
     expect(useVamsStore.getState().lastOpenedGroup).toBeNull();
     expect(journeyStageFor(useVamsStore.getState())).toBe('transformed');
@@ -699,13 +701,14 @@ describe('BB-LCOL-26: Folding leaves a strip with the title, the step and Next; 
   });
 });
 
-describe('BB-LCOL-27: Pipeline lessons switch the canvas view from the bar', () => {
-  it('shows the viewport modes as a radiogroup under the narration', async () => {
+describe('BB-LCOL-27: Pipeline lessons switch the canvas view from the canvas header', () => {
+  it('shows the viewport modes as a radiogroup in the canvas header', async () => {
     const pipeline = Object.values(LESSON_REGISTRY).find((l) => l.section === 'Pipeline' && l.type === 'demo')!;
     startLesson(pipeline.id, 'Pipeline');
-    const host = mount(h(LessonBar, {}));
+    const host = mount(h('div', {}, h(CanvasHeader, {}), h(LessonBar, {})));
     await settle();
-    const modes = host.querySelector('.lesson-bar__modes [role="radiogroup"]')!;
+    expect(host.querySelector('.lesson-bar__modes')).toBeNull();
+    const modes = host.querySelector('.canvas-header [data-panel-id="pipeline-mode-controls"] [role="radiogroup"]')!;
     expect(modes.getAttribute('aria-label')).toBe('Viewport mode');
     expect([...modes.querySelectorAll('[role="radio"]')].map((r) => r.textContent)).toEqual(['Diagram', 'Raster vs vector', 'Playground']);
     (modes.querySelector('[role="radio"]') as HTMLButtonElement).click();

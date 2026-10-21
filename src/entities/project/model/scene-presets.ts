@@ -11,7 +11,7 @@ export interface ScenePreset {
   data: VamsProjectData;
 }
 
-/** Id of the editor's built-in "Tiling Bricks" sample texture (features/textures/lib/sample-textures.ts). */
+/** Id of the editor's built-in "Brick wall" sample texture (features/textures/lib/sample-textures.ts). */
 const SAMPLE_BRICKS_ID = 'sample-bricks';
 const IDENTITY: TransformState = { translateX: 0, translateY: 0, rotate: 0, scaleX: 1, scaleY: 1 };
 

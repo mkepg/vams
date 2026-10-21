@@ -3,18 +3,27 @@ import type { CurriculumSection } from '@/core/store/types';
 import type { JourneyStageId } from '@/core/inspector/journey-stage';
 import type { CodeChangeFocus } from '@/features/code-generation/model/code-diff';
 
+/** The seven pipeline stages a "Which Stage?" picture can show, in stage order. */
+export const VISUAL_ARTIFACTS = [
+  'vertex-specification',
+  'vertex-processing',
+  'primitive-assembly',
+  'clipping',
+  'rasterization',
+  'fragment-processing',
+  'per-sample-operations',
+] as const;
+
+export type VisualArtifact = (typeof VISUAL_ARTIFACTS)[number];
+
+/** A stage's position in `VISUAL_ARTIFACTS`. */
+export type StageIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
 export type ExerciseWidget =
   | {
       kind: 'multiple-choice';
       prompt: string;
-      visualArtifact?:
-        | 'vertex-specification'
-        | 'vertex-processing'
-        | 'primitive-assembly'
-        | 'clipping'
-        | 'rasterization'
-        | 'fragment-processing'
-        | 'per-sample-operations';
+      visualArtifact?: VisualArtifact;
       options: { id: string; label: string }[];
       correctId: string;
     }

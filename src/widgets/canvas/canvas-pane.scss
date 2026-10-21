@@ -45,6 +45,20 @@
   }
   &__spacer { flex: 1; }
   > .vmenu { flex-shrink: 0; }
+  // The Pipeline view switch sits on the header's line, before View.
+  > .pipeline-mode-switch {
+    flex-shrink: 0;
+    display: flex;
+
+    // Compact options keep the header at its own height, and narrower padding keeps it on one line at 960 px.
+    .vseg__option { min-height: 26px; padding: 0 8px; font-size: var(--text-xs); }
+
+    &.is-lesson-focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: var(--radius-m);
+    }
+  }
   // Icon only while placing, at the header's own rhythm, to leave the hint whole.
   > .vmenu .vbtn--icon { width: 28px; min-width: 28px; min-height: 28px; height: 28px; }
 }

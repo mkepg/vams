@@ -91,7 +91,7 @@ export const HELP_TOPICS: HelpTopic[] = [
         items: [
           { term: 'Add', description: 'The ten primitives by their OpenGL names, in three groups, plus Text and a few prepared sample scenes. Pick a primitive, then click its vertices on the canvas.' },
           { term: 'Scene', description: 'The scene list, with Select several, Group, Duplicate and Delete in its toolbar, and below it the selected object’s inspector: Vertices, Buffers, Transform, Appearance and Texture, in pipeline order. Each group header names its OpenGL call. Selecting an object always opens this panel.' },
-          { term: 'Settings', description: 'The scene’s own settings: Background, Viewing volume and Texture library.' },
+          { term: 'Settings', description: 'The scene’s own settings: Background and Viewing volume.' },
           { term: 'Callbacks', description: 'The GLUT callbacks your program registers, with their rules. The badge on the rail counts the callbacks that are on.' },
           { term: 'Hide', description: 'Hides the panel to give the canvas more room. Any rail item, a selection or a lesson step shows it again.' },
         ],
@@ -233,14 +233,14 @@ export const HELP_TOPICS: HelpTopic[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: 'The Pipeline section explains how vertices travel from your code to pixels on screen. Its lessons show the canvas in three views, and while a Pipeline lesson runs the lesson bar has a switch between them.',
+        text: 'The Pipeline section explains how vertices travel from your code to pixels on screen. In this section the canvas header has a switch between three views: Playground, Diagram and Raster vs vector. It is there in your own scenes and during lessons.',
       },
       {
         kind: 'definitions',
         items: [
           { term: 'Coordinate Playground', description: 'The live editing canvas, so you can experiment while thinking about the pipeline.' },
-          { term: 'Pipeline Diagram', description: 'The fixed-function pipeline stages laid out in order; click a stage to focus it.' },
-          { term: 'Raster vs. Vector', description: 'Compares the ideal vector geometry against the rasterized (pixelated) result.' },
+          { term: 'Pipeline Diagram', description: 'A strip of the stages in order, each drawn with your selected shape (or a triangle when the scene is empty), with the program line that does that stage. Click a stage, or use the arrow keys, to see it large.' },
+          { term: 'Raster vs. Vector', description: 'Your shape as exact vector geometry beside the pixels OpenGL fills for it. Change the pixels across, and turn GLUT_MULTISAMPLE on or off to see the edges soften.' },
         ],
       },
       { kind: 'heading', text: 'From vertex to pixel' },
@@ -455,15 +455,15 @@ export const HELP_TOPICS: HelpTopic[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: 'Textures paint an image onto your geometry. Upload an image to the texture library, attach it to an object, then control how it maps with the UV editor.',
+        text: 'Textures paint an image onto your geometry. Select a shape, pick a sample or upload your own image in its Texture group, then place it with the UV coordinates underneath.',
       },
       { kind: 'heading', text: 'How it works' },
       {
         kind: 'list',
         ordered: true,
         items: [
-          'Upload an image into the texture library.',
-          'Select an object and attach the texture to it.',
+          'Select a triangle, quad or polygon and open its Texture group.',
+          'Pick a sample, or upload your own image with the + tile.',
           'Adjust per-vertex UV coordinates so the image lands where you want.',
           'Choose filtering and wrapping to control sampling.',
         ],

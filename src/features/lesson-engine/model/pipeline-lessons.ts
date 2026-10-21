@@ -270,7 +270,7 @@ export const PIPELINE_LESSONS: Record<string, Lesson> = {
         },
       },
       {
-        narration: "Notice the jagged, staircase-like edges on the diagonal line. Which stage converts smooth vector geometry into a discrete grid of fragments?",
+        narration: "The triangle is now a grid of squares with staircase edges. Which stage turns smooth vector geometry into a grid of fragments?",
         waitForUser: true,
         action: (state) => state.setPipelineMode('Playground'),
         exercise: {
@@ -304,7 +304,7 @@ export const PIPELINE_LESSONS: Record<string, Lesson> = {
         },
       },
       {
-        narration: "The hidden part of the red triangle is discarded because it fails the depth test. Which stage performs these final visibility checks?",
+        narration: "The coloured fragments are written over the cleared background for glutSwapBuffers to show. Which stage does this final write?",
         waitForUser: true,
         action: (state) => state.setPipelineMode('Playground'),
         exercise: {

@@ -432,7 +432,7 @@ describe('BB-SHELL-15: The inspector shows the object in pipeline order; the sce
     unmount(host);
     const settings = mount(h(SettingsPanel, {}));
     await settle();
-    expect(groupTitles(settings)).toEqual(['Background', 'Viewing volume', 'Texture library']);
+    expect(groupTitles(settings)).toEqual(['Background', 'Viewing volume']);
     unmount(settings);
     useVamsStore.setState({ objects: [] });
   });
@@ -746,7 +746,7 @@ describe('BB-SHELL-29: A lesson step switches the rail to its panel and opens it
     const s = () => useVamsStore.getState();
     const cases: [string, string][] = [
       ['ortho-editor', 'settings'],
-      ['texture-library', 'settings'],
+      ['texture-library', 'scene'],
       ['callbacks-panel', 'callbacks'],
       ['primitive-palette', 'add'],
       ['text-node-panel', 'add'],

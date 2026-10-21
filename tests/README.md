@@ -77,6 +77,12 @@ tests/
 │   │                                        on phones)
 │   ├── help-center.test.ts               (BB-HELP-*: the Help Center's topics
 │   │                                        and search)
+│   ├── pipeline-figures.test.ts          (BB-PFIG-*: the Pipeline geometry,
+│   │                                        rasteriser, stage pictures, Raster
+│   │                                        vs vector and Which Stage?)
+│   ├── texture-controls.test.ts          (BB-TEX-*: the samples, Quick
+│   │                                        Gradients, UV presets and the
+│   │                                        Texture group)
 │   └── lesson-rules.test.ts              (BB-LRULE-*: generator-name coverage,
 │                                            wording, hints, recaps, code blanks
 │                                            and capstones across the lessons)
@@ -116,6 +122,9 @@ tests/
 │   ├── lesson-blocks.spec.ts             (VIS-LB-*: goals, recap, predict and
 │   │                                        fill-in steps in both themes)
 │   ├── code-math.spec.ts                 (VIS-CM-*: the code panel and the math journey in the approved mocks' scene)
+│   ├── pipeline-textures.spec.ts         (VIS-PT-*: the Diagram, Raster vs vector,
+│   │                                        Which Stage?, Quick Gradients and the
+│   │                                        Texture group)
 │   └── share.spec.ts                     (VIS-SHARE-*: the Share dialog at 1280, the phone scene
 │                                        view at 390 and the closing slide's QR code)
 ├── algorithm/                    ← Maps to §3.10.3 Algorithm Validation.
