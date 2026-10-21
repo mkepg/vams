@@ -4,11 +4,9 @@ import { useVamsStore } from '@/core/store';
 import * as sampleTextures from '@/features/textures/lib/sample-textures';
 
 // Mock sample textures since happy-dom cannot provide a 2D canvas context (see src/features/textures/lib/sample-textures.ts)
-vi.spyOn(sampleTextures, 'getSampleTextures').mockReturnValue([
-  { id: 'sample-atlas', name: 'Texture Atlas', isSample: true, dataUrl: 'data:image/png;base64,', width: 256, height: 256 },
-  { id: 'sample-pixel', name: 'Pixel Art', isSample: true, dataUrl: 'data:image/png;base64,', width: 64, height: 64 },
-  { id: 'sample-bricks', name: 'Tiling Bricks', isSample: true, dataUrl: 'data:image/png;base64,', width: 256, height: 256 },
-]);
+vi.spyOn(sampleTextures, 'getSampleTextures').mockReturnValue(
+  sampleTextures.SAMPLE_TEXTURE_SPECS.map((spec) => ({ ...spec, isSample: true, dataUrl: 'data:image/png;base64,' })),
+);
 
 // Provide a deterministic, monotonically increasing ID generator so that
 // snapshot-style and equality assertions are stable across test runs.
