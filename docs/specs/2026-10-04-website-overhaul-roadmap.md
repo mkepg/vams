@@ -197,7 +197,7 @@ The thesis manuscript is final and describes the evaluated build. The overhauled
 
 16. The manuscript describes a client-only web application. Sharing a scene stores it through one server-side Pages Function in a key-value store, which keeps a shared scene for 90 days.
 17. The manuscript's canvas is a plain drawing area. The canvas is now drawn as the program's window, titled as the generated program titles it, under a header holding the viewing volume, the cursor, the View menu and Run. The window can be moved, resized, minimised and closed like a desktop window.
-18. The evaluated lessons were narrated steps with scene actions and two exercise kinds (multiple choice and ordered list). Lessons now also have goal checklists, hints, Skip, predictions, recaps and typed code blanks, and each section ends with a capstone.
+18. The evaluated lessons were narrated steps with scene actions and two exercise kinds (multiple choice and ordered list). The lesson engine now also supports goal checklists, hints, Skip, predictions, recaps and typed code blanks, and each section gains a capstone as its content lands.
 
 The following manuscript descriptions may also be crossed by later sub-projects. When one is, it is added to the list above:
 - The default canvas background `#000000`. Changing it changes generated code and the replay baseline.

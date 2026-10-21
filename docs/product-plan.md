@@ -629,7 +629,7 @@ Exercises record student answers as structured data. The supported answer types 
 
 Lessons are validated at development time. Warnings are issued for: non-unique lesson IDs, empty step arrays, exercises without success checks, and code-line highlights referencing lines that don't exist in the generated output.
 
-The rule tests (BB-LRULE) check that every GL and GLUT name the generator can emit is covered by a lesson or listed on an allowlist that empties section by section, and that lessons keep to the wording rules, give waiting steps hints and a task, make Skip solve the step, give recaps, predictions and code blanks valid data, and end each section with a capstone.
+The rule tests (BB-LRULE) check that every GL and GLUT name the generator can emit is covered by a lesson or listed on an allowlist that empties section by section, and that lessons keep to the wording rules, give waiting steps hints and a task, make Skip solve the step, give recaps, predictions and code blanks valid data, and end each section listed as on the bar with a capstone. The coverage and wording rules cover every lesson; the others cover the sample lessons and the sections listed as on the bar, which the content work adds as each section lands.
 
 ---
 
