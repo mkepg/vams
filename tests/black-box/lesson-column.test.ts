@@ -1840,3 +1840,55 @@ describe('BB-LCOL-64: Skip on a code step fills in the answers and lights Next',
     }
   });
 });
+
+describe('BB-LCOL-65: A goal check, blank answer or success check that throws counts as not met', () => {
+  it('keeps the bar up with the goal unmet, the blanks wrong and Next disabled', async () => {
+    const original = SAMPLE_LESSONS['sample-code'];
+    const boom = (): never => {
+      throw new Error('reads a shape that is gone');
+    };
+    const copy: Lesson = {
+      ...original,
+      steps: original.steps.map((step, i) => {
+        if (i === 0) return { ...step, goals: [{ label: 'Moved', check: boom }], successCheck: boom };
+        if (i === 1 && step.exercise?.kind === 'code') {
+          return { ...step, exercise: { ...step.exercise, blanks: step.exercise.blanks.map((b) => ({ ...b, answer: boom })) } };
+        }
+        return step;
+      }),
+    };
+    const getLesson = registry.getLessonById;
+    const spy = vi.spyOn(registry, 'getLessonById').mockImplementation((id) => (id === 'sample-code' ? copy : getLesson(id)));
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubEnv('VITE_LESSON_SAMPLES', '1');
+    startLesson('sample-code');
+    let host: HTMLElement | null = null;
+    try {
+      host = mount(h(LessonBar, {}));
+      await settle();
+      expect(host.querySelector('.lesson-bar__title')).not.toBeNull();
+      const goal = host.querySelector('.lesson-bar__goal')!;
+      expect(goal.classList.contains('is-met')).toBe(false);
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+      // Every change re-runs the checks; a throw still leaves the step waiting.
+      const t = useVamsStore.getState().objects[0];
+      useVamsStore.getState().updateObjectTransform(t.id, { translateX: 0.1 });
+      await settle();
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+
+      useVamsStore.getState().setCurrentStep(1);
+      await settle();
+      const [x, y] = blanks(host);
+      await typeInto(x, '0.5');
+      await typeInto(y, '0.2');
+      await blurBlank(y);
+      expect(x.classList.contains('is-wrong') && y.classList.contains('is-wrong')).toBe(true);
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+      expect(error).toHaveBeenCalled();
+    } finally {
+      if (host) unmount(host);
+      error.mockRestore();
+      spy.mockRestore();
+    }
+  });
+});

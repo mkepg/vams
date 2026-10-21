@@ -1,7 +1,8 @@
 import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useVamsStore } from '@/core/store';
-import type { Lesson, LessonStep } from '@/core/types/lesson';
+import type { ExerciseWidget, Lesson, LessonStep } from '@/core/types/lesson';
+import type { VamsState } from '@/core/store/types';
 import { resolveFocus } from '@/core/inspector';
 import { getLessonById } from './lesson-registry';
 import { isSectionEnd, nextInCourse } from './catalog';
@@ -23,10 +24,29 @@ const NO_ANSWERS: Record<number, string> = {};
 export type BlankVerdict = 'empty' | 'right' | 'wrong';
 const VERDICT_LETTER: Record<BlankVerdict, string> = { empty: 'e', right: 'r', wrong: 'w' };
 const LETTER_VERDICT: Record<string, BlankVerdict> = { e: 'empty', r: 'right', w: 'wrong' };
+type CodeBlank = Extract<ExerciseWidget, { kind: 'code' }>['blanks'][number];
 
 /** One empty answer for each blank of a code step; none for any other step. */
 function emptyCodeAnswers(step: LessonStep | undefined): string[] {
   return step?.exercise?.kind === 'code' ? step.exercise.blanks.map(() => '') : [];
+}
+
+/**
+ * Runs a lesson's check of the scene. A check that throws (one that reads a shape the student has
+ * deleted, say) gives `fallback`, so the step keeps waiting instead of the editor going down.
+ */
+function safeCheck<T>(check: () => T, fallback: T): T {
+  try {
+    return check();
+  } catch (error) {
+    if (import.meta.env.DEV) console.error('A lesson check threw; it counts as not met.', error);
+    return fallback;
+  }
+}
+
+/** A blank's verdict for what is typed, or 'wrong' when its answer cannot be read from the scene. */
+function blankVerdict(text: string, blank: CodeBlank, state: VamsState): BlankVerdict {
+  return safeCheck<BlankVerdict>(() => checkBlank(text, blank.answer(state), blank.tolerance), 'wrong');
 }
 
 const DEFAULT_LESSON_VIEWPORT = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
@@ -320,7 +340,7 @@ export function useLessonRunner(): LessonRunner {
 
   // Every goal is checked against the whole state on every change, as one string of 1s and 0s,
   // so a change re-renders only when a goal flips.
-  const goalBits = useVamsStore((s) => step?.goals?.map((g) => (g.check(s) ? '1' : '0')).join('') ?? '');
+  const goalBits = useVamsStore((s) => step?.goals?.map((g) => (safeCheck(() => g.check(s), false) ? '1' : '0')).join('') ?? '');
   const goals = useMemo(
     () => step?.goals?.map((g, i) => ({ label: g.label, met: goalBits[i] === '1' })) ?? null,
     [step, goalBits],
@@ -332,7 +352,7 @@ export function useLessonRunner(): LessonRunner {
     const ex = step?.exercise;
     if (ex?.kind !== 'code') return '';
     return ex.blanks
-      .map((blank, i) => VERDICT_LETTER[checkBlank(codeAnswers[i] ?? '', blank.answer(s), blank.tolerance)])
+      .map((blank, i) => VERDICT_LETTER[blankVerdict(codeAnswers[i] ?? '', blank, s)])
       .join('');
   });
   const codeVerdicts = useMemo(() => [...codeLetters].map((letter) => LETTER_VERDICT[letter]), [codeLetters]);
@@ -372,7 +392,8 @@ export function useLessonRunner(): LessonRunner {
       void objects;
       void callbacks;
       void viewportLimits;
-      return step.successCheck(useVamsStore.getState());
+      const check = step.successCheck;
+      return safeCheck(() => check(useVamsStore.getState()), false);
     }
 
     return true;
