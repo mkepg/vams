@@ -1156,11 +1156,11 @@ describe("BB-LCOL-42: Rebuilding a lesson's scene replays the earlier steps' sol
       useVamsStore.getState().setCurrentStep(2);
       await settle();
       expect(movedRight(useVamsStore.getState())).toBe(true);
-      // The current step's own solve never runs on a rebuild.
+      // Step 1 was passed with Next, so a rebuild onto it runs its solve too and it opens passed.
       useVamsStore.getState().setCurrentStep(0);
       await settle();
-      expect(useVamsStore.getState().objects[0].transform.translateX).toBe(0);
-      expect(runner.canAdvance).toBe(false);
+      expect(movedRight(useVamsStore.getState())).toBe(true);
+      expect(runner.canAdvance).toBe(true);
       unmount(host);
     } finally {
       useVamsStore.getState().clearLessonState();
@@ -1260,8 +1260,8 @@ describe('BB-LCOL-45: Skip this step ticks every goal and lights Next', () => {
       expect(task.textContent).toBe('Done · Red, at (0.5, 0.2), turned 45°');
       expect(useVamsStore.getState().currentStepIndex).toBe(0);
 
-      // A step opened again starts with Stuck? closed and no hint showing.
-      next.click();
+      // A step left without Next opens again unpassed, with Stuck? closed and no hint showing.
+      useVamsStore.getState().setCurrentStep(1);
       await settle();
       buttonNamed(host, 'Back')!.click();
       await settle();
@@ -1828,8 +1828,8 @@ describe('BB-LCOL-64: Skip on a code step fills in the answers and lights Next',
       expect(x.classList.contains('is-right') && y.classList.contains('is-right')).toBe(true);
       expect(useVamsStore.getState().currentStepIndex).toBe(1);
 
-      // A step opened again starts with empty blanks.
-      next.click();
+      // A step left without Next opens again with empty blanks.
+      useVamsStore.getState().setCurrentStep(2);
       await settle();
       buttonNamed(host, 'Back')!.click();
       await settle();
@@ -1920,6 +1920,133 @@ describe('BB-LCOL-66: Two picks before a re-render run the prediction once', () 
     } finally {
       unmount(host);
       spy.mockRestore();
+    }
+  });
+});
+
+describe('BB-LCOL-67: Back to a goals step passed with Next shows it passed', () => {
+  it('meets the goals by hand, goes on and back, and finds every goal met with Next lit', async () => {
+    const host = await startGoalsSample();
+    try {
+      useVamsStore.getState().updateObjectTransform(sampleTriangleId(), { translateX: 0.5, translateY: 0.2, rotate: 45 });
+      await settle();
+      expect(runner.canAdvance).toBe(true);
+      runner.next();
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+      runner.back();
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(0);
+      expect(goalsMet()).toEqual([true, true, true]);
+      expect(runner.canAdvance).toBe(true);
+      expect(runner.canSkip).toBe(false);
+      expect(runner.skipped).toBe(false);
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-68: Back to a fill-in step passed with Next shows the right values', () => {
+  it('types both answers, goes on and back, and finds them filled in with Next lit', async () => {
+    const host = await startCodeBar();
+    try {
+      const [x, y] = blanks(host);
+      await typeInto(x, '0.50');
+      await typeInto(y, '.2f');
+      await blurBlank(y);
+      buttonNamed(host, 'Next')!.click();
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(2);
+      buttonNamed(host, 'Back')!.click();
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+      expect(blanks(host).map((b) => b.value)).toEqual(['0.5', '0.2']);
+      expect(blanks(host).every((b) => b.classList.contains('is-right'))).toBe(true);
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(false);
+      expect(buttonNamed(host, 'Stuck?')).toBeUndefined();
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-69: A step never passed with Next still opens unpassed', () => {
+  it('jumps past the goals step and back, and finds it waiting', async () => {
+    const host = await startGoalsSample();
+    try {
+      useVamsStore.getState().setCurrentStep(1);
+      await settle();
+      useVamsStore.getState().setCurrentStep(0);
+      await settle();
+      expect(goalsMet()).toEqual([true, false, false]);
+      expect(runner.canAdvance).toBe(false);
+      expect(runner.canSkip).toBe(true);
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-70: Back to a question passed with Next shows the right answer', () => {
+  const ID = 'test-passed-question-lesson';
+  it('restores the right choice and the right order, and a new run starts with none', async () => {
+    LESSON_REGISTRY[ID] = {
+      id: ID,
+      title: 'Passed questions',
+      type: 'exercise',
+      section: 'Pipeline',
+      steps: [
+        {
+          narration: 'Which comes first?',
+          exercise: { kind: 'multiple-choice', prompt: 'First?', options: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], correctId: 'b' },
+        },
+        {
+          narration: 'Put them in order.',
+          exercise: {
+            kind: 'ordered-list',
+            prompt: 'Order',
+            items: [{ id: 'x', label: 'X' }, { id: 'y', label: 'Y' }, { id: 'z', label: 'Z' }],
+            correctOrder: ['x', 'y', 'z'],
+          },
+        },
+        { narration: 'Done.' },
+      ],
+    };
+    try {
+      startLesson(ID, 'Pipeline');
+      const host = mount(h(RunnerProbe, {}));
+      await settle();
+      runner.setMcAnswer('b');
+      await settle();
+      runner.next();
+      await settle();
+      runner.setOrderAnswer(['x', 'y', 'z']);
+      await settle();
+      runner.next();
+      await settle();
+      runner.back();
+      await settle();
+      expect(runner.orderAnswer).toEqual(['x', 'y', 'z']);
+      expect(runner.canAdvance).toBe(true);
+      runner.back();
+      await settle();
+      expect(runner.mcAnswer).toBe('b');
+      expect(runner.canAdvance).toBe(true);
+      expect(runner.skipped).toBe(false);
+
+      // Leaving ends the run: the lesson started again opens with nothing passed.
+      runner.exit();
+      await settle();
+      startLesson(ID, 'Pipeline');
+      useVamsStore.getState().setCurrentStep(0);
+      await settle();
+      expect(runner.mcAnswer).toBeNull();
+      expect(runner.canAdvance).toBe(false);
+      unmount(host);
+    } finally {
+      useVamsStore.getState().clearLessonState();
+      delete LESSON_REGISTRY[ID];
     }
   });
 });

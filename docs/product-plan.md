@@ -603,7 +603,7 @@ Each step may include:
 - A prediction: the student picks an outcome first, then sees the scene
 - A recap: points, and the calls the lesson used, each opening its line in the code panel. The last step of every lesson names the next lesson, and Finish appears only on a section's last lesson
 
-A **waiting step** is one with goals, a success check or an exercise widget. A step with a wait-for-user flag alone is not one. On a goals step or a fill-in step the task line stays hidden until the step is done.
+A **waiting step** is one with goals, a success check or an exercise widget. A step with a wait-for-user flag alone is not one. On a goals step or a fill-in step the task line stays hidden until the step is done. A waiting step the student passed with Next opens passed again on going back to it: solved, or with the right answer filled in, and Skip is not offered there.
 
 Exercises additionally have a success check — a pure function that reads current scene state and returns whether the student has met the goal.
 

@@ -20,6 +20,15 @@ interface PredictAnswers {
 }
 const NO_ANSWERS: Record<number, string> = {};
 
+/** The waiting steps the student has passed in this run of a lesson, by step index. */
+interface PassedSteps {
+  lessonId: string | null;
+  steps: Set<number>;
+}
+const noPassedSteps = (): PassedSteps => ({ lessonId: null, steps: new Set() });
+const hasPassed = (passed: PassedSteps, lessonId: string | null, index: number) =>
+  passed.lessonId === lessonId && passed.steps.has(index);
+
 /** A blank's verdict against the scene: no text yet, right, or wrong. */
 export type BlankVerdict = 'empty' | 'right' | 'wrong';
 const VERDICT_LETTER: Record<BlankVerdict, string> = { empty: 'e', right: 'r', wrong: 'w' };
@@ -42,6 +51,16 @@ function safeCheck<T>(check: () => T, fallback: T): T {
     if (import.meta.env.DEV) console.error('A lesson check threw; it counts as not met.', error);
     return fallback;
   }
+}
+
+/** The right text for each blank of a code exercise, as Skip types it; '' for an answer that cannot be read. */
+function rightBlankValues(exercise: Extract<ExerciseWidget, { kind: 'code' }>, state: VamsState): string[] {
+  return exercise.blanks.map((blank) =>
+    safeCheck(() => {
+      const answer = blank.answer(state);
+      return typeof answer === 'number' ? formatBlankNumber(answer) : answer;
+    }, ''),
+  );
 }
 
 /** A blank's verdict for what is typed, or 'wrong' when its answer cannot be read from the scene. */
@@ -143,12 +162,19 @@ export function replayStepsBefore(lesson: Lesson, index: number): void {
 }
 
 /**
- * Shows a step: runs its action (when `runAction`) between two snapshots of the generated code,
- * marks the lines it changed, sets the step's focus, journey stage and pointer diagram step, and
- * opens the pane it is about. Both snapshots use the same canvas size, so a window-size-only
- * difference (the `glutInitWindowSize` line) never shows as a change. Call inside a batch.
+ * Shows a step: runs its action (when `runAction`), then its solve (when `runSolve`), between two
+ * snapshots of the generated code, marks the lines they changed, sets the step's focus, journey
+ * stage and pointer diagram step, and opens the pane it is about. Both snapshots use the same
+ * canvas size, so a window-size-only difference (the `glutInitWindowSize` line) never shows as a
+ * change. Call inside a batch.
  */
-function showStep(lesson: Lesson, step: LessonStep, canvasSize: { width: number; height: number }, runAction: boolean): void {
+function showStep(
+  lesson: Lesson,
+  step: LessonStep,
+  canvasSize: { width: number; height: number },
+  runAction: boolean,
+  runSolve = false,
+): void {
   const store = useVamsStore.getState();
   const snapshotCode = () => {
     const s = useVamsStore.getState();
@@ -165,6 +191,7 @@ function showStep(lesson: Lesson, step: LessonStep, canvasSize: { width: number;
 
   const preCode = snapshotCode();
   if (runAction) step.action?.(useVamsStore.getState());
+  if (runSolve) step.solve?.(useVamsStore.getState());
   const postCode = snapshotCode();
 
   const focus = effectiveFocus(lesson, step);
@@ -260,7 +287,7 @@ export function useLessonRunner(): LessonRunner {
   const step = lesson?.steps[currentStepIndex];
 
   // What is typed in a code step's blanks, kept for the step it was typed on: any change of step
-  // or lesson starts from one empty answer per blank.
+  // or lesson starts from one empty answer per blank, or the right ones on a step passed in this run.
   const codeStepKey = `${activeLessonId}-${currentStepIndex}`;
   const [typed, setTyped] = useState<{ key: string; step: LessonStep | undefined; values: string[] }>(() => ({
     key: codeStepKey,
@@ -271,32 +298,16 @@ export function useLessonRunner(): LessonRunner {
   if (!typedIsCurrent) setTyped({ key: codeStepKey, step, values: emptyCodeAnswers(step) });
   const codeAnswers = typedIsCurrent ? typed.values : emptyCodeAnswers(step);
 
-  useEffect(() => {
-    setMcAnswer(null);
-    setTyped({ key: `${activeLessonId}-${currentStepIndex}`, step, values: emptyCodeAnswers(step) });
-    if (step?.exercise?.kind === 'ordered-list') {
-      const expected = step.exercise.correctOrder;
-      const arr = [...step.exercise.items].map((i) => i.id);
-      let hasAnyCorrect = true;
-      while (hasAnyCorrect) {
-        for (let i = arr.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [arr[i], arr[j]] = [arr[j], arr[i]];
-        }
-        hasAnyCorrect = arr.some((val, index) => val === expected[index]);
-      }
-      setOrderAnswer(arr);
-    } else {
-      setOrderAnswer(null);
-    }
-  }, [activeLessonId, currentStepIndex, step]);
-
   // Predict answers for this run of the lesson, by step index. Any change of lesson starts a new
   // run. The ref is what the step effect reads, so a rebuild knows whether the step's action ran.
   const [answers, setAnswers] = useState<PredictAnswers>(() => ({ lessonId: activeLessonId, byStep: {} }));
   if (answers.lessonId !== activeLessonId) setAnswers({ lessonId: activeLessonId, byStep: {} });
   const answersRef = useRef(answers);
   const runAnswers = answers.lessonId === activeLessonId ? answers.byStep : NO_ANSWERS;
+
+  // A waiting step counts as passed in this run once the student presses Next on it while it
+  // passes. Opening it again (Back, a jump) shows it passed: solved, or with the right answer.
+  const passedRef = useRef<PassedSteps>(noPassedSteps());
 
   /*
    * Step execution. On a step forward the step's action runs on the scene as it stands; on any
@@ -313,7 +324,10 @@ export function useLessonRunner(): LessonRunner {
     const isForwardOne =
       sameLessonAsBefore && currentStepIndex === lastStepIndexRef.current + 1;
 
-    if (!sameLessonAsBefore) answersRef.current = { lessonId: activeLessonId, byStep: {} };
+    if (!sameLessonAsBefore) {
+      answersRef.current = { lessonId: activeLessonId, byStep: {} };
+      passedRef.current = { lessonId: activeLessonId, steps: new Set() };
+    }
 
     const store = useVamsStore.getState();
     store.startBatch();
@@ -331,12 +345,46 @@ export function useLessonRunner(): LessonRunner {
     const currentStep = lesson.steps[currentStepIndex];
     const saved = answersRef.current;
     const answered = saved.lessonId === activeLessonId && currentStepIndex in saved.byStep;
-    showStep(lesson, currentStep, canvasSizeRef.current, !currentStep.predict || answered);
+    // A passed step opens solved again: its solve stands in for the student's own work.
+    const passed = hasPassed(passedRef.current, activeLessonId, currentStepIndex);
+    showStep(lesson, currentStep, canvasSizeRef.current, !currentStep.predict || answered, passed);
 
     store.endBatch();
     lastExecutedStepRef.current = stepKey;
     lastStepIndexRef.current = currentStepIndex;
   }, [currentStepIndex, activeLessonId, lesson]);
+
+  // A step's answers start empty (an ordered list shuffled), or right when the step was passed in
+  // this run. After the step effect, so a passed code step reads its answers from the rebuilt scene.
+  useEffect(() => {
+    const ex = step?.exercise;
+    const passed = hasPassed(passedRef.current, activeLessonId, currentStepIndex);
+    setMcAnswer(passed && ex?.kind === 'multiple-choice' ? ex.correctId : null);
+    setTyped({
+      key: `${activeLessonId}-${currentStepIndex}`,
+      step,
+      values: passed && ex?.kind === 'code' ? rightBlankValues(ex, useVamsStore.getState()) : emptyCodeAnswers(step),
+    });
+    if (ex?.kind === 'ordered-list') {
+      if (passed) {
+        setOrderAnswer([...ex.correctOrder]);
+        return;
+      }
+      const expected = ex.correctOrder;
+      const arr = [...ex.items].map((i) => i.id);
+      let hasAnyCorrect = true;
+      while (hasAnyCorrect) {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        hasAnyCorrect = arr.some((val, index) => val === expected[index]);
+      }
+      setOrderAnswer(arr);
+    } else {
+      setOrderAnswer(null);
+    }
+  }, [activeLessonId, currentStepIndex, step]);
 
   // Every goal is checked against the whole state on every change, as one string of 1s and 0s,
   // so a change re-renders only when a goal flips.
@@ -420,14 +468,7 @@ export function useLessonRunner(): LessonRunner {
     const ex = step.exercise;
     if (ex?.kind === 'multiple-choice') setMcAnswer(ex.correctId);
     else if (ex?.kind === 'ordered-list') setOrderAnswer([...ex.correctOrder]);
-    else if (ex?.kind === 'code') {
-      const state = useVamsStore.getState();
-      const values = ex.blanks.map((blank) => {
-        const answer = blank.answer(state);
-        return typeof answer === 'number' ? formatBlankNumber(answer) : answer;
-      });
-      setTyped({ key: codeStepKey, step, values });
-    }
+    else if (ex?.kind === 'code') setTyped({ key: codeStepKey, step, values: rightBlankValues(ex, useVamsStore.getState()) });
     setSkipped(true);
   }, [step, canSkip, codeStepKey]);
 
@@ -454,9 +495,15 @@ export function useLessonRunner(): LessonRunner {
 
   const handleNext = useCallback(() => {
     if (lesson && currentStepIndex < lesson.steps.length - 1) {
+      if (activeLessonId && step && canAdvance && waitsForStudent(step)) {
+        if (passedRef.current.lessonId !== activeLessonId) {
+          passedRef.current = { lessonId: activeLessonId, steps: new Set() };
+        }
+        passedRef.current.steps.add(currentStepIndex);
+      }
       setCurrentStep(currentStepIndex + 1);
     }
-  }, [lesson, currentStepIndex, setCurrentStep]);
+  }, [lesson, activeLessonId, step, canAdvance, currentStepIndex, setCurrentStep]);
 
   const handleBack = useCallback(() => {
     if (currentStepIndex > 0) setCurrentStep(currentStepIndex - 1);
@@ -468,6 +515,7 @@ export function useLessonRunner(): LessonRunner {
     setSkipped(false);
     answersRef.current = { lessonId: null, byStep: {} };
     setAnswers(answersRef.current);
+    passedRef.current = noPassedSteps();
     lastExecutedStepRef.current = null;
     lastStepIndexRef.current = -1;
   }, [clearLessonState, setAppMode]);
