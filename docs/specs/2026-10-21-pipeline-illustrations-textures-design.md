@@ -34,13 +34,11 @@ The owner's problems with the texture controls:
 | Texture group | As in the approved mock (picker, Filter and Wrap, UV editor, Exact values), with the exact values behind a disclosure |
 | Schedule | One branch for this editor work, landing by the Oct 28 freeze: Pipeline illustrations first, then textures, with a checkpoint for each. The Pipeline lessons are written at the same time on `feat/lesson-content`. |
 
-Approved mocks (local, not committed), all in `.superpowers/brainstorm/1448-1792575341/content/`:
+Approved mocks (kept locally, not committed):
 - `pipeline-directions.html` (option A);
 - `raster-vector.html` (option A);
 - `texture-samples.html` (sets A and C);
 - `texture-group.html`.
-
-Today's screens, for comparison, are in `.superpowers/shots/before/`.
 
 ## 1. The Pipeline illustrations
 
@@ -148,7 +146,7 @@ The three kept ids get new pictures under the same ids. Saved scenes, share link
 
 - They stay where they are: in Appearance, when the colour mode is Per vertex.
 - **Previews, not labels:** the text buttons become small previews of the selected shape, drawn with its own outline and painted with each preset, with the name underneath.
-- **Clicking a preview:** sets each vertex's colour the way the buttons do today, spreading the colours across the vertices in vertex order.
+- **Clicking a preview:** sets each vertex's colour the way the buttons do today, spreading the colours along the shape's wider axis (by vertex order when the shape is flat).
 
 | Name | Colours |
 | --- | --- |
