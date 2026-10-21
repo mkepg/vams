@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 import type { SceneNode } from '@/core/types/scene';
 import { chainOf, clipOutcome, clipPolygon, clipSegment, figureFrame, worldPoint, worldPrimitives } from '@/entities/scene/model/pipeline-geometry';
 import { provokingOf } from '@/entities/scene/model/primitive-assembly';
+import { pixelGrid, rasterise, type RasterInput } from '@/entities/scene/model/rasterise';
 
 const identity = { translateX: 0, translateY: 0, rotate: 0, scaleX: 1, scaleY: 1 };
 const quad: SceneNode = { id: 'q', name: 'Quad', type: 'QUADS', visible: true, shading: 'SMOOTH', vertices: [], transform: identity };
@@ -96,5 +97,90 @@ describe('BB-PFIG-05: The frame is the viewing volume plus 20% each side', () =>
     expect(f.maxX).toBeCloseTo(1.4);
     expect(f.minY).toBeCloseTo(-2.8);
     expect(f.maxY).toBeCloseTo(2.8);
+  });
+});
+
+const grid = (n: number) => pixelGrid(volume, n);
+const input = (over: Partial<RasterInput>): RasterInput => ({ type: 'TRIANGLES', corners: [], colours: [], uvs: null, shading: 'SMOOTH', ...over });
+const RED = '#ff0000';
+const GREEN = '#00ff00';
+const BLUE = '#0000ff';
+
+describe('BB-PFIG-06: A covered pixel is one whose centre the shape covers', () => {
+  it('covers exactly the four middle pixels of a 4 x 4 grid, each with coverage 1', () => {
+    const square = [pt(-0.5, -0.5), pt(0.5, -0.5), pt(0.5, 0.5), pt(-0.5, 0.5)];
+    const out = rasterise(input({ type: 'QUADS', corners: square, colours: Array(4).fill(RED) }), grid(4), false);
+    expect(out.map((f) => `${f.col},${f.row}`).sort()).toEqual(['1,1', '1,2', '2,1', '2,2']);
+    out.forEach((f) => expect(f.coverage).toBe(1));
+  });
+  it('numbers rows from the top and sets uv only when given', () => {
+    const tri = [pt(-1, 0.5), pt(-0.5, 0.5), pt(-1, 1)];
+    const out = rasterise(input({ corners: tri, colours: Array(3).fill(RED), uvs: [{ u: 0, v: 0 }, { u: 1, v: 0 }, { u: 0, v: 1 }] }), grid(4), false);
+    expect(out.some((f) => f.col === 0 && f.row === 0 && f.uv !== null)).toBe(true);
+    expect(rasterise(input({ corners: tri, colours: Array(3).fill(RED) }), grid(4), false)[0].uv).toBeNull();
+  });
+});
+
+describe('BB-PFIG-07: The grid follows the volume shape and stays bounded', () => {
+  it('matches the volume shape and bounds the rows', () => {
+    expect(pixelGrid({ minX: -1, maxX: 1, minY: -1, maxY: 1 }, 24)).toMatchObject({ cols: 24, rows: 24 });
+    expect(pixelGrid({ minX: 0, maxX: 10, minY: 0, maxY: 1 }, 24).rows).toBe(2);
+    expect(pixelGrid({ minX: 0, maxX: 0.1, minY: 0, maxY: 10 }, 24).rows).toBe(96);
+    expect(pixelGrid({ minX: 0, maxX: 10, minY: 0, maxY: 0.01 }, 8).rows).toBe(1);
+  });
+});
+
+describe('BB-PFIG-08: Multisampling gives edge pixels partial coverage', () => {
+  const tri = [pt(-1, -1), pt(1, -1), pt(-1, 1)];
+  const shape = input({ corners: tri, colours: Array(3).fill(RED) });
+  it('gives edge pixels a quarter, half or three quarters with multisampling', () => {
+    const out = rasterise(shape, grid(8), true);
+    out.forEach((f) => expect([0.25, 0.5, 0.75, 1]).toContain(f.coverage));
+    expect(out.some((f) => f.coverage < 1)).toBe(true);
+  });
+  it('gives whole pixels only without it', () => {
+    rasterise(shape, grid(8), false).forEach((f) => expect(f.coverage).toBe(1));
+  });
+  it('gives nothing for a shape outside the grid or with two corners, and does not throw', () => {
+    const away = input({ corners: [pt(2, 2), pt(3, 2), pt(2, 3)], colours: Array(3).fill(RED) });
+    expect(rasterise(away, grid(8), true)).toEqual([]);
+    const two = input({ corners: [pt(0, 0), pt(1, 1)], colours: [RED, RED] });
+    expect(() => rasterise(two, grid(8), true)).not.toThrow();
+    expect(rasterise(two, grid(8), true)).toEqual([]);
+  });
+});
+
+describe('BB-PFIG-09: Smooth shading blends corner colours; flat takes the provoking corner', () => {
+  const tri = [pt(-1, -1), pt(1, -1), pt(-1, 1)];
+  it('is reddest nearest the red corner when smooth', () => {
+    const out = rasterise(input({ corners: tri, colours: [RED, GREEN, BLUE] }), grid(12), false);
+    const near = out.find((f) => f.col === 0 && f.row === 11)!;
+    expect(near.rgb[0]).toBeGreaterThan(near.rgb[1]);
+    expect(near.rgb[0]).toBeGreaterThan(near.rgb[2]);
+  });
+  it('gives every fragment the last corner colour for flat triangles', () => {
+    const out = rasterise(input({ corners: tri, colours: [RED, GREEN, BLUE], shading: 'FLAT' }), grid(12), false);
+    expect(out.length).toBeGreaterThan(0);
+    out.forEach((f) => expect(f.rgb).toEqual([0, 0, 255]));
+  });
+  it('gives every fragment the first corner colour for a flat polygon', () => {
+    const square = [pt(-1, -1), pt(1, -1), pt(1, 1), pt(-1, 1)];
+    const out = rasterise(input({ type: 'POLYGON', corners: square, colours: [RED, GREEN, BLUE, GREEN], shading: 'FLAT' }), grid(6), false);
+    expect(out.length).toBe(36);
+    out.forEach((f) => expect(f.rgb).toEqual([255, 0, 0]));
+  });
+});
+
+describe('BB-PFIG-10: Lines and points rasterise', () => {
+  it('covers one row of eight pixels with a horizontal segment', () => {
+    const out = rasterise(input({ type: 'LINES', corners: [pt(-1, 0.125), pt(1, 0.125)], colours: [RED, BLUE] }), grid(8), false);
+    expect(out).toHaveLength(8);
+    expect(new Set(out.map((f) => f.row))).toEqual(new Set([3]));
+    expect(out[0].rgb[0]).toBeGreaterThan(out[7].rgb[0]);
+  });
+  it('covers the one pixel that contains a point', () => {
+    const out = rasterise(input({ type: 'POINTS', corners: [pt(0.1, 0.1)], colours: [RED] }), grid(8), true);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ col: 4, row: 3, coverage: 1 });
   });
 });
