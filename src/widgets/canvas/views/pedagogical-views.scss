@@ -279,75 +279,17 @@
   .stage-figure__move { animation: none; }
 }
 
-/* ---------- Stage SVG visuals ---------- */
+/* ---------- Which Stage? picture on the canvas ---------- */
 
-.stage-svg {
-  width: 100%;
-  height: 100%;
-
-  .v-dot {
-    fill: transparent;
-    stroke: var(--accent-blue-light);
-    stroke-width: 2;
-    &.solid { fill: var(--accent-blue-light); stroke: none; }
-  }
-  .v-label {
-    fill: $text-muted;
-    font-family: $font-mono;
-    &.center { text-anchor: middle; }
-  }
-  .v-sub {
-    fill: $text-dim;
-    font-family: $font-mono;
-    &.center { text-anchor: middle; }
-  }
-  .v-frame {
-    fill: rgba(var(--accent-blue-rgb), 0.08);
-    stroke: var(--accent-blue-light);
-    stroke-width: 1.2;
-    &.accent {
-      fill: rgba(var(--accent-blue-rgb), 0.18);
-    }
-    &.dashed {
-      fill: none;
-      stroke-dasharray: 3 3;
-      stroke: rgba(var(--accent-blue-rgb), 0.55);
-    }
-  }
-  .v-op {
-    fill: var(--accent-blue-light);
-    font-family: $font-mono;
-    text-anchor: middle;
-  }
-  .v-tri {
-    fill: rgba(var(--accent-blue-rgb), 0.3);
-    stroke: var(--accent-blue-light);
-    stroke-width: 1.3;
-    &.muted { opacity: 0.25; stroke-dasharray: 3 2; }
-  }
-  .v-edge {
-    stroke: rgba(var(--accent-red-rgb), 0.9);
-    stroke-width: 1.6;
-    stroke-dasharray: 4 2;
-  }
-  .v-grid {
-    stroke: var(--grid-major);
-    stroke-width: 1;
-  }
-  .v-frag {
-    fill: rgba(var(--accent-blue-rgb), 0.55);
-    stroke: rgba(var(--accent-blue-rgb), 0.9);
-    stroke-width: 0.6;
-    &.pale    { fill: rgba(var(--hue-sky-rgb), 0.25); }
-    &.mid     { fill: rgba(var(--accent-blue-rgb), 0.55); }
-    &.strong  { fill: rgba(var(--accent-blue-rgb), 0.85); }
-    &.intense { fill: var(--hue-violet); }
-  }
-  .v-buffer {
-    fill: rgba(var(--well-rgb), 0.45);
-    stroke: rgba(var(--accent-blue-rgb), 0.6);
-    stroke-width: 1;
-  }
+.quiz-figure {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper);
+  color: var(--ink);
 }
 
 /* ---------- Raster vs Vector ---------- */

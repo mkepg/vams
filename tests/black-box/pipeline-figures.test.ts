@@ -2,13 +2,14 @@
  * BLACK-BOX TEST SUITE — BB-PFIG
  * The Pipeline illustrations' geometry: the student's corners in world space, the primitives they make, and clipping.
  */
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
 import { useVamsStore } from '@/core/store';
 import { showsIllustration } from '@/core/store/illustration';
 import { VISUAL_ARTIFACTS } from '@/core/types/lesson';
 import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
 import LessonBar from '@/features/lesson-engine/ui/LessonBar';
+import CanvasPane from '@/widgets/canvas/CanvasPane';
 import CanvasHeader from '@/widgets/canvas/ui/CanvasHeader';
 import PipelineDiagram from '@/widgets/canvas/views/PipelineDiagram';
 import RasterVectorView from '@/widgets/canvas/views/RasterVectorView';
@@ -23,6 +24,9 @@ import { DEMO_TRIANGLE, demoSubject, pipelineSubject } from '@/widgets/canvas/mo
 import { STAGES, stageProgramLine, type StageIndex } from '@/widgets/canvas/model/stage-lines';
 import { ASSEMBLY, INTRO, stageSentence } from '@/widgets/canvas/model/stage-copy';
 import { getState } from '../helpers/store';
+
+// PixiJS needs a real canvas context, which happy-dom does not have.
+vi.mock('@/widgets/canvas/VamsCanvas', () => ({ default: () => null }));
 
 const identity = { translateX: 0, translateY: 0, rotate: 0, scaleX: 1, scaleY: 1 };
 const quad: SceneNode = { id: 'q', name: 'Quad', type: 'QUADS', visible: true, shading: 'SMOOTH', vertices: [], transform: identity };
@@ -645,5 +649,47 @@ describe('Raster vs vector', () => {
       Object.keys(saved).forEach((k) => expect(k).not.toMatch(/across|multisample|raster|pixel/i));
       unmount(host);
     });
+  });
+});
+
+describe('BB-PFIG-27: A quiz step shows its stage drawing on the canvas without its name', () => {
+  afterEach(() => {
+    useVamsStore.setState({ activeSection: 'Primitives', pipelineMode: 'Playground', quizPipelineStage: null });
+  });
+  it('shows one figure and none of the strip, in any pipeline mode', async () => {
+    for (const mode of ['Diagram', 'Playground', 'RasterVector'] as const) {
+      useVamsStore.setState({ activeSection: 'Pipeline', pipelineMode: mode, quizPipelineStage: 3 });
+      const host = mount(h(CanvasPane, {}));
+      await settle();
+      const stage = host.querySelector('.canvas-stage')!;
+      expect(stage.querySelectorAll('.quiz-figure svg.stage-figure')).toHaveLength(1);
+      expect(stage.querySelector('.pipeline-strip')).toBeNull();
+      expect(stage.querySelector('.raster-vector-view')).toBeNull();
+      const text = stage.textContent ?? '';
+      STAGES.forEach((st) => {
+        expect(text).not.toContain(st.title);
+        expect(text).not.toContain(st.short);
+      });
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-PFIG-28: The lesson bar no longer draws a picture for the question', () => {
+  it('shows the prompt and four options without a picture box', async () => {
+    const lesson = LESSON_REGISTRY['pipeline-exercise-2'];
+    useVamsStore.setState({ activeSection: 'Pipeline' });
+    useVamsStore.getState().setActiveLesson(lesson.id);
+    useVamsStore.getState().setAppMode('Lesson');
+    const bar = mount(h(LessonBar, {}));
+    await settle();
+    [...bar.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Next')!.click();
+    await settle();
+    expect(bar.querySelector('.artifact-display')).toBeNull();
+    expect(bar.querySelector('.artifact-svg')).toBeNull();
+    expect(bar.querySelector('.widget-prompt')?.textContent).toBeTruthy();
+    expect(bar.querySelectorAll('.mc-option')).toHaveLength(4);
+    unmount(bar);
+    useVamsStore.getState().clearLessonState();
   });
 });

@@ -329,7 +329,6 @@ function LessonBarBody() {
           {step.exercise.kind === 'multiple-choice' && (
             <MultipleChoiceWidget
               prompt={step.exercise.prompt}
-              visualArtifact={step.exercise.visualArtifact}
               options={step.exercise.options}
               selectedId={runner.mcAnswer}
               correctId={step.exercise.correctId}

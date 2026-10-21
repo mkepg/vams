@@ -47,3 +47,40 @@ for (const [id, theme] of RASTER_VECTOR) {
     await expect(pane).toHaveScreenshot(`pt-raster-vector-${theme}-1280.png`);
   });
 }
+
+const QUIZ = [
+  ['VIS-PT-05', 'dark'],
+  ['VIS-PT-06', 'light'],
+] as const;
+
+for (const [id, theme] of QUIZ) {
+  test(`${id}: a Which Stage? picture on the canvas, ${theme}, 1280`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    // The lesson shuffles its questions with Math.random; a fixed-seed generator fixes the order.
+    await page.addInitScript(() => {
+      let a = 0x2f6e2b1;
+      Math.random = () => {
+        a = (a + 0x6d2b79f5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    });
+    await openLesson(page, 'pipeline-exercise-2', theme);
+    const bar = page.locator('.lesson-bar');
+    const next = page.locator('.lesson-bar__next');
+    const prompt = bar.locator('.widget-prompt');
+    for (let step = 2; step <= 9; step++) {
+      if ((await prompt.count()) > 0 && (await prompt.first().textContent())?.includes('binds continuous shapes to a pixel grid')) break;
+      // A question has to be answered before Next opens; try the options until one is right.
+      const options = bar.locator('.mc-option');
+      for (let i = 0; i < (await options.count()) && (await next.isDisabled()); i++) await options.nth(i).click();
+      await expect(next).toBeEnabled();
+      await next.click();
+      await expect(bar).toContainText(`Step ${step} of`);
+    }
+    await expect(prompt).toContainText('Which stage binds continuous shapes to a pixel grid?');
+    await expect(page.locator('.canvas-pane .quiz-figure svg.stage-figure')).toBeVisible();
+    await expect(page).toHaveScreenshot(`pt-quiz-raster-${theme}-1280.png`);
+  });
+}
