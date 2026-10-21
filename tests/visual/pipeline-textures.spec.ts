@@ -29,3 +29,21 @@ for (const [id, theme] of THEMES) {
     await expect(pane).toHaveScreenshot(`pt-diagram-raster-${theme}-1280.png`);
   });
 }
+
+const RASTER_VECTOR = [
+  ['VIS-PT-03', 'dark'],
+  ['VIS-PT-04', 'light'],
+] as const;
+
+for (const [id, theme] of RASTER_VECTOR) {
+  test(`${id}: Raster vs vector, ${theme}, 1280`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await openLesson(page, 'pipeline-demo-2', theme);
+    const bar = page.locator('.lesson-bar');
+    await expect(bar).toContainText('Step 1 of');
+    const pane = page.locator('.canvas-pane');
+    await expect(pane.locator('.raster-vector-view')).toBeVisible();
+    await expect(pane.locator('.rv-pane--raster .rv-copy')).toContainText('The same shape as 24 × 24 pixels.');
+    await expect(pane).toHaveScreenshot(`pt-raster-vector-${theme}-1280.png`);
+  });
+}

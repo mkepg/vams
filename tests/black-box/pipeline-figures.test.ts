@@ -11,6 +11,8 @@ import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry'
 import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import CanvasHeader from '@/widgets/canvas/ui/CanvasHeader';
 import PipelineDiagram from '@/widgets/canvas/views/PipelineDiagram';
+import RasterVectorView from '@/widgets/canvas/views/RasterVectorView';
+import { fmt } from '@/shared/lib/format-number';
 import type { SceneNode } from '@/core/types/scene';
 import { chainOf, clipOutcome, clipPolygon, clipSegment, figureFrame, worldPoint, worldPrimitives } from '@/entities/scene/model/pipeline-geometry';
 import { provokingOf } from '@/entities/scene/model/primitive-assembly';
@@ -561,6 +563,87 @@ describe('the Diagram', () => {
           unmount(host);
         }
       }
+    });
+  });
+});
+
+describe('Raster vs vector', () => {
+  afterEach(() => {
+    useVamsStore.setState({ activeSection: 'Primitives', pipelineMode: 'Playground', objects: [] });
+  });
+  const open = async () => {
+    useVamsStore.setState({ activeSection: 'Pipeline', pipelineMode: 'RasterVector', objects: [] });
+    const host = mount(h(RasterVectorView, {}));
+    await settle();
+    return host;
+  };
+  const rasterText = (host: HTMLElement) => host.querySelector('.rv-pane--raster .rv-copy')?.textContent ?? '';
+  const pickAcross = async (host: HTMLElement, label: string) => {
+    const radio = [...host.querySelectorAll<HTMLButtonElement>('[role="radiogroup"][aria-label="Pixels across"] [role="radio"]')].find(
+      (b) => b.textContent === label,
+    );
+    radio!.click();
+    await settle();
+  };
+  const multisample = (host: HTMLElement) => host.querySelector<HTMLButtonElement>('[role="switch"]')!;
+
+  describe('BB-PFIG-24: Raster vs vector draws the subject on both sides', () => {
+    it('lists the demo corners on the left and the pixel grid size on the right', async () => {
+      const host = await open();
+      const labels = [...host.querySelectorAll('.rv-pane--vector .rv-corner')].map((e) => e.textContent);
+      expect(labels).toEqual(demoSubject().world.map((p) => `(${fmt(p.x)}, ${fmt(p.y)})`));
+      expect(labels).toHaveLength(3);
+      expect(host.querySelector('.rv-pane--vector')?.textContent).toContain(
+        'Corners and straight edges. Zoom in as far as you like: the edge stays exact.',
+      );
+      expect(host.querySelector('.rv-pane--vector h3')?.textContent).toBe('Vectorthe code');
+      expect(host.querySelector('.rv-pane--raster h3')?.textContent).toBe('Rasterthe screen');
+      expect(rasterText(host)).toContain('The same shape as 24 × 24 pixels.');
+      expect(rasterText(host)).toContain('Multisampling tests 4 points per pixel, so edge pixels are partly filled.');
+      expect(host.querySelectorAll('.rv-frag').length).toBeGreaterThan(0);
+      const control = host.querySelector('[role="radiogroup"][aria-label="Pixels across"]')!;
+      expect([...control.querySelectorAll('[role="radio"]')].map((b) => b.textContent)).toEqual(['8', '16', '24', '48']);
+      expect(control.querySelector('[aria-checked="true"]')?.textContent).toBe('24');
+      expect(multisample(host).getAttribute('aria-checked')).toBe('true');
+      expect(multisample(host).textContent).toBe('GLUT_MULTISAMPLE');
+      expect(multisample(host).closest('[title]')?.getAttribute('title')).toBe('Your program turns this on in glutInitDisplayMode');
+      unmount(host);
+    });
+  });
+
+  describe('BB-PFIG-25: Pixels across and multisampling redraw only the raster side', () => {
+    it('changes the grid and the fragments, leaving the vector side and the scene alone', async () => {
+      const host = await open();
+      const before = structuredClone(useVamsStore.getState().objects);
+      const vectorBefore = host.querySelector('.rv-pane--vector')!.innerHTML;
+      await pickAcross(host, '8');
+      expect(rasterText(host)).toContain('The same shape as 8 × 8 pixels.');
+      multisample(host).click();
+      await settle();
+      expect(multisample(host).getAttribute('aria-checked')).toBe('false');
+      expect(rasterText(host)).toContain('Each pixel is either in or out, so the edges step.');
+      expect(rasterText(host).endsWith('so the edges step.')).toBe(true);
+      const frags = [...host.querySelectorAll('.rv-frag')];
+      expect(frags.length).toBeGreaterThan(0);
+      frags.forEach((f) => expect(f.getAttribute('opacity')).toBe('1'));
+      expect(host.querySelector('.rv-pane--vector')!.innerHTML).toBe(vectorBefore);
+      expect(useVamsStore.getState().objects).toEqual(before);
+      unmount(host);
+    });
+  });
+
+  describe('BB-PFIG-26: The view settings are not saved with the scene', () => {
+    it('leaves the persisted state unchanged by either control', async () => {
+      const host = await open();
+      const partialize = useVamsStore.persist.getOptions().partialize!;
+      const before = JSON.stringify(partialize(useVamsStore.getState()));
+      await pickAcross(host, '48');
+      multisample(host).click();
+      await settle();
+      const saved = partialize(useVamsStore.getState()) as Record<string, unknown>;
+      expect(JSON.stringify(saved)).toBe(before);
+      Object.keys(saved).forEach((k) => expect(k).not.toMatch(/across|multisample|raster|pixel/i));
+      unmount(host);
     });
   });
 });
