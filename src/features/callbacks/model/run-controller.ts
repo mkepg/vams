@@ -50,7 +50,7 @@ export type RunBlock = 'illustration' | 'empty' | 'no-callback' | null;
 
 /** Why Run is off, in the order the canvas explains it; null when it can run. */
 export function runBlock(
-  state: Pick<VamsState, 'objects' | 'callbacks' | 'appMode' | 'activeSection' | 'pipelineMode'>,
+  state: Pick<VamsState, 'objects' | 'callbacks' | 'activeSection' | 'pipelineMode' | 'quizPipelineStage'>,
 ): RunBlock {
   // A Pipeline illustration hides the canvas, so there is nothing to run on.
   if (showsIllustration(state)) return 'illustration';
@@ -60,7 +60,7 @@ export function runBlock(
 }
 
 export function canRun(
-  state: Pick<VamsState, 'objects' | 'callbacks' | 'appMode' | 'activeSection' | 'pipelineMode'>,
+  state: Pick<VamsState, 'objects' | 'callbacks' | 'activeSection' | 'pipelineMode' | 'quizPipelineStage'>,
 ): boolean {
   return runBlock(state) === null;
 }

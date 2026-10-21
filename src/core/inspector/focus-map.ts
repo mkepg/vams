@@ -5,7 +5,7 @@ export type FocusPlace =
   | { area: 'scene'; target: 'list' | 'add' | 'create-text' }
   | { area: 'object'; group: ObjectGroupId }
   | { area: 'settings'; group: SettingsGroupId }
-  | { area: 'lesson-card' };
+  | { area: 'canvas-header' };
 
 /** Lesson focusPanel ids (the panels' own panelId values) and where each lives in the editor. */
 const FIXED: Record<string, FocusPlace> = {
@@ -20,7 +20,7 @@ const FIXED: Record<string, FocusPlace> = {
   'ortho-editor': { area: 'settings', group: 'viewing-volume' },
   'texture-library': { area: 'settings', group: 'texture-library' },
   'callbacks-panel': { area: 'settings', group: 'callbacks' },
-  'pipeline-mode-controls': { area: 'lesson-card' },
+  'pipeline-mode-controls': { area: 'canvas-header' },
 };
 
 export const FOCUS_PANEL_IDS: readonly string[] = [...Object.keys(FIXED), 'appearance-panel'];
@@ -38,14 +38,14 @@ export function sectionForPlace(place: FocusPlace): CurriculumSection {
   switch (place.area) {
     case 'scene':
       return 'Primitives';
-    case 'lesson-card':
+    case 'canvas-header':
       return 'Pipeline';
     default:
       return GROUP_SECTION[place.group];
   }
 }
 
-/** The rail panel that holds a focus place; none for the lesson bar's own controls. */
+/** The rail panel that holds a focus place; none for the canvas header's own controls. */
 export function railPanelFor(place: FocusPlace): RailPanel | null {
   switch (place.area) {
     case 'scene':
@@ -54,7 +54,7 @@ export function railPanelFor(place: FocusPlace): RailPanel | null {
       return 'scene';
     case 'settings':
       return place.group === 'callbacks' ? 'callbacks' : 'settings';
-    case 'lesson-card':
+    case 'canvas-header':
       return null;
   }
 }

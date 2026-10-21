@@ -16,6 +16,7 @@ export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (
   viewportLimitsBackup: null,
   uploadedTexturesBackup: null,
   lessonFocusPanel: null,
+  quizPipelineStage: null,
   dmaDriverStep: null,
   changedCodeLines: [],
   codeViewBeforeLesson: null,
@@ -70,6 +71,7 @@ export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (
       ? { lessonFocusPanel: panelId, journeyStageOverride: null, railPanel: panel, railHidden: false }
       : { lessonFocusPanel: panelId, journeyStageOverride: null };
   }),
+  setQuizPipelineStage: (stage) => set({ quizPipelineStage: stage }),
   setDmaDriverStep: (index) => set({ dmaDriverStep: index }),
   setChangedCodeLines: (lines) => set({ changedCodeLines: lines }),
   clearLessonState: () => {
@@ -97,6 +99,7 @@ export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (
       uploadedTexturesBackup: null,
       selectedObjectId: null,
       lessonFocusPanel: null,
+      quizPipelineStage: null,
       dmaDriverStep: null,
       changedCodeLines: [],
       // The lesson may have switched the right column; give the student back their own view.

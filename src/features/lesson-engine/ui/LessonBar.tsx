@@ -12,20 +12,13 @@ import {
   X,
 } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
-import type { PipelineMode } from '@/core/store/types';
-import { Button, SegmentedControl } from '@/shared/ui/controls';
+import { Button } from '@/shared/ui/controls';
 import { useLessonRunner } from '../model/useLessonRunner';
 import { goalLabelParts, waitsForStudent } from '../model/step-rules';
 import MultipleChoiceWidget from './exercise-widgets/MultipleChoiceWidget';
 import OrderListWidget from './exercise-widgets/OrderListWidget';
 import CodeBlankWidget from './exercise-widgets/CodeBlankWidget';
 import './lesson-bar.scss';
-
-const PIPELINE_MODES: { value: PipelineMode; label: string }[] = [
-  { value: 'Diagram', label: 'Diagram' },
-  { value: 'RasterVector', label: 'Raster vs vector' },
-  { value: 'Playground', label: 'Playground' },
-];
 
 /** The lesson, along the bottom of the canvas. Mount once; it renders only in Lesson mode. */
 export default function LessonBar() {
@@ -50,11 +43,7 @@ export default function LessonBar() {
 function LessonBarBody() {
   const runner = useLessonRunner();
   const titleRef = useRef<HTMLHeadingElement>(null);
-  const pipelineLesson = useVamsStore((s) => s.activeSection === 'Pipeline');
-  const pipelineMode = useVamsStore((s) => s.pipelineMode);
-  const setPipelineMode = useVamsStore((s) => s.setPipelineMode);
   const requestExplain = useVamsStore((s) => s.requestExplain);
-  const focusPanelId = useVamsStore((s) => s.lessonFocusPanel);
   const lessonId = runner.active ? runner.lesson?.id ?? null : null;
   const stepKey = lessonId ? `${lessonId}:${runner.stepIndex}` : null;
 
@@ -334,14 +323,6 @@ function LessonBarBody() {
             ))}
           </p>
         </>
-      )}
-      {pipelineLesson && (
-        <div
-          className={focusPanelId === 'pipeline-mode-controls' ? 'lesson-bar__modes is-lesson-focus' : 'lesson-bar__modes'}
-          data-panel-id="pipeline-mode-controls"
-        >
-          <SegmentedControl label="Viewport mode" options={PIPELINE_MODES} value={pipelineMode} onChange={setPipelineMode} />
-        </div>
       )}
       {step.exercise && (
         <div className="lesson-bar__exercise" key={`ex-${lesson.id}-${stepIndex}`}>

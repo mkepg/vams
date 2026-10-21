@@ -332,6 +332,14 @@ describe('BB-RUN-14: Run is unavailable while a Pipeline illustration replaces t
     expect(canRun(getState())).toBe(true);
   });
 
+  it('canRun is false in Author mode too, while the Pipeline section shows an illustration', () => {
+    setup();
+    useVamsStore.setState({ appMode: 'Author', activeSection: 'Pipeline', pipelineMode: 'Diagram' });
+    expect(canRun(getState())).toBe(false);
+    useVamsStore.setState({ pipelineMode: 'Playground' });
+    expect(canRun(getState())).toBe(true);
+  });
+
   it('hides Run over an illustration', async () => {
     setup();
     showIllustration();

@@ -1,5 +1,6 @@
 import type { InspectorGroupId } from '@/core/inspector/groups';
 import type { JourneyStageId } from '@/core/inspector/journey-stage';
+import type { StageIndex } from '@/core/types/lesson';
 import type {
   PrimitiveType,
   SceneNode,
@@ -232,6 +233,8 @@ export interface LessonSlice {
   viewportLimitsBackup: ViewportLimits | null;
   uploadedTexturesBackup: import('@/core/types/textures').TextureAsset[] | null;
   lessonFocusPanel: string | null;
+  /** The stage a "Which Stage?" step's picture shows; null on every other step. */
+  quizPipelineStage: StageIndex | null;
   dmaDriverStep: number | null;
   changedCodeLines: number[]
   /** The student's Code / Math switch and Hide from before the lesson; restored when it ends. */
@@ -241,6 +244,7 @@ export interface LessonSlice {
   setExerciseAnswer: (stepId: string, answer: unknown) => void;
   setSuccessState: (success: boolean) => void;
   setLessonFocusPanel: (panelId: string | null) => void;
+  setQuizPipelineStage: (stage: StageIndex | null) => void;
   setDmaDriverStep: (index: number | null) => void;
   clearLessonState: () => void;
   setChangedCodeLines: (lines: number[]) => void;

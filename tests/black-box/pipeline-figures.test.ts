@@ -2,7 +2,14 @@
  * BLACK-BOX TEST SUITE — BB-PFIG
  * The Pipeline illustrations' geometry: the student's corners in world space, the primitives they make, and clipping.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
+import { h, render, type VNode } from 'preact';
+import { useVamsStore } from '@/core/store';
+import { showsIllustration } from '@/core/store/illustration';
+import { VISUAL_ARTIFACTS } from '@/core/types/lesson';
+import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
+import LessonBar from '@/features/lesson-engine/ui/LessonBar';
+import CanvasHeader from '@/widgets/canvas/ui/CanvasHeader';
 import type { SceneNode } from '@/core/types/scene';
 import { chainOf, clipOutcome, clipPolygon, clipSegment, figureFrame, worldPoint, worldPrimitives } from '@/entities/scene/model/pipeline-geometry';
 import { provokingOf } from '@/entities/scene/model/primitive-assembly';
@@ -343,5 +350,104 @@ describe('BB-PFIG-16: No illustration text names a call VAMS never emits', () =>
   });
   it('uses no banned student-facing word', () => {
     texts.forEach((t) => words.forEach((w) => expect(t).not.toMatch(w)));
+  });
+});
+
+async function settle() {
+  for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+}
+function mount(vnode: VNode) {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  render(vnode, host);
+  return host;
+}
+function unmount(host: HTMLElement) {
+  render(null, host);
+  host.remove();
+}
+
+describe('switch in the canvas header', () => {
+  afterEach(() => {
+    useVamsStore.getState().clearLessonState();
+    useVamsStore.setState({ appMode: 'Author', activeSection: 'Primitives', pipelineMode: 'Playground', quizPipelineStage: null });
+  });
+
+  describe('BB-PFIG-17: The switch shows in the canvas header only in the Pipeline section', () => {
+    const switchIn = (host: HTMLElement) => host.querySelector('.canvas-header [data-panel-id="pipeline-mode-controls"] [role="radiogroup"]');
+    it('is present in Author and Lesson mode in Pipeline and absent elsewhere', async () => {
+      useVamsStore.setState({ appMode: 'Author', activeSection: 'Pipeline' });
+      const host = mount(h(CanvasHeader, {}));
+      await settle();
+      expect(switchIn(host)).not.toBeNull();
+      useVamsStore.setState({ appMode: 'Lesson' });
+      await settle();
+      expect(switchIn(host)).not.toBeNull();
+      useVamsStore.setState({ appMode: 'Author', activeSection: 'Primitives' });
+      await settle();
+      expect(switchIn(host)).toBeNull();
+      unmount(host);
+    });
+    it('is marked when a lesson step focuses it, and the lesson bar no longer holds it', async () => {
+      useVamsStore.setState({ activeSection: 'Pipeline', lessonFocusPanel: 'pipeline-mode-controls' });
+      const host = mount(h(CanvasHeader, {}));
+      await settle();
+      expect(host.querySelector('[data-panel-id="pipeline-mode-controls"]')!.classList.contains('is-lesson-focus')).toBe(true);
+      unmount(host);
+      const demo = Object.values(LESSON_REGISTRY).find((l) => l.section === 'Pipeline' && l.type === 'demo')!;
+      useVamsStore.getState().setActiveLesson(demo.id);
+      useVamsStore.getState().setAppMode('Lesson');
+      const bar = mount(h(LessonBar, {}));
+      await settle();
+      expect(bar.querySelector('.lesson-bar__modes')).toBeNull();
+      expect(bar.querySelector('[data-panel-id="pipeline-mode-controls"]')).toBeNull();
+      unmount(bar);
+    });
+  });
+
+  describe('BB-PFIG-18: A quiz step hides the switch and shows its stage', () => {
+    it('hides the switch and keeps the illustration up even in Playground', async () => {
+      useVamsStore.setState({ activeSection: 'Pipeline', pipelineMode: 'Playground' });
+      const host = mount(h(CanvasHeader, {}));
+      await settle();
+      expect(host.querySelector('[data-panel-id="pipeline-mode-controls"]')).not.toBeNull();
+      useVamsStore.getState().setQuizPipelineStage(3);
+      await settle();
+      expect(host.querySelector('[data-panel-id="pipeline-mode-controls"]')).toBeNull();
+      expect(showsIllustration(useVamsStore.getState())).toBe(true);
+      unmount(host);
+    });
+  });
+
+  describe('BB-PFIG-19: The runner sets the quiz stage per step and clears it', () => {
+    it('follows the step: set on a picture, null on a step without one, null after the lesson', async () => {
+      const lesson = LESSON_REGISTRY['pipeline-exercise-2'];
+      useVamsStore.setState({ activeSection: 'Pipeline' });
+      useVamsStore.getState().setActiveLesson(lesson.id);
+      useVamsStore.getState().setAppMode('Lesson');
+      const host = mount(h('div', {}, h(CanvasHeader, {}), h(LessonBar, {})));
+      await settle();
+      const switchShown = () => host.querySelector('.canvas-header [data-panel-id="pipeline-mode-controls"]') !== null;
+      expect(useVamsStore.getState().quizPipelineStage).toBeNull();
+      expect(switchShown()).toBe(true);
+      const next = () => [...host.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Next') as HTMLButtonElement;
+      next().click();
+      await settle();
+      // The runner shuffles steps 2 to 8; read the step it landed on.
+      const narration = host.querySelector('.lesson-bar__narration')!.textContent;
+      const ex = lesson.steps.find((st) => st.narration === narration)?.exercise;
+      const artifact = ex?.kind === 'multiple-choice' ? ex.visualArtifact : undefined;
+      expect(artifact).toBeDefined();
+      expect(useVamsStore.getState().quizPipelineStage).toBe(VISUAL_ARTIFACTS.indexOf(artifact!));
+      expect(switchShown()).toBe(false);
+      [...host.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Back')!.click();
+      await settle();
+      expect(useVamsStore.getState().quizPipelineStage).toBeNull();
+      expect(switchShown()).toBe(true);
+      useVamsStore.getState().setQuizPipelineStage(2);
+      useVamsStore.getState().clearLessonState();
+      expect(useVamsStore.getState().quizPipelineStage).toBeNull();
+      unmount(host);
+    });
   });
 });

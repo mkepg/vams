@@ -3,7 +3,9 @@ import type { JourneyStageId } from '@/core/inspector/journey-stage';
 import type { CodeOutline } from '@/features/code-generation/model/code-outline';
 import type { Subject } from './pipeline-subject';
 
-export type StageIndex = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+import type { StageIndex } from '@/core/types/lesson';
+
+export type { StageIndex };
 
 export interface StageLine {
   /** Index into the outline's lines. */

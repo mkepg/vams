@@ -46,7 +46,7 @@ describe('BB-INSP-01: Every lesson focus target has a place in the editor', () =
     expect(resolveFocus('ortho-editor', true)).toEqual({ area: 'settings', group: 'viewing-volume' });
     expect(resolveFocus('texture-library', true)).toEqual({ area: 'settings', group: 'texture-library' });
     expect(resolveFocus('callbacks-panel', true)).toEqual({ area: 'settings', group: 'callbacks' });
-    expect(resolveFocus('pipeline-mode-controls', false)).toEqual({ area: 'lesson-card' });
+    expect(resolveFocus('pipeline-mode-controls', false)).toEqual({ area: 'canvas-header' });
     expect(resolveFocus('nope', true)).toBeNull();
     expect(resolveFocus(null, true)).toBeNull();
     expect(FOCUS_PANEL_IDS).toContain('object-transform');
@@ -67,7 +67,7 @@ describe('BB-INSP-02: Each place belongs to a curriculum section', () => {
     expect(sectionForPlace({ area: 'settings', group: 'viewing-volume' })).toBe('Transforms');
     expect(sectionForPlace({ area: 'settings', group: 'texture-library' })).toBe('Textures');
     expect(sectionForPlace({ area: 'settings', group: 'callbacks' })).toBe('Pipeline');
-    expect(sectionForPlace({ area: 'lesson-card' })).toBe('Pipeline');
+    expect(sectionForPlace({ area: 'canvas-header' })).toBe('Pipeline');
   });
 });
 
@@ -260,7 +260,7 @@ describe('BB-INSP-11: Every focus place belongs to one rail panel', () => {
     for (const group of OBJECT_GROUPS) expect(railPanelFor({ area: 'object', group })).toBe('scene');
     for (const group of SETTINGS_GROUPS) expect(railPanelFor({ area: 'settings', group })).toBe('settings');
     expect(railPanelFor({ area: 'settings', group: 'callbacks' })).toBe('callbacks');
-    expect(railPanelFor({ area: 'lesson-card' })).toBeNull();
+    expect(railPanelFor({ area: 'canvas-header' })).toBeNull();
     expect(SETTINGS_GROUPS).toEqual(['background', 'viewing-volume', 'texture-library']);
   });
 });

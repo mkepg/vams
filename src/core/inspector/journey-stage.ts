@@ -50,7 +50,7 @@ export function stageForPlace(place: FocusPlace): JourneyStageId | null {
   switch (place.area) {
     case 'scene':
       return place.target === 'list' ? 'transformed' : 'assembled';
-    case 'lesson-card':
+    case 'canvas-header':
       return 'rasterised';
     default:
       return GROUP_STAGE[place.group];

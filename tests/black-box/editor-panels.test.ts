@@ -14,12 +14,11 @@ import CustomShapeBuilderPanel from '@/features/custom-shapes/ui/CustomShapeBuil
 import ObjectAppearancePanel from '@/features/object-appearance/ui/ObjectAppearancePanel';
 import LineStylePanel from '@/features/line-style/ui/LineStylePanel';
 import CallbacksPanel from '@/features/callbacks/ui/CallbacksPanel';
-import LessonBar from '@/features/lesson-engine/ui/LessonBar';
+import CanvasHeader from '@/widgets/canvas/ui/CanvasHeader';
 import BuffersPanel from '@/features/buffers/ui/BuffersPanel';
 import TextureLibraryPanel from '@/features/textures/ui/TextureLibraryPanel';
 import TextureAttachmentPanel from '@/features/textures/ui/TextureAttachmentPanel';
 import UVEditorPanel from '@/features/textures/ui/UVEditorPanel';
-import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
 import { getPreset } from '@/entities/project/model/scene-presets';
 import { loadProjectData } from '@/features/scene-library';
 import { createMemoryLibrary, getSceneLibrary, setSceneLibraryForTests } from '@/entities/project/model/scene-library';
@@ -345,17 +344,11 @@ function loadTexturedQuad() {
 }
 
 describe('BB-PANEL-14: Viewport mode is an arrow-key radiogroup', () => {
-  it('moves between modes with the arrow keys in a Pipeline lesson', async () => {
-    const pipeline = Object.values(LESSON_REGISTRY).find((l) => l.section === 'Pipeline' && l.type === 'demo')!;
-    useVamsStore.setState({ activeSection: 'Pipeline' });
-    useVamsStore.getState().setActiveLesson(pipeline.id);
-    useVamsStore.getState().setAppMode('Lesson');
-    const host = mount(h(LessonBar, {}));
+  it('moves between modes with the arrow keys in the canvas header', async () => {
+    useVamsStore.setState({ activeSection: 'Pipeline', pipelineMode: 'Diagram' });
+    const host = mount(h(CanvasHeader, {}));
     await settle();
-    // The step's own action may set a mode; start from a known one.
-    useVamsStore.setState({ pipelineMode: 'Diagram' });
-    await settle();
-    const group = host.querySelector('.lesson-bar__modes [role="radiogroup"]') as HTMLElement;
+    const group = host.querySelector('.canvas-header [role="radiogroup"]') as HTMLElement;
     const checked = () => group.querySelector('[aria-checked="true"]')!.textContent;
     expect(checked()).toBe('Diagram');
     group.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
@@ -365,8 +358,7 @@ describe('BB-PANEL-14: Viewport mode is an arrow-key radiogroup', () => {
     await settle();
     expect(checked()).toBe('Playground');
     unmount(host);
-    useVamsStore.getState().clearLessonState();
-    useVamsStore.setState({ appMode: 'Author', pipelineMode: 'Playground' });
+    useVamsStore.setState({ pipelineMode: 'Playground' });
   });
 });
 

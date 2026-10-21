@@ -221,16 +221,6 @@
     &.is-wrong svg { color: var(--warning-text); }
   }
 
-  &__modes {
-    justify-self: start;
-
-    &.is-lesson-focus {
-      outline: 2px solid var(--accent);
-      outline-offset: 3px;
-      border-radius: var(--radius-m);
-    }
-  }
-
   // Goals: one typeset line. A met goal recedes to faint ink with a green ring.
   &__goals {
     display: flex;

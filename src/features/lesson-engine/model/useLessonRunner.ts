@@ -1,7 +1,7 @@
 import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useVamsStore } from '@/core/store';
-import type { ExerciseWidget, Lesson, LessonStep } from '@/core/types/lesson';
+import { VISUAL_ARTIFACTS, type ExerciseWidget, type Lesson, type LessonStep, type StageIndex } from '@/core/types/lesson';
 import type { VamsState } from '@/core/store/types';
 import { resolveFocus } from '@/core/inspector';
 import { getLessonById } from './lesson-registry';
@@ -199,6 +199,8 @@ function showStep(
   store.setJourneyStageOverride(step.mathStage ?? null);
   selectForFocus(focus);
   store.setDmaDriverStep(step.dmaStep ?? null);
+  const picture = step.exercise?.kind === 'multiple-choice' ? step.exercise.visualArtifact : undefined;
+  store.setQuizPipelineStage(picture ? (VISUAL_ARTIFACTS.indexOf(picture) as StageIndex) : null);
 
   const changed = resolveChangedLines(preCode, postCode, step.codeChangeFocus);
   store.setChangedCodeLines(changed);

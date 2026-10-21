@@ -2,6 +2,7 @@ import { useVamsStore } from '@/core/store';
 import { RunControl } from '@/features/callbacks';
 import ViewMenu from '@/features/editor-preferences/ui/ViewMenu';
 import { fmt, short } from '@/shared/lib/format-number';
+import PipelineModeSwitch from './PipelineModeSwitch';
 
 /** The canvas column's header: the viewing volume, placement keys, the cursor and Run. */
 export default function CanvasHeader() {
@@ -9,6 +10,8 @@ export default function CanvasHeader() {
   const placing = useVamsStore((s) => s.interactionMode === 'VERTEX_PLACE');
   const tracker = useVamsStore((s) => s.showCoordinateTracker);
   const cursor = useVamsStore((s) => s.cursorWorld);
+  // A "Which Stage?" picture fixes the canvas, so the choice of view waits until it is answered.
+  const switchShown = useVamsStore((s) => s.activeSection === 'Pipeline' && s.quizPipelineStage === null);
   return (
     <div className={`canvas-header${placing ? ' canvas-header--placing' : ''}`}>
       <span className="canvas-header__title">Canvas</span>
@@ -24,6 +27,7 @@ export default function CanvasHeader() {
       {tracker && cursor && (
         <span className="canvas-header__cursor">{`X ${fmt(cursor.x)}  Y ${fmt(cursor.y)}`}</span>
       )}
+      {switchShown && <PipelineModeSwitch />}
       <ViewMenu iconOnly={placing} />
       <RunControl />
     </div>
