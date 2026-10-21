@@ -1,14 +1,72 @@
 import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useVamsStore } from '@/core/store';
-import type { Lesson, LessonStep } from '@/core/types/lesson';
+import type { ExerciseWidget, Lesson, LessonStep } from '@/core/types/lesson';
+import type { VamsState } from '@/core/store/types';
 import { resolveFocus } from '@/core/inspector';
-import { LESSON_REGISTRY } from './lesson-registry';
-import { markLessonComplete, recordLessonLeft } from './progress';
+import { getLessonById } from './lesson-registry';
+import { isSectionEnd, nextInCourse } from './catalog';
+import { markLessonComplete, markLessonSkipped, recordLessonLeft } from './progress';
+import { canSkip as stepCanSkip, waitsForStudent } from './step-rules';
+import { checkBlank, formatBlankNumber } from './code-blanks';
 import { focusStyleFor } from './guidance';
 import { useCanvasSize } from '@/shared/lib/use-canvas-size';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { resolveChangedLines } from '@/features/code-generation/model/code-diff';
+
+interface PredictAnswers {
+  lessonId: string | null;
+  byStep: Record<number, string>;
+}
+const NO_ANSWERS: Record<number, string> = {};
+
+/** The waiting steps the student has passed in this run of a lesson, by step index. */
+interface PassedSteps {
+  lessonId: string | null;
+  steps: Set<number>;
+}
+const noPassedSteps = (): PassedSteps => ({ lessonId: null, steps: new Set() });
+const hasPassed = (passed: PassedSteps, lessonId: string | null, index: number) =>
+  passed.lessonId === lessonId && passed.steps.has(index);
+
+/** A blank's verdict against the scene: no text yet, right, or wrong. */
+export type BlankVerdict = 'empty' | 'right' | 'wrong';
+const VERDICT_LETTER: Record<BlankVerdict, string> = { empty: 'e', right: 'r', wrong: 'w' };
+const LETTER_VERDICT: Record<string, BlankVerdict> = { e: 'empty', r: 'right', w: 'wrong' };
+type CodeBlank = Extract<ExerciseWidget, { kind: 'code' }>['blanks'][number];
+
+/** One empty answer for each blank of a code step; none for any other step. */
+function emptyCodeAnswers(step: LessonStep | undefined): string[] {
+  return step?.exercise?.kind === 'code' ? step.exercise.blanks.map(() => '') : [];
+}
+
+/**
+ * Runs a lesson's check of the scene. A check that throws (one that reads a shape the student has
+ * deleted, say) gives `fallback`, so the step keeps waiting instead of the editor going down.
+ */
+function safeCheck<T>(check: () => T, fallback: T): T {
+  try {
+    return check();
+  } catch (error) {
+    if (import.meta.env.DEV) console.error('A lesson check threw; it counts as not met.', error);
+    return fallback;
+  }
+}
+
+/** The right text for each blank of a code exercise, as Skip types it; '' for an answer that cannot be read. */
+function rightBlankValues(exercise: Extract<ExerciseWidget, { kind: 'code' }>, state: VamsState): string[] {
+  return exercise.blanks.map((blank) =>
+    safeCheck(() => {
+      const answer = blank.answer(state);
+      return typeof answer === 'number' ? formatBlankNumber(answer) : answer;
+    }, ''),
+  );
+}
+
+/** A blank's verdict for what is typed, or 'wrong' when its answer cannot be read from the scene. */
+function blankVerdict(text: string, blank: CodeBlank, state: VamsState): BlankVerdict {
+  return safeCheck<BlankVerdict>(() => checkBlank(text, blank.answer(state), blank.tolerance), 'wrong');
+}
 
 const DEFAULT_LESSON_VIEWPORT = { minX: -1, maxX: 1, minY: -1, maxY: 1 };
 
@@ -17,6 +75,13 @@ const ARROW_KEY_OWNERS = [
   '[role="slider"]', '[role="dialog"]', '[role="alertdialog"]', '[role="spinbutton"]',
 ].join(', ');
 const ESCAPE_KEY_OWNERS = '[role="menu"], [role="dialog"], [role="alertdialog"]';
+
+/** Leaves the editor for the course map. An object, so a test can stand in for the page load. */
+export const courseMap = {
+  go(href: string): void {
+    window.location.assign(href);
+  },
+};
 
 export interface LessonRunner {
   /** True when appMode is Lesson and a lesson and step exist. */
@@ -27,10 +92,31 @@ export interface LessonRunner {
   stepCount: number;
   isLastStep: boolean;
   canAdvance: boolean;
+  /** The step's goals, each with whether the scene meets it now; null when the step has none. */
+  goals: { label: string; met: boolean }[] | null;
+  /** The step can be solved for the student and has not passed yet. */
+  canSkip: boolean;
+  /** Solves the step (one undo step) or fills in the right answer. Never advances. */
+  skip: () => void;
+  /** Skip was used in this run of the lesson; Finish records the lesson as skipped. */
+  skipped: boolean;
+  /** The next lesson in the course, in the same section, which the last step's button names and starts. */
+  nextLesson: { id: string; title: string } | null;
+  /** The lesson is its section's last: Finish then opens the course map at the section. */
+  finishGoesToMap: boolean;
+  /** The answer picked on this predict step in this run, or null before a pick. */
+  predictAnswer: string | null;
+  /** Records the predict step's answer and runs its action, as a step forward would. Once per step. */
+  pick: (optionId: string) => void;
   mcAnswer: string | null;
   setMcAnswer: (id: string | null) => void;
   orderAnswer: string[] | null;
   setOrderAnswer: (order: string[]) => void;
+  /** The text typed in each blank of this code step; one '' per blank when the step opens. */
+  codeAnswers: string[];
+  setCodeAnswer: (index: number, text: string) => void;
+  /** Each blank's verdict against the scene as it is now. */
+  codeVerdicts: BlankVerdict[];
   next: () => void;
   back: () => void;
   exit: () => void;
@@ -50,11 +136,86 @@ function selectForFocus(panelId: string | null) {
   s.selectObject(s.objects[0].id);
 }
 
+/** The clean scene a lesson replays its steps on: Back, a jump and the lesson's start rebuild from it. */
+export function resetLessonScene(): void {
+  useVamsStore.setState({
+    objects: [],
+    callbacks: emptyCallbacks(),
+    canvasBackgroundColor: '#000000',
+    viewportLimits: { ...DEFAULT_LESSON_VIEWPORT },
+    selectedObjectId: null,
+    interactionMode: 'SELECT',
+  });
+}
+
+/**
+ * Rebuilds the scene a student finds on reaching step `index`, before its action runs: every
+ * earlier step's action, then its solve when it has one, which stands in for the student's own work.
+ * The step's own solve never runs here.
+ */
+export function replayStepsBefore(lesson: Lesson, index: number): void {
+  for (let i = 0; i < index; i++) {
+    const pastStep = lesson.steps[i];
+    pastStep.action?.(useVamsStore.getState());
+    pastStep.solve?.(useVamsStore.getState());
+  }
+}
+
+/**
+ * Shows a step: runs its action (when `runAction`), then its solve (when `runSolve`), between two
+ * snapshots of the generated code, marks the lines they changed, sets the step's focus, journey
+ * stage and pointer diagram step, and opens the pane it is about. Both snapshots use the same
+ * canvas size, so a window-size-only difference (the `glutInitWindowSize` line) never shows as a
+ * change. Call inside a batch.
+ */
+function showStep(
+  lesson: Lesson,
+  step: LessonStep,
+  canvasSize: { width: number; height: number },
+  runAction: boolean,
+  runSolve = false,
+): void {
+  const store = useVamsStore.getState();
+  const snapshotCode = () => {
+    const s = useVamsStore.getState();
+    return generateCodeFromState(
+      {
+        objects: s.objects,
+        canvasBackgroundColor: s.canvasBackgroundColor,
+        callbacks: s.callbacks,
+        viewportLimits: s.viewportLimits,
+      },
+      canvasSize,
+    );
+  };
+
+  const preCode = snapshotCode();
+  if (runAction) step.action?.(useVamsStore.getState());
+  if (runSolve) step.solve?.(useVamsStore.getState());
+  const postCode = snapshotCode();
+
+  const focus = effectiveFocus(lesson, step);
+  store.setLessonFocusPanel(focus);
+  store.setJourneyStageOverride(step.mathStage ?? null);
+  selectForFocus(focus);
+  store.setDmaDriverStep(step.dmaStep ?? null);
+
+  const changed = resolveChangedLines(preCode, postCode, step.codeChangeFocus);
+  store.setChangedCodeLines(changed);
+  // A step about the math shows Math; one about the code, or one that changed it, shows Code.
+  const pane = step.pane ?? (changed.length > 0 ? 'code' : null);
+  if (pane) {
+    store.setCodePane(pane);
+    store.setCodeHidden(false);
+  }
+}
+
 export function useLessonRunner(): LessonRunner {
   const {
     appMode,
     activeLessonId,
     currentStepIndex,
+    setActiveLesson,
     setCurrentStep,
     setAppMode,
     clearLessonState,
@@ -70,6 +231,14 @@ export function useLessonRunner(): LessonRunner {
 
   const [mcAnswer, setMcAnswer] = useState<string | null>(null);
   const [orderAnswer, setOrderAnswer] = useState<string[] | null>(null);
+
+  // A run is skipped once Skip is used in it, whatever happens after; a new lesson starts a new run.
+  const [skipped, setSkipped] = useState(false);
+  const [skippedFor, setSkippedFor] = useState(activeLessonId);
+  if (skippedFor !== activeLessonId) {
+    setSkippedFor(activeLessonId);
+    if (skipped) setSkipped(false);
+  }
 
   /* ------------------------------------------------------------------ */
   /*  Canvas size — kept in a ref so the step-execution effect always   */
@@ -90,7 +259,7 @@ export function useLessonRunner(): LessonRunner {
 
   const lesson = useMemo(() => {
     if (!activeLessonId) return null;
-    const baseLesson = LESSON_REGISTRY[activeLessonId];
+    const baseLesson = getLessonById(activeLessonId);
     if (!baseLesson) return null;
 
     if (baseLesson.shuffleRange) {
@@ -117,11 +286,92 @@ export function useLessonRunner(): LessonRunner {
 
   const step = lesson?.steps[currentStepIndex];
 
+  // What is typed in a code step's blanks, kept for the step it was typed on: any change of step
+  // or lesson starts from one empty answer per blank, or the right ones on a step passed in this run.
+  const codeStepKey = `${activeLessonId}-${currentStepIndex}`;
+  const [typed, setTyped] = useState<{ key: string; step: LessonStep | undefined; values: string[] }>(() => ({
+    key: codeStepKey,
+    step,
+    values: emptyCodeAnswers(step),
+  }));
+  const typedIsCurrent = typed.key === codeStepKey && typed.step === step;
+  if (!typedIsCurrent) setTyped({ key: codeStepKey, step, values: emptyCodeAnswers(step) });
+  const codeAnswers = typedIsCurrent ? typed.values : emptyCodeAnswers(step);
+
+  // Predict answers for this run of the lesson, by step index. Any change of lesson starts a new
+  // run. The ref is what the step effect reads, so a rebuild knows whether the step's action ran.
+  const [answers, setAnswers] = useState<PredictAnswers>(() => ({ lessonId: activeLessonId, byStep: {} }));
+  if (answers.lessonId !== activeLessonId) setAnswers({ lessonId: activeLessonId, byStep: {} });
+  const answersRef = useRef(answers);
+  const runAnswers = answers.lessonId === activeLessonId ? answers.byStep : NO_ANSWERS;
+
+  // A waiting step counts as passed in this run once the student presses Next on it while it
+  // passes. Opening it again (Back, a jump) shows it passed: solved, or with the right answer.
+  const passedRef = useRef<PassedSteps>(noPassedSteps());
+
+  /*
+   * Step execution. On a step forward the step's action runs on the scene as it stands; on any
+   * other move (Back, a jump, the lesson's start) the scene is rebuilt from scratch first. Either
+   * way the step is then shown through showStep. A predict step's action waits for an answer.
+   */
   useEffect(() => {
-    setMcAnswer(null);
-    if (step?.exercise?.kind === 'ordered-list') {
-      const expected = step.exercise.correctOrder;
-      const arr = [...step.exercise.items].map((i) => i.id);
+    if (!lesson || !activeLessonId) return;
+
+    const stepKey = `${activeLessonId}-${currentStepIndex}`;
+    if (lastExecutedStepRef.current === stepKey) return;
+
+    const sameLessonAsBefore = lastExecutedStepRef.current?.startsWith(`${activeLessonId}-`);
+    const isForwardOne =
+      sameLessonAsBefore && currentStepIndex === lastStepIndexRef.current + 1;
+
+    if (!sameLessonAsBefore) {
+      answersRef.current = { lessonId: activeLessonId, byStep: {} };
+      passedRef.current = { lessonId: activeLessonId, steps: new Set() };
+    }
+
+    const store = useVamsStore.getState();
+    store.startBatch();
+
+    if (!isForwardOne) {
+      // Reset every piece of pedagogically-relevant state so step replay starts from a clean
+      // baseline, including viewportLimits, which Stage 4 lessons mutate.
+      resetLessonScene();
+      // The rebuilt scene is not the student's edit: the code panel marks none of its values.
+      store.markSceneSwap();
+      // Replay every step BEFORE the current one, solved, to recreate the pre-state.
+      replayStepsBefore(lesson, currentStepIndex);
+    }
+
+    const currentStep = lesson.steps[currentStepIndex];
+    const saved = answersRef.current;
+    const answered = saved.lessonId === activeLessonId && currentStepIndex in saved.byStep;
+    // A passed step opens solved again: its solve stands in for the student's own work.
+    const passed = hasPassed(passedRef.current, activeLessonId, currentStepIndex);
+    showStep(lesson, currentStep, canvasSizeRef.current, !currentStep.predict || answered, passed);
+
+    store.endBatch();
+    lastExecutedStepRef.current = stepKey;
+    lastStepIndexRef.current = currentStepIndex;
+  }, [currentStepIndex, activeLessonId, lesson]);
+
+  // A step's answers start empty (an ordered list shuffled), or right when the step was passed in
+  // this run. After the step effect, so a passed code step reads its answers from the rebuilt scene.
+  useEffect(() => {
+    const ex = step?.exercise;
+    const passed = hasPassed(passedRef.current, activeLessonId, currentStepIndex);
+    setMcAnswer(passed && ex?.kind === 'multiple-choice' ? ex.correctId : null);
+    setTyped({
+      key: `${activeLessonId}-${currentStepIndex}`,
+      step,
+      values: passed && ex?.kind === 'code' ? rightBlankValues(ex, useVamsStore.getState()) : emptyCodeAnswers(step),
+    });
+    if (ex?.kind === 'ordered-list') {
+      if (passed) {
+        setOrderAnswer([...ex.correctOrder]);
+        return;
+      }
+      const expected = ex.correctOrder;
+      const arr = [...ex.items].map((i) => i.id);
       let hasAnyCorrect = true;
       while (hasAnyCorrect) {
         for (let i = arr.length - 1; i > 0; i--) {
@@ -136,115 +386,42 @@ export function useLessonRunner(): LessonRunner {
     }
   }, [activeLessonId, currentStepIndex, step]);
 
-  /* ------------------------------------------------------------------ */
-  /*  Step execution + change-highlight diff.                            */
-  /*                                                                    */
-  /*  We snapshot the generated code immediately before and after the   */
-  /*  step's action mutates state, run a line-level diff, and write the */
-  /*  result into `changedCodeLines`. SceneCodePanel reads that and     */
-  /*  passes it to CodeViewer, which draws the change highlight + auto- */
-  /*  scrolls vertically to the topmost change.                         */
-  /*                                                                    */
-  /*  Both snapshots use the SAME canvas size, so window-size-only      */
-  /*  differences (the `glutInitWindowSize` line) never show up as a    */
-  /*  spurious change.                                                  */
-  /* ------------------------------------------------------------------ */
-  useEffect(() => {
-    if (!lesson || !activeLessonId) return;
+  // Every goal is checked against the whole state on every change, as one string of 1s and 0s,
+  // so a change re-renders only when a goal flips.
+  const goalBits = useVamsStore((s) => step?.goals?.map((g) => (safeCheck(() => g.check(s), false) ? '1' : '0')).join('') ?? '');
+  const goals = useMemo(
+    () => step?.goals?.map((g, i) => ({ label: g.label, met: goalBits[i] === '1' })) ?? null,
+    [step, goalBits],
+  );
 
-    const stepKey = `${activeLessonId}-${currentStepIndex}`;
-    if (lastExecutedStepRef.current === stepKey) return;
+  // Each blank is checked against its answer in the whole state on every change, as one letter per
+  // blank, so moving the shape re-checks what is typed and a change re-renders only on a flip.
+  const codeLetters = useVamsStore((s) => {
+    const ex = step?.exercise;
+    if (ex?.kind !== 'code') return '';
+    return ex.blanks
+      .map((blank, i) => VERDICT_LETTER[blankVerdict(codeAnswers[i] ?? '', blank, s)])
+      .join('');
+  });
+  const codeVerdicts = useMemo(() => [...codeLetters].map((letter) => LETTER_VERDICT[letter]), [codeLetters]);
 
-    const sameLessonAsBefore = lastExecutedStepRef.current?.startsWith(`${activeLessonId}-`);
-    const isForwardOne =
-      sameLessonAsBefore && currentStepIndex === lastStepIndexRef.current + 1;
-
-    const store = useVamsStore.getState();
-    store.startBatch();
-
-    const cs = canvasSizeRef.current;
-    const currentStep = lesson.steps[currentStepIndex];
-
-    const snapshotCode = () => {
-      const s = useVamsStore.getState();
-      return generateCodeFromState(
-        {
-          objects: s.objects,
-          canvasBackgroundColor: s.canvasBackgroundColor,
-          callbacks: s.callbacks,
-          viewportLimits: s.viewportLimits,
-        },
-        cs,
-      );
-    };
-
-    let preCode = '';
-    let postCode = '';
-
-    if (isForwardOne) {
-      preCode = snapshotCode();
-
-      if (currentStep.action) currentStep.action(useVamsStore.getState());
-
-      postCode = snapshotCode();
-
-      const focus = effectiveFocus(lesson, currentStep);
-      store.setLessonFocusPanel(focus);
-      store.setJourneyStageOverride(currentStep.mathStage ?? null);
-      selectForFocus(focus);
-      store.setDmaDriverStep(currentStep.dmaStep ?? null);
-    } else {
-      // Non-linear navigation (Back, lesson-start, jump): rebuild from scratch.
-      // Reset every piece of pedagogically-relevant state so step replay starts
-      // from a clean baseline — including viewportLimits, which Stage 4 lessons
-      // mutate.
-      useVamsStore.setState({
-        objects: [],
-        callbacks: emptyCallbacks(),
-        canvasBackgroundColor: '#000000',
-        viewportLimits: { ...DEFAULT_LESSON_VIEWPORT },
-        selectedObjectId: null,
-        interactionMode: 'SELECT',
+  const setCodeAnswer = useCallback(
+    (index: number, text: string) => {
+      setTyped((prev) => {
+        if (prev.key !== codeStepKey || prev.step !== step || index < 0 || index >= prev.values.length) return prev;
+        const values = [...prev.values];
+        values[index] = text;
+        return { ...prev, values };
       });
-      // The rebuilt scene is not the student's edit: the code panel marks none of its values.
-      store.markSceneSwap();
-
-      // Replay every step BEFORE the current one to recreate the pre-state.
-      for (let i = 0; i < currentStepIndex; i++) {
-        const pastStep = lesson.steps[i];
-        if (pastStep.action) pastStep.action(useVamsStore.getState());
-      }
-
-      // Snapshot pre-state (= state at the end of step N-1, or empty if N=0).
-      preCode = snapshotCode();
-
-      // Now run step N's action and snapshot post-state.
-      if (currentStep.action) currentStep.action(useVamsStore.getState());
-      postCode = snapshotCode();
-
-      const focus = effectiveFocus(lesson, currentStep);
-      store.setLessonFocusPanel(focus);
-      store.setJourneyStageOverride(currentStep.mathStage ?? null);
-      selectForFocus(focus);
-      store.setDmaDriverStep(currentStep.dmaStep ?? null);
-    }
-
-    const changed = resolveChangedLines(preCode, postCode, currentStep.codeChangeFocus);
-    store.setChangedCodeLines(changed);
-    // A step about the math shows Math; one about the code, or one that changed it, shows Code.
-    const pane = currentStep.pane ?? (changed.length > 0 ? 'code' : null);
-    if (pane) {
-      store.setCodePane(pane);
-      store.setCodeHidden(false);
-    }
-
-    store.endBatch();
-    lastExecutedStepRef.current = stepKey;
-    lastStepIndexRef.current = currentStepIndex;
-  }, [currentStepIndex, activeLessonId, lesson]);
+    },
+    [codeStepKey, step],
+  );
 
   const isStepSuccess = useMemo(() => {
     if (!step) return false;
+    if (goalBits.includes('0')) return false;
+    // A code step passes as soon as every blank is right, the one being typed included.
+    if (step.exercise?.kind === 'code' && /[ew]/.test(codeLetters)) return false;
 
     if (step.exercise) {
       if (step.exercise.kind === 'multiple-choice') {
@@ -263,17 +440,70 @@ export function useLessonRunner(): LessonRunner {
       void objects;
       void callbacks;
       void viewportLimits;
-      return step.successCheck(useVamsStore.getState());
+      const check = step.successCheck;
+      return safeCheck(() => check(useVamsStore.getState()), false);
     }
 
     return true;
-  }, [step, mcAnswer, orderAnswer, objects, callbacks, viewportLimits]);
+  }, [step, goalBits, codeLetters, mcAnswer, orderAnswer, objects, callbacks, viewportLimits]);
+
+  const predictAnswer = runAnswers[currentStepIndex] ?? null;
+  // A prediction never gates on being right, only on being made.
+  const canAdvance =
+    !!step && (!waitsForStudent(step) || isStepSuccess) && (!step.predict || predictAnswer !== null);
+  const canSkip = !!step && stepCanSkip(step) && !isStepSuccess;
+
+  const handleSkip = useCallback(() => {
+    if (!step || !canSkip) return;
+    if (step.solve) {
+      const store = useVamsStore.getState();
+      store.pushToHistory();
+      store.startBatch();
+      try {
+        step.solve(useVamsStore.getState());
+      } finally {
+        useVamsStore.getState().endBatch();
+      }
+    }
+    const ex = step.exercise;
+    if (ex?.kind === 'multiple-choice') setMcAnswer(ex.correctId);
+    else if (ex?.kind === 'ordered-list') setOrderAnswer([...ex.correctOrder]);
+    else if (ex?.kind === 'code') setTyped({ key: codeStepKey, step, values: rightBlankValues(ex, useVamsStore.getState()) });
+    setSkipped(true);
+  }, [step, canSkip, codeStepKey]);
+
+  const handlePick = useCallback(
+    (optionId: string) => {
+      if (!lesson || !activeLessonId || !step?.predict) return;
+      if (!step.predict.options.some((o) => o.id === optionId)) return;
+      // The ref, not this render's answer: a second pick before the re-render must not run the action again.
+      const prev = answersRef.current.lessonId === activeLessonId ? answersRef.current.byStep : NO_ANSWERS;
+      if (currentStepIndex in prev) return;
+      const next = { lessonId: activeLessonId, byStep: { ...prev, [currentStepIndex]: optionId } };
+      answersRef.current = next;
+      setAnswers(next);
+      const store = useVamsStore.getState();
+      store.startBatch();
+      try {
+        showStep(lesson, step, canvasSizeRef.current, true);
+      } finally {
+        useVamsStore.getState().endBatch();
+      }
+    },
+    [lesson, activeLessonId, step, currentStepIndex],
+  );
 
   const handleNext = useCallback(() => {
     if (lesson && currentStepIndex < lesson.steps.length - 1) {
+      if (activeLessonId && step && canAdvance && waitsForStudent(step)) {
+        if (passedRef.current.lessonId !== activeLessonId) {
+          passedRef.current = { lessonId: activeLessonId, steps: new Set() };
+        }
+        passedRef.current.steps.add(currentStepIndex);
+      }
       setCurrentStep(currentStepIndex + 1);
     }
-  }, [lesson, currentStepIndex, setCurrentStep]);
+  }, [lesson, activeLessonId, step, canAdvance, currentStepIndex, setCurrentStep]);
 
   const handleBack = useCallback(() => {
     if (currentStepIndex > 0) setCurrentStep(currentStepIndex - 1);
@@ -282,6 +512,10 @@ export function useLessonRunner(): LessonRunner {
   const leave = useCallback(() => {
     clearLessonState();
     setAppMode('Author');
+    setSkipped(false);
+    answersRef.current = { lessonId: null, byStep: {} };
+    setAnswers(answersRef.current);
+    passedRef.current = noPassedSteps();
     lastExecutedStepRef.current = null;
     lastStepIndexRef.current = -1;
   }, [clearLessonState, setAppMode]);
@@ -292,11 +526,29 @@ export function useLessonRunner(): LessonRunner {
     leave();
   }, [activeLessonId, currentStepIndex, leave]);
 
-  /** The last step passed: the lesson is complete. */
+  const nextLesson = useMemo(() => {
+    const entry = activeLessonId ? nextInCourse(activeLessonId) : null;
+    return entry ? { id: entry.id, title: entry.title } : null;
+  }, [activeLessonId]);
+  const finishGoesToMap = !nextLesson && !!activeLessonId && isSectionEnd(activeLessonId);
+
+  /**
+   * The last step passed: the lesson is complete, or skipped when Skip was used in this run. Then the
+   * next lesson in the section starts, keeping the student's backed-up scene for when they leave; a
+   * section's last lesson opens the course map; a lesson outside the course ends in the editor.
+   */
   const handleFinish = useCallback(() => {
-    if (activeLessonId) markLessonComplete(activeLessonId);
+    if (activeLessonId) (skipped ? markLessonSkipped : markLessonComplete)(activeLessonId);
+    if (nextLesson) {
+      // A lesson is active, so the store keeps its backups instead of taking new ones.
+      setActiveLesson(nextLesson.id);
+      setCurrentStep(0);
+      return;
+    }
+    const section = lesson?.section ?? null;
     leave();
-  }, [activeLessonId, leave]);
+    if (finishGoesToMap && section) courseMap.go(`/learn#${section.toLowerCase()}`);
+  }, [activeLessonId, skipped, nextLesson, finishGoesToMap, lesson, setActiveLesson, setCurrentStep, leave]);
 
   useEffect(() => {
     if (appMode !== 'Lesson' || !lesson || !step) return;
@@ -314,7 +566,6 @@ export function useLessonRunner(): LessonRunner {
       }
 
       if (e.key === 'ArrowRight') {
-        const canAdvance = !step.waitForUser || isStepSuccess;
         if (canAdvance) handleNext();
       } else if (e.key === 'ArrowLeft') {
         handleBack();
@@ -325,7 +576,7 @@ export function useLessonRunner(): LessonRunner {
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [appMode, lesson, step, isStepSuccess, handleNext, handleBack, handleExit]);
+  }, [appMode, lesson, step, canAdvance, handleNext, handleBack, handleExit]);
 
   const active = appMode === 'Lesson' && !!lesson && !!step;
   const stepCount = lesson?.steps.length ?? 0;
@@ -336,11 +587,22 @@ export function useLessonRunner(): LessonRunner {
     stepIndex: currentStepIndex,
     stepCount,
     isLastStep: active && currentStepIndex === stepCount - 1,
-    canAdvance: active && (!step!.waitForUser || isStepSuccess),
+    canAdvance: active && canAdvance,
+    goals: active ? goals : null,
+    canSkip: active && canSkip,
+    skip: handleSkip,
+    skipped,
+    nextLesson: active ? nextLesson : null,
+    finishGoesToMap: active && finishGoesToMap,
+    predictAnswer: active ? predictAnswer : null,
+    pick: handlePick,
     mcAnswer,
     setMcAnswer,
     orderAnswer,
     setOrderAnswer,
+    codeAnswers,
+    setCodeAnswer,
+    codeVerdicts,
     next: handleNext,
     back: handleBack,
     exit: handleExit,

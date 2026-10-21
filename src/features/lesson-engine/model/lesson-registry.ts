@@ -4,6 +4,7 @@ import { PRIMITIVES_LESSONS } from './primitives-lessons';
 import { BUFFERS_LESSONS }    from './buffers-lessons';
 import { TRANSFORMS_LESSONS } from './transforms-lessons';
 import { TEXTURES_LESSONS }   from './textures-lessons';
+import { SAMPLE_LESSONS }     from './sample-lessons';
 
 /**
  * Master lesson registry. Keys are lesson IDs.
@@ -17,8 +18,9 @@ export const LESSON_REGISTRY: Record<string, Lesson> = {
   ...TEXTURES_LESSONS,
 };
 
+/** A course lesson, or a sample lesson when the build includes them (VITE_LESSON_SAMPLES=1). */
 export const getLessonById = (id: string): Lesson | undefined =>
-  LESSON_REGISTRY[id];
+  LESSON_REGISTRY[id] ?? (import.meta.env.VITE_LESSON_SAMPLES === '1' ? SAMPLE_LESSONS[id] : undefined);
 
 export const getLessonsForSection = (section: string): Lesson[] =>
   Object.values(LESSON_REGISTRY).filter((l) => l.section === section);

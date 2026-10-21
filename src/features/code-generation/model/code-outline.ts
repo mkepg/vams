@@ -297,7 +297,9 @@ export function outlineCode(code: string): CodeOutline {
 export function findCallLine(outline: CodeOutline, object: string | null, target: ExplainRequest | string): number | null {
   const t = typeof target === 'string' ? { call: target } : target;
   const owner = t.owner ?? object;
-  const calls = (l: OutlineLine) => l.text.includes(`${t.call}(`);
+  // A constant has no `(` after it, so it matches as a whole word.
+  const constant = /^GLU?T?_[A-Z0-9_]+$/.test(t.call) ? new RegExp(`\\b${t.call}\\b`) : null;
+  const calls = (l: OutlineLine) => (constant ? constant.test(l.text) : l.text.includes(`${t.call}(`));
   const narrowed = (l: OutlineLine) => calls(l) && (!t.contains || l.text.includes(t.contains)) && (!t.block || l.block === t.block);
   if (owner !== null) {
     if (t.nth !== undefined) {

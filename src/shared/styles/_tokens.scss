@@ -51,6 +51,9 @@ $header-height: 3.7rem;
   --on-accent: #ffffff;
   --accent-text: #2f4de0;
   --accent-tint: rgba(47, 77, 224, 0.12);
+  /* A primary action that is not available yet (the lesson bar's Next): a quiet fill whose label keeps 4.5:1. */
+  --action-off: #dde3f0;
+  --on-action-off: #4a536c;
   --rail-pill-hover: var(--paper-sunken);
   --rail-pill-active: var(--accent-tint);
   --tour-scrim: rgba(0, 0, 0, 0.55);
@@ -117,6 +120,8 @@ $header-height: 3.7rem;
   --warning: #b45309;
   --warning-rgb: 180, 83, 9;
   --warning-strong: #92400e;
+  /* The mark on a wrong answer or blank. */
+  --warning-text: #92400e;
   /* Amber means "your values": a value that just changed, the inputs in the math working, the followed vertex. */
   --value: #8a4f00;
   --value-wash: rgba(138, 79, 0, 0.12);
@@ -184,6 +189,8 @@ $header-height: 3.7rem;
   --on-accent: #ffffff;
   --accent-text: #9cadff;
   --accent-tint: rgba(71, 98, 245, 0.20);
+  --action-off: #232b40;
+  --on-action-off: #9aa3bb;
   --rail-pill-hover: var(--paper-sunken);
   --rail-pill-active: var(--accent-tint);
   --tour-scrim: rgba(0, 0, 0, 0.55);
@@ -229,6 +236,7 @@ $header-height: 3.7rem;
   --warning: #b45309;
   --warning-rgb: 180, 83, 9;
   --warning-strong: #92400e;
+  --warning-text: #fbbf24;
   --value: #fbbf77;
   --value-wash: rgba(251, 191, 119, 0.16);
   --run-fired: #4ade80;

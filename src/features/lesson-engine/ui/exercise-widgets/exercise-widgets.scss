@@ -146,6 +146,71 @@
   }
 }
 
+// Fill in the code: one line set as the code panel sets it, in a sunken well, the one filled
+// surface in the bar. Blanks are underlines; a wrong one says why under itself.
+.lesson-code {
+  margin: 2px 0 0;
+  padding: 9px 12px 10px;
+  border-radius: var(--radius-s);
+  background: var(--paper-sunken);
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  line-height: 1.9;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow-x: auto;
+
+  &.has-note { padding-bottom: 22px; }
+}
+
+.lesson-code__slot {
+  position: relative;
+  display: inline-block;
+}
+
+.lesson-code__blank {
+  box-sizing: content-box;
+  min-width: 6ch;
+  margin: 0;
+  padding: 0 4px;
+  border: 0;
+  border-bottom: 1.5px solid var(--rule-strong);
+  border-radius: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  outline: none;
+
+  &.is-right { border-bottom-color: var(--success); }
+
+  &.is-wrong {
+    border-bottom-color: var(--warning-text);
+    color: var(--warning-text);
+  }
+
+  // Focus thickens the underline in cobalt, in place of the focus ring.
+  &.is-focus,
+  &:focus {
+    border-bottom-color: var(--accent);
+    box-shadow: 0 1px 0 var(--accent);
+  }
+}
+
+.lesson-code__note {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  margin-top: 1px;
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  line-height: 1.3;
+  color: var(--warning-text);
+  white-space: nowrap;
+}
+
 @keyframes mc-shake {
   25% { transform: translateX(-3px); }
   75% { transform: translateX(3px); }

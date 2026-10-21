@@ -670,3 +670,15 @@ describe('WB-CODE-31: A block folded by hand shows only its forced lines, and ke
     expect(hand.filter((r) => r.kind === 'line' && r.closes?.block === 'draw:Square')).toHaveLength(1);
   });
 });
+
+describe('WB-CODE-32: findCallLine finds a GL constant as a whole word', () => {
+  it('finds the glBegin(GL_TRIANGLES) line of a scene with one triangle', () => {
+    addTriangle();
+    const o = outlineCode(program());
+    const at = findCallLine(o, null, 'GL_TRIANGLES');
+    expect(at).not.toBeNull();
+    expect(o.lines[at!].text.trim()).toBe('glBegin(GL_TRIANGLES);');
+    // A whole word only: GL_TRIANGLE is not a prefix match for GL_TRIANGLES.
+    expect(findCallLine(o, null, 'GL_TRIANGLE')).toBeNull();
+  });
+});

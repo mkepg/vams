@@ -75,8 +75,11 @@ tests/
 │   │                                        choosing a link)
 │   ├── scene-view.test.ts                (BB-VIEW-*: the read-only scene view
 │   │                                        on phones)
-│   └── help-center.test.ts               (BB-HELP-*: the Help Center's topics
-│                                            and search)
+│   ├── help-center.test.ts               (BB-HELP-*: the Help Center's topics
+│   │                                        and search)
+│   └── lesson-rules.test.ts              (BB-LRULE-*: generator-name coverage,
+│                                            wording, hints, recaps, code blanks
+│                                            and capstones across the lessons)
 ├── white-box/                    ← Maps to Table 13.
 │   ├── state-management.test.ts          (WB-STATE-*)
 │   ├── matrix-engine.test.ts             (WB-MATRIX-*)
@@ -110,6 +113,8 @@ tests/
 │   ├── learn.spec.ts                     (VIS-LEARN-*: the /learn course map)
 │   ├── about.spec.ts                     (VIS-ABOUT-*: the /about page at
 │   │                                        1280 and 390, citation tabs)
+│   ├── lesson-blocks.spec.ts             (VIS-LB-*: goals, recap, predict and
+│   │                                        fill-in steps in both themes)
 │   ├── code-math.spec.ts                 (VIS-CM-*: the code panel and the math journey in the approved mocks' scene)
 │   └── share.spec.ts                     (VIS-SHARE-*: the Share dialog at 1280, the phone scene
 │                                        view at 390 and the closing slide's QR code)
@@ -131,7 +136,7 @@ tests/
 ## Running
 
 ```bash
-npm test                # run all 1003 tests
+npm test                # run all 1116 tests
 npm run test:watch      # watch mode for development
 npm run test:coverage   # also produce tests/reports/coverage/
 npm run test:visual     # editor screenshot checks (Playwright, installed Chrome)

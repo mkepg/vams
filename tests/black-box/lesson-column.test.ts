@@ -5,11 +5,17 @@
 import { readFileSync } from 'node:fs';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
+import { useLayoutEffect } from 'preact/hooks';
 import { useVamsStore } from '@/core/store';
 import type { Lesson } from '@/core/types/lesson';
 import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import { SegmentedControl } from '@/shared/ui/controls';
-import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
+import { LESSON_REGISTRY, getLessonById } from '@/features/lesson-engine/model/lesson-registry';
+import * as registry from '@/features/lesson-engine/model/lesson-registry';
+import { SAMPLE_LESSONS } from '@/features/lesson-engine/model/sample-lessons';
+import { LESSON_CATALOG, courseOrder, nextInCourse } from '@/features/lesson-engine/model/catalog';
+import { PROGRESS_KEY } from '@/features/lesson-engine/model/progress';
+import { courseMap, useLessonRunner, type LessonRunner } from '@/features/lesson-engine/model/useLessonRunner';
 import { EditorPanel } from '@/widgets/layout/editor-column';
 import Rail from '@/widgets/layout/rail';
 import CodeMathColumn from '@/widgets/layout/code-math-column';
@@ -21,7 +27,8 @@ import ObjectTransformPanel from '@/features/object-transform/ui/ObjectTransform
 import TextNodePanel from '@/features/text-nodes/ui/TextNodePanel';
 import SceneHierarchyPanel from '@/features/scene-hierarchy/ui/SceneHierarchyPanel';
 import MathPanel from '@/features/math-panel/ui/MathPanel';
-import { addTriangle, findById } from '../helpers/store';
+import SceneCodePanel from '@/features/code-generation/ui/SceneCodePanel';
+import { addQuad, addTriangle, findById } from '../helpers/store';
 
 async function settle() {
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
@@ -57,6 +64,7 @@ const lessonEditor = () => h('div', {}, h(LessonBar, {}), h(EditorPanel, {}));
 afterEach(() => {
   useVamsStore.getState().clearLessonState();
   useVamsStore.setState({ appMode: 'Author' });
+  vi.unstubAllEnvs();
 });
 
 describe('BB-LCOL-01: The lesson bar renders nothing outside a lesson', () => {
@@ -87,8 +95,8 @@ describe('BB-LCOL-02: The bar shows the title, the step, a progress hairline and
   });
 });
 
-describe('BB-LCOL-03: Meeting the success check enables Next; the last step says Finish', () => {
-  it('advances when the triangle is moved to the target', async () => {
+describe('BB-LCOL-03: Meeting the success check enables Next; the last step names the next lesson', () => {
+  it('advances when the triangle is moved to the target, then names and starts the next lesson', async () => {
     startLesson('transforms-exercise-1');
     const host = mount(h(LessonBar, {}));
     await settle();
@@ -102,18 +110,30 @@ describe('BB-LCOL-03: Meeting the success check enables Next; the last step says
     next.click();
     await settle();
     expect(host.querySelector('.lesson-bar__narration')!.textContent).toContain('Spot on!');
-    expect(buttonNamed(host, 'Finish')).toBeDefined();
+    expect(buttonNamed(host, 'Finish')).toBeUndefined();
+    const named = buttonNamed(host, 'Rotate to Angle')!;
+    expect(named.title).toBe('Next lesson: Rotate to Angle');
+    named.click();
+    await settle();
+    expect(useVamsStore.getState().activeLessonId).toBe('transforms-exercise-2');
+    expect(useVamsStore.getState().currentStepIndex).toBe(0);
+    expect(host.querySelector('.lesson-bar__title')!.textContent).toBe('Rotate to Angle');
     unmount(host);
   });
 });
 
-describe('BB-LCOL-04: Finish and Exit return to Author mode', () => {
-  it('Finish on the last step ends the lesson', async () => {
+describe('BB-LCOL-04: The named Next stays in Lesson mode, and Exit returns to Author mode', () => {
+  it('the last step starts the next lesson, still in Lesson mode, and Exit then ends it', async () => {
     startLesson('transforms-exercise-1');
     useVamsStore.getState().setCurrentStep(1);
     const host = mount(h(LessonBar, {}));
     await settle();
-    buttonNamed(host, 'Finish')!.click();
+    buttonNamed(host, 'Rotate to Angle')!.click();
+    await settle();
+    expect(useVamsStore.getState().appMode).toBe('Lesson');
+    expect(useVamsStore.getState().activeLessonId).toBe('transforms-exercise-2');
+    expect(host.querySelector('.lesson-bar__step')!.textContent).toBe('Step 1 of 2');
+    exitButton(host).click();
     await settle();
     expect(useVamsStore.getState().appMode).toBe('Author');
     expect(useVamsStore.getState().activeLessonId).toBeNull();
@@ -954,5 +974,1079 @@ describe("BB-LCOL-36: The mapping steps still drive the Stored stage's diagram",
     expect(host.querySelector('.bm-dma-driven-badge')).not.toBeNull();
     unmount(host);
     useVamsStore.getState().clearLessonState();
+  });
+});
+
+/** The runner on its own, so a test can read the fields the bar does not draw yet. */
+let runner: LessonRunner;
+function RunnerProbe() {
+  const current = useLessonRunner();
+  useLayoutEffect(() => {
+    runner = current;
+  });
+  return null;
+}
+const goalsMet = () => runner.goals?.map((g) => g.met);
+/** Starts the goals sample with the sample lessons built in, and mounts the runner. */
+async function startGoalsSample() {
+  vi.stubEnv('VITE_LESSON_SAMPLES', '1');
+  startLesson('sample-goals');
+  const host = mount(h(RunnerProbe, {}));
+  await settle();
+  // A fresh history, so the next undo step is the one the test makes.
+  useVamsStore.getState().clearHistory();
+  return host;
+}
+const sampleTriangleId = () => useVamsStore.getState().objects[0].id;
+const rawProgress = () => JSON.parse(localStorage.getItem(PROGRESS_KEY) ?? 'null') as { completed: string[]; skipped: string[] };
+
+describe('BB-LCOL-37: Goals tick as the scene changes, and undo un-ticks them', () => {
+  it('reads the goals of the step and re-checks them on every change', async () => {
+    const host = await startGoalsSample();
+    expect(runner.goals).toEqual([
+      { label: 'Red', met: true },
+      { label: 'At (0.5, 0.2)', met: false },
+      { label: 'Turned 45°', met: false },
+    ]);
+    const s = useVamsStore.getState();
+    s.pushToHistory();
+    s.updateObjectTransform(sampleTriangleId(), { translateX: 0.5, translateY: 0.2 });
+    await settle();
+    expect(goalsMet()).toEqual([true, true, false]);
+    useVamsStore.getState().undo();
+    await settle();
+    expect(goalsMet()).toEqual([true, false, false]);
+    unmount(host);
+  });
+});
+
+describe('BB-LCOL-38: Meeting every goal enables Next and ArrowRight', () => {
+  it('holds the step until all three goals are met, then advances on ArrowRight', async () => {
+    const host = await startGoalsSample();
+    expect(runner.canAdvance).toBe(false);
+    key(document.body, 'ArrowRight');
+    await settle();
+    expect(useVamsStore.getState().currentStepIndex).toBe(0);
+    useVamsStore.getState().updateObjectTransform(sampleTriangleId(), { translateX: 0.5, translateY: 0.2 });
+    await settle();
+    expect(runner.canAdvance).toBe(false);
+    useVamsStore.getState().updateObjectTransform(sampleTriangleId(), { rotate: 45 });
+    await settle();
+    expect(goalsMet()).toEqual([true, true, true]);
+    expect(runner.canAdvance).toBe(true);
+    key(document.body, 'ArrowRight');
+    await settle();
+    expect(useVamsStore.getState().currentStepIndex).toBe(1);
+    expect(runner.step!.narration).toBe('Done.');
+    unmount(host);
+  });
+});
+
+describe('BB-LCOL-39: Skip solves the step as one undo step and never advances', () => {
+  it('meets every goal, lights Next, keeps the step, and one undo takes it back', async () => {
+    const host = await startGoalsSample();
+    expect(runner.canSkip).toBe(true);
+    expect(runner.skipped).toBe(false);
+    runner.skip();
+    await settle();
+    expect(goalsMet()).toEqual([true, true, true]);
+    expect(runner.canAdvance).toBe(true);
+    expect(runner.canSkip).toBe(false);
+    expect(runner.skipped).toBe(true);
+    expect(useVamsStore.getState().currentStepIndex).toBe(0);
+    useVamsStore.getState().undo();
+    await settle();
+    expect(goalsMet()).toEqual([true, false, false]);
+    expect(runner.canAdvance).toBe(false);
+    expect(runner.skipped).toBe(true);
+    unmount(host);
+  });
+});
+
+describe('BB-LCOL-40: A run with Skip is recorded as skipped, a run without it as completed', () => {
+  it('writes the sample to skipped after a Skip, and to completed after a run by hand', async () => {
+    localStorage.removeItem(PROGRESS_KEY);
+    try {
+      const host = await startGoalsSample();
+      runner.skip();
+      await settle();
+      runner.next();
+      await settle();
+      expect(runner.isLastStep).toBe(true);
+      runner.finish();
+      await settle();
+      expect(rawProgress().skipped).toContain('sample-goals');
+      expect(rawProgress().completed).not.toContain('sample-goals');
+
+      startLesson('sample-goals');
+      await settle();
+      expect(runner.active).toBe(true);
+      expect(runner.skipped).toBe(false);
+      useVamsStore.getState().updateObjectTransform(sampleTriangleId(), { translateX: 0.5, translateY: 0.2, rotate: 45 });
+      await settle();
+      runner.next();
+      await settle();
+      runner.finish();
+      await settle();
+      expect(rawProgress().completed).toContain('sample-goals');
+      expect(rawProgress().skipped).not.toContain('sample-goals');
+      unmount(host);
+    } finally {
+      localStorage.removeItem(PROGRESS_KEY);
+    }
+  });
+});
+
+describe('BB-LCOL-41: The sample lessons exist only with the flag, and never in the course', () => {
+  it('hides the samples without the flag and keeps them out of the registry and the catalog', () => {
+    expect(getLessonById('sample-goals')).toBeUndefined();
+    vi.stubEnv('VITE_LESSON_SAMPLES', '1');
+    expect(getLessonById('sample-goals')).toBe(SAMPLE_LESSONS['sample-goals']);
+    vi.unstubAllEnvs();
+    const ids = Object.keys(SAMPLE_LESSONS);
+    expect(ids).toContain('sample-goals');
+    for (const id of ids) {
+      expect(LESSON_REGISTRY[id], id).toBeUndefined();
+      expect(LESSON_CATALOG.some((entry) => entry.id === id), id).toBe(false);
+    }
+  });
+});
+
+describe("BB-LCOL-42: Rebuilding a lesson's scene replays the earlier steps' solve", () => {
+  const ID = 'test-replay-solve-lesson';
+  const movedRight = (s: ReturnType<typeof useVamsStore.getState>) =>
+    s.objects.length === 1 && Math.abs(s.objects[0].transform.translateX - 0.5) <= 0.01;
+  it('opens a later step, after Back or a jump, on the scene the goals step left', async () => {
+    LESSON_REGISTRY[ID] = {
+      id: ID,
+      title: 'Replay solve',
+      type: 'exercise',
+      section: 'Transforms',
+      steps: [
+        {
+          narration: 'Move the triangle right.',
+          action: (state) => state.addCustomObject('TRIANGLES', [{ x: 0, y: 0.5 }, { x: -0.5, y: -0.5 }, { x: 0.5, y: -0.5 }]),
+          goals: [{ label: 'At x 0.5', check: movedRight }],
+          solve: (state) => state.updateObjectTransform(state.objects[0].id, { translateX: 0.5 }),
+        },
+        { narration: 'It moved.' },
+        { narration: 'Still there.' },
+      ],
+    };
+    try {
+      startLesson(ID);
+      const host = mount(h(RunnerProbe, {}));
+      await settle();
+      expect(runner.canAdvance).toBe(false);
+      useVamsStore.getState().updateObjectTransform(useVamsStore.getState().objects[0].id, { translateX: 0.5 });
+      await settle();
+      runner.next();
+      await settle();
+      runner.next();
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(2);
+      // Back rebuilds step 2 from scratch: step 1's solve stands in for the student's work.
+      runner.back();
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+      expect(movedRight(useVamsStore.getState())).toBe(true);
+      // A jump rebuilds too.
+      useVamsStore.getState().setCurrentStep(0);
+      await settle();
+      useVamsStore.getState().setCurrentStep(2);
+      await settle();
+      expect(movedRight(useVamsStore.getState())).toBe(true);
+      // Step 1 was passed with Next, so a rebuild onto it runs its solve too and it opens passed.
+      useVamsStore.getState().setCurrentStep(0);
+      await settle();
+      expect(movedRight(useVamsStore.getState())).toBe(true);
+      expect(runner.canAdvance).toBe(true);
+      unmount(host);
+    } finally {
+      useVamsStore.getState().clearLessonState();
+      delete LESSON_REGISTRY[ID];
+    }
+  });
+});
+
+/** Starts the goals sample with the sample lessons built in, and mounts the lesson bar. */
+async function startGoalsBar() {
+  vi.stubEnv('VITE_LESSON_SAMPLES', '1');
+  startLesson('sample-goals');
+  const host = mount(h(LessonBar, {}));
+  await settle();
+  return host;
+}
+const goalItems = (host: HTMLElement) => [...host.querySelectorAll<HTMLElement>('.lesson-bar__goal')];
+
+describe('BB-LCOL-43: A goals step lists its goals, hides the task line and holds Next', () => {
+  it('shows three goals with the met one marked and the numbers set apart', async () => {
+    const host = await startGoalsBar();
+    try {
+      expect(host.querySelector('ul.lesson-bar__goals')!.getAttribute('aria-label')).toBe('Goals');
+      const goals = goalItems(host);
+      expect(goals).toHaveLength(3);
+      expect(goals[0].classList.contains('is-met')).toBe(true);
+      expect(goals[0].querySelector('.lesson-bar__goal-label')!.textContent).toBe('Red');
+      expect(goals[0].querySelector('.sr-only')!.textContent).toBe(', met');
+      expect(goals[1].classList.contains('is-met')).toBe(false);
+      expect(goals[1].querySelector('.sr-only')).toBeNull();
+      expect(goals[1].querySelector('.lesson-bar__num')!.textContent).toBe('(0.5, 0.2)');
+      expect(goals[1].querySelector('.lesson-bar__goal-label')!.textContent).toBe('At (0.5, 0.2)');
+      expect(host.querySelector('.lesson-bar__task')).toBeNull();
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-44: Stuck? opens into Show a hint and Skip this step, and shows one hint at a time', () => {
+  it('hands focus to the first link, counts the hints, and leaves only Skip after the last', async () => {
+    const hints = SAMPLE_LESSONS['sample-goals'].steps[0].hints!;
+    const host = await startGoalsBar();
+    try {
+      expect(host.querySelector('.lesson-bar__hint')).toBeNull();
+      buttonNamed(host, 'Stuck?')!.click();
+      await settle();
+      expect(buttonNamed(host, 'Stuck?')).toBeUndefined();
+      expect(buttonNamed(host, 'Skip this step')).toBeDefined();
+      expect(document.activeElement).toBe(buttonNamed(host, 'Show a hint'));
+
+      buttonNamed(host, 'Show a hint')!.click();
+      await settle();
+      const hint = host.querySelector('.lesson-bar__hint')!;
+      expect(hint.textContent).toContain(hints[0]);
+      expect(hint.querySelector('.lesson-bar__hint-count')!.textContent).toBe('1 of 3');
+      expect(buttonNamed(host, 'Show a hint')).toBeUndefined();
+      expect(document.activeElement).toBe(buttonNamed(host, 'Show another hint'));
+
+      buttonNamed(host, 'Show another hint')!.click();
+      await settle();
+      expect(host.querySelector('.lesson-bar__hint')!.textContent).toContain(hints[1]);
+      expect(host.querySelector('.lesson-bar__hint')!.textContent).not.toContain(hints[0]);
+      buttonNamed(host, 'Show another hint')!.click();
+      await settle();
+      expect(host.querySelector('.lesson-bar__hint')!.textContent).toContain(hints[2]);
+      expect(host.querySelector('.lesson-bar__hint-count')!.textContent).toBe('3 of 3');
+      const left = [...host.querySelectorAll<HTMLButtonElement>('.lesson-bar__stuck button')].map((b) => b.textContent?.trim());
+      expect(left).toEqual(['Skip this step']);
+      expect(document.activeElement).toBe(buttonNamed(host, 'Skip this step'));
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-45: Skip this step ticks every goal and lights Next', () => {
+  it('meets the goals, removes Stuck? and the hint, and reads Done with the task', async () => {
+    const host = await startGoalsBar();
+    try {
+      buttonNamed(host, 'Stuck?')!.click();
+      await settle();
+      buttonNamed(host, 'Show a hint')!.click();
+      await settle();
+      buttonNamed(host, 'Skip this step')!.click();
+      await settle();
+      expect(goalItems(host).map((g) => g.classList.contains('is-met'))).toEqual([true, true, true]);
+      const next = buttonNamed(host, 'Next')!;
+      expect(next.disabled).toBe(false);
+      expect(document.activeElement).toBe(next);
+      expect(host.querySelector('.lesson-bar__stuck')).toBeNull();
+      expect(buttonNamed(host, 'Stuck?')).toBeUndefined();
+      expect(host.querySelector('.lesson-bar__hint')).toBeNull();
+      const task = host.querySelector('.lesson-bar__task')!;
+      expect(task.classList.contains('is-done')).toBe(true);
+      expect(task.textContent).toBe('Done · Red, at (0.5, 0.2), turned 45°');
+      expect(useVamsStore.getState().currentStepIndex).toBe(0);
+
+      // A step left without Next opens again unpassed, with Stuck? closed and no hint showing.
+      useVamsStore.getState().setCurrentStep(1);
+      await settle();
+      buttonNamed(host, 'Back')!.click();
+      await settle();
+      expect(buttonNamed(host, 'Stuck?')).toBeDefined();
+      expect(host.querySelector('.lesson-bar__hint')).toBeNull();
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-46: A waiting step with no hints and no way to skip shows no Stuck?', () => {
+  it('leaves Stuck? out of the first step of Translate to Position', async () => {
+    const step = LESSON_REGISTRY['transforms-exercise-1'].steps[0];
+    expect(step.hints ?? []).toEqual([]);
+    expect(step.solve).toBeUndefined();
+    expect(step.exercise).toBeUndefined();
+    startLesson('transforms-exercise-1');
+    const host = mount(h(LessonBar, {}));
+    try {
+      await settle();
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+      expect(buttonNamed(host, 'Stuck?')).toBeUndefined();
+      expect(host.querySelector('.lesson-bar__stuck')).toBeNull();
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-47: The disabled Next uses the action-off tokens in both themes', () => {
+  it('defines --action-off and --on-action-off for light and dark, and the bar uses them', () => {
+    const tokens = readFileSync('src/shared/styles/_tokens.scss', 'utf8');
+    const darkAt = tokens.indexOf("[data-theme='dark'] {");
+    const light = tokens.slice(tokens.indexOf(':root {'), darkAt);
+    const dark = tokens.slice(darkAt, tokens.indexOf('\n}', darkAt));
+    expect(light).toMatch(/--action-off:\s*#dde3f0;/);
+    expect(light).toMatch(/--on-action-off:\s*#4a536c;/);
+    expect(dark).toMatch(/--action-off:\s*#232b40;/);
+    expect(dark).toMatch(/--on-action-off:\s*#9aa3bb;/);
+    const scss = readFileSync('src/features/lesson-engine/ui/lesson-bar.scss', 'utf8');
+    const rule = scss.match(/&__next[^{]*:disabled\s*\{([^}]*)\}/);
+    expect(rule).not.toBeNull();
+    expect(rule![1]).toMatch(/opacity:\s*1;/);
+    expect(rule![1]).toMatch(/background:\s*var\(--action-off\);/);
+    expect(rule![1]).toMatch(/color:\s*var\(--on-action-off\);/);
+  });
+});
+
+describe('BB-LCOL-48: A shown hint is announced politely, and so is the next one', () => {
+  it('puts the hint inside a polite live region that stays mounted from the first hint to the next', async () => {
+    const hints = SAMPLE_LESSONS['sample-goals'].steps[0].hints!;
+    const host = await startGoalsBar();
+    try {
+      const live = host.querySelector<HTMLElement>('.lesson-bar__hint-live')!;
+      expect(live).not.toBeNull();
+      expect(live.getAttribute('aria-live')).toBe('polite');
+      expect(live.textContent).toBe('');
+      buttonNamed(host, 'Stuck?')!.click();
+      await settle();
+      buttonNamed(host, 'Show a hint')!.click();
+      await settle();
+      expect(host.querySelector('.lesson-bar__hint-live')).toBe(live);
+      expect(live.contains(host.querySelector('.lesson-bar__hint'))).toBe(true);
+      expect(live.textContent).toContain(hints[0]);
+      buttonNamed(host, 'Show another hint')!.click();
+      await settle();
+      expect(host.querySelector('.lesson-bar__hint-live')).toBe(live);
+      expect(live.textContent).toContain(hints[1]);
+      expect(live.textContent).not.toContain(hints[0]);
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-49: The arrow on Next comes after the word, and Back keeps its arrow first', () => {
+  it('has the Next icon as its last child and the Back icon as its first', async () => {
+    const host = await startGoalsBar();
+    try {
+      const next = host.querySelector<HTMLElement>('.lesson-bar__next')!;
+      expect((next.lastElementChild as HTMLElement).classList.contains('vbtn__icon')).toBe(true);
+      expect(next.firstChild!.nodeType).toBe(Node.TEXT_NODE);
+      const back = host.querySelector<HTMLElement>('.lesson-bar__back')!;
+      expect((back.firstElementChild as HTMLElement).classList.contains('vbtn__icon')).toBe(true);
+      expect(back.firstChild).toBe(back.firstElementChild);
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+/** Opens a lesson's last step in the lesson bar. */
+async function lastStepBar(id: string, section: 'Transforms' | 'Pipeline' = 'Transforms') {
+  startLesson(id, section);
+  useVamsStore.getState().setCurrentStep(LESSON_REGISTRY[id].steps.length - 1);
+  const host = mount(h(LessonBar, {}));
+  await settle();
+  return host;
+}
+
+describe('BB-LCOL-50: The last step names the next lesson in the course and starts it', () => {
+  it('records the lesson as complete and opens the next one at step 1, still in Lesson mode', async () => {
+    const nextEntry = courseOrder()[courseOrder().findIndex((l) => l.id === 'pipeline-demo-1') + 1];
+    const nextLesson = LESSON_REGISTRY[nextEntry.id];
+    const host = await lastStepBar('pipeline-demo-1', 'Pipeline');
+    try {
+      const button = host.querySelector<HTMLButtonElement>('.lesson-bar__next')!;
+      expect(button.textContent!.trim()).toBe(nextEntry.title);
+      expect(button.title).toBe(`Next lesson: ${nextEntry.title}`);
+      expect((button.lastElementChild as HTMLElement).classList.contains('vbtn__icon')).toBe(true);
+      button.click();
+      await settle();
+      expect(rawProgress().completed).toContain('pipeline-demo-1');
+      const s = useVamsStore.getState();
+      expect(s.appMode).toBe('Lesson');
+      expect(s.activeLessonId).toBe(nextEntry.id);
+      expect(s.currentStepIndex).toBe(0);
+      expect(host.querySelector('.lesson-bar__step')!.textContent).toBe(`Step 1 of ${nextLesson.steps.length}`);
+      expect(host.querySelector('.lesson-bar__narration')!.textContent).toBe(nextLesson.steps[0].narration);
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe("BB-LCOL-51: A section's last lesson reads Finish and opens the course map at its section", () => {
+  it('records completion, returns to Author mode and goes to /learn#transforms', async () => {
+    const order = courseOrder().filter((l) => l.section === 'Transforms');
+    const last = order[order.length - 1];
+    const go = vi.spyOn(courseMap, 'go').mockImplementation(() => {});
+    const host = await lastStepBar(last.id);
+    try {
+      const button = buttonNamed(host, 'Finish')!;
+      expect(button).toBeDefined();
+      expect(button.classList.contains('lesson-bar__next')).toBe(true);
+      expect((button.lastElementChild as HTMLElement).classList.contains('vbtn__icon')).toBe(true);
+      button.click();
+      await settle();
+      expect(rawProgress().completed).toContain(last.id);
+      expect(useVamsStore.getState().appMode).toBe('Author');
+      expect(useVamsStore.getState().activeLessonId).toBeNull();
+      expect(go).toHaveBeenCalledTimes(1);
+      expect(go).toHaveBeenCalledWith('/learn#transforms');
+    } finally {
+      go.mockRestore();
+      unmount(host);
+    }
+  });
+});
+
+describe("BB-LCOL-52: Chaining lessons keeps the student's own scene for Exit", () => {
+  it('brings back the one quad after two lessons ended with the named Next', async () => {
+    const quad = addQuad(0.2, 0.1, 0.3);
+    startLesson('transforms-demo-1');
+    const host = mount(h(LessonBar, {}));
+    try {
+      await settle();
+      for (let i = 0; i < 2; i++) {
+        const id = useVamsStore.getState().activeLessonId!;
+        useVamsStore.getState().setCurrentStep(LESSON_REGISTRY[id].steps.length - 1);
+        await settle();
+        const title = nextInCourse(id)!.title;
+        buttonNamed(host, title)!.click();
+        await settle();
+        expect(useVamsStore.getState().activeLessonId).toBe(nextInCourse(id)!.id);
+        // The next lesson opens on its own clean scene, not on the student's.
+        expect(useVamsStore.getState().objects.some((o) => o.id === quad.id)).toBe(false);
+      }
+      exitButton(host).click();
+      await settle();
+      const objects = useVamsStore.getState().objects;
+      expect(objects).toHaveLength(1);
+      expect(objects[0].id).toBe(quad.id);
+      expect(useVamsStore.getState().appMode).toBe('Author');
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-53: The recap lists its points and the calls, and a call opens its line', () => {
+  it('shows two points and three calls, explains glRotatef in Code, and Finish stays in the editor', async () => {
+    vi.stubEnv('VITE_LESSON_SAMPLES', '1');
+    const go = vi.spyOn(courseMap, 'go').mockImplementation(() => {});
+    useVamsStore.getState().setCodePane('math');
+    startLesson('sample-recap');
+    const bar = mount(h(LessonBar, {}));
+    const code = mount(h(SceneCodePanel, {}));
+    try {
+      await settle();
+      expect(bar.querySelector('.lesson-bar__learned')).toBeNull();
+      buttonNamed(bar, 'Next')!.click();
+      await settle();
+      const points = [...bar.querySelectorAll('ul.lesson-bar__learned li')];
+      expect(points.map((p) => p.textContent)).toEqual([
+        'Translate moves, rotate turns, scale stretches.',
+        'They apply in reverse code order: scale first, move last.',
+      ]);
+      expect(points.every((p) => p.querySelector('svg'))).toBe(true);
+      const calls = bar.querySelector('p.lesson-bar__calls')!;
+      expect(calls.firstChild!.textContent!.trim()).toBe('You used');
+      const buttons = [...calls.querySelectorAll<HTMLButtonElement>('button.lesson-bar__call')];
+      expect(buttons.map((b) => b.textContent)).toEqual(['glTranslatef', 'glRotatef', 'glScalef']);
+      useVamsStore.getState().setCodePane('math');
+      buttons[1].click();
+      await settle();
+      const s = useVamsStore.getState();
+      expect(s.codePane).toBe('code');
+      expect(s.codeHidden).toBe(false);
+      expect(s.explainedLine).not.toBeNull();
+      const line = code.querySelector(`.code-line[data-line="${s.explainedLine}"] .code-line__text`)!;
+      expect(line.textContent).toContain('glRotatef(');
+
+      const finish = buttonNamed(bar, 'Finish')!;
+      expect(finish).toBeDefined();
+      finish.click();
+      await settle();
+      expect(useVamsStore.getState().appMode).toBe('Author');
+      expect(useVamsStore.getState().activeLessonId).toBeNull();
+      expect(go).not.toHaveBeenCalled();
+    } finally {
+      go.mockRestore();
+      unmount(code);
+      unmount(bar);
+    }
+  });
+});
+
+describe("BB-LCOL-54: The recap's points are set at the narration's size", () => {
+  it("sets .lesson-bar__learned's own font-size to --text-md and nothing else", () => {
+    const scss = readFileSync('src/features/lesson-engine/ui/lesson-bar.scss', 'utf8');
+    const open = /&__learned\s*\{/.exec(scss);
+    expect(open).not.toBeNull();
+    let depth = 1;
+    let own = '';
+    for (let i = open!.index + open![0].length; i < scss.length && depth > 0; i++) {
+      const ch = scss[i];
+      if (ch === '{') depth++;
+      else if (ch === '}') depth--;
+      else if (depth === 1) own += ch;
+    }
+    // Nested rules (li, svg) leave their selectors in `own`, but their declarations are dropped.
+    const sizes = [...own.matchAll(/font-size\s*:\s*([^;]+);/g)].map((m) => m[1].trim());
+    expect(sizes).toEqual(['var(--text-md)']);
+    expect(own).not.toContain('--text-base');
+  });
+});
+
+/** Starts the predict sample with the sample lessons built in, and opens its predict step. */
+async function startPredictBar() {
+  vi.stubEnv('VITE_LESSON_SAMPLES', '1');
+  startLesson('sample-predict');
+  const host = mount(h(LessonBar, {}));
+  await settle();
+  buttonNamed(host, 'Next')!.click();
+  await settle();
+  return host;
+}
+const predictTriangle = () => useVamsStore.getState().objects.find((o) => o.type === 'TRIANGLES')!;
+const choiceButtons = (host: HTMLElement) => [...host.querySelectorAll<HTMLButtonElement>('button.lesson-bar__choice')];
+const choiceNamed = (host: HTMLElement, label: string) => choiceButtons(host).find((b) => b.textContent === label)!;
+
+describe("BB-LCOL-55: A predict step holds its action and Next until the student picks", () => {
+  it('shows four answers in a group, leaves the triangle where it was, and ArrowRight stays put', async () => {
+    const host = await startPredictBar();
+    try {
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+      expect(host.querySelector('.lesson-bar__narration')!.textContent).toBe(
+        "We're about to set Translate X to 0.4. Where will the triangle go?",
+      );
+      expect(predictTriangle().transform.translateX).toBe(0);
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+      key(document.body, 'ArrowRight');
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+      const group = host.querySelector('div.lesson-bar__choices')!;
+      expect(group.getAttribute('role')).toBe('group');
+      expect(group.getAttribute('aria-label')).toBe('Your prediction');
+      expect(choiceButtons(host).map((b) => b.textContent)).toEqual(['Right', 'Up', 'It grows wider', 'Nowhere until Run']);
+      expect(choiceButtons(host).every((b) => b.closest('.lesson-bar__choices') === group)).toBe(true);
+      expect(host.querySelector('.lesson-bar__verdict')).toBeNull();
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-56: A wrong pick runs the action, says why, and lights Next', () => {
+  it('moves the triangle to 0.4, shows "Up" marked wrong with its why, announced politely', async () => {
+    const host = await startPredictBar();
+    try {
+      const live = host.querySelector('.lesson-bar__verdict-live')!;
+      expect(live.getAttribute('aria-live')).toBe('polite');
+      choiceNamed(host, 'Up').click();
+      await settle();
+      expect(predictTriangle().transform.translateX).toBeCloseTo(0.4);
+      expect(host.querySelector('.lesson-bar__choices')).toBeNull();
+      const verdict = host.querySelector('p.lesson-bar__verdict')!;
+      expect(verdict.closest('[aria-live="polite"]')).toBe(live);
+      const pick = verdict.querySelector('.lesson-bar__pick')!;
+      expect(pick.classList.contains('is-wrong')).toBe(true);
+      expect(pick.textContent).toContain('Up');
+      expect(pick.querySelector('svg.lucide-x')).not.toBeNull();
+      expect(verdict.querySelector('.sr-only')!.textContent).toBe(', incorrect');
+      expect(verdict.textContent).toContain('It slid right. X is the horizontal axis; up would be Y.');
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(false);
+      // The answers are gone, so focus moves on to the lit Next.
+      expect(document.activeElement).toBe(buttonNamed(host, 'Next'));
+      // The pick changed the code, so the step shows Code with the changed line marked.
+      expect(useVamsStore.getState().changedCodeLines.length).toBeGreaterThan(0);
+      key(document.body, 'ArrowRight');
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(2);
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe("BB-LCOL-57: A predict step's action runs once, and Back keeps the answer", () => {
+  it('runs the action for the pick and once for the rebuild, and the scene has it applied once', async () => {
+    const original = SAMPLE_LESSONS['sample-predict'];
+    let runs = 0;
+    const copy: Lesson = {
+      ...original,
+      steps: original.steps.map((step, i) =>
+        i !== 1
+          ? step
+          : {
+              ...step,
+              action: (state) => {
+                runs++;
+                const t = state.objects.find((o) => o.type === 'TRIANGLES')!;
+                state.updateObjectTransform(t.id, { translateX: t.transform.translateX + 0.4 });
+              },
+            },
+      ),
+    };
+    const getLesson = registry.getLessonById;
+    const spy = vi.spyOn(registry, 'getLessonById').mockImplementation((id) => (id === 'sample-predict' ? copy : getLesson(id)));
+    const host = await startPredictBar();
+    try {
+      expect(runs).toBe(0);
+      choiceNamed(host, 'Right').click();
+      await settle();
+      expect(runs).toBe(1);
+      buttonNamed(host, 'Next')!.click();
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(2);
+      expect(runs).toBe(1);
+      buttonNamed(host, 'Back')!.click();
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+      expect(runs).toBe(2);
+      expect(predictTriangle().transform.translateX).toBeCloseTo(0.4);
+      expect(host.querySelector('.lesson-bar__choices')).toBeNull();
+      expect(host.querySelector('p.lesson-bar__verdict .lesson-bar__pick')!.textContent).toContain('Right');
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(false);
+    } finally {
+      unmount(host);
+      spy.mockRestore();
+    }
+  });
+});
+
+describe('BB-LCOL-58: A right pick shows a tick and is not marked wrong', () => {
+  it('shows a Check before "Right", with no is-wrong', async () => {
+    const host = await startPredictBar();
+    try {
+      choiceNamed(host, 'Right').click();
+      await settle();
+      const pick = host.querySelector('p.lesson-bar__verdict .lesson-bar__pick')!;
+      expect(pick.classList.contains('is-wrong')).toBe(false);
+      expect(pick.querySelector('svg.lucide-check')).not.toBeNull();
+      expect(pick.querySelector('svg.lucide-x')).toBeNull();
+      expect(pick.textContent).toContain('Right');
+      expect(host.querySelector('p.lesson-bar__verdict .sr-only')!.textContent).toBe(', correct');
+      expect(host.querySelector('p.lesson-bar__verdict')!.textContent).toContain('It slid right. X is the horizontal axis.');
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-59: The wrong-answer text colour is a token in both themes', () => {
+  it('defines --warning-text for light and dark, and the wrong pick uses it', () => {
+    const tokens = readFileSync('src/shared/styles/_tokens.scss', 'utf8');
+    const darkAt = tokens.indexOf("[data-theme='dark'] {");
+    const light = tokens.slice(tokens.indexOf(':root {'), darkAt);
+    const dark = tokens.slice(darkAt, tokens.indexOf('\n}', darkAt));
+    expect(light).toMatch(/--warning-text:\s*#92400e;/);
+    expect(dark).toMatch(/--warning-text:\s*#fbbf24;/);
+    const scss = readFileSync('src/features/lesson-engine/ui/lesson-bar.scss', 'utf8');
+    expect(scss).toMatch(/is-wrong svg\s*\{[^}]*color:\s*var\(--warning-text\);/);
+  });
+});
+
+describe('BB-LCOL-60: Starting another lesson clears the answers of the last run', () => {
+  it('asks the prediction again after the predict sample, the recap sample, then the predict sample', async () => {
+    const host = await startPredictBar();
+    try {
+      choiceNamed(host, 'Up').click();
+      await settle();
+      expect(host.querySelector('.lesson-bar__verdict')).not.toBeNull();
+      useVamsStore.getState().clearLessonState();
+      useVamsStore.getState().setActiveLesson('sample-recap');
+      await settle();
+      expect(host.querySelector('.lesson-bar__step')!.textContent).toBe('Step 1 of 2');
+      useVamsStore.getState().clearLessonState();
+      useVamsStore.getState().setActiveLesson('sample-predict');
+      await settle();
+      useVamsStore.getState().setCurrentStep(1);
+      await settle();
+      expect(host.querySelector('.lesson-bar__verdict')).toBeNull();
+      expect(choiceButtons(host)).toHaveLength(4);
+      expect(predictTriangle().transform.translateX).toBe(0);
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+/** Starts the code sample with the sample lessons built in, and opens its fill-in step. */
+async function startCodeBar() {
+  vi.stubEnv('VITE_LESSON_SAMPLES', '1');
+  startLesson('sample-code');
+  const host = mount(h(LessonBar, {}));
+  await settle();
+  buttonNamed(host, 'Next')!.click();
+  await settle();
+  return host;
+}
+const blanks = (host: HTMLElement) => [...host.querySelectorAll<HTMLInputElement>('input.lesson-code__blank')];
+/** Focuses a blank and types into it, as a student would; the blank keeps focus. */
+async function typeInto(input: HTMLInputElement, text: string) {
+  input.focus();
+  input.value = text;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  await settle();
+}
+async function blurBlank(input: HTMLInputElement) {
+  input.blur();
+  await settle();
+}
+
+describe('BB-LCOL-61: A code step sets the line in a well with labelled blanks and holds Next', () => {
+  it('shows glTranslatef in the code colour, two blanks, and a disabled Next', async () => {
+    const host = await startCodeBar();
+    try {
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+      expect(host.querySelector('.lesson-bar__narration')!.textContent).toBe('Write the line that puts it there.');
+      const well = host.querySelector('div.lesson-code')!;
+      expect(well).not.toBeNull();
+      expect(well.closest('.lesson-bar__exercise')).not.toBeNull();
+      const inputs = blanks(host);
+      expect(inputs.map((b) => b.getAttribute('aria-label'))).toEqual(['Blank 1 of 2', 'Blank 2 of 2']);
+      expect(inputs.every((b) => b.parentElement!.matches('span.lesson-code__slot'))).toBe(true);
+      expect(inputs.every((b) => b.value === '')).toBe(true);
+      expect(well.querySelector('.tk-glfn')!.textContent).toBe('glTranslatef');
+      expect(well.textContent).toContain(', 0.0f);');
+      expect(well.classList.contains('has-note')).toBe(false);
+      // The task line stays hidden until every blank is right.
+      expect(host.querySelector('.lesson-bar__task')).toBeNull();
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+      // The well adds no live region: the narration and the hint wrapper stay the only two.
+      expect(host.querySelectorAll('[aria-live]')).toHaveLength(2);
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-62: A blank shows its verdict once left, and the step passes as soon as both are right', () => {
+  it('marks 0.5 right and 0.3 wrong with its note, then .2f lights Next while still focused', async () => {
+    const host = await startCodeBar();
+    try {
+      const [x, y] = blanks(host);
+      await typeInto(x, '0.5');
+      expect(x.classList.contains('is-focus')).toBe(true);
+      expect(x.classList.contains('is-right')).toBe(false);
+      await blurBlank(x);
+      expect(x.classList.contains('is-right')).toBe(true);
+      expect(x.classList.contains('is-focus')).toBe(false);
+      expect(x.hasAttribute('aria-invalid')).toBe(false);
+
+      await typeInto(y, '0.3');
+      expect(y.classList.contains('is-wrong')).toBe(false);
+      expect(host.querySelector('.lesson-code__note')).toBeNull();
+      await blurBlank(y);
+      expect(y.classList.contains('is-wrong')).toBe(true);
+      expect(y.getAttribute('aria-invalid')).toBe('true');
+      const note = host.querySelector('.lesson-code__note')!;
+      expect(note.textContent).toBe("that's not Y");
+      expect(note.parentElement).toBe(y.parentElement);
+      expect(y.getAttribute('aria-describedby')).toBe(note.id);
+      expect(note.id).not.toBe('');
+      expect(host.querySelector('.lesson-code')!.classList.contains('has-note')).toBe(true);
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+
+      await typeInto(y, '.2f');
+      expect(document.activeElement).toBe(y);
+      expect(y.classList.contains('is-focus')).toBe(true);
+      expect(y.classList.contains('is-right')).toBe(false);
+      expect(y.hasAttribute('aria-invalid')).toBe(false);
+      expect(host.querySelector('.lesson-code__note')).toBeNull();
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(false);
+      expect(host.querySelector('.lesson-bar__task')!.textContent).toBe('Done · Fill in both numbers');
+      // A blank grows with its text, from six characters wide.
+      expect(y.style.width).toBe('6ch');
+      await typeInto(y, '0.2000000f');
+      expect(y.style.width).toBe('11ch');
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-63: The blanks are checked against the scene, and arrow keys in a blank stay in it', () => {
+  it('takes 0.6 once Translate Y is 0.6, rejects 0.2, and ArrowLeft and ArrowRight never move the step', async () => {
+    const host = await startCodeBar();
+    try {
+      const t = useVamsStore.getState().objects.find((o) => o.type === 'TRIANGLES')!;
+      useVamsStore.getState().updateObjectTransform(t.id, { translateY: 0.6 });
+      await settle();
+      const [x, y] = blanks(host);
+      await typeInto(x, '0.5');
+      await typeInto(y, '0.6');
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(false);
+      key(y, 'ArrowRight');
+      key(y, 'ArrowLeft');
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+      await blurBlank(y);
+      expect(y.classList.contains('is-right')).toBe(true);
+
+      await typeInto(y, '0.2');
+      key(y, 'ArrowLeft');
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+      await blurBlank(y);
+      expect(y.classList.contains('is-wrong')).toBe(true);
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-64: Skip on a code step fills in the answers and lights Next', () => {
+  it('fills 0.5 and 0.2, marks both right, and stays on the step', async () => {
+    const host = await startCodeBar();
+    try {
+      buttonNamed(host, 'Stuck?')!.click();
+      await settle();
+      buttonNamed(host, 'Skip this step')!.click();
+      await settle();
+      const [x, y] = blanks(host);
+      expect([x.value, y.value]).toEqual(['0.5', '0.2']);
+      const next = buttonNamed(host, 'Next')!;
+      expect(next.disabled).toBe(false);
+      expect(document.activeElement).toBe(next);
+      expect(x.classList.contains('is-right') && y.classList.contains('is-right')).toBe(true);
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+
+      // A step left without Next opens again with empty blanks.
+      useVamsStore.getState().setCurrentStep(2);
+      await settle();
+      buttonNamed(host, 'Back')!.click();
+      await settle();
+      expect(blanks(host).map((b) => b.value)).toEqual(['', '']);
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-65: A goal check, blank answer or success check that throws counts as not met', () => {
+  it('keeps the bar up with the goal unmet, the blanks wrong and Next disabled', async () => {
+    const original = SAMPLE_LESSONS['sample-code'];
+    const boom = (): never => {
+      throw new Error('reads a shape that is gone');
+    };
+    const copy: Lesson = {
+      ...original,
+      steps: original.steps.map((step, i) => {
+        if (i === 0) return { ...step, goals: [{ label: 'Moved', check: boom }], successCheck: boom };
+        if (i === 1 && step.exercise?.kind === 'code') {
+          return { ...step, exercise: { ...step.exercise, blanks: step.exercise.blanks.map((b) => ({ ...b, answer: boom })) } };
+        }
+        return step;
+      }),
+    };
+    const getLesson = registry.getLessonById;
+    const spy = vi.spyOn(registry, 'getLessonById').mockImplementation((id) => (id === 'sample-code' ? copy : getLesson(id)));
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.stubEnv('VITE_LESSON_SAMPLES', '1');
+    startLesson('sample-code');
+    let host: HTMLElement | null = null;
+    try {
+      host = mount(h(LessonBar, {}));
+      await settle();
+      expect(host.querySelector('.lesson-bar__title')).not.toBeNull();
+      const goal = host.querySelector('.lesson-bar__goal')!;
+      expect(goal.classList.contains('is-met')).toBe(false);
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+      // Every change re-runs the checks; a throw still leaves the step waiting.
+      const t = useVamsStore.getState().objects[0];
+      useVamsStore.getState().updateObjectTransform(t.id, { translateX: 0.1 });
+      await settle();
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+
+      useVamsStore.getState().setCurrentStep(1);
+      await settle();
+      const [x, y] = blanks(host);
+      await typeInto(x, '0.5');
+      await typeInto(y, '0.2');
+      await blurBlank(y);
+      expect(x.classList.contains('is-wrong') && y.classList.contains('is-wrong')).toBe(true);
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
+      expect(error).toHaveBeenCalled();
+    } finally {
+      if (host) unmount(host);
+      error.mockRestore();
+      spy.mockRestore();
+    }
+  });
+});
+
+describe('BB-LCOL-66: Two picks before a re-render run the prediction once', () => {
+  it('keeps the first pick and runs the action a single time', async () => {
+    const original = SAMPLE_LESSONS['sample-predict'];
+    let runs = 0;
+    const copy: Lesson = {
+      ...original,
+      steps: original.steps.map((step, i) => (i !== 1 ? step : { ...step, action: () => void runs++ })),
+    };
+    const getLesson = registry.getLessonById;
+    const spy = vi.spyOn(registry, 'getLessonById').mockImplementation((id) => (id === 'sample-predict' ? copy : getLesson(id)));
+    vi.stubEnv('VITE_LESSON_SAMPLES', '1');
+    startLesson('sample-predict');
+    const host = mount(h(RunnerProbe, {}));
+    try {
+      await settle();
+      runner.next();
+      await settle();
+      expect(runs).toBe(0);
+      const pick = runner.pick;
+      pick('up');
+      pick('right');
+      await settle();
+      expect(runs).toBe(1);
+      expect(runner.predictAnswer).toBe('up');
+    } finally {
+      unmount(host);
+      spy.mockRestore();
+    }
+  });
+});
+
+describe('BB-LCOL-67: Back to a goals step passed with Next shows it passed', () => {
+  it('meets the goals by hand, goes on and back, and finds every goal met with Next lit', async () => {
+    const host = await startGoalsSample();
+    try {
+      useVamsStore.getState().updateObjectTransform(sampleTriangleId(), { translateX: 0.5, translateY: 0.2, rotate: 45 });
+      await settle();
+      expect(runner.canAdvance).toBe(true);
+      runner.next();
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+      runner.back();
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(0);
+      expect(goalsMet()).toEqual([true, true, true]);
+      expect(runner.canAdvance).toBe(true);
+      expect(runner.canSkip).toBe(false);
+      expect(runner.skipped).toBe(false);
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-68: Back to a fill-in step passed with Next shows the right values', () => {
+  it('types both answers, goes on and back, and finds them filled in with Next lit', async () => {
+    const host = await startCodeBar();
+    try {
+      const [x, y] = blanks(host);
+      await typeInto(x, '0.50');
+      await typeInto(y, '.2f');
+      await blurBlank(y);
+      buttonNamed(host, 'Next')!.click();
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(2);
+      buttonNamed(host, 'Back')!.click();
+      await settle();
+      expect(useVamsStore.getState().currentStepIndex).toBe(1);
+      expect(blanks(host).map((b) => b.value)).toEqual(['0.5', '0.2']);
+      expect(blanks(host).every((b) => b.classList.contains('is-right'))).toBe(true);
+      expect(buttonNamed(host, 'Next')!.disabled).toBe(false);
+      expect(buttonNamed(host, 'Stuck?')).toBeUndefined();
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-69: A step never passed with Next still opens unpassed', () => {
+  it('jumps past the goals step and back, and finds it waiting', async () => {
+    const host = await startGoalsSample();
+    try {
+      useVamsStore.getState().setCurrentStep(1);
+      await settle();
+      useVamsStore.getState().setCurrentStep(0);
+      await settle();
+      expect(goalsMet()).toEqual([true, false, false]);
+      expect(runner.canAdvance).toBe(false);
+      expect(runner.canSkip).toBe(true);
+    } finally {
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-LCOL-70: Back to a question passed with Next shows the right answer', () => {
+  const ID = 'test-passed-question-lesson';
+  it('restores the right choice and the right order, and a new run starts with none', async () => {
+    LESSON_REGISTRY[ID] = {
+      id: ID,
+      title: 'Passed questions',
+      type: 'exercise',
+      section: 'Pipeline',
+      steps: [
+        {
+          narration: 'Which comes first?',
+          exercise: { kind: 'multiple-choice', prompt: 'First?', options: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }], correctId: 'b' },
+        },
+        {
+          narration: 'Put them in order.',
+          exercise: {
+            kind: 'ordered-list',
+            prompt: 'Order',
+            items: [{ id: 'x', label: 'X' }, { id: 'y', label: 'Y' }, { id: 'z', label: 'Z' }],
+            correctOrder: ['x', 'y', 'z'],
+          },
+        },
+        { narration: 'Done.' },
+      ],
+    };
+    try {
+      startLesson(ID, 'Pipeline');
+      const host = mount(h(RunnerProbe, {}));
+      await settle();
+      runner.setMcAnswer('b');
+      await settle();
+      runner.next();
+      await settle();
+      runner.setOrderAnswer(['x', 'y', 'z']);
+      await settle();
+      runner.next();
+      await settle();
+      runner.back();
+      await settle();
+      expect(runner.orderAnswer).toEqual(['x', 'y', 'z']);
+      expect(runner.canAdvance).toBe(true);
+      runner.back();
+      await settle();
+      expect(runner.mcAnswer).toBe('b');
+      expect(runner.canAdvance).toBe(true);
+      expect(runner.skipped).toBe(false);
+
+      // Leaving ends the run: the lesson started again opens with nothing passed.
+      runner.exit();
+      await settle();
+      startLesson(ID, 'Pipeline');
+      useVamsStore.getState().setCurrentStep(0);
+      await settle();
+      expect(runner.mcAnswer).toBeNull();
+      expect(runner.canAdvance).toBe(false);
+      unmount(host);
+    } finally {
+      useVamsStore.getState().clearLessonState();
+      delete LESSON_REGISTRY[ID];
+    }
   });
 });

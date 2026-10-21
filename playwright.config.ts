@@ -27,5 +27,7 @@ export default defineConfig({
     url: 'http://localhost:4319',
     reuseExistingServer: false,
     timeout: 240_000,
+    // The visual build includes the sample lessons the VIS-LB checks open.
+    env: { VITE_LESSON_SAMPLES: '1' },
   },
 });

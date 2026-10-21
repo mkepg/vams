@@ -23,6 +23,16 @@ export type ExerciseWidget =
       prompt: string;
       items: { id: string; label: string }[];
       correctOrder: string[];
+    }
+  | {
+      kind: 'code';
+      /** The line, with {0}, {1}, … where the blanks go. */
+      template: string;
+      blanks: {
+        answer: (state: VamsState) => number | string;
+        tolerance?: number; // numbers only, default 0.01
+        wrong: string; // the few words shown under a wrong blank
+      }[];
     };
 
 export interface LessonStep {
@@ -37,6 +47,27 @@ export interface LessonStep {
   task?: string;
   /** Which side of the code column the step is about. Without it, a step that highlights code shows Code. */
   pane?: 'code' | 'math';
+
+  /**
+   * What the student has to build, as a checklist. The step passes when every
+   * goal's check holds. Each check is a pure read of the store state.
+   */
+  goals?: { label: string; check: (state: VamsState) => boolean }[];
+
+  /** Nudges the student can ask for, one at a time, gentlest first. One to three. */
+  hints?: string[];
+
+  /**
+   * Does the step for the student, through the same store actions the GUI uses,
+   * so the goals tick and the canvas and code update. Powers Skip.
+   */
+  solve?: (state: VamsState) => void;
+
+  /** Ask before the step's action runs; the action runs once an answer is picked. */
+  predict?: { options: { id: string; label: string; why: string }[]; correctId: string };
+
+  /** The lesson's closing points and the calls it taught. */
+  recap?: { points: string[]; calls: string[] };
 
   /** The journey stage the step is about, when the step's focus would open another one. */
   mathStage?: JourneyStageId;

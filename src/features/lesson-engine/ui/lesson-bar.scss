@@ -91,6 +91,136 @@
     }
   }
 
+  // The recap: the lesson's points in the narration's own voice, then the calls it taught.
+  &__learned {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--text-md);
+    line-height: 1.55;
+    color: var(--ink);
+
+    li {
+      display: grid;
+      grid-template-columns: 14px 1fr;
+      gap: 6px;
+    }
+
+    svg {
+      color: var(--accent-text);
+      transform: translateY(4px);
+    }
+  }
+
+  &__calls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 12px;
+    margin: 2px 0 0;
+    font-size: var(--text-sm);
+    line-height: var(--lh-sm);
+    color: var(--ink-faint);
+  }
+
+  &__call {
+    padding: 0;
+    border: 0;
+    background: none;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--accent-text);
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 3px;
+
+    &:hover,
+    &:focus-visible { text-decoration-color: currentColor; }
+
+    &:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 2px;
+      border-radius: var(--radius-s);
+    }
+  }
+
+  // Predict: the answers are words in a line, divided by hairlines.
+  &__choices {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: 0;
+    font-size: var(--text-base);
+  }
+
+  &__choice {
+    padding: 3px 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: var(--ink-muted);
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: var(--rule-strong);
+    text-underline-offset: 4px;
+
+    &:hover,
+    &:focus-visible {
+      color: var(--ink);
+      text-decoration-color: var(--accent);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 2px;
+      border-radius: var(--radius-s);
+    }
+  }
+
+  &__choice + &__choice::before {
+    content: '';
+    display: inline-block;
+    width: 1px;
+    height: 12px;
+    margin: 0 14px;
+    vertical-align: -1px;
+    background: var(--rule-strong);
+  }
+
+  // The verdict's live region: no box, so the verdict is the bar's own grid row.
+  &__verdict-live { display: contents; }
+
+  // After a pick the row collapses to the answer and one sentence of why.
+  &__verdict {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 0;
+    font-size: var(--text-base);
+    line-height: 1.55;
+    color: var(--ink-muted);
+  }
+
+  &__pick {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--ink);
+    font-weight: 600;
+    white-space: nowrap;
+
+    svg {
+      flex: none;
+      color: var(--success);
+      transform: translateY(1px);
+    }
+
+    &.is-wrong svg { color: var(--warning-text); }
+  }
+
   &__modes {
     justify-self: start;
 
@@ -99,6 +229,67 @@
       outline-offset: 3px;
       border-radius: var(--radius-m);
     }
+  }
+
+  // Goals: one typeset line. A met goal recedes to faint ink with a green ring.
+  &__goals {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 20px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--text-base);
+    line-height: var(--lh-base);
+  }
+
+  &__goal {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--ink);
+
+    svg {
+      flex: none;
+      color: var(--rule-strong);
+    }
+
+    &.is-met { color: var(--ink-faint); }
+    &.is-met svg { color: var(--success); }
+  }
+
+  &__num {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+  }
+
+  // The hint's live region: no box, so the hint is the bar's own grid row and an empty region adds no gap.
+  &__hint-live { display: contents; }
+
+  // The hint: a second, quieter voice under the goals.
+  &__hint {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 0;
+    max-width: 72ch;
+    font-size: var(--text-base);
+    line-height: 1.55;
+    color: var(--ink-muted);
+
+    svg {
+      flex: none;
+      color: var(--ink-faint);
+      transform: translateY(2px);
+    }
+  }
+
+  &__hint-count {
+    color: var(--ink-faint);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
   &__task {
@@ -125,11 +316,71 @@
     align-items: center;
     justify-content: flex-end;
     gap: var(--space-2);
+    margin-top: 4px;
   }
+
+  // Stuck? sits on the left of the nav row and opens in place into plain links.
+  &__stuck {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: var(--control-h);
+    margin-right: auto;
+    font-size: var(--text-base);
+    color: var(--ink-faint);
+  }
+
+  &__stuck-open,
+  &__link {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 2px;
+      border-radius: var(--radius-s);
+    }
+  }
+
+  &__stuck-open {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ink-faint);
+
+    svg { flex: none; }
+
+    &:hover { color: var(--ink); }
+  }
+
+  &__link {
+    color: var(--ink-muted);
+    text-decoration: underline;
+    text-decoration-color: var(--rule-strong);
+    text-underline-offset: 3px;
+
+    &:hover {
+      color: var(--ink);
+      text-decoration-color: currentColor;
+    }
+  }
+
+  &__link-sep { color: var(--rule-strong); }
 
   &__back.vbtn {
     color: var(--ink-faint);
 
     &:hover:not(:disabled) { color: var(--ink); }
+  }
+
+  // Next that is not available yet keeps a readable label instead of fading.
+  &__next.vbtn:disabled {
+    opacity: 1;
+    background: var(--action-off);
+    border-color: var(--action-off);
+    color: var(--on-action-off);
   }
 }
