@@ -186,7 +186,7 @@ describe('BB-LPAGE-07: Progress shows on rows, counts, the index and Next up', (
     );
     expect(rowFor(transforms, 'transforms-demo-3').getAttribute('aria-label')).toBe('The Matrix Stack, not started, 4 steps');
     expect(transforms.querySelector('.learn-section__count')!.textContent).toBe('1 of 9 done');
-    expect(host.querySelector('section#pipeline .learn-section__count')!.textContent).toBe('7 lessons');
+    expect(host.querySelector('section#pipeline .learn-section__count')!.textContent).toBe('9 lessons');
     expect(host.querySelector('.learn__status')!.textContent).toBe(`1 of ${LESSON_CATALOG.length} lessons done`);
     expect(host.querySelector('.learn-next a.learn-row')!.getAttribute('href')).toBe('/app?lesson=transforms-demo-2');
   });

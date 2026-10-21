@@ -30,7 +30,7 @@ export const COURSE: readonly CourseSection[] = [
   {
     section: 'Pipeline',
     description: 'The rendering pipeline, NDC, and rasterization',
-    summary: 'The rendering pipeline, rasterization, normalized device coordinates and the GLUT program structure.',
+    summary: 'The rendering pipeline, rasterisation, normalised device coordinates and the GLUT program structure.',
     calls: ['glutInit', 'glutDisplayFunc', 'glutMainLoop'],
   },
   {
@@ -61,13 +61,15 @@ export const COURSE: readonly CourseSection[] = [
 
 /** Every lesson, in registry order. */
 export const LESSON_CATALOG: readonly LessonEntry[] = [
-  { id: 'pipeline-demo-1', title: 'From Vertex to Pixel', type: 'demo', section: 'Pipeline', steps: 9 },
-  { id: 'pipeline-demo-2', title: 'Vector vs Raster', type: 'demo', section: 'Pipeline', steps: 4 },
-  { id: 'pipeline-demo-3', title: 'Normalized Device Coordinates', type: 'demo', section: 'Pipeline', steps: 4 },
-  { id: 'pipeline-demo-4', title: 'Anatomy of a GLUT Program', type: 'demo', section: 'Pipeline', steps: 6 },
-  { id: 'pipeline-exercise-1', title: 'Place the Point', type: 'exercise', section: 'Pipeline', steps: 3 },
+  { id: 'pipeline-demo-1', title: 'From Vertex to Pixel', type: 'demo', section: 'Pipeline', steps: 11 },
+  { id: 'pipeline-demo-2', title: 'Vector vs Raster', type: 'demo', section: 'Pipeline', steps: 8 },
+  { id: 'pipeline-demo-3', title: 'Normalised Device Coordinates', type: 'demo', section: 'Pipeline', steps: 8 },
+  { id: 'pipeline-demo-4', title: 'Anatomy of a GLUT Program', type: 'demo', section: 'Pipeline', steps: 13 },
+  { id: 'pipeline-exercise-1', title: 'Place the Point', type: 'exercise', section: 'Pipeline', steps: 6 },
+  { id: 'pipeline-exercise-4', title: 'Paint the Background', type: 'exercise', section: 'Pipeline', steps: 6 },
   { id: 'pipeline-exercise-2', title: 'Which Stage?', type: 'exercise', section: 'Pipeline', steps: 9 },
-  { id: 'pipeline-exercise-3', title: 'Order the Pipeline', type: 'exercise', section: 'Pipeline', steps: 2 },
+  { id: 'pipeline-exercise-3', title: 'Order the Pipeline', type: 'exercise', section: 'Pipeline', steps: 3 },
+  { id: 'pipeline-exercise-5', title: 'Write main()', type: 'exercise', section: 'Pipeline', steps: 8 },
   { id: 'poc-demo-1', title: 'Proof of Concept: Drawing a Triangle', type: 'demo', section: 'Primitives', steps: 4 },
   { id: 'primitives-demo-1', title: 'The Geometry Alphabet: Points to Polygons', type: 'demo', section: 'Primitives', steps: 7 },
   { id: 'primitives-demo-2', title: 'Painting with Barycentrics', type: 'demo', section: 'Primitives', steps: 4 },

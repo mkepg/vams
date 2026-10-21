@@ -211,16 +211,18 @@ Covers: pipeline stages (vertex specification → vertex processing → primitiv
 
 ### Demos (minimum 4)
 
-1. **"From Vertex to Pixel"** — steps through the seven pipeline stages, highlighting each stage in the diagram with narration.
-2. **"Raster vs Vector"** — demonstrates the raster/vector split view and narrates the key difference.
-3. **"Normalized Device Coordinates"** — places a marker in the coordinate playground at several positions and narrates the coordinate system.
-4. **"Anatomy of a GLUT Program"** — steps through the boilerplate line by line, with narration explaining each section.
+1. **"From Vertex to Pixel"** — the student first predicts which stage turns a triangle into squares, then steps through the seven stages in the diagram, each with the code line that does it, and follows one corner through the Transformed stage in Math.
+2. **"Vector vs Raster"** — the raster/vector split view: the student predicts what stretching a shape does to its stair steps, changes the pixels across, turns `GLUT_MULTISAMPLE` on and off, and fills in the `glutInitDisplayMode` flag that asks for it.
+3. **"Normalised Device Coordinates"** — the −1 to 1 box read through the cursor's NDC position in Math, a prediction of where (0.5, −0.5) lands, the `glTranslatef` that places it, and a window resize that leaves it in place.
+4. **"Anatomy of a GLUT Program"** — steps through `main()` and `display()` line by line, with predictions of what happens without `GLUT_DOUBLE` and without `glutMainLoop`.
 
 ### Exercises (minimum 3)
 
-1. **"Place the Point"** — the student places a marker at a specified NDC coordinate within a given tolerance.
-2. **"Which Stage?"** — given a visual artifact (e.g., visible pixel stepping on a diagonal edge), the student identifies which pipeline stage produced it from a set of labeled choices.
-3. **"Order the Pipeline"** — given a scrambled list of pipeline stage names, the student reorders them correctly.
+1. **"Place the Point"** — the student moves a point to two NDC positions within a tolerance, and sees that `glTranslatef` changes while `glVertex2f` does not.
+2. **"Paint the Background"** — the student sets the background to dark blue, then white, and reads the `glClearColor` and `glClear(GL_COLOR_BUFFER_BIT)` lines that use it.
+3. **"Which Stage?"** — given a picture of one stage on the canvas, the student identifies the stage from a set of labelled choices.
+4. **"Order the Pipeline"** — the student reorders the seven stages, then the calls in `main()`.
+5. **"Write main()"** — the section's capstone: the student builds a scene, then fills in the display flags, `glutCreateWindow`, their own `glClearColor` values, `glutDisplayFunc` and `glutMainLoop`.
 
 ### Acceptance Criteria
 

@@ -18,10 +18,12 @@ for (const [id, theme] of THEMES) {
     await openLesson(page, 'pipeline-demo-1', theme);
     const bar = page.locator('.lesson-bar');
     const next = page.locator('.lesson-bar__next');
-    for (let step = 2; step <= 6; step++) {
+    for (let step = 2; step <= 7; step++) {
       await expect(next).toBeEnabled();
       await next.click();
-      await expect(bar).toContainText(`Step ${step} of 9`);
+      await expect(bar).toContainText(`Step ${step} of 11`);
+      // Step 2 asks for a prediction before Next lights.
+      if (step === 2) await page.getByRole('group', { name: 'Your prediction' }).getByRole('button', { name: /Rasterisation/ }).click();
     }
     const pane = page.locator('.canvas-pane');
     await expect(pane.locator('.pipeline-strip__stage[aria-pressed="true"]')).toContainText('Raster');
@@ -71,7 +73,7 @@ for (const [id, theme] of QUIZ) {
     const next = page.locator('.lesson-bar__next');
     const prompt = bar.locator('.widget-prompt');
     for (let step = 2; step <= 9; step++) {
-      if ((await prompt.count()) > 0 && (await prompt.first().textContent())?.includes('binds continuous shapes to a pixel grid')) break;
+      if ((await prompt.count()) > 0 && (await prompt.first().textContent())?.includes('turns exact shapes into pixel-sized fragments')) break;
       // A question has to be answered before Next opens; try the options until one is right.
       const options = bar.locator('.mc-option');
       for (let i = 0; i < (await options.count()) && (await next.isDisabled()); i++) await options.nth(i).click();
@@ -79,7 +81,7 @@ for (const [id, theme] of QUIZ) {
       await next.click();
       await expect(bar).toContainText(`Step ${step} of`);
     }
-    await expect(prompt).toContainText('Which stage binds continuous shapes to a pixel grid?');
+    await expect(prompt).toContainText('Which stage turns exact shapes into pixel-sized fragments?');
     await expect(page.locator('.canvas-pane .quiz-figure svg.stage-figure')).toBeVisible();
     await expect(page).toHaveScreenshot(`pt-quiz-raster-${theme}-1280.png`);
   });

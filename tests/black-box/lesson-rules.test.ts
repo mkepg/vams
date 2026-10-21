@@ -28,7 +28,7 @@ import { templateParts } from '@/features/lesson-engine/model/code-blanks';
 import { courseOrder } from '@/features/lesson-engine/model/catalog';
 
 /** Sections whose lessons already meet the full bar. The content work adds each one as it lands. */
-export const SECTIONS_ON_THE_BAR: CurriculumSection[] = [];
+export const SECTIONS_ON_THE_BAR: CurriculumSection[] = ['Pipeline'];
 
 export function lessonsUnderRules(): Lesson[] {
   return [
@@ -95,19 +95,17 @@ function isTaught(name: string, text: string): boolean {
 
 /** GL names no lesson teaches yet. It only shrinks: teach a name, then delete it here. */
 const UNTAUGHT_ALLOWLIST: string[] = [
-  'GLUT_BITMAP_9_BY_15', 'GLUT_DOUBLE', 'GLUT_DOWN', 'GLUT_KEY_DOWN', 'GLUT_KEY_LEFT', 'GLUT_KEY_RIGHT',
-  'GLUT_KEY_UP', 'GLUT_LEFT_BUTTON', 'GLUT_MIDDLE_BUTTON', 'GLUT_MULTISAMPLE', 'GLUT_RGB',
-  'GLUT_RIGHT_BUTTON', 'GLUT_UP', 'GLUT_WINDOW_HEIGHT', 'GLUT_WINDOW_WIDTH', 'GL_ARRAY_BUFFER',
-  'GL_COLOR_ARRAY', 'GL_COLOR_BUFFER_BIT', 'GL_DYNAMIC_DRAW', 'GL_ELEMENT_ARRAY_BUFFER', 'GL_FLAT',
-  'GL_FLOAT', 'GL_LINES', 'GL_MODELVIEW', 'GL_POLYGON', 'GL_PROJECTION', 'GL_QUAD_STRIP', 'GL_REPLACE',
-  'GL_RGBA', 'GL_SMOOTH', 'GL_STREAM_DRAW', 'GL_TEXTURE_2D', 'GL_TEXTURE_COORD_ARRAY', 'GL_TEXTURE_ENV',
-  'GL_TEXTURE_ENV_MODE', 'GL_TEXTURE_MIN_FILTER', 'GL_TEXTURE_WRAP_S', 'GL_TEXTURE_WRAP_T',
-  'GL_TRIANGLE_FAN', 'GL_TRIANGLE_STRIP', 'GL_TRUE', 'GL_UNSIGNED_BYTE', 'GL_UNSIGNED_INT',
-  'GL_VERTEX_ARRAY', 'GL_WRITE_ONLY', 'glClearColor', 'glColor3ub', 'glColorPointer', 'glDisableClientState',
+  'GLUT_BITMAP_9_BY_15', 'GLUT_DOWN', 'GLUT_KEY_DOWN', 'GLUT_KEY_LEFT', 'GLUT_KEY_RIGHT', 'GLUT_KEY_UP',
+  'GLUT_LEFT_BUTTON', 'GLUT_MIDDLE_BUTTON', 'GLUT_RIGHT_BUTTON', 'GLUT_UP', 'GLUT_WINDOW_HEIGHT',
+  'GLUT_WINDOW_WIDTH', 'GL_ARRAY_BUFFER', 'GL_COLOR_ARRAY', 'GL_DYNAMIC_DRAW', 'GL_ELEMENT_ARRAY_BUFFER',
+  'GL_FLAT', 'GL_FLOAT', 'GL_LINES', 'GL_MODELVIEW', 'GL_POLYGON', 'GL_PROJECTION', 'GL_QUAD_STRIP',
+  'GL_REPLACE', 'GL_RGBA', 'GL_SMOOTH', 'GL_STREAM_DRAW', 'GL_TEXTURE_2D', 'GL_TEXTURE_COORD_ARRAY',
+  'GL_TEXTURE_ENV', 'GL_TEXTURE_ENV_MODE', 'GL_TEXTURE_MIN_FILTER', 'GL_TEXTURE_WRAP_S',
+  'GL_TEXTURE_WRAP_T', 'GL_TRIANGLE_FAN', 'GL_TRIANGLE_STRIP', 'GL_UNSIGNED_BYTE', 'GL_UNSIGNED_INT',
+  'GL_VERTEX_ARRAY', 'GL_WRITE_ONLY', 'glColor3ub', 'glColorPointer', 'glDisableClientState',
   'glEnableClientState', 'glGenTextures', 'glLoadIdentity', 'glMapBuffer', 'glMatrixMode', 'glPointSize',
   'glShadeModel', 'glTexCoordPointer', 'glTexEnvi', 'glTexParameteri', 'glVertexPointer', 'glViewport',
-  'glutCreateWindow', 'glutDisplayFunc', 'glutGet', 'glutIdleFunc', 'glutInit', 'glutInitDisplayMode',
-  'glutInitWindowSize', 'glutMainLoop', 'glutMotionFunc', 'glutMouseFunc', 'glutReshapeFunc',
+  'glutGet', 'glutIdleFunc', 'glutMotionFunc', 'glutMouseFunc', 'glutReshapeFunc',
 ];
 
 describe('BB-LRULE-01: Every GL name the generator emits is taught or listed', () => {
