@@ -27,8 +27,6 @@ export interface RunSnapshot {
   canvas: { width: number; height: number } | null;
 }
 
-export const MIN_WINDOW = { width: 200, height: 150 };
-export const RESIZE_STEP = 10;
 export const FLASH_MS = 700;
 const FALLBACK_CANVAS = { width: 800, height: 600 };
 const DEGREES_TO_RADIANS = Math.PI / 180;
@@ -36,15 +34,6 @@ const SPECIAL: Record<string, SpecialKey> = { ArrowUp: 'up', ArrowDown: 'down', 
 const KEYBOARD = /^[a-zA-Z0-9 ]$/;
 const BUTTONS: MouseButton[] = ['left', 'middle', 'right'];
 const STOPPED: RunSnapshot = { running: false, lastCall: null, fired: null, window: null, canvas: null };
-
-/** The Running strip's height; the program window starts below it. Matches `--run-strip-height`. */
-export const RUN_STRIP_HEIGHT = 32;
-
-/** The part of the canvas the program window may use: everything below the strip. */
-const programArea = (canvas: { width: number; height: number }) => ({
-  width: canvas.width,
-  height: Math.max(0, canvas.height - RUN_STRIP_HEIGHT),
-});
 
 export type RunBlock = 'illustration' | 'empty' | 'no-callback' | null;
 
@@ -65,11 +54,6 @@ export function canRun(
   return runBlock(state) === null;
 }
 
-const clampSize = (size: { width: number; height: number }, canvas: { width: number; height: number }) => ({
-  width: Math.round(Math.max(Math.min(MIN_WINDOW.width, canvas.width), Math.min(size.width, canvas.width))),
-  height: Math.round(Math.max(Math.min(MIN_WINDOW.height, canvas.height), Math.min(size.height, canvas.height))),
-});
-
 class RunController {
   private run: RunState | null = null;
   private rafId: number | null = null;
@@ -77,7 +61,6 @@ class RunController {
   private flashTimer: ReturnType<typeof setTimeout> | null = null;
   private pointer = { x: 0, y: 0 };
   private pendingMotion: { x: number; y: number } | null = null;
-  private pendingSize: { width: number; height: number } | null = null;
   private applied = new Map<string, string>();
   private seq = 0;
   private listeners = new Set<() => void>();
@@ -88,11 +71,11 @@ class RunController {
     if (this.snapshot.running) return true;
     const state = useVamsStore.getState();
     if (!canRun(state)) return false;
-    const canvas = programArea(renderBridge.getCanvasSize() ?? FALLBACK_CANVAS);
+    // The program's window is the canvas: GLUT's window size is the canvas size.
+    const canvas = renderBridge.getCanvasSize() ?? FALLBACK_CANVAS;
     this.run = createRunState(state.objects, state.viewportLimits, canvas);
     this.pointer = { x: 0, y: 0 };
     this.pendingMotion = null;
-    this.pendingSize = null;
     this.applied = new Map(Object.keys(this.run.objects).map((id) => [id, 'null|true']));
     this.publish({ running: true, lastCall: null, fired: null, window: { ...canvas }, canvas: { ...canvas } });
     renderBridge.setEditorOverlaysHidden(true);
@@ -138,31 +121,14 @@ class RunController {
     if (dragging && this.snapshot.running) this.pendingMotion = { x, y };
   }
 
-  resizeWindow(width: number, height: number): void {
-    const canvas = this.snapshot.canvas;
-    if (!this.snapshot.running || !canvas) return;
-    this.pendingSize = clampSize({ width, height }, canvas);
-  }
-
-  nudgeWindow(dx: number, dy: number): void {
-    const base = this.pendingSize ?? this.snapshot.window;
-    if (base) this.resizeWindow(base.width + dx, base.height + dy);
-  }
-
-  /** One frame: canvas size, pending resize and motion, the idle pass, then a draw. */
+  /** One frame: a resize of the program's window, pending motion, the idle pass, then a draw. */
   stepFrame(): void {
     if (!this.run || !this.snapshot.canvas || !this.snapshot.window) return;
-    const measured = renderBridge.getCanvasSize();
-    const canvas = measured ? programArea(measured) : this.snapshot.canvas;
+    // Resizing the program's window resizes the canvas; GLUT reports that to the reshape handler.
+    const canvas = renderBridge.getCanvasSize() ?? this.snapshot.canvas;
     if (canvas.width !== this.snapshot.canvas.width || canvas.height !== this.snapshot.canvas.height) {
       this.publish({ ...this.snapshot, canvas: { ...canvas } });
-      this.pendingSize = clampSize(this.pendingSize ?? this.snapshot.window, canvas);
-    }
-    const size = this.pendingSize;
-    this.pendingSize = null;
-    const window = this.snapshot.window!;
-    if (size && (size.width !== window.width || size.height !== window.height)) {
-      this.handle({ type: 'reshape', width: size.width, height: size.height });
+      this.handle({ type: 'reshape', width: canvas.width, height: canvas.height });
     }
     const motion = this.pendingMotion;
     this.pendingMotion = null;
@@ -214,14 +180,12 @@ class RunController {
       this.stop();
       return;
     }
-    // A focused button keeps only its activation keys, and the window handle its arrows.
-    // Nothing else reaches editor shortcuts or handlers.
+    // A focused button keeps only its activation keys. Nothing else reaches editor shortcuts or handlers.
     const target = event.target instanceof Element ? event.target : null;
     if (target?.closest('button')) {
       const modified = event.ctrlKey || event.metaKey || event.altKey;
       const activation = event.key === 'Enter' || event.key === ' ';
-      const arrow = event.key in SPECIAL && !!target.closest('.run-handle');
-      if (!modified && (activation || arrow)) return;
+      if (!modified && activation) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       return;
@@ -253,7 +217,7 @@ class RunController {
       }
     }
     const window = this.snapshot.window;
-    if (window) renderBridge.setView(run.view, { x: 0, y: RUN_STRIP_HEIGHT, width: window.width, height: window.height });
+    if (window) renderBridge.setView(run.view, { x: 0, y: 0, width: window.width, height: window.height });
   }
 
   private armFlashClear(): void {

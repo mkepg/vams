@@ -161,9 +161,9 @@ for (const theme of ['light', 'dark'] as const) {
     const special = await callbacksWithRules(page);
     await special.getByRole('button', { name: 'Done' }).click();
     await page.locator('.run-button').click();
-    await expect(page.locator('.run-strip')).toBeVisible();
+    await expect(page.locator('.canvas-window__running')).toBeVisible();
     await page.keyboard.press('ArrowRight');
-    await expect(page.locator('.run-readout')).toContainText('GLUT_KEY_RIGHT');
+    await expect(page.locator('.canvas-window__status')).toContainText('GLUT_KEY_RIGHT');
     await expect(page).toHaveScreenshot(`run-${theme}-1280.png`, { animations: 'disabled' });
   });
 }

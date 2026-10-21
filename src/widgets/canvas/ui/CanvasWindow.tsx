@@ -17,6 +17,8 @@ export interface WindowControls {
 interface CanvasWindowProps {
   size: { width: number; height: number };
   running: boolean;
+  /** While running: the program's last callback, or how to stop it. */
+  status?: string;
   children: ComponentChildren;
   /** Makes the window movable. Without it the window is a fixed, quiet frame. */
   controls?: WindowControls;
@@ -27,7 +29,7 @@ interface CanvasWindowProps {
 const EDGES: ResizeEdge[] = ['e', 's', 'se'];
 
 /** The program's window: a quiet title bar with what glutCreateWindow and glutInitWindowSize set. */
-export default function CanvasWindow({ size, running, children, controls, className, style }: CanvasWindowProps) {
+export default function CanvasWindow({ size, running, status, children, controls, className, style }: CanvasWindowProps) {
   const label = controls?.maximised ? 'Restore' : 'Maximise';
   return (
     <div className={`canvas-window${className ? ` ${className}` : ''}`} style={style}>
@@ -40,6 +42,7 @@ export default function CanvasWindow({ size, running, children, controls, classN
               <span className="canvas-window__dot" aria-hidden="true" />running
             </span>
           )}
+          {running && status && <span className="canvas-window__status">{status}</span>}
           <span className="canvas-window__spacer" />
           {controls && (
             <span className="canvas-window__buttons">
