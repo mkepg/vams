@@ -11,7 +11,7 @@ interface GenerateInput {
   textures?: TextureAsset[];
 }
 
-function isEffectivelyHidden(
+export function isEffectivelyHidden(
   obj: SceneNode,
   byId: Map<string, SceneNode>
 ): boolean {

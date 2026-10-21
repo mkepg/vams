@@ -7,6 +7,12 @@ import type { SceneNode } from '@/core/types/scene';
 import { chainOf, clipOutcome, clipPolygon, clipSegment, figureFrame, worldPoint, worldPrimitives } from '@/entities/scene/model/pipeline-geometry';
 import { provokingOf } from '@/entities/scene/model/primitive-assembly';
 import { pixelGrid, rasterise, type RasterInput } from '@/entities/scene/model/rasterise';
+import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
+import { outlineCode } from '@/features/code-generation/model/code-outline';
+import { DEMO_TRIANGLE, demoSubject, pipelineSubject } from '@/widgets/canvas/model/pipeline-subject';
+import { STAGES, stageProgramLine, type StageIndex } from '@/widgets/canvas/model/stage-lines';
+import { ASSEMBLY, INTRO, stageSentence } from '@/widgets/canvas/model/stage-copy';
+import { getState } from '../helpers/store';
 
 const identity = { translateX: 0, translateY: 0, rotate: 0, scaleX: 1, scaleY: 1 };
 const quad: SceneNode = { id: 'q', name: 'Quad', type: 'QUADS', visible: true, shading: 'SMOOTH', vertices: [], transform: identity };
@@ -199,5 +205,140 @@ describe('BB-PFIG-10: Lines and points rasterise', () => {
     const out = rasterise(input({ type: 'POINTS', corners: [pt(0.1, 0.1)], colours: [RED] }), grid(8), true);
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({ col: 4, row: 3, coverage: 1 });
+  });
+});
+
+const v = (id: string, x: number, y: number) => ({ id, x, y, color: '#ff0000' });
+const shape = (id: string, name: string, over: Partial<SceneNode> = {}): SceneNode => ({
+  id, name, type: 'TRIANGLES', visible: true, shading: 'SMOOTH', transform: identity,
+  vertices: [v(`${id}a`, -0.5, -0.5), v(`${id}b`, 0.5, -0.5), v(`${id}c`, 0, 0.5)], ...over,
+});
+const scene = (objects: SceneNode[], selectedObjectId: string | null = null) =>
+  ({ objects, selectedObjectId, viewportLimits: volume, canvasBackgroundColor: '#112233' });
+const outlineOf = (objects: SceneNode[]) =>
+  outlineCode(generateCodeFromState({ objects, canvasBackgroundColor: '#000000', callbacks: getState().callbacks, viewportLimits: volume }, { width: 800, height: 600 }));
+const win = { width: 800, height: 600 };
+
+describe('BB-PFIG-11: The subject is the selection, else the first drawable, else the demo', () => {
+  const a = shape('a', 'A');
+  const b = shape('b', 'B', { type: 'QUADS', vertices: [v('1', 0, 0), v('2', 1, 0), v('3', 1, 1), v('4', 0, 1)] });
+  it('picks the selected shape', () => {
+    const s = pipelineSubject(scene([a, b], 'b'));
+    expect(s.type).toBe('QUADS');
+    expect(s.owner).toBe('B');
+    expect(s.isDemo).toBe(false);
+    expect(s.background).toBe('#112233');
+  });
+  it('skips a selected text node for the first drawable shape', () => {
+    const text = shape('t', 'Label', { type: 'TEXT', vertices: [] });
+    expect(pipelineSubject(scene([text, b], 't')).owner).toBe('B');
+  });
+  it('takes the first drawable child of a selected group', () => {
+    const g = shape('g', 'G', { type: 'GROUP', vertices: [] });
+    const child = shape('c', 'Child', { parentId: 'g' });
+    expect(pipelineSubject(scene([a, g, child], 'g')).owner).toBe('Child');
+  });
+  it('skips a hidden shape and a shape inside a hidden group', () => {
+    const hidden = shape('h', 'Hidden', { visible: false });
+    const g = shape('g', 'G', { type: 'GROUP', vertices: [], visible: false });
+    const inGroup = shape('c', 'Inner', { parentId: 'g' });
+    expect(pipelineSubject(scene([hidden, g, inGroup, b])).owner).toBe('B');
+  });
+  it('falls back to the demo for an empty scene', () => {
+    const s = pipelineSubject(scene([]));
+    expect(s.isDemo).toBe(true);
+    expect(s.node).toBeNull();
+    expect(s.volume).toEqual({ minX: -1, maxX: 1, minY: -1, maxY: 1 });
+  });
+});
+
+describe('BB-PFIG-12: The demo triangle crosses the right edge', () => {
+  it('is partly clipped', () => {
+    expect(clipOutcome('TRIANGLES', demoSubject().world, demoSubject().volume)).toBe('partial');
+  });
+  it('is the specified triangle', () => {
+    expect(DEMO_TRIANGLE.vertices.map((c) => c.color)).toEqual(['#ff0000', '#00ff00', '#0000ff']);
+    expect(demoSubject().background).toBe('#000000');
+  });
+});
+
+describe('BB-PFIG-13: Each stage finds its own line in the generated program', () => {
+  const tri = shape('t', 'Tri');
+  const subject = pipelineSubject(scene([tri], 't'));
+  const outline = outlineOf([tri]);
+  const starts = ['glVertex2f(', 'glTranslatef(state_Tri', 'glBegin(GL_TRIANGLES)', 'glOrtho(', 'glutInitWindowSize(', 'glColor3f(', 'glutSwapBuffers()'];
+  starts.forEach((start, i) => {
+    it(`stage ${i} finds ${start}`, () => {
+      const found = stageProgramLine(i as StageIndex, outline, subject);
+      expect(found).not.toBeNull();
+      expect(found!.text.startsWith(start)).toBe(true);
+      expect(outline.lines[found!.line].text.trim()).toBe(found!.text);
+    });
+  });
+  it('asks Code to explain owned lines for their owner only', () => {
+    expect(stageProgramLine(0, outline, subject)!.request).toEqual({ call: 'glVertex2f', owner: 'Tri' });
+    expect(stageProgramLine(3, outline, subject)!.request).toEqual({ call: 'glOrtho' });
+  });
+});
+
+describe("BB-PFIG-14: Owned stages never borrow another shape's line", () => {
+  const imm = shape('i', 'Imm');
+  const vbo = shape('v', 'Vbo', { renderingMode: 'VBO' });
+  const objects = [imm, vbo];
+  const outline = outlineOf(objects);
+  it("finds the VBO shape's own glBufferData", () => {
+    const found = stageProgramLine(0, outline, pipelineSubject(scene(objects, 'v')))!;
+    expect(found.text.startsWith('glBufferData(')).toBe(true);
+    expect(outline.lines[found.line].object).toBe('Vbo');
+  });
+  it('gives the demo no owned lines but finds the shared ones', () => {
+    const demo = demoSubject();
+    [0, 1, 2, 5].forEach((i) => expect(stageProgramLine(i as StageIndex, outline, demo)).toBeNull());
+    [3, 4, 6].forEach((i) => expect(stageProgramLine(i as StageIndex, outline, demo)).not.toBeNull());
+  });
+});
+
+describe("BB-PFIG-15: Stage sentences use the shape's own numbers", () => {
+  it('says the matrix is the identity', () => {
+    expect(stageSentence(1, pipelineSubject(scene([shape('a', 'A')], 'a')), win)).toContain('Yours is the identity');
+  });
+  it("names the shape's own transform", () => {
+    const t = { translateX: 0.2, translateY: 0, rotate: 20, scaleX: 1.5, scaleY: 1.5 };
+    expect(stageSentence(1, pipelineSubject(scene([shape('a', 'A', { transform: t })], 'a')), win))
+      .toContain('scaled 1.5 × 1.5, turned 20° and moved (0.2, 0).');
+  });
+  it('counts the corners and the window', () => {
+    const s = pipelineSubject(scene([shape('a', 'A')], 'a'));
+    expect(stageSentence(0, s, win)).toContain('lists 3 corners');
+    expect(stageSentence(4, s, win)).toContain('your 800 × 600 window');
+  });
+  it('chooses the texture, flat and smooth sentences', () => {
+    const tex = { textureId: 't', filter: 'NEAREST', wrap: 'REPEAT' } as const;
+    expect(stageSentence(5, pipelineSubject(scene([shape('a', 'A', { texture: tex })], 'a')), win)).toContain('reads its colour from the texture');
+    expect(stageSentence(5, pipelineSubject(scene([shape('a', 'A', { shading: 'FLAT' })], 'a')), win)).toContain('With flat shading');
+    expect(stageSentence(5, pipelineSubject(scene([shape('a', 'A')], 'a')), win)).toContain('blended from the corner colours');
+  });
+  it('says what clipping did', () => {
+    const away = shape('a', 'A', { transform: { ...identity, translateX: 5 } });
+    expect(stageSentence(3, pipelineSubject(scene([away], 'a')), win)).toContain('entirely outside');
+    expect(stageSentence(3, pipelineSubject(scene([shape('b', 'B')], 'b')), win)).toContain('inside it');
+    expect(stageSentence(3, demoSubject(), win)).toContain('cut off, and new corners');
+  });
+});
+
+describe('BB-PFIG-16: No illustration text names a call VAMS never emits', () => {
+  const banned = ['glVertex3f', 'glCullFace', 'glFrontFace', 'glFogf', 'glBlendFunc', 'glDepthFunc', 'glStencilFunc', 'glFlush', 'glPolygonMode'];
+  const words = [/coming soon/i, /not supported/i, /future/i, /deferred/i, /3D/, /lighting/i];
+  const texts = [
+    ...STAGES.map((s) => `${s.short} ${s.title}`),
+    ...Object.values(ASSEMBLY),
+    INTRO.title, INTRO.text,
+    ...([0, 1, 2, 3, 4, 5, 6] as StageIndex[]).map((i) => stageSentence(i, demoSubject(), win)),
+  ];
+  it('names no unemitted call', () => {
+    texts.forEach((t) => banned.forEach((b) => expect(t).not.toContain(b)));
+  });
+  it('uses no banned student-facing word', () => {
+    texts.forEach((t) => words.forEach((w) => expect(t).not.toMatch(w)));
   });
 });
