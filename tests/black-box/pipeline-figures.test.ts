@@ -10,6 +10,7 @@ import { VISUAL_ARTIFACTS } from '@/core/types/lesson';
 import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
 import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import CanvasHeader from '@/widgets/canvas/ui/CanvasHeader';
+import PipelineDiagram from '@/widgets/canvas/views/PipelineDiagram';
 import type { SceneNode } from '@/core/types/scene';
 import { chainOf, clipOutcome, clipPolygon, clipSegment, figureFrame, worldPoint, worldPrimitives } from '@/entities/scene/model/pipeline-geometry';
 import { provokingOf } from '@/entities/scene/model/primitive-assembly';
@@ -336,8 +337,11 @@ describe("BB-PFIG-15: Stage sentences use the shape's own numbers", () => {
   });
 });
 
+/** Calls the old Diagram listed that VAMS never emits. */
+const BANNED_CALLS = ['glVertex3f', 'glCullFace', 'glFrontFace', 'glFogf', 'glBlendFunc', 'glDepthFunc', 'glStencilFunc', 'glFlush', 'glPolygonMode'];
+
 describe('BB-PFIG-16: No illustration text names a call VAMS never emits', () => {
-  const banned = ['glVertex3f', 'glCullFace', 'glFrontFace', 'glFogf', 'glBlendFunc', 'glDepthFunc', 'glStencilFunc', 'glFlush', 'glPolygonMode'];
+  const banned = BANNED_CALLS;
   const words = [/coming soon/i, /not supported/i, /future/i, /deferred/i, /3D/, /lighting/i];
   const texts = [
     ...STAGES.map((s) => `${s.short} ${s.title}`),
@@ -448,6 +452,115 @@ describe('switch in the canvas header', () => {
       useVamsStore.getState().clearLessonState();
       expect(useVamsStore.getState().quizPipelineStage).toBeNull();
       unmount(host);
+    });
+  });
+});
+
+describe('the Diagram', () => {
+  afterEach(() => {
+    useVamsStore.setState({ activeSection: 'Primitives', pipelineMode: 'Playground', activePipelineStage: null });
+  });
+  const open = async (stage: number | null, objects: SceneNode[] = []) => {
+    useVamsStore.setState({ activeSection: 'Pipeline', pipelineMode: 'Diagram', activePipelineStage: stage, objects });
+    const host = mount(h(PipelineDiagram, {}));
+    await settle();
+    return host;
+  };
+  const stripOf = (host: HTMLElement) => [...host.querySelectorAll<HTMLButtonElement>('.pipeline-strip button')];
+  const press = (el: Element, key: string) => el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+  const buttonText = (host: HTMLElement, text: string) =>
+    [...host.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent?.includes(text));
+
+  describe('BB-PFIG-20: The strip has seven stages and the arrows move between them', () => {
+    it('has seven pressable stages, each with a drawing, its number and short name', async () => {
+      const host = await open(null);
+      const strip = stripOf(host);
+      expect(strip).toHaveLength(7);
+      strip.forEach((b, i) => {
+        expect(b.querySelector('svg')).not.toBeNull();
+        expect(b.textContent).toContain(String(i + 1));
+        expect(b.textContent).toContain(STAGES[i].short);
+        expect(b.getAttribute('aria-pressed')).toBe('false');
+      });
+      unmount(host);
+    });
+    it('picks stage 0 on the right arrow from none, then moves on, and keeps a clicked stage', async () => {
+      const host = await open(null);
+      press(stripOf(host)[3], 'ArrowRight');
+      await settle();
+      expect(useVamsStore.getState().activePipelineStage).toBe(0);
+      press(stripOf(host)[0], 'ArrowRight');
+      await settle();
+      expect(useVamsStore.getState().activePipelineStage).toBe(1);
+      expect(stripOf(host)[1].getAttribute('aria-pressed')).toBe('true');
+      stripOf(host)[1].click();
+      await settle();
+      expect(useVamsStore.getState().activePipelineStage).toBe(1);
+      press(stripOf(host)[1], 'ArrowLeft');
+      await settle();
+      expect(useVamsStore.getState().activePipelineStage).toBe(0);
+      press(stripOf(host)[0], 'ArrowLeft');
+      await settle();
+      expect(useVamsStore.getState().activePipelineStage).toBe(0);
+      stripOf(host)[5].click();
+      await settle();
+      expect(useVamsStore.getState().activePipelineStage).toBe(5);
+      unmount(host);
+    });
+  });
+
+  describe('BB-PFIG-21: With no stage chosen the focus shows the introduction', () => {
+    it('shows the introduction and no program line', async () => {
+      const host = await open(null, [shape('t', 'Tri')]);
+      const text = host.textContent ?? '';
+      expect(text).toContain(INTRO.title);
+      expect(text).toContain('Pick one to see what it does');
+      expect(text).not.toContain('In your program');
+      expect(text).not.toContain('See it in Math');
+      expect(host.querySelector('.pipeline-focus svg')).not.toBeNull();
+      unmount(host);
+    });
+  });
+
+  describe('BB-PFIG-22: The program line and the Math link act on the subject', () => {
+    it('explains the line for its owner, and opens Math on the stage with the shape selected', async () => {
+      const tri = shape('t', 'Tri');
+      const host = await open(1, [tri]);
+      const text = host.textContent ?? '';
+      expect(text).toContain('Stage 2 of 7');
+      expect(text).toContain(STAGES[1].title);
+      expect(text).toContain('In your program');
+      buttonText(host, 'glTranslatef(')!.click();
+      await settle();
+      expect(useVamsStore.getState().explainRequest).toEqual({ call: 'glTranslatef', owner: 'Tri' });
+      buttonText(host, 'See it in Math')!.click();
+      await settle();
+      const s = useVamsStore.getState();
+      expect(s.selectedObjectId).toBe('t');
+      expect(s.journeyStageOverride).toBe('transformed');
+      expect(s.codePane).toBe('math');
+      unmount(host);
+    });
+    it('leaves out the line and its label when the demo has none', async () => {
+      const host = await open(0);
+      expect(host.textContent).not.toContain('In your program');
+      expect(host.textContent).toContain('See it in Math: Stored');
+      unmount(host);
+    });
+  });
+
+  describe('BB-PFIG-23: The Diagram renders without key GL call lists', () => {
+    it('shows no call list, no IN or OUT tags and no unemitted call at any stage', async () => {
+      for (const objects of [[], [shape('t', 'Tri')]]) {
+        for (const stage of [null, 0, 1, 2, 3, 4, 5, 6]) {
+          const host = await open(stage, objects);
+          const text = host.textContent ?? '';
+          expect(text).not.toContain('Key GL calls');
+          [...host.querySelectorAll('*')].forEach((el) => expect(['IN', 'OUT']).not.toContain(el.textContent?.trim()));
+          BANNED_CALLS.forEach((b) => expect(text).not.toContain(b));
+          unmount(host);
+        }
+      }
     });
   });
 });
