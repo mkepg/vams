@@ -65,6 +65,8 @@ export interface SceneSlice {
   updateTextureFilter: (objectId: string, filter: TextureFilter) => void;
   updateTextureWrap: (objectId: string, wrap: TextureWrap) => void;
   updateUV: (objectId: string, vertexIndex: number, uv: UV) => void;
+  /** Replaces every UV in one undo step; ignored when the count doesn't match the vertices. */
+  setUVs: (objectId: string, uvs: UV[]) => void;
   resetUVsToDefault: (objectId: string) => void;
 }
 export interface InteractionSlice {

@@ -2,7 +2,7 @@
  * BLACK-BOX TEST SUITE — BB-TEX
  * The built-in sample textures and the lessons that name them.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { h, render } from 'preact';
 import { useVamsStore } from '@/core/store';
 import { ATLAS_ICONS, FOX_PALETTE, FOX_SPRITE, SAMPLE_TEXTURE_SPECS } from '@/features/textures/lib/sample-textures';
@@ -12,6 +12,7 @@ import { GRADIENT_PRESETS, gradientColours } from '@/features/object-appearance/
 import GradientPreview from '@/features/object-appearance/ui/GradientPreview';
 import ObjectAppearancePanel from '@/features/object-appearance/ui/ObjectAppearancePanel';
 import { addQuad, addTriangle } from '../helpers/store';
+import { presetUVs } from '@/features/textures/lib/uv-presets';
 
 describe('BB-TEX-01: The samples are the teaching set, in order', () => {
   it('lists five samples with these ids, names and sizes', () => {
@@ -162,5 +163,74 @@ describe("BB-TEX-07: A preview paints the selected shape's own outline", () => {
     };
     expect(fills('FLAT')).toBe(1);
     expect(fills('SMOOTH')).toBeGreaterThan(10);
+  });
+});
+
+const uvsOf = (id: string) => useVamsStore.getState().objects.find((o) => o.id === id)!.uvs;
+const FIT = [{ u: 0, v: 0 }, { u: 1, v: 0 }, { u: 1, v: 1 }, { u: 0, v: 1 }];
+
+describe('BB-TEX-08: UV presets on a quad', () => {
+  const quad = [v(-0.5, -0.5, 0), v(0.5, -0.5, 1), v(0.5, 0.5, 2), v(-0.5, 0.5, 3)];
+
+  it('fits, tiles and flips', () => {
+    expect(presetUVs('fit', quad, null)).toEqual(FIT);
+    expect(presetUVs('tile', quad, null)).toEqual(FIT.map(({ u, v: w }) => ({ u: u * 2, v: w * 2 })));
+    expect(presetUVs('flip-u', quad, FIT)).toEqual([{ u: 1, v: 0 }, { u: 0, v: 0 }, { u: 0, v: 1 }, { u: 1, v: 1 }]);
+    expect(presetUVs('flip-v', quad, FIT)).toEqual([{ u: 0, v: 1 }, { u: 1, v: 1 }, { u: 1, v: 0 }, { u: 0, v: 0 }]);
+  });
+
+  it('flips the UVs the shape already has, not the defaults', () => {
+    const tiled = presetUVs('tile', quad, null);
+    expect(presetUVs('flip-u', quad, tiled).map((uv) => uv.u)).toEqual([1, -1, -1, 1]);
+  });
+});
+
+describe('BB-TEX-09: Each preset is one undo step', () => {
+  it('undoes a tile, and one of two flips', () => {
+    // History merges pushes less than 50 ms apart, so step the clock between actions.
+    vi.useFakeTimers();
+    const later = () => vi.setSystemTime(Date.now() + 100);
+    try {
+      const quad = addQuad();
+      const { setUVs } = useVamsStore.getState();
+      const start = uvsOf(quad.id);
+      later();
+      setUVs(quad.id, presetUVs('tile', quad.vertices, start));
+      expect(uvsOf(quad.id)).toEqual(FIT.map(({ u, v: w }) => ({ u: u * 2, v: w * 2 })));
+      useVamsStore.getState().undo();
+      expect(uvsOf(quad.id)).toEqual(start);
+
+      later();
+      setUVs(quad.id, presetUVs('flip-u', quad.vertices, uvsOf(quad.id)));
+      const firstFlip = uvsOf(quad.id);
+      later();
+      setUVs(quad.id, presetUVs('flip-u', quad.vertices, uvsOf(quad.id)));
+      expect(uvsOf(quad.id)).not.toEqual(firstFlip);
+      useVamsStore.getState().undo();
+      expect(uvsOf(quad.id)).toEqual(firstFlip);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('ignores UVs whose count does not match the vertices', () => {
+    const quad = addQuad();
+    const before = uvsOf(quad.id);
+    const depth = useVamsStore.getState().past.length;
+    useVamsStore.getState().setUVs(quad.id, [{ u: 0, v: 0 }]);
+    expect(uvsOf(quad.id)).toEqual(before);
+    expect(useVamsStore.getState().past.length).toBe(depth);
+  });
+});
+
+describe('BB-TEX-10: A preset on a shape without UVs starts from the defaults', () => {
+  it('flips the default UVs', () => {
+    const quad = [v(-0.5, -0.5, 0), v(0.5, -0.5, 1), v(0.5, 0.5, 2), v(-0.5, 0.5, 3)];
+    expect(presetUVs('flip-v', quad, null)).toEqual(FIT.map(({ u, v: w }) => ({ u, v: 1 - w })));
+  });
+
+  it('starts from the defaults when the stored UVs do not match the vertices', () => {
+    const quad = [v(-0.5, -0.5, 0), v(0.5, -0.5, 1), v(0.5, 0.5, 2), v(-0.5, 0.5, 3)];
+    expect(presetUVs('flip-u', quad, [{ u: 0.3, v: 0.3 }])).toEqual(FIT.map(({ u, v: w }) => ({ u: 1 - u, v: w })));
   });
 });
