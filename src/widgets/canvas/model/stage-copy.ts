@@ -26,7 +26,7 @@ export const ASSEMBLY: Record<PrimitiveType, string> = {
 export function stageSentence(stage: StageIndex, subject: Subject, window: { width: number; height: number }): string {
   switch (stage) {
     case 0:
-      return `Your program lists ${subject.stored.length} corners, each with a colour. Nothing is drawn yet: these are just numbers.`;
+      return `Your program lists ${subject.stored.length} ${subject.stored.length === 1 ? 'corner' : 'corners'}, each with a colour. Nothing is drawn yet: these are just numbers.`;
     case 1: {
       const t = (subject.node ?? DEMO_TRIANGLE).transform;
       if (t.translateX === 0 && t.translateY === 0 && t.rotate === 0 && t.scaleX === 1 && t.scaleY === 1) {

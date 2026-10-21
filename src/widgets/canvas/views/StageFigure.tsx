@@ -29,34 +29,66 @@ interface Pixels {
   height: number;
 }
 
-// Decoded texture images, shared by every figure that shows the same image.
-const decoded = new Map<string, Pixels | null>();
+/** The figures sample at most 48 pixels across, so a decoded texture never needs more than this. */
+export const TEXTURE_DECODE_MAX = 256;
 
-/** The texture's pixels, read through an offscreen canvas; null until loaded, or where no 2D context exists. */
-function useTexturePixels(dataUrl: string | undefined): Pixels | null {
-  const [, setLoaded] = useState(0);
-  useEffect(() => {
-    if (!dataUrl || decoded.has(dataUrl)) return;
-    let live = true;
+/** The size a texture is decoded at: its own, or shrunk to fit TEXTURE_DECODE_MAX with its aspect kept. */
+export function decodeSize(width: number, height: number): { width: number; height: number } {
+  const k = Math.min(1, TEXTURE_DECODE_MAX / Math.max(width, height, 1));
+  return { width: Math.max(1, Math.round(width * k)), height: Math.max(1, Math.round(height * k)) };
+}
+
+// Decoded texture images and the loads in flight, shared by every figure that shows the same image.
+// Only the most recent few images are kept, so removed uploads don't stay in memory.
+const DECODED_KEEP = 4;
+const decoded = new Map<string, Pixels | null>();
+const loading = new Map<string, Promise<void>>();
+
+function decode(dataUrl: string): Promise<void> {
+  const inFlight = loading.get(dataUrl);
+  if (inFlight) return inFlight;
+  const done = new Promise<void>((resolve) => {
     const img = new Image();
     img.onload = () => {
       let pixels: Pixels | null = null;
       try {
+        const { width, height } = decodeSize(img.naturalWidth, img.naturalHeight);
         const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
+        canvas.width = width;
+        canvas.height = height;
         const ctx = canvas.getContext('2d');
-        if (ctx && canvas.width > 0 && canvas.height > 0) {
-          ctx.drawImage(img, 0, 0);
-          pixels = { data: ctx.getImageData(0, 0, canvas.width, canvas.height).data, width: canvas.width, height: canvas.height };
+        if (ctx && img.naturalWidth > 0 && img.naturalHeight > 0) {
+          ctx.drawImage(img, 0, 0, width, height);
+          pixels = { data: ctx.getImageData(0, 0, width, height).data, width, height };
         }
       } catch {
         pixels = null;
       }
       decoded.set(dataUrl, pixels);
-      if (live) setLoaded((n) => n + 1);
+      while (decoded.size > DECODED_KEEP) decoded.delete(decoded.keys().next().value as string);
+      loading.delete(dataUrl);
+      resolve();
+    };
+    img.onerror = () => {
+      decoded.set(dataUrl, null);
+      loading.delete(dataUrl);
+      resolve();
     };
     img.src = dataUrl;
+  });
+  loading.set(dataUrl, done);
+  return done;
+}
+
+/** The texture's pixels, read through an offscreen canvas; null until loaded, when not needed, or where no 2D context exists. */
+function useTexturePixels(dataUrl: string | undefined): Pixels | null {
+  const [, setLoaded] = useState(0);
+  useEffect(() => {
+    if (!dataUrl || decoded.has(dataUrl)) return;
+    let live = true;
+    void decode(dataUrl).then(() => {
+      if (live) setLoaded((n) => n + 1);
+    });
     return () => {
       live = false;
     };
@@ -112,7 +144,8 @@ export default function StageFigure({ stage, subject, size, animate, margin }: S
   const v = subject.volume;
 
   const textureUrl = useVamsStore((s) => (subject.texture ? s.getTextureById(subject.texture.textureId)?.dataUrl : undefined));
-  const texels = useTexturePixels(textureUrl);
+  // Only the fragment and output stages paint with the texture.
+  const texels = useTexturePixels(stage >= 5 ? textureUrl : undefined);
 
   const fragments = useMemo<Fragment[]>(
     () =>

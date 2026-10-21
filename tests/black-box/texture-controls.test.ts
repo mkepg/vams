@@ -369,3 +369,13 @@ describe('BB-TEX-15: The UV editor has presets, zoom buttons and closed exact va
     done();
   });
 });
+
+describe('BB-TEX-16: The Textures lessons name the samples and panels the editor shows', () => {
+  it('calls the atlas sample the Sprite sheet and the UV panel UV coordinates', () => {
+    const text = Object.values(TEXTURES_LESSONS).flatMap((l) => l.steps.map((s) => s.narration)).join(' ');
+    expect(text).not.toContain('UV Editor');
+    expect(text).not.toContain('full Texture Atlas');
+    expect(text).toContain("the 'Sprite sheet' sample");
+    expect(text).toContain("the 'Pixel fox'");
+  });
+});

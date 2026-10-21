@@ -23,6 +23,7 @@ import { outlineCode } from '@/features/code-generation/model/code-outline';
 import { DEMO_TRIANGLE, demoSubject, pipelineSubject } from '@/widgets/canvas/model/pipeline-subject';
 import { STAGES, stageProgramLine, type StageIndex } from '@/widgets/canvas/model/stage-lines';
 import { ASSEMBLY, INTRO, stageSentence } from '@/widgets/canvas/model/stage-copy';
+import StageFigure, { decodeSize } from '@/widgets/canvas/views/StageFigure';
 import { getState } from '../helpers/store';
 
 // PixiJS needs a real canvas context, which happy-dom does not have.
@@ -691,5 +692,67 @@ describe('BB-PFIG-28: The lesson bar no longer draws a picture for the question'
     expect(bar.querySelectorAll('.mc-option')).toHaveLength(4);
     unmount(bar);
     useVamsStore.getState().clearLessonState();
+  });
+});
+
+describe('BB-PFIG-29: Starting to place vertices brings the canvas back', () => {
+  it('switches a Pipeline illustration to Playground when a shape is started', () => {
+    useVamsStore.setState({ activeSection: 'Pipeline', pipelineMode: 'Diagram' });
+    useVamsStore.getState().startCustomShape('TRIANGLES', 3);
+    expect(useVamsStore.getState().pipelineMode).toBe('Playground');
+    expect(useVamsStore.getState().interactionMode).toBe('VERTEX_PLACE');
+    useVamsStore.getState().cancelCustomShape();
+  });
+});
+
+describe('BB-PFIG-30: Textures are decoded once, small, and only for the stages that paint with them', () => {
+  it('shrinks large images to 256 px with their aspect, and leaves small ones alone', () => {
+    expect(decodeSize(4000, 3000)).toEqual({ width: 256, height: 192 });
+    expect(decodeSize(64, 64)).toEqual({ width: 64, height: 64 });
+    expect(decodeSize(0, 0)).toEqual({ width: 1, height: 1 });
+  });
+
+  it('starts no decode for stages 0 to 4, and one shared decode for many figures', async () => {
+    let made = 0;
+    class FakeImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 8;
+      naturalHeight = 8;
+      constructor() { made++; }
+      set src(_v: string) { /* never loads in this test */ }
+    }
+    vi.stubGlobal('Image', FakeImage);
+    try {
+      const url = `data:image/png;base64,pfig30-${Math.random()}`;
+      useVamsStore.setState({ uploadedTextures: [{ id: 'up-pfig30', name: 'P', isSample: false, dataUrl: url, width: 8, height: 8 }] });
+      const subject = { ...demoSubject(), texture: { textureId: 'up-pfig30', filter: 'NEAREST' as const, wrap: 'REPEAT' as const } };
+      const host = document.createElement('div');
+      for (const stage of [0, 1, 2, 3, 4] as StageIndex[]) render(h(StageFigure, { stage, subject, size: 120, animate: false }), host);
+      await new Promise((r) => setTimeout(r, 0));
+      expect(made).toBe(0);
+      render(h('div', {}, [5, 6, 5, 6].map((stage, i) => h(StageFigure, { key: i, stage: stage as StageIndex, subject, size: 120, animate: false }))), host);
+      await new Promise((r) => setTimeout(r, 0));
+      expect(made).toBe(1);
+      render(null, host);
+    } finally {
+      vi.unstubAllGlobals();
+      useVamsStore.setState({ uploadedTextures: [] });
+    }
+  });
+});
+
+describe('BB-PFIG-31: The Which Stage? questions describe the pictures they show', () => {
+  it('names no red triangle, depth test or diagonal line', () => {
+    const lesson = LESSON_REGISTRY['pipeline-exercise-2'];
+    const text = lesson.steps.map((s) => s.narration).join(' ');
+    expect(text).not.toMatch(/red triangle|depth test|diagonal line/);
+  });
+});
+
+describe('BB-PFIG-32: The stage sentence counts one corner in the singular', () => {
+  it('says "1 corner" for a single point', () => {
+    const point = { ...demoSubject(), stored: [{ x: 0, y: 0 }], world: [{ x: 0, y: 0 }], colours: ['#ffffff'], type: 'POINTS' as const };
+    expect(stageSentence(0, point, { width: 500, height: 500 })).toContain('lists 1 corner,');
   });
 });
