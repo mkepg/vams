@@ -1,7 +1,7 @@
 import type { PrimitiveType } from '@/core/types/scene';
 import { clipOutcome } from '@/entities/scene/model/pipeline-geometry';
 import { short } from '@/shared/lib/format-number';
-import type { Subject } from './pipeline-subject';
+import { DEMO_TRIANGLE, type Subject } from './pipeline-subject';
 import type { StageIndex } from './stage-lines';
 
 export const INTRO = {
@@ -28,8 +28,8 @@ export function stageSentence(stage: StageIndex, subject: Subject, window: { wid
     case 0:
       return `Your program lists ${subject.stored.length} corners, each with a colour. Nothing is drawn yet: these are just numbers.`;
     case 1: {
-      const t = subject.node?.transform;
-      if (!t || (t.translateX === 0 && t.translateY === 0 && t.rotate === 0 && t.scaleX === 1 && t.scaleY === 1)) {
+      const t = (subject.node ?? DEMO_TRIANGLE).transform;
+      if (t.translateX === 0 && t.translateY === 0 && t.rotate === 0 && t.scaleX === 1 && t.scaleY === 1) {
         return 'Each corner is multiplied by the modelview matrix. Yours is the identity, so the corners stay where they are.';
       }
       return `Each corner is multiplied by the modelview matrix: scaled ${short(t.scaleX)} × ${short(t.scaleY)}, turned ${short(t.rotate)}° and moved (${short(t.translateX)}, ${short(t.translateY)}).`;

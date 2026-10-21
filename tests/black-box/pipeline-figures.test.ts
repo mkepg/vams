@@ -307,6 +307,9 @@ describe("BB-PFIG-15: Stage sentences use the shape's own numbers", () => {
     expect(stageSentence(1, pipelineSubject(scene([shape('a', 'A', { transform: t })], 'a')), win))
       .toContain('scaled 1.5 × 1.5, turned 20° and moved (0.2, 0).');
   });
+  it("describes the demo triangle's own pose", () => {
+    expect(stageSentence(1, demoSubject(), win)).toContain('scaled 1.5 × 1.5, turned 20° and moved (0.2, 0).');
+  });
   it('counts the corners and the window', () => {
     const s = pipelineSubject(scene([shape('a', 'A')], 'a'));
     expect(stageSentence(0, s, win)).toContain('lists 3 corners');
