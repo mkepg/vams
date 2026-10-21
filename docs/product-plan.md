@@ -361,18 +361,19 @@ During the `glMapBuffer` demo, the math panel's Stored stage displays a diagram 
 
 ### Demos (minimum 4)
 
-1. **"Immediate Mode: Every Frame"** — narrates what happens on each frame in immediate mode; the buffer flow diagram shows per-frame transfer.
-2. **"Converting to Vertex Arrays"** — switches existing scene objects to Vertex Array mode; the code panel diff is the pedagogical centerpiece.
-3. **"VBOs: Send Once"** — switches to VBO mode; narrates the `init()` setup and `display()` drawing separation.
-4. **"Buffer Usage Hints"** — toggles a VBO object's usage hint through all three values; the buffer flow diagram and narration explain the performance semantics of each.
-5. **"glMapBuffer: Direct Memory Access"** — narrates the mapping lifecycle step by step, with pointer diagram and a real vertex update reflected in the viewport.
+1. **"Immediate Mode: Every Frame"** — the student predicts how many `glVertex2f` calls a 1,000-corner shape makes in a second; the traffic row in Math shows every frame sending.
+2. **"Converting to Vertex Arrays"** — the switch to Vertex Array, read through `glEnableClientState`, `glVertexPointer`, `glColorPointer`, `glDrawArrays` and `glDisableClientState`, with a prediction of what the 2 in `glVertexPointer` means.
+3. **"VBOs: Send Once"** — `glGenBuffers`, `glBindBuffer` and `glBufferData` in `init()`, the position and colour buffers, the pointer offset 0, and unbinding.
+4. **"Buffer Usage Hints"** — Static, Dynamic and Stream, `update_buffers()` with `glBufferSubData` or `glBufferData`, and `glutIdleFunc`, with a prediction of what Dynamic adds to the code.
+5. **"Updating in Place: glMapBuffer"** — Sub Data against Map Buffer, `GL_WRITE_ONLY`, and the mapping lifecycle stepped through in Math.
 
 ### Exercises (minimum 4)
 
-1. **"Switch to VBO"** — given an immediate-mode scene, switch all objects to VBO mode.
-2. **"Use Static for Unchanging Data"** — given a VBO-mode object, select the appropriate usage hint.
-3. **"Reduce Memory with Indexed Drawing"** — switch a naive vertex-repeated quad to an indexed primitive.
-4. **"Pick the Right Usage Hint"** — given a described scenario, select the appropriate usage hint from the three choices.
+1. **"Switch to VBO"** — switch a triangle to VBO, then add a quad drawn from a VBO.
+2. **"Use Static for Unchanging Data"** — set a logo to Static and a spark to Stream.
+3. **"Reduce Memory with Indexed Drawing"** — switch on indexed drawing for a square made of two triangles, then keep its indices in a VBO.
+4. **"Pick the Right Usage Hint"** — three scenarios, one hint each.
+5. **"Build a VBO by Hand"** — the section's capstone: a Static VBO shape, then `glGenBuffers`, `GL_ARRAY_BUFFER`, the usage hint, `glVertexPointer`'s size and type, and `glDrawArrays` written by hand.
 
 ### Acceptance Criteria
 

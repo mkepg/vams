@@ -947,7 +947,7 @@ describe('BB-LCOL-35: Steps about the math name a journey stage, and Math opens 
         if (stage) named.push({ lesson: lesson.id, index, stage });
       });
     }
-    expect(named).toHaveLength(12);
+    expect(named).toHaveLength(13);
     for (const { lesson, index, stage } of named) {
       expect(await startLessonFromLearn(lesson)).toBe(true);
       const host = mount(h('div', {}, h(LessonBar, {}), h(MathPanel, {})));

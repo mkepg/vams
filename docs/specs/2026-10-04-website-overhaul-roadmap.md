@@ -85,6 +85,7 @@ Four projects, in this order. Each has its own spec and plan.
    Editor work for it (2026-10-22): the Pipeline illustrations were redrawn over the student's own shape (Diagram strip, Raster vs vector, Which Stage? on the canvas), the texture samples and Quick Gradients replaced, and every texture control gathered into the shape's Texture group ([spec](2026-10-21-pipeline-illustrations-textures-design.md)).
    Pipeline content (2026-10-22): nine lessons, two of them new (Paint the Background and the Write main() capstone), each with predictions, goals, hints and a recap; the section's `main()` calls are now taught rather than allowlisted.
    Primitives content (2026-10-22): fifteen lessons, three of them new (Strips and Fans, When the Window Changes Size, and the Draw It Yourself capstone); every primitive mode, colour call, line and text call and the input and reshape callbacks are now taught.
+   Buffers content (2026-10-22): ten lessons, one of them new (the Build a VBO by Hand capstone); every vertex-array, VBO, usage-hint and mapping name is now taught.
 
 ### Below the line
 
@@ -200,7 +201,7 @@ The thesis manuscript is final and describes the evaluated build. The overhauled
 
 16. The manuscript describes a client-only web application. Sharing a scene stores it through one server-side Pages Function in a key-value store, which keeps a shared scene for 90 days.
 17. The manuscript's canvas is a plain drawing area. The canvas is now drawn as the program's window, titled as the generated program titles it, under a header holding the viewing volume, the cursor, the View menu and Run. The window can be moved, resized, minimised and closed like a desktop window.
-18. The evaluated lessons were narrated steps with scene actions and two exercise kinds (multiple choice and ordered list). The lesson engine now also supports goal checklists, hints, Skip, predictions, recaps and typed code blanks, and each section gains a capstone as its content lands. The Pipeline section has two exercises the evaluated build lacked, Paint the Background and Write main(), so it has nine lessons where the evaluated build had seven. Primitives gains Strips and Fans, When the Window Changes Size and Draw It Yourself.
+18. The evaluated lessons were narrated steps with scene actions and two exercise kinds (multiple choice and ordered list). The lesson engine now also supports goal checklists, hints, Skip, predictions, recaps and typed code blanks, and each section gains a capstone as its content lands. The Pipeline section has two exercises the evaluated build lacked, Paint the Background and Write main(), so it has nine lessons where the evaluated build had seven. Primitives gains Strips and Fans, When the Window Changes Size and Draw It Yourself. Buffers gains Build a VBO by Hand.
 
 The following manuscript descriptions may also be crossed by later sub-projects. When one is, it is added to the list above:
 - The default canvas background `#000000`. Changing it changes generated code and the replay baseline.
