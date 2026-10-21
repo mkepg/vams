@@ -6,10 +6,10 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
 import { useVamsStore, STORAGE_KEY } from '@/core/store';
 import { buildProjectFile } from '@/entities/project/model/project-io';
-import { canRun, runController, MIN_WINDOW, RUN_STRIP_HEIGHT } from '@/features/callbacks/model/run-controller';
+import { canRun, runController } from '@/features/callbacks/model/run-controller';
 import { makeFakeDisplay, registerFakeRenderer, type FakeDisplay } from '../helpers/fake-renderer';
 import { addTriangle, getState } from '../helpers/store';
-import RunOverlay, { RUN_EMPTY_REASON, RUN_NO_CALLBACK_REASON, RUN_OPEN_CALLBACKS } from '@/features/callbacks/ui/RunOverlay';
+import RunOverlay, { RUN_EMPTY_REASON, RUN_HINT, RUN_NO_CALLBACK_REASON, RUN_OPEN_CALLBACKS } from '@/features/callbacks/ui/RunOverlay';
 import { renderBridge } from '@/shared/engine/render-bridge';
 import { SelectionOverlay } from '@/shared/engine/selection-overlay';
 import { Container } from 'pixi.js';
@@ -58,12 +58,12 @@ describe('BB-RUN-1: Run needs an object and a callback', () => {
 });
 
 describe('BB-RUN-2: Starting Run calls Reshape once with the window size', () => {
-  it('shows onReshape(800, 568)', () => {
+  it('shows onReshape(800, 600)', () => {
     setup();
     getState().setCallbackHandler('reshape', 'onReshape');
     expect(runController.start({ loop: false })).toBe(true);
-    expect(runController.getSnapshot().lastCall).toBe('onReshape(800, 568)');
-    expect(runController.getSnapshot().window).toEqual({ width: 800, height: 568 });
+    expect(runController.getSnapshot().lastCall).toBe('onReshape(800, 600)');
+    expect(runController.getSnapshot().window).toEqual({ width: 800, height: 600 });
   });
 });
 
@@ -113,30 +113,26 @@ describe('BB-RUN-5: Stop, Esc and undo end Run and restore the canvas', () => {
   });
 });
 
-describe('BB-RUN-7: The program window resizes within its limits and follows the canvas', () => {
-  it('clamps, fires Reshape on the next frame, and shrinks with the canvas', () => {
+describe('BB-RUN-7: The program window is the canvas, and resizing it fires Reshape', () => {
+  it('reports the canvas size, then each new size once, on the next frame', () => {
     const { resize } = setup();
     getState().setCallbackHandler('reshape', 'onReshape');
     runController.start({ loop: false });
-    runController.resizeWindow(50, 5000);
+    expect(runController.getSnapshot().window).toEqual({ width: 800, height: 600 });
     runController.stepFrame();
-    expect(runController.getSnapshot().window).toEqual({ width: MIN_WINDOW.width, height: 568 });
-    expect(runController.getSnapshot().lastCall).toBe('onReshape(200, 568)');
-    runController.nudgeWindow(10, -10);
-    runController.stepFrame();
-    expect(runController.getSnapshot().window).toEqual({ width: 210, height: 558 });
+    expect(runController.getSnapshot().lastCall).toBe('onReshape(800, 600)');
     resize({ width: 640, height: 400 });
-    runController.resizeWindow(800, 600);
     runController.stepFrame();
-    expect(runController.getSnapshot().window).toEqual({ width: 640, height: 368 });
+    expect(runController.getSnapshot().window).toEqual({ width: 640, height: 400 });
+    expect(runController.getSnapshot().lastCall).toBe('onReshape(640, 400)');
   });
 
-  it('reapplies its view every frame', () => {
+  it('reapplies its view every frame, over the whole canvas', () => {
     const { setView } = setup();
     runController.start({ loop: false });
     setView.mockClear();
     runController.stepFrame();
-    expect(setView).toHaveBeenCalledWith(expect.objectContaining({ minX: -1, maxX: 1 }), { x: 0, y: RUN_STRIP_HEIGHT, width: 800, height: 568 });
+    expect(setView).toHaveBeenCalledWith(expect.objectContaining({ minX: -1, maxX: 1 }), { x: 0, y: 0, width: 800, height: 600 });
   });
 });
 
@@ -168,13 +164,11 @@ describe('BB-RUN-9: A lesson step change stops Run', () => {
 });
 
 describe('BB-RUN-13: A focused button keeps only its own keys during Run', () => {
-  it('blocks editor shortcuts and passes activation and handle arrows', () => {
+  it('blocks editor shortcuts and arrows, and passes activation', () => {
     setup();
     runController.start({ loop: false });
     const button = document.createElement('button');
-    const handle = document.createElement('button');
-    handle.className = 'run-handle';
-    document.body.append(button, handle);
+    document.body.append(button);
     const spy = vi.fn();
     window.addEventListener('keydown', spy);
     const send = (el: HTMLElement, key: string, init: KeyboardEventInit = {}) =>
@@ -191,13 +185,9 @@ describe('BB-RUN-13: A focused button keeps only its own keys during Run', () =>
       send(button, 'Enter');
       send(button, ' ');
       expect(spy).toHaveBeenCalledTimes(2);
-      send(handle, 'ArrowLeft');
-      expect(spy).toHaveBeenCalledTimes(3);
-      expect(runController.getSnapshot().lastCall).toBeNull();
     } finally {
       window.removeEventListener('keydown', spy);
       button.remove();
-      handle.remove();
     }
   });
 });
@@ -258,8 +248,8 @@ describe('BB-RUN-10: Pointer events reach the Mouse handler, even released outsi
   });
 });
 
-describe('BB-RUN-11: The overlay shows Run, then the strip, the readout and the handle', () => {
-  it('starts, shows "Waiting for an event", resizes by keys in 10px steps, and stops', async () => {
+describe('BB-RUN-11: The overlay shows Run, then only an input surface over the canvas', () => {
+  it('starts, focuses the surface, draws no strip, readout or handle, and stops', async () => {
     setup();
     const host = mount(h(RunOverlay, {}));
     await settle();
@@ -267,18 +257,9 @@ describe('BB-RUN-11: The overlay shows Run, then the strip, the readout and the 
     expect(run.disabled).toBe(false);
     run.click();
     await settle();
-    expect(host.querySelector('.run-strip')?.textContent).toContain('Running');
-    expect(host.querySelector('.run-readout')?.textContent).toBe('Waiting for an event');
     expect(document.activeElement).toBe(host.querySelector('.run-surface'));
-    const handle = host.querySelector('.run-handle') as HTMLButtonElement;
-    const bubbled = vi.fn();
-    window.addEventListener('keydown', bubbled);
-    handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true }));
-    window.removeEventListener('keydown', bubbled);
-    expect(bubbled).not.toHaveBeenCalled();
-    runController.stepFrame();
-    await settle();
-    expect(runController.getSnapshot().window).toEqual({ width: 790, height: 568 });
+    expect(host.querySelector('.run-layer')!.children).toHaveLength(2);
+    expect(host.querySelector('.run-strip, .run-readout, .run-handle, .run-window')).toBeNull();
     const stop = [...host.querySelectorAll('button')].find((b) => b.textContent?.includes('Stop'))!;
     stop.click();
     await settle();
@@ -370,31 +351,27 @@ describe('BB-RUN-14: Run is unavailable while a Pipeline illustration replaces t
   });
 });
 
-describe('BB-RUN-15: The program window starts below the Running strip', () => {
-  it('reports the height below the strip to Reshape and maps the view below it', () => {
-    const { setView } = setup();
-    getState().setCallbackHandler('reshape', 'onReshape');
-    runController.start({ loop: false });
-    expect(RUN_STRIP_HEIGHT).toBe(32);
-    expect(runController.getSnapshot().lastCall).toBe(`onReshape(800, ${600 - RUN_STRIP_HEIGHT})`);
-    setView.mockClear();
-    runController.stepFrame();
-    expect(setView).toHaveBeenCalledWith(expect.anything(), { x: 0, y: RUN_STRIP_HEIGHT, width: 800, height: 600 - RUN_STRIP_HEIGHT });
-  });
-
-  it('draws the window under the strip', async () => {
+describe('BB-RUN-15: The program window shows that it runs, and its last call, in its own title bar', () => {
+  it('reads running and how to stop, then the last call, and leaves the scene where it was', async () => {
     setup();
-    const host = mount(h(RunOverlay, {}));
+    const { default: ProgramWindow } = await import('@/widgets/canvas/ui/ProgramWindow');
+    const win = mount(h(ProgramWindow, { size: { width: 800, height: 600 } }, h('div', {})));
+    await settle();
+    expect(win.querySelector('.canvas-window__status')).toBeNull();
     runController.start({ loop: false });
     await settle();
-    expect((host.querySelector('.run-window') as HTMLElement).style.height).toBe(`${600 - RUN_STRIP_HEIGHT}px`);
+    const bar = win.querySelector('.canvas-window__bar')!;
+    expect(bar.querySelector('.canvas-window__running')).not.toBeNull();
+    expect(bar.querySelector('.canvas-window__status')!.textContent).toBe(RUN_HINT);
+    press('d');
+    await settle();
+    expect(bar.querySelector('.canvas-window__status')!.textContent).toBe(runController.getSnapshot().lastCall);
+    expect(runController.getSnapshot().lastCall).toMatch(/^onKey\('d'/);
     const { readFileSync } = await import('node:fs');
     const scss = readFileSync('src/features/callbacks/ui/run-overlay.scss', 'utf8');
-    expect(scss).toMatch(/--run-strip-height:\s*32px/);
-    const windowRule = scss.slice(scss.indexOf('.run-window {'), scss.indexOf('}', scss.indexOf('.run-window {')));
-    expect(windowRule).toMatch(/top:\s*var\(--run-strip-height\)/);
-    render(null, host);
-    host.remove();
+    expect(scss).not.toMatch(/run-strip|run-window|run-readout|run-handle/);
+    render(null, win);
+    win.remove();
   });
 });
 

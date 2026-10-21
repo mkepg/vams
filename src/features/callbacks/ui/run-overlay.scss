@@ -29,29 +29,12 @@
   &__action { justify-self: start; }
 }
 
+// The input surface over the running program. It draws nothing: the program window's
+// title bar shows that it runs, and the scene stays where it was.
 .run-layer {
-  --run-strip-height: 32px;
   position: absolute;
   inset: 0;
   z-index: 30;
-  overflow: hidden;
-
-  // The cobalt ring around the running canvas.
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    box-shadow: inset 0 0 0 3px var(--accent);
-    pointer-events: none;
-  }
-}
-
-// The program window. Outside it the canvas reads as empty paper.
-.run-window {
-  position: absolute;
-  top: var(--run-strip-height);
-  left: 0;
-  box-shadow: 0 0 0 9999px var(--paper-sunken);
 }
 
 .run-surface {
@@ -62,79 +45,6 @@
 
   &:focus-visible {
     outline: 2px solid var(--focus-ring);
-    outline-offset: -6px;
+    outline-offset: -2px;
   }
-}
-
-.run-handle {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 24px;
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-s) 0 0 0;
-  background: var(--paper-raised);
-  color: var(--accent);
-  cursor: nwse-resize;
-  z-index: 4;
-
-  &:focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 1px;
-  }
-}
-
-.run-strip {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 3;
-  height: var(--run-strip-height);
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-size: var(--text-sm);
-
-  &__dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: currentColor;
-  }
-
-  &__title {
-    font-weight: 600;
-  }
-
-  &__hint {
-    opacity: 0.85;
-  }
-}
-
-.run-readout {
-  position: absolute;
-  left: var(--space-2);
-  // Leaves the corner clear for the window handle.
-  right: calc(var(--space-2) + 24px + var(--space-2));
-  bottom: var(--space-2);
-  z-index: 3;
-  margin: 0;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-s);
-  background: var(--paper-raised);
-  color: var(--ink);
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  pointer-events: none;
 }

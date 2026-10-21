@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { ComponentChildren, JSX } from 'preact';
 import { useVamsStore } from '@/core/store';
-import { runController, useRunSnapshot } from '@/features/callbacks';
+import { RUN_HINT, runController, useRunSnapshot } from '@/features/callbacks';
 import { PROGRAM_WINDOW_TITLE } from '@/shared/lib/program-window';
 import { MIN_WINDOW_SIZE, resizeRect, type Rect, type ResizeEdge } from '../model/program-window';
 import { useProgramWindow } from '../model/program-window-store';
@@ -28,7 +28,8 @@ const capture = (event: PointerEvent) => {
 
 /** The stage: the program's window floating on it, movable and resizable, and the chip that brings it back. */
 export default function ProgramWindow({ size, away = false, children }: ProgramWindowProps) {
-  const running = useRunSnapshot().running;
+  const run = useRunSnapshot();
+  const running = run.running;
   const mode = useProgramWindow((s) => s.mode);
   const rect = useProgramWindow((s) => s.rect);
   const frameRef = useRef<HTMLDivElement>(null);
@@ -148,7 +149,7 @@ export default function ProgramWindow({ size, away = false, children }: ProgramW
 
   return (
     <div ref={frameRef} className={`canvas-stage__frame${away ? ' canvas-stage__frame--away' : ''}`}>
-      <CanvasWindow size={size} running={running} controls={controls} className={classes} style={placed}>
+      <CanvasWindow size={size} running={running} status={run.lastCall ?? RUN_HINT} controls={controls} className={classes} style={placed}>
         {children}
       </CanvasWindow>
       {hidden && (

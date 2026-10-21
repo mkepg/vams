@@ -128,8 +128,8 @@ Run mode:
 7. When Run stops because the store changed, focus moves to the Run button even if it was elsewhere.
 8. A File menu open when Run starts stays open, inert, until Stop.
 9. A theme change after a window resize during Run can clear Run's colour overrides. The top bar is inert during Run, so this is hard to reach.
-10. The window handle ignores `pointercancel` and lacks `touch-action: none`.
-11. The handle is 24px; the design spec says a 16px grip. The readout's inset hardcodes the 24px.
+10. Fixed 2026-10-22 (Run in the program window): the separate Run window and its handle are gone; the program window's own resize grip handles `pointercancel` and has `touch-action: none`.
+11. Fixed 2026-10-22 (Run in the program window): Run no longer draws its own handle or readout. The program window is the running program: the scene stays in place, the window's own edges resize it and fire Reshape, and its title bar shows that it runs and the last call.
 12. Fixed 2026-10-15 (editor rail redesign): "Try it" keeps the tooltip "Add a callback to run" when a Pipeline illustration is the reason it is disabled.
 
 Callbacks panel and generated code:
