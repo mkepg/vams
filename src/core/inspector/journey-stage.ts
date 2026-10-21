@@ -34,7 +34,6 @@ const GROUP_STAGE: Record<InspectorGroupId, JourneyStageId | null> = {
   texture: 'coloured',
   background: 'rasterised',
   'viewing-volume': 'projected',
-  'texture-library': 'coloured',
   callbacks: null,
 };
 

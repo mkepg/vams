@@ -56,7 +56,7 @@ describe('BB-JOURNEY-01: The context opens the stage that belongs to it', () => 
     }
     expect(journeyStageFor({ ...base, appMode: 'Lesson', lessonFocusPanel: 'appearance-panel' })).toBe('rasterised');
     const groups = { vertices: 'stored', buffers: 'stored', transform: 'transformed', appearance: 'coloured', texture: 'coloured',
-      background: 'rasterised', 'viewing-volume': 'projected', 'texture-library': 'coloured', callbacks: 'assembled' } as const;
+      background: 'rasterised', 'viewing-volume': 'projected', callbacks: 'assembled' } as const;
     for (const [group, stage] of Object.entries(groups)) {
       expect(journeyStageFor({ ...base, activeSection: 'Primitives', lastOpenedGroup: group as keyof typeof groups }), group).toBe(stage);
     }

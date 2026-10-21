@@ -18,7 +18,8 @@ const FIXED: Record<string, FocusPlace> = {
   'texture-attach': { area: 'object', group: 'texture' },
   'uv-editor': { area: 'object', group: 'texture' },
   'ortho-editor': { area: 'settings', group: 'viewing-volume' },
-  'texture-library': { area: 'settings', group: 'texture-library' },
+  // The library now lives in the shape's Texture group; older lessons still name it.
+  'texture-library': { area: 'object', group: 'texture' },
   'callbacks-panel': { area: 'settings', group: 'callbacks' },
   'pipeline-mode-controls': { area: 'canvas-header' },
 };

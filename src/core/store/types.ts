@@ -25,6 +25,7 @@ import type {
 } from '@/core/types/scene';
 
 import type {
+  TextureAsset,
   TextureFilter,
   TextureWrap,
   UV,
@@ -114,6 +115,8 @@ export interface HistorySnapshot {
   pendingMinVertices: number;
   pendingVertexStride: number | null;
   callbacks: CallbacksState;
+  /** Uploads, so undoing a removal brings the image back with its attachments. */
+  uploadedTextures: TextureAsset[];
   timestamp: number;
 }
 export interface HistorySlice {

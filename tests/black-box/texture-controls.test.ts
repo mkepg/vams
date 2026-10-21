@@ -13,6 +13,11 @@ import GradientPreview from '@/features/object-appearance/ui/GradientPreview';
 import ObjectAppearancePanel from '@/features/object-appearance/ui/ObjectAppearancePanel';
 import { addQuad, addTriangle } from '../helpers/store';
 import { presetUVs } from '@/features/textures/lib/uv-presets';
+import { SETTINGS_GROUPS } from '@/core/inspector/groups';
+import { resolveFocus } from '@/core/inspector/focus-map';
+import TexturePicker from '@/features/textures/ui/TexturePicker';
+import TextureParams from '@/features/textures/ui/TextureParams';
+import UVEditorPanel from '@/features/textures/ui/UVEditorPanel';
 
 describe('BB-TEX-01: The samples are the teaching set, in order', () => {
   it('lists five samples with these ids, names and sizes', () => {
@@ -232,5 +237,135 @@ describe('BB-TEX-10: A preset on a shape without UVs starts from the defaults', 
   it('starts from the defaults when the stored UVs do not match the vertices', () => {
     const quad = [v(-0.5, -0.5, 0), v(0.5, -0.5, 1), v(0.5, 0.5, 2), v(-0.5, 0.5, 3)];
     expect(presetUVs('flip-u', quad, [{ u: 0.3, v: 0.3 }])).toEqual(FIT.map(({ u, v: w }) => ({ u: 1 - u, v: w })));
+  });
+});
+
+const settle = () => new Promise((r) => setTimeout(r, 0));
+function mountIn(node: Parameters<typeof render>[0]) {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  render(node, host);
+  return { host, done: () => { render(null, host); host.remove(); } };
+}
+const objectOf = (id: string) => useVamsStore.getState().objects.find((o) => o.id === id)!;
+const UPLOAD = { id: 'up-1', name: 'Holiday photo', isSample: false, dataUrl: 'data:image/png;base64,', width: 300, height: 200 };
+
+describe('BB-TEX-11: Settings has no texture group and the focus lands on the Texture group', () => {
+  it('drops the library from Settings and sends its focus to the shape', () => {
+    expect(SETTINGS_GROUPS).toEqual(['background', 'viewing-volume']);
+    expect(resolveFocus('texture-library', true)).toEqual(resolveFocus('texture-attach', true));
+    expect(resolveFocus('texture-attach', true)).toEqual({ area: 'object', group: 'texture' });
+  });
+});
+
+describe('BB-TEX-12: The picker applies, removes and uploads', () => {
+  it('lists None, the samples and Upload, and attaches or detaches on click', async () => {
+    const quad = addQuad();
+    useVamsStore.setState({ selectedObjectId: quad.id });
+    const { host, done } = mountIn(h(TexturePicker, {}));
+    await settle();
+    const tiles = () => [...host.querySelectorAll('.tx-tile')] as HTMLButtonElement[];
+    const names = () => tiles().map((b) => b.getAttribute('aria-label') ?? b.textContent);
+    expect(names()).toEqual(['None', 'UV grid', 'Sprite sheet', 'Pixel fox', 'Brick wall', 'Coloured edges', 'Upload an image']);
+    expect(tiles()[0].getAttribute('aria-pressed')).toBe('true');
+
+    (host.querySelector('button[aria-label="Pixel fox"]') as HTMLButtonElement).click();
+    await settle();
+    expect(objectOf(quad.id).texture?.textureId).toBe('sample-pixel');
+    expect(host.querySelector('button[aria-label="Pixel fox"]')!.getAttribute('aria-pressed')).toBe('true');
+    expect(tiles()[0].getAttribute('aria-pressed')).toBe('false');
+    expect(host.querySelector('.tx-picker-name')!.textContent).toBe('Pixel fox · 64 × 64 · sample');
+
+    tiles()[0].click();
+    await settle();
+    expect(objectOf(quad.id).texture).toBeNull();
+    done();
+  });
+
+  it('shows uploads after the samples, each with a remove button', async () => {
+    const quad = addQuad();
+    useVamsStore.setState({ selectedObjectId: quad.id, uploadedTextures: [UPLOAD] });
+    const { host, done } = mountIn(h(TexturePicker, {}));
+    await settle();
+    const labels = [...host.querySelectorAll('.tx-tile')].map((b) => b.getAttribute('aria-label') ?? b.textContent);
+    expect(labels.slice(-2)).toEqual(['Holiday photo', 'Upload an image']);
+    expect(host.querySelectorAll('.tx-tile-remove')).toHaveLength(1);
+    (host.querySelector('button[aria-label="Holiday photo"]') as HTMLButtonElement).click();
+    await settle();
+    expect(host.querySelector('.tx-picker-name')!.textContent).toBe('Holiday photo · 300 × 200 · uploaded');
+    done();
+  });
+});
+
+describe('BB-TEX-13: Removing an upload detaches it everywhere, and one undo restores it', () => {
+  it('detaches both shapes, then one undo brings the image and both attachments back', async () => {
+    vi.useFakeTimers();
+    const later = () => vi.setSystemTime(Date.now() + 100);
+    try {
+      const a = addQuad(-0.5, 0, 0.3);
+      later();
+      const b = addQuad(0.5, 0, 0.3);
+      later();
+      useVamsStore.setState({ uploadedTextures: [UPLOAD] });
+      useVamsStore.getState().attachTexture(a.id, UPLOAD.id);
+      later();
+      useVamsStore.getState().attachTexture(b.id, UPLOAD.id);
+      later();
+      useVamsStore.setState({ selectedObjectId: a.id });
+      const { host, done } = mountIn(h(TexturePicker, {}));
+      await vi.advanceTimersByTimeAsync(0);
+      (host.querySelector('button[aria-label="Remove Holiday photo"]') as HTMLButtonElement).click();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(objectOf(a.id).texture).toBeNull();
+      expect(objectOf(b.id).texture).toBeNull();
+      expect(useVamsStore.getState().uploadedTextures).toEqual([]);
+
+      useVamsStore.getState().undo();
+      expect(useVamsStore.getState().uploadedTextures.map((t) => t.id)).toEqual([UPLOAD.id]);
+      expect(objectOf(a.id).texture?.textureId).toBe(UPLOAD.id);
+      expect(objectOf(b.id).texture?.textureId).toBe(UPLOAD.id);
+      done();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('BB-TEX-14: Filter and wrap show one code line for the last change', () => {
+  it('starts on the filter line and follows the wrap after a wrap change', async () => {
+    const quad = addQuad();
+    useVamsStore.getState().attachTexture(quad.id, 'sample-bricks');
+    useVamsStore.setState({ selectedObjectId: quad.id });
+    const { host, done } = mountIn(h(TextureParams, {}));
+    await settle();
+    expect(host.querySelector('.tx-params__line')!.textContent).toContain('GL_TEXTURE_MIN_FILTER');
+    const clamp = [...host.querySelectorAll('[aria-label="Wrap mode"] [role="radio"]')].find((r) => r.textContent === 'CLAMP') as HTMLElement;
+    clamp.click();
+    await settle();
+    expect(objectOf(quad.id).texture?.wrap).toBe('CLAMP_TO_EDGE');
+    expect(host.querySelector('.tx-params__line')!.textContent).toBe('glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);');
+    done();
+  });
+});
+
+describe('BB-TEX-15: The UV editor has presets, zoom buttons and closed exact values', () => {
+  it('shows the presets, applies Tile 2 × 2, and keeps the table behind a closed disclosure', async () => {
+    const quad = addQuad();
+    useVamsStore.getState().attachTexture(quad.id, 'sample-bricks');
+    useVamsStore.setState({ selectedObjectId: quad.id });
+    const before = objectOf(quad.id).uvs!;
+    const { host, done } = mountIn(h(UVEditorPanel, {}));
+    await settle();
+    const presets = [...host.querySelectorAll('.uve-presets button')] as HTMLButtonElement[];
+    expect(presets.map((b) => b.textContent)).toEqual(['Fit', 'Tile 2 × 2', 'Flip U', 'Flip V']);
+    expect([...host.querySelectorAll('.uve-zoom button')].map((b) => b.textContent)).toEqual(['−', 'Fit', '+']);
+    expect(host.querySelector('.uve-stage')!.getAttribute('title')).toBe('Drag a corner to move its UV. Shift + drag pans, Shift + scroll zooms.');
+    presets[1].click();
+    await settle();
+    expect(objectOf(quad.id).uvs).toEqual(before.map(({ u, v: w }) => ({ u: u * 2, v: w * 2 })));
+    const details = host.querySelector('details.uve-exact') as HTMLDetailsElement;
+    expect(details.open).toBe(false);
+    expect(details.querySelector('.uve-exact__count')!.textContent).toBe('4 vertices');
+    done();
   });
 });

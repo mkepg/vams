@@ -5,7 +5,7 @@ import InspectorGroup from './InspectorGroup';
 import { SETTINGS_GROUP_DEFS } from './inspector-groups';
 import { useGroupFocus } from './use-group-focus';
 
-/** Settings for the whole scene: Background, Viewing volume and Texture library. */
+/** Settings for the whole scene: Background and Viewing volume. */
 export default function SettingsPanel() {
   const hasSelection = useVamsStore((s) => s.selectedObjectId !== null);
   const openGroups = useVamsStore((s) => s.openGroups);

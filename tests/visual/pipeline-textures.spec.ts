@@ -115,3 +115,34 @@ test('VIS-PT-07: Quick Gradients as previews of the selected triangle, light, 12
   await presets.scrollIntoViewIfNeeded();
   await expect(presets).toHaveScreenshot('pt-quick-gradients-light-1280.png');
 });
+
+for (const [id, theme] of [['VIS-PT-08', 'dark'], ['VIS-PT-09', 'light']] as const) {
+  test(`${id}: the Texture group on the Bricks quad, ${theme}, 1280`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.addInitScript((t) => {
+      window.localStorage.setItem('vams-theme', t);
+      window.localStorage.setItem('vams-storage', JSON.stringify({ state: { hasSeenWelcome: true }, version: 11 }));
+      const css = '.update-notice, [data-sonner-toaster] { display: none !important; } .scene-title__state { visibility: hidden !important; }';
+      const inject = () => {
+        const style = document.createElement('style');
+        style.textContent = css;
+        (document.head ?? document.documentElement).appendChild(style);
+      };
+      if (document.documentElement) inject();
+      else document.addEventListener('DOMContentLoaded', inject, { once: true });
+    }, theme);
+    await page.goto('/app?scene=textured-quad');
+    await page.waitForSelector('.editor');
+    await page.getByRole('treeitem', { name: 'Bricks' }).click();
+    const group = page.locator('[data-group="texture"]');
+    const header = group.locator('.inspector-group__header');
+    if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
+    await expect(group.locator('.uve-stage')).toBeVisible();
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    });
+    await group.scrollIntoViewIfNeeded();
+    await expect(group).toHaveScreenshot(`pt-texture-group-${theme}-1280.png`);
+  });
+}

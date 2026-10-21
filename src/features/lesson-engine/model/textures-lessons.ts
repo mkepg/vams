@@ -254,7 +254,7 @@ export const TEXTURES_LESSONS: Record<string, Lesson> = {
     steps: [
       {
         narration:
-          "Your turn! I've placed a quad on the screen. Use the Apply Texture panel to attach the 'Brick wall' sample to it.",
+          "Your turn! I've placed a quad on the screen. Use the Texture group to attach the 'Brick wall' sample to it.",
         waitForUser: true,
         focusPanel: 'texture-attach',
         action: (state: VamsState) => {
@@ -346,7 +346,7 @@ export const TEXTURES_LESSONS: Record<string, Lesson> = {
     steps: [
       {
         narration:
-          "Let's turn this stretched quad into a tiled brick floor. Step one: In the Apply Texture panel, change the Wrap mode to GL_REPEAT. This permits the image to loop.",
+          "Let's turn this stretched quad into a tiled brick floor. Step one: In the Texture group, change the Wrap mode to GL_REPEAT. This permits the image to loop.",
         waitForUser: true,
         focusPanel: 'texture-attach',
         action: (state: VamsState) => {

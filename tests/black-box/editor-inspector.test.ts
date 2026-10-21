@@ -44,7 +44,7 @@ describe('BB-INSP-01: Every lesson focus target has a place in the editor', () =
     expect(resolveFocus('uv-editor', true)).toEqual({ area: 'object', group: 'texture' });
     expect(resolveFocus('animation-preview', true)).toBeNull();
     expect(resolveFocus('ortho-editor', true)).toEqual({ area: 'settings', group: 'viewing-volume' });
-    expect(resolveFocus('texture-library', true)).toEqual({ area: 'settings', group: 'texture-library' });
+    expect(resolveFocus('texture-library', true)).toEqual({ area: 'object', group: 'texture' });
     expect(resolveFocus('callbacks-panel', true)).toEqual({ area: 'settings', group: 'callbacks' });
     expect(resolveFocus('pipeline-mode-controls', false)).toEqual({ area: 'canvas-header' });
     expect(resolveFocus('nope', true)).toBeNull();
@@ -65,7 +65,7 @@ describe('BB-INSP-02: Each place belongs to a curriculum section', () => {
     expect(sectionForPlace({ area: 'object', group: 'buffers' })).toBe('Buffers');
     expect(sectionForPlace({ area: 'object', group: 'transform' })).toBe('Transforms');
     expect(sectionForPlace({ area: 'settings', group: 'viewing-volume' })).toBe('Transforms');
-    expect(sectionForPlace({ area: 'settings', group: 'texture-library' })).toBe('Textures');
+    expect(sectionForPlace({ area: 'object', group: 'texture' })).toBe('Textures');
     expect(sectionForPlace({ area: 'settings', group: 'callbacks' })).toBe('Pipeline');
     expect(sectionForPlace({ area: 'canvas-header' })).toBe('Pipeline');
   });
@@ -81,7 +81,7 @@ describe('BB-INSP-03: The context section follows focus, then the opened group, 
   });
 
   it('ignores a group opened before the lesson: a lesson step without focus shows the current section', () => {
-    const lesson = { appMode: 'Lesson' as const, lessonFocusPanel: null, selectedObjectId: null, lastOpenedGroup: 'texture-library' as const, activeSection: 'Transforms' as const, journeyStageOverride: null };
+    const lesson = { appMode: 'Lesson' as const, lessonFocusPanel: null, selectedObjectId: null, lastOpenedGroup: 'texture' as const, activeSection: 'Transforms' as const, journeyStageOverride: null };
     expect(contextSection(lesson)).toBe('Transforms');
     expect(journeyStageFor(lesson)).toBe('transformed');
     // A focus id with no place in the editor counts as no focus.
@@ -92,7 +92,7 @@ describe('BB-INSP-03: The context section follows focus, then the opened group, 
 describe('BB-INSP-04: Groups toggle, remember the last opened one, and clear a stage picked by hand', () => {
   it('updates the transient state through store actions', () => {
     const s = () => useVamsStore.getState();
-    expect(s().openGroups).toEqual(['transform', 'background', 'viewing-volume', 'texture-library']);
+    expect(s().openGroups).toEqual(['transform', 'background', 'viewing-volume']);
     s().setJourneyStageOverride('coloured');
     s().toggleGroup('buffers');
     expect(s().openGroups).toContain('buffers');
@@ -107,7 +107,7 @@ describe('BB-INSP-04: Groups toggle, remember the last opened one, and clear a s
     s().setLessonFocusPanel('object-transform');
     expect(s().journeyStageOverride).toBeNull();
     s().setActiveSection('Textures');
-    expect(s().openGroups).toEqual(['transform', 'background', 'viewing-volume', 'texture-library']);
+    expect(s().openGroups).toEqual(['transform', 'background', 'viewing-volume']);
     expect(s().lastOpenedGroup).toBeNull();
   });
 
@@ -261,6 +261,6 @@ describe('BB-INSP-11: Every focus place belongs to one rail panel', () => {
     for (const group of SETTINGS_GROUPS) expect(railPanelFor({ area: 'settings', group })).toBe('settings');
     expect(railPanelFor({ area: 'settings', group: 'callbacks' })).toBe('callbacks');
     expect(railPanelFor({ area: 'canvas-header' })).toBeNull();
-    expect(SETTINGS_GROUPS).toEqual(['background', 'viewing-volume', 'texture-library']);
+    expect(SETTINGS_GROUPS).toEqual(['background', 'viewing-volume']);
   });
 });

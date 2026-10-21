@@ -16,8 +16,8 @@ import LineStylePanel from '@/features/line-style/ui/LineStylePanel';
 import CallbacksPanel from '@/features/callbacks/ui/CallbacksPanel';
 import CanvasHeader from '@/widgets/canvas/ui/CanvasHeader';
 import BuffersPanel from '@/features/buffers/ui/BuffersPanel';
-import TextureLibraryPanel from '@/features/textures/ui/TextureLibraryPanel';
-import TextureAttachmentPanel from '@/features/textures/ui/TextureAttachmentPanel';
+import TexturePicker from '@/features/textures/ui/TexturePicker';
+import TextureParams from '@/features/textures/ui/TextureParams';
 import UVEditorPanel from '@/features/textures/ui/UVEditorPanel';
 import { getPreset } from '@/entities/project/model/scene-presets';
 import { loadProjectData } from '@/features/scene-library';
@@ -382,33 +382,30 @@ describe('BB-PANEL-15: Buffers names its GL calls and keeps keyboard radiogroups
   });
 });
 
-describe('BB-PANEL-16: Apply Texture uses GL constant segmented controls', () => {
-  it('shows filter and wrap with their glTexParameteri hints', async () => {
+describe('BB-PANEL-16: Filter and wrap use GL constant segmented controls', () => {
+  it('shows filter and wrap with the glTexParameteri line', async () => {
     loadTexturedQuad();
     useVamsStore.setState({ activeSection: 'Textures' });
-    const host = mount(h(TextureAttachmentPanel, {}));
+    const host = mount(h(TextureParams, {}));
     await settle();
-    expect(hints(host)).toEqual(expect.arrayContaining([
-      'glBindTexture',
-      'glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter)',
-      'glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap)',
-    ]));
+    expect(host.querySelector('.tx-params__line')!.textContent).toBe('glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);');
     const filter = host.querySelector('[role="radiogroup"][aria-label="Filter mode"]')!;
-    expect([...filter.querySelectorAll('[role="radio"]')].map((r) => r.textContent)).toEqual(['GL_NEAREST', 'GL_LINEAR']);
+    expect([...filter.querySelectorAll('[role="radio"]')].map((r) => r.textContent)).toEqual(['NEAREST', 'LINEAR']);
     ([...filter.querySelectorAll('[role="radio"]')][1] as HTMLButtonElement).click();
     await settle();
     const linear = [...host.querySelectorAll('[role="radiogroup"][aria-label="Filter mode"] [role="radio"]')][1];
     expect(linear.getAttribute('aria-checked')).toBe('true');
     const wrap = host.querySelector('[role="radiogroup"][aria-label="Wrap mode"]')!;
-    expect([...wrap.querySelectorAll('[role="radio"]')].map((r) => r.textContent)).toEqual(['GL_REPEAT', 'GL_CLAMP_TO_EDGE']);
+    expect([...wrap.querySelectorAll('[role="radio"]')].map((r) => r.textContent)).toEqual(['REPEAT', 'CLAMP']);
     unmount(host);
   });
 });
 
-describe('BB-PANEL-17: Texture Library remove buttons name their texture', () => {
+describe('BB-PANEL-17: Texture picker remove buttons name their texture', () => {
   it('labels each remove button with the texture name', async () => {
+    loadTexturedQuad();
     useVamsStore.setState({ uploadedTextures: [{ id: 'tex-1', name: 'Bricks', isSample: false, dataUrl: 'data:image/png;base64,', width: 4, height: 4 }] });
-    const host = mount(h(TextureLibraryPanel, {}));
+    const host = mount(h(TexturePicker, {}));
     await settle();
     expect(host.querySelector('button[aria-label="Remove Bricks"]')).not.toBeNull();
     unmount(host);
@@ -485,8 +482,8 @@ describe('BB-PANEL-20: The UV Editor has a typed table of texture coordinates', 
     useVamsStore.setState({ activeSection: 'Textures', past: [], future: [] });
     const host = mount(h(UVEditorPanel, {}));
     await settle();
-    expect(hints(host)).toContain('glTexCoord2f(u, v)');
-    expect(host.querySelector('caption')!.textContent).toBe('Texture coordinates');
+    expect(hints(host)).toContain('glTexCoord2f');
+    expect(host.querySelector('caption')!.textContent).toBe('Texture coordinates, glTexCoord2f(u, v)');
     const u0 = fieldNamed(host, 'Vertex 1 U')!;
     expect(u0).not.toBeNull();
     expect(fieldNamed(host, 'Vertex 1 V')).not.toBeNull();
@@ -708,14 +705,14 @@ describe('BB-PANEL-29: The Scene panel lists the scene above the selected object
 });
 
 describe('BB-PANEL-30: The Settings panel holds the scene-wide groups, all open', () => {
-  it('lists Background, Viewing volume and Texture library, open, with no Callbacks', async () => {
+  it('lists Background and Viewing volume, open, with no Callbacks', async () => {
     useVamsStore.setState({ openGroups: [...DEFAULT_OPEN_GROUPS] });
     const host = mount(h(SettingsPanel, {}));
     await settle();
     expect(host.querySelector('.rail-panel__title')!.textContent).toBe('Settings');
     expect(host.querySelector('.rail-panel__hint')!.textContent).toBe('These apply to the whole scene.');
     expect([...host.querySelectorAll('.inspector-group__title')].map((t) => t.textContent))
-      .toEqual(['Background', 'Viewing volume', 'Texture library']);
+      .toEqual(['Background', 'Viewing volume']);
     for (const header of host.querySelectorAll('.inspector-group__header')) expect(header.getAttribute('aria-expanded')).toBe('true');
     expect(host.querySelector('[data-group="callbacks"]')).toBeNull();
     expect(host.querySelector('.rail-panel__body')!.hasAttribute('data-scroll-root')).toBe(true);
