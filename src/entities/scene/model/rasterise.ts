@@ -114,6 +114,7 @@ export function rasterise(input: RasterInput, grid: PixelGrid, multisample: bool
       const len2 = dx * dx + dy * dy;
       const rgbs = members.map(colourAt);
       const uvs = uvsOf(members);
+      const flatId = provokingOf(type, members);
       for (let row = r0; row <= r1; row++)
         for (let col = c0; col <= c1; col++)
           offsets.forEach((o, k) => {
@@ -122,7 +123,8 @@ export function rasterise(input: RasterInput, grid: PixelGrid, multisample: bool
             const sy = (s.y - a.y) / pxH;
             const t = len2 > EPS ? Math.min(1, Math.max(0, (sx * dx + sy * dy) / len2)) : 0;
             if (Math.hypot(sx - t * dx, sy - t * dy) > 0.5 + EPS) return;
-            paint(col, row, k, { rgb: mix([1 - t, t], rgbs), uv: mixUv([1 - t, t], uvs) });
+            const rgb = shading === 'FLAT' ? colourAt(flatId) : mix([1 - t, t], rgbs);
+            paint(col, row, k, { rgb, uv: mixUv([1 - t, t], uvs) });
           });
     } else {
       if (pts.length < 3) continue;
@@ -131,7 +133,7 @@ export function rasterise(input: RasterInput, grid: PixelGrid, multisample: bool
         const ids = [members[0], members[j], members[j + 1]];
         const [a, b, c] = [pts[0], pts[j], pts[j + 1]];
         const area = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
-        if (Math.abs(area) < EPS) continue;
+        if (Math.abs(area) < EPS * (w * h + Math.abs((b.x - a.x) * (c.y - a.y)) + Math.abs((c.x - a.x) * (b.y - a.y)))) continue;
         const [c0, c1, r0, r1] = bounds([a, b, c], 1);
         const rgbs = ids.map(colourAt);
         const uvs = uvsOf(ids);
@@ -143,11 +145,9 @@ export function rasterise(input: RasterInput, grid: PixelGrid, multisample: bool
               const wc = ((b.x - a.x) * (p.y - a.y) - (p.x - a.x) * (b.y - a.y)) / area;
               const wa = 1 - wb - wc;
               if (wa < -EPS || wb < -EPS || wc < -EPS) return;
-              if (shading === 'FLAT') {
-                paint(col, row, k, { rgb: colourAt(flatId), uv: input.uvs ? (input.uvs[flatId] ?? null) : null });
-              } else {
-                paint(col, row, k, { rgb: mix([wa, wb, wc], rgbs), uv: mixUv([wa, wb, wc], uvs) });
-              }
+              // Flat shading changes the colour only; texture coordinates always interpolate.
+              const rgb = shading === 'FLAT' ? colourAt(flatId) : mix([wa, wb, wc], rgbs);
+              paint(col, row, k, { rgb, uv: mixUv([wa, wb, wc], uvs) });
             });
       }
     }

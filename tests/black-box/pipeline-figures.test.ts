@@ -184,3 +184,25 @@ describe('BB-PFIG-10: Lines and points rasterise', () => {
     expect(out[0]).toMatchObject({ col: 4, row: 3, coverage: 1 });
   });
 });
+
+describe('BB-PFIG-09: flat shading and scale', () => {
+  const tri = [pt(-1, -1), pt(1, -1), pt(-1, 1)];
+  const uvs = [{ u: 0, v: 0 }, { u: 1, v: 0 }, { u: 0, v: 1 }];
+  it('still interpolates texture coordinates under flat shading', () => {
+    const out = rasterise(input({ corners: tri, colours: [RED, GREEN, BLUE], uvs, shading: 'FLAT' }), grid(12), false);
+    const a = out.find((f) => f.col === 0 && f.row === 11)!;
+    const b = out.find((f) => f.col === 10 && f.row === 11)!;
+    expect(a.uv!.u).not.toBeCloseTo(b.uv!.u);
+  });
+  it('gives a flat line the provoking corner colour', () => {
+    const out = rasterise(input({ type: 'LINES', corners: [pt(-1, 0.125), pt(1, 0.125)], colours: [RED, BLUE], shading: 'FLAT' }), grid(8), false);
+    expect(out).toHaveLength(8);
+    out.forEach((f) => expect(f.rgb).toEqual([0, 0, 255]));
+  });
+  it('covers pixels for a triangle inside a very small volume', () => {
+    const tiny = pixelGrid({ minX: 0, maxX: 0.001, minY: 0, maxY: 0.001 }, 8);
+    const out = rasterise(input({ corners: [pt(0, 0), pt(0.001, 0), pt(0, 0.001)], colours: Array(3).fill(RED) }), tiny, false);
+    expect(out.length).toBeGreaterThan(0);
+  });
+});
+
