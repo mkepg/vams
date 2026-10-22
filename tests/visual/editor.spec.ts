@@ -320,3 +320,20 @@ for (const width of [1280, 960]) {
     expect(Math.abs(max.width / max.height - 1)).toBeLessThan(0.02);
   });
 }
+
+test('VIS-EDITOR-33: At 960 the open drawer sits beside the canvas, never over it', async ({ page }) => {
+  await page.setViewportSize({ width: 960, height: 720 });
+  await open(page, '/app?lesson=transforms-demo-1');
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(page.locator('.editor__panel')).toBeVisible();
+  const panel = (await page.locator('.editor__panel').boundingBox())!;
+  const canvas = (await page.locator('.editor__canvas').boundingBox())!;
+  const win = (await page.locator('.canvas-window').boundingBox())!;
+  expect(panel.x + panel.width).toBeLessThanOrEqual(canvas.x + 0.5);
+  expect(win.x).toBeGreaterThanOrEqual(canvas.x);
+  expect(win.x + win.width).toBeLessThanOrEqual(canvas.x + canvas.width + 0.5);
+  // Closing the drawer gives the room back.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.editor__panel')).toBeHidden();
+  expect((await page.locator('.editor__canvas').boundingBox())!.width).toBeGreaterThan(canvas.width + 200);
+});

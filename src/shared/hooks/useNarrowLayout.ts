@@ -13,7 +13,7 @@ function snapshot() {
   return typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia(QUERY).matches;
 }
 
-/** True below 1100 CSS px, where the editor panel becomes a drawer beside the rail. */
+/** True below 1100 CSS px, where the editor panel becomes a drawer beside the canvas, which narrows to make room. */
 export function useNarrowLayout(): boolean {
   return useSyncExternalStore(subscribe, snapshot);
 }
