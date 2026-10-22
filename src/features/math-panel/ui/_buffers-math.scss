@@ -263,6 +263,14 @@
         color: var(--hue-violet);
         border: 1px solid rgba(var(--hue-violet-rgb), 0.4);
       }
+
+      // An index: which vertex glDrawElements draws at that corner.
+      &.idx {
+        padding: 0 4px;
+        background: transparent;
+        color: $text-dim;
+        border: 1px solid $border-color;
+      }
     }
   }
 

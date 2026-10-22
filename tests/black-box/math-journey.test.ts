@@ -14,6 +14,7 @@ import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import MathPanel from '@/features/math-panel/ui/MathPanel';
 import CodeMathColumn from '@/widgets/layout/code-math-column';
 import { ringTarget, FollowRing, pickHandleVertex } from '@/shared/engine/selection-overlay';
+import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { addTriangle, getState } from '../helpers/store';
 
 async function settle() {
@@ -246,7 +247,8 @@ describe('BB-JOURNEY-08: The stepper follows another vertex, and a removed verte
 
 describe('BB-JOURNEY-09: Every card from the old tabs is still in its stage', () => {
   it('shows each section\'s cards in the stage they belong to', async () => {
-    mockTriangle();
+    // Separate Arrays shows only where the code declares arrays, so not in Immediate mode.
+    getState().updateRenderingMode(mockTriangle(), 'VERTEX_ARRAY');
     useVamsStore.setState({ pipelineMode: 'Playground' });
     const host = mount(h(MathPanel, {}));
     await settle();
@@ -822,7 +824,7 @@ describe('BB-JOURNEY-29: Coloured\'s face caption and Color card follow the vert
 
 describe('BB-JOURNEY-30: The Stored stage draws the separate arrays the code declares', () => {
   it('names verts_ and colors_, adds uvs_ for a textured shape, and never says interleaved', async () => {
-    mockTriangle();
+    getState().updateRenderingMode(mockTriangle(), 'VERTEX_ARRAY');
     useVamsStore.setState({ pipelineMode: 'Playground' });
     const host = mount(h(MathPanel, {}));
     await settle();
@@ -859,6 +861,63 @@ describe('BB-JOURNEY-31: The Stored stage counts UVs in a textured vertex', () =
     expect(footprint()).toContain('28 Bper vertex');
     expect(footprint()).toContain('84 Btotal');
     expect(host.querySelector('.bm-footprint [title]')!.getAttribute('title')).toBe('position (8 B) + colour (12 B) + UV (8 B)');
+    unmount(host);
+  });
+});
+
+describe('BB-JOURNEY-32: The separate arrays follow indexed drawing, and Immediate mode declares none', () => {
+  /** A quad drawn as two triangles that share two corners, all one colour. */
+  function quad() {
+    const corners = [{ x: -0.5, y: -0.5 }, { x: 0.5, y: -0.5 }, { x: 0.5, y: 0.5 }, { x: -0.5, y: -0.5 }, { x: 0.5, y: 0.5 }, { x: -0.5, y: 0.5 }];
+    getState().addCustomObject('TRIANGLES', corners);
+    const id = getState().objects[0].id;
+    getState().updateObjectName(id, 'Quad');
+    getState().setAllVertexColors(id, '#ff6633');
+    getState().selectObject(id);
+    useVamsStore.setState({ pipelineMode: 'Playground' });
+    return id;
+  }
+  const code = () => {
+    const s = getState();
+    return generateCodeFromState(
+      { objects: s.objects, canvasBackgroundColor: s.canvasBackgroundColor, callbacks: s.callbacks, viewportLimits: s.viewportLimits },
+      { width: 800, height: 600 },
+    );
+  };
+  const openStored = async (host: HTMLElement) => {
+    row(host, 'Stored')?.click();
+    await settle();
+  };
+
+  it('counts the unique vertices and adds the indices array the code declares', async () => {
+    const id = quad();
+    getState().updateRenderingMode(id, 'VERTEX_ARRAY');
+    getState().updateUseIndexed(id, true);
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    await openStored(host);
+    const arrays = [...host.querySelectorAll('.bm-arrays .bm-array')];
+    const named = (name: string) => arrays.find((a) => a.querySelector('.bm-array-name')!.textContent === name)!;
+    expect(arrays.map((a) => a.querySelector('.bm-array-name')!.textContent)).toEqual(['verts_Quad', 'colors_Quad', 'indices_Quad']);
+    expect(named('verts_Quad').querySelectorAll('.bm-vblock')).toHaveLength(4);
+    expect(named('verts_Quad').textContent).toContain('4 × 8 B');
+    expect(named('colors_Quad').textContent).toContain('4 × 12 B');
+    expect(named('indices_Quad').textContent).toContain('6 × 4 B');
+    const generated = code();
+    expect(generated).toContain('GLuint indices_Quad[] = { 0, 1, 2, 0, 2, 3 };');
+    for (const a of arrays) expect(generated).toContain(`${a.querySelector('.bm-array-name')!.textContent}[]`);
+    unmount(host);
+  });
+
+  it('shows no Separate Arrays card in Immediate mode', async () => {
+    quad();
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    await openStored(host);
+    expect(host.textContent).toContain('Memory Footprint');
+    expect(host.textContent).not.toContain('Layout: Separate Arrays');
+    expect(host.querySelector('.bm-arrays')).toBeNull();
+    expect(code()).not.toMatch(/verts_Quad\[\]/);
     unmount(host);
   });
 });
