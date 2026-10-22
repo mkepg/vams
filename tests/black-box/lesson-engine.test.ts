@@ -11,6 +11,7 @@
 import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { describe, it, expect } from 'vitest';
 import { useVamsStore } from '@/core/store';
+import type { LessonStep } from '@/core/types/lesson';
 import { LESSON_REGISTRY, getLessonById } from '@/features/lesson-engine/model/lesson-registry';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { addTriangle, getState } from '../helpers/store';
@@ -91,24 +92,28 @@ describe('BB-LESSON-05: clearLessonState restores the original scene', () => {
   });
 });
 
+/** A step's success predicates: its successCheck and each of its goals' checks. */
+const stepChecks = (step: LessonStep) => [...(step.successCheck ? [step.successCheck] : []), ...(step.goals ?? []).map((g) => g.check)];
+
 describe('BB-LESSON-06: successCheck predicates classify pass/fail correctly', () => {
-  it('every successCheck returns a boolean and never throws on an empty store', () => {
+  it('every success check returns a boolean and never throws on an empty store', () => {
     let total = 0;
     let returnedBool = 0;
     for (const lesson of Object.values(LESSON_REGISTRY)) {
       for (const step of lesson.steps) {
-        if (!step.successCheck) continue;
-        total++;
-        useVamsStore.setState({
-          objects: [], selectedObjectId: null, pendingVertices: [],
-          pendingShapeType: null,
-          callbacks: emptyCallbacks(),
-        });
-        try {
-          const ok = step.successCheck(useVamsStore.getState());
-          if (typeof ok === 'boolean') returnedBool++;
-        } catch {
-          /* a thrown predicate is permitted but should be rare */
+        for (const check of stepChecks(step)) {
+          total++;
+          useVamsStore.setState({
+            objects: [], selectedObjectId: null, pendingVertices: [],
+            pendingShapeType: null,
+            callbacks: emptyCallbacks(),
+          });
+          try {
+            const ok = check(useVamsStore.getState());
+            if (typeof ok === 'boolean') returnedBool++;
+          } catch {
+            /* a thrown predicate is permitted but should be rare */
+          }
         }
       }
     }
@@ -129,8 +134,7 @@ describe('BB-LESSON-06: successCheck predicates classify pass/fail correctly', (
     for (const lesson of Object.values(LESSON_REGISTRY)) {
       for (const step of lesson.steps) {
         // A step detects success with its successCheck and with each of its goals.
-        const checks = [...(step.successCheck ? [step.successCheck] : []), ...(step.goals ?? []).map((g) => g.check)];
-        for (const check of checks) {
+        for (const check of stepChecks(step)) {
           try {
             if (check(useVamsStore.getState())) passed++;
           } catch { /* tolerate */ }
@@ -140,19 +144,21 @@ describe('BB-LESSON-06: successCheck predicates classify pass/fail correctly', (
     expect(passed).toBeGreaterThanOrEqual(1);
   });
 
-  it('an empty scene fails the successCheck of a step that requires content', () => {
+  it('an empty scene fails the success check of a step that requires content', () => {
     let evaluatedFail = 0;
     for (const lesson of Object.values(LESSON_REGISTRY)) {
       for (const step of lesson.steps) {
-        if (!step.successCheck) continue;
-        useVamsStore.setState({
-          objects: [], selectedObjectId: null, pendingVertices: [],
-        });
-        try {
-          const ok = step.successCheck(useVamsStore.getState());
-          if (!ok) evaluatedFail++;
-        } catch {
-          evaluatedFail++; // throwing on empty state still counts as "fail"
+        for (const check of stepChecks(step)) {
+          useVamsStore.setState({
+            objects: [], selectedObjectId: null, pendingVertices: [],
+          });
+          try {
+            const ok = check(useVamsStore.getState());
+            if (!ok) evaluatedFail++;
+          } catch {
+            evaluatedFail++; // throwing on empty state still counts as "fail"
+          }
+          if (evaluatedFail >= 1) break;
         }
         if (evaluatedFail >= 1) break;
       }

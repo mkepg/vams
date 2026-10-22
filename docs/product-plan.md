@@ -519,18 +519,22 @@ VAMS ships with five sample textures in the Texture group's picker, each teachin
 
 ### Demos (minimum 4)
 
-1. **"From Image to Texture"** — uploads a sample texture, applies it to a quad, and narrates each section of the generated setup code.
-2. **"UV Coordinates"** — starts with default UV mapping, adjusts coordinates, and narrates the effect.
-3. **"Filtering"** — zooms in on a textured object and toggles between Nearest and Linear filtering, narrating the visual difference.
-4. **"Wrapping"** — pushes UVs outside `[0, 1]` and toggles between Repeat and Clamp, narrating the visual difference.
-5. **"Texture on a Triangle"** — applies a texture to a triangle, drags UV handles, and narrates how barycentric interpolation samples the texture.
+1. **"The Foundation of Textures"** — Brick wall on a quad, read through `glGenTextures`, `glBindTexture`, `glTexImage2D` with `GL_RGBA` and `GL_UNSIGNED_BYTE`, `glEnable(GL_TEXTURE_2D)` and `glTexCoord2f`; the student predicts what `GL_UNSIGNED_BYTE` means and what red corners do under `GL_REPLACE`.
+2. **"Mapping with UVs"** — the UV grid sample: u across, v up, Flip U and half-range UVs, each predicted first.
+3. **"Unlocking the Texture Atlas"** — the Sprite sheet: picking the coin, then the heart, by UVs.
+4. **"The Pixel Art Problem"** — the Pixel fox under `GL_LINEAR` and `GL_NEAREST`, and `GL_TEXTURE_MAG_FILTER` against `GL_TEXTURE_MIN_FILTER` when the fox is scaled down.
+5. **"Pushing Boundaries (Wrapping)"** — UVs from 0 to 3 with `GL_REPEAT`, `GL_TEXTURE_WRAP_S` and `GL_TEXTURE_WRAP_T`, and the Coloured edges sample under `GL_CLAMP_TO_EDGE`.
+6. **"Texture on a Triangle"** — the UV grid on a triangle; moving the tip's UV changes the whole face through barycentric weights.
+7. **"Textures from Arrays"** — a textured quad switched to Vertex Array and VBO: `uvs_` arrays, `GL_TEXTURE_COORD_ARRAY` and `glTexCoordPointer`.
 
 ### Exercises (minimum 4)
 
-1. **"Apply a Texture"** — upload a sample texture and apply it to a created quad.
-2. **"Tile the Texture"** — produce a 3×3 tile by setting UVs to `(0,0)–(3,3)` with Repeat wrapping.
-3. **"Pixelate"** — switch a zoomed textured quad to Nearest filtering to make it appear pixelated.
-4. **"Map UVs to Match Target"** — adjust UV coordinates to match a target rendered result, within a defined tolerance.
+1. **"First Coat of Paint"** — put Brick wall on a quad, then swap it for the UV grid.
+2. **"Sprite Extraction"** — UVs that show only the star, then only the gem, then a question about the heart.
+3. **"Retro Crispness"** — Nearest filtering for the Pixel fox, then scale it up, then a question about the two filter lines.
+4. **"The Endless Floor"** — Repeat, UVs from 0 to 2, then bricks half as tall with v from 0 to 4.
+5. **"Clamp the Edges"** — Clamp on the Coloured edges sample, then the image pushed to the right half with u from −1 to 1.
+6. **"Write the Texture Calls"** — the course's capstone: a textured shape with Nearest and Clamp, then `glGenTextures`, `GL_TEXTURE_2D`, the filter, `GL_TEXTURE_WRAP_S` and the wrap mode, `GL_RGBA` and `GL_UNSIGNED_BYTE`, and the first corner's `glTexCoord2f` written by hand.
 
 ### Acceptance Criteria
 

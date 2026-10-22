@@ -87,6 +87,7 @@ Four projects, in this order. Each has its own spec and plan.
    Primitives content (2026-10-22): fifteen lessons, three of them new (Strips and Fans, When the Window Changes Size, and the Draw It Yourself capstone); every primitive mode, colour call, line and text call and the input and reshape callbacks are now taught.
    Buffers content (2026-10-22): ten lessons, one of them new (the Build a VBO by Hand capstone); every vertex-array, VBO, usage-hint and mapping name is now taught.
    Transforms content (2026-10-22): twelve lessons, three of them new (Spin or Orbit, Make It Orbit and the Write the Transform Calls capstone); the matrix-mode names are now taught.
+   Textures content (2026-10-22): thirteen lessons, four of them new (Mapping with UVs, Textures from Arrays, Clamp the Edges and the Write the Texture Calls capstone). Every OpenGL and GLUT name the generator can emit is now taught, and the untaught allowlist is empty.
 
 ### Below the line
 
@@ -202,7 +203,7 @@ The thesis manuscript is final and describes the evaluated build. The overhauled
 
 16. The manuscript describes a client-only web application. Sharing a scene stores it through one server-side Pages Function in a key-value store, which keeps a shared scene for 90 days.
 17. The manuscript's canvas is a plain drawing area. The canvas is now drawn as the program's window, titled as the generated program titles it, under a header holding the viewing volume, the cursor, the View menu and Run. The window can be moved, resized, minimised and closed like a desktop window.
-18. The evaluated lessons were narrated steps with scene actions and two exercise kinds (multiple choice and ordered list). The lesson engine now also supports goal checklists, hints, Skip, predictions, recaps and typed code blanks, and each section gains a capstone as its content lands. The Pipeline section has two exercises the evaluated build lacked, Paint the Background and Write main(), so it has nine lessons where the evaluated build had seven. Primitives gains Strips and Fans, When the Window Changes Size and Draw It Yourself. Buffers gains Build a VBO by Hand. Transforms gains Spin or Orbit, Make It Orbit and Write the Transform Calls.
+18. The evaluated lessons were narrated steps with scene actions and two exercise kinds (multiple choice and ordered list). The lesson engine now also supports goal checklists, hints, Skip, predictions, recaps and typed code blanks, and each section gains a capstone as its content lands. The Pipeline section has two exercises the evaluated build lacked, Paint the Background and Write main(), so it has nine lessons where the evaluated build had seven. Primitives gains Strips and Fans, When the Window Changes Size and Draw It Yourself. Buffers gains Build a VBO by Hand. Transforms gains Spin or Orbit, Make It Orbit and Write the Transform Calls. Textures gains Mapping with UVs, Textures from Arrays, Clamp the Edges and Write the Texture Calls.
 
 The following manuscript descriptions may also be crossed by later sub-projects. When one is, it is added to the list above:
 - The default canvas background `#000000`. Changing it changes generated code and the replay baseline.
