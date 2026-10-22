@@ -255,7 +255,7 @@ describe('BB-JOURNEY-09: Every card from the old tabs is still in its stage', ()
       await settle();
     };
     await open('Stored');
-    for (const title of ['Memory Footprint', 'Array vs Indexed', 'Layout: Interleaved', 'CPU → GPU Traffic']) expect(host.textContent, title).toContain(title);
+    for (const title of ['Memory Footprint', 'Array vs Indexed', 'Layout: Separate Arrays', 'CPU → GPU Traffic']) expect(host.textContent, title).toContain(title);
     await open('Transformed');
     (host.querySelector('.journey-open__deeper') as HTMLButtonElement).click();
     await settle();
@@ -816,6 +816,29 @@ describe('BB-JOURNEY-29: Coloured\'s face caption and Color card follow the vert
     await settle();
     expect(host.textContent).toContain('With flat shading, triangle 2 takes vertex 4’s colour.');
     expect(hex(host)).toBe('#FFFF00');
+    unmount(host);
+  });
+});
+
+describe('BB-JOURNEY-30: The Stored stage draws the separate arrays the code declares', () => {
+  it('names verts_ and colors_, adds uvs_ for a textured shape, and never says interleaved', async () => {
+    mockTriangle();
+    useVamsStore.setState({ pipelineMode: 'Playground' });
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    row(host, 'Stored')?.click();
+    await settle();
+    const card = () => host.querySelector('.bm-arrays')!;
+    expect(card().textContent).toContain('verts_Triangle');
+    expect(card().textContent).toContain('colors_Triangle');
+    expect(card().textContent).not.toContain('uvs_Triangle');
+    expect(card().textContent).toContain('3 × 8 B');
+    expect(card().textContent).toContain('3 × 12 B');
+    expect(host.textContent).not.toMatch(/interleaved/i);
+    expect(card().textContent).not.toMatch(/\bcolor\b/);
+    getState().attachTexture(getState().objects[0].id, 'sample-bricks');
+    await settle();
+    expect(card().textContent).toContain('uvs_Triangle');
     unmount(host);
   });
 });

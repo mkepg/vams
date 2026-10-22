@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { Pause, Play, RotateCcw, ChevronLeft, ChevronRight, Pin } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
+import { sanitizeName } from '@/shared/lib/sanitize-name';
 import type {
   BufferUpdateMethod,
   BufferUsage,
@@ -203,50 +204,61 @@ function MemoryComparison({ obj }: { obj: SceneNode }) {
   );
 }
 
-function InterleavedLayout({ obj }: { obj: SceneNode }) {
+/** One array the program declares for a shape: its name, the letters of each vertex's block, and the bytes per vertex. */
+interface ArrayRow {
+  name: string;
+  cells: string[];
+  kind: 'pos' | 'col' | 'uv';
+}
+
+/** The separate arrays the generated code declares, one block per vertex in each. */
+function SeparateArrays({ obj }: { obj: SceneNode }) {
   const { total } = dedupCount(obj);
   const MAX_BLOCKS = 4;
   const truncated = total > MAX_BLOCKS;
-  const visibleCount = truncated ? Math.min(MAX_BLOCKS - 1, total) : total;
+  const visibleCount = truncated ? MAX_BLOCKS - 1 : total;
+  const safe = sanitizeName(obj.name);
+  const rows: ArrayRow[] = [
+    { name: `verts_${safe}`, cells: ['x', 'y'], kind: 'pos' },
+    { name: `colors_${safe}`, cells: ['r', 'g', 'b'], kind: 'col' },
+  ];
+  if (obj.texture && obj.uvs?.length === obj.vertices.length) rows.push({ name: `uvs_${safe}`, cells: ['u', 'v'], kind: 'uv' });
 
-  const blocks: Array<{ idx: number; ellipsis?: boolean; trailing?: boolean }> = [];
+  const blocks: Array<{ idx: number; ellipsis?: boolean }> = [];
   for (let i = 0; i < visibleCount; i++) blocks.push({ idx: i });
   if (truncated) {
     blocks.push({ idx: -1, ellipsis: true });
-    blocks.push({ idx: total - 1, trailing: true });
+    blocks.push({ idx: total - 1 });
   }
 
   return (
-    <div className="bm-interleaved">
-      <div className="bm-interleaved-row">
-        {blocks.map((b, i) =>
-          b.ellipsis ? (
-            <div key={`gap-${i}`} className="bm-vblock ellipsis" aria-hidden>
-              <span className="bm-vblock-idx">…</span>
-            </div>
-          ) : (
-            <div key={`v-${b.idx}`} className="bm-vblock">
-              <span className="bm-vblock-idx">V{b.idx + 1}</span>
-              <div className="bm-vblock-cells">
-                <span className="bm-cell pos">x</span>
-                <span className="bm-cell pos">y</span>
-                <span className="bm-cell col">r</span>
-                <span className="bm-cell col">g</span>
-                <span className="bm-cell col">b</span>
-              </div>
-            </div>
-          )
-        )}
-      </div>
-      <div className="bm-interleaved-foot">
-        <div className="bm-interleaved-legend">
-          <span><span className="bm-swatch pos" /> position (8 B)</span>
-          <span><span className="bm-swatch col" /> color (12 B)</span>
+    <div className="bm-arrays">
+      {rows.map((r) => (
+        <div key={r.name} className="bm-array">
+          <div className="bm-array-head">
+            <code className="bm-array-name">{r.name}</code>
+            <span className="bm-array-size">{total} × {r.cells.length * 4} B</span>
+          </div>
+          <div className="bm-array-row">
+            {blocks.map((b, i) =>
+              b.ellipsis ? (
+                <div key={`gap-${i}`} className="bm-vblock ellipsis" aria-hidden>
+                  <span className="bm-vblock-idx">…</span>
+                </div>
+              ) : (
+                <div key={`v-${b.idx}`} className="bm-vblock">
+                  <span className="bm-vblock-idx">V{b.idx + 1}</span>
+                  <div className="bm-vblock-cells">
+                    {r.cells.map((c) => (
+                      <span key={c} className={`bm-cell ${r.kind}`}>{c}</span>
+                    ))}
+                  </div>
+                </div>
+              ),
+            )}
+          </div>
         </div>
-        <span className="bm-interleaved-summary">
-          {total} {total === 1 ? 'block' : 'blocks'} × 20 B
-        </span>
-      </div>
+      ))}
     </div>
   );
 }
@@ -662,12 +674,13 @@ export default function BuffersMathContent() {
         </Section>
       )}
 
-      <Section title="Layout: Interleaved">
+      <Section title="Layout: Separate Arrays">
         <p className="explanation">
-          Position and color are packed together, one block per vertex, so the GPU fetches both
-          in a single read.
+          In Vertex Array and VBO modes your program keeps one array per attribute. Positions,
+          colours and UVs each have their own array, and glVertexPointer, glColorPointer and
+          glTexCoordPointer each point at one.
         </p>
-        <InterleavedLayout obj={selected} />
+        <SeparateArrays obj={selected} />
       </Section>
 
       <Section title={
