@@ -99,7 +99,7 @@ export const LESSON_CATALOG: readonly LessonEntry[] = [
   { id: 'transforms-demo-2', title: 'Matrix Representation', type: 'demo', section: 'Transforms', steps: 9 },
   { id: 'transforms-demo-3', title: 'The Matrix Stack', type: 'demo', section: 'Transforms', steps: 7 },
   { id: 'transforms-demo-5', title: 'Spin or Orbit: Order Matters', type: 'demo', section: 'Transforms', steps: 7 },
-  { id: 'transforms-demo-4', title: 'glOrtho: Changing the View', type: 'demo', section: 'Transforms', steps: 8 },
+  { id: 'transforms-demo-4', title: 'glOrtho: Changing the View', type: 'demo', section: 'Transforms', steps: 9 },
   { id: 'transforms-anim-1', title: 'Animation: Transformation Over Time', type: 'demo', section: 'Transforms', steps: 7 },
   { id: 'transforms-exercise-1', title: 'Translate to Position', type: 'exercise', section: 'Transforms', steps: 5 },
   { id: 'transforms-exercise-2', title: 'Rotate to Angle', type: 'exercise', section: 'Transforms', steps: 5 },

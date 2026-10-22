@@ -246,3 +246,39 @@ describe('BB-LESSON-10: The animation demo spins a triangle with an idle rule', 
     expect(lesson.steps.some((s) => s.focusPanel === 'callbacks-panel')).toBe(true);
   });
 });
+
+describe('BB-LESSON-11: The glOrtho demo teaches the stretch through a window the student squares', () => {
+  const lesson = LESSON_REGISTRY['transforms-demo-4'];
+  const sets = (step: LessonStep, limits: { minX: number; maxX: number; minY: number; maxY: number }) => {
+    useVamsStore.getState().setViewportLimits({ minX: -1, maxX: 1, minY: -1, maxY: 1 });
+    step.action?.(useVamsStore.getState());
+    const v = getState().viewportLimits;
+    return v.minX === limits.minX && v.maxX === limits.maxX && v.minY === limits.minY && v.maxY === limits.maxY;
+  };
+  const wide = lesson.steps.findIndex((step) => sets(step, { minX: -2, maxX: 2, minY: -1, maxY: 1 }));
+  const correct = (step: LessonStep) => step.predict!.options.find((o) => o.id === step.predict!.correctId)!;
+
+  it('answers that a 2:1 volume keeps the arrow its shape, in a window of the same shape', () => {
+    const step = lesson.steps[wide];
+    expect(step.predict!.options.length).toBeGreaterThanOrEqual(2);
+    expect(step.predict!.options.length).toBeLessThanOrEqual(3);
+    expect(correct(step).label).toMatch(/keeps its shape/);
+    expect(correct(step).label).toMatch(/left and right/);
+    expect(correct(step).why).toMatch(/window takes the viewing volume's shape/);
+  });
+
+  it('then has the student drag the window square, and the arrow comes out half as wide for its height', () => {
+    const step = lesson.steps[wide + 1];
+    expect(step.narration).toMatch(/drag/i);
+    expect(step.narration).toMatch(/corner/);
+    expect(step.narration).toMatch(/square/);
+    // The window is not store state, so the step waits on no goal; it asks a prediction.
+    expect(step.goals ?? []).toEqual([]);
+    expect(correct(step).label).toBe('Squashed: half as wide for its height');
+    expect(correct(step).why).toMatch(/scaled differently/);
+  });
+
+  it("closes on ranges that don't match the window's shape", () => {
+    expect(lesson.steps[lesson.steps.length - 1].recap!.points).toContain("x and y ranges that don't match the window's shape stretch the picture.");
+  });
+});
