@@ -9,7 +9,7 @@ import path from 'node:path';
 import ts from 'typescript';
 import { everythingFixture } from '../helpers/code-fixtures';
 
-const AMERICAN = /\b(colors?|colored|coloring|colorful|rasteriz(?:e|ed|es|ing|ation)|normaliz(?:e|ed|es|ing|ation)|centers?|centered|centering|gray|grayscale|behaviors?|minimiz(?:e|ed|es|ing)|maximiz(?:e|ed|es|ing)|visualiz(?:e|ed|es|ing|ation)|optimiz(?:e|ed|es|ing|ation)|initializ(?:e|ed|es|ing|ation))\b/gi;
+const AMERICAN = /\b(colors?|colored|coloring|colorful|rasteriz(?:e|ed|es|ing|ation)|normaliz(?:e|ed|es|ing|ation)|centers?|centered|centering|gray|grayscale|behaviors?|minimiz(?:e|ed|es|ing)|maximiz(?:e|ed|es|ing)|visualiz(?:e|ed|es|ing|ation)|optimiz(?:e|ed|es|ing|ation)|initializ(?:e|ed|es|ing|ation)|organiz(?:e|ed|es|ing|ation|ations|er|ers)|analyz(?:e|ed|es|ing)|recogniz(?:e|ed|es|ing)|summariz(?:e|ed|es|ing)|customiz(?:e|ed|es|ing|ation)|prioritiz(?:e|ed|es|ing)|favorites?|labeled|labeling|canceled|canceling|catalogs?|synchroniz(?:e|ed|es|ing|ation)|utiliz(?:e|ed|es|ing)|emphasiz(?:e|ed|es|ing)|realiz(?:e|ed|es|ing|ation)|generaliz(?:e|ed|es|ing|ation)|specializ(?:e|ed|es|ing)|neighbors?|neighboring|travel(?:ed|ing)|fulfill|enroll)\b/gi;
 
 const SRC = path.resolve(__dirname, '../../src');
 const GENERATOR_FILE = path.join('features', 'code-generation', 'model', 'code-generator.ts');
@@ -90,6 +90,7 @@ describe('WB-SPELL-02: The generated program\'s comments are British', () => {
 describe('WB-SPELL-03: The guard catches what it should and leaves code alone', () => {
   it('flags prose and passes names', () => {
     expect(americanInText('Pick a color')).toEqual(['color']);
+    expect(americanInText('Organize your scene')).toEqual(['organize']);
     expect(americanInText('Colour the corner; glColor3f and GL_COLOR_ARRAY stay; `color` in code')).toEqual([]);
   });
 });

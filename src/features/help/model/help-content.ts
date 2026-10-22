@@ -489,12 +489,12 @@ export const HELP_TOPICS: HelpTopic[] = [
     id: 'scene-hierarchy',
     category: 'panels',
     title: 'Scene Hierarchy & Grouping',
-    summary: 'Organize, rename, group, reorder, and show or hide your objects.',
+    summary: 'Organise, rename, group, reorder, and show or hide your objects.',
     keywords: ['hierarchy', 'scene', 'list', 'group', 'ungroup', 'rename', 'duplicate', 'delete', 'visibility', 'reorder', 'drag', 'parent', 'child', 'tree'],
     blocks: [
       {
         kind: 'paragraph',
-        text: 'The Scene list sits at the top of the Scene panel and lists every object in your scene. It is where you organize, name, and structure your work.',
+        text: 'The Scene list sits at the top of the Scene panel and lists every object in your scene. It is where you organise, name, and structure your work.',
       },
       { kind: 'heading', text: 'What you can do' },
       {
