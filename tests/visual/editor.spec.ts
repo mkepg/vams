@@ -91,11 +91,15 @@ test('VIS-EDITOR-08: Menus, the Learn drawer and the My scenes dialog', async ({
   await page.getByRole('button', { name: 'Learn' }).click();
   await expect(page).toHaveScreenshot('learn-drawer.png');
   await page.keyboard.press('Escape');
+  // The sample saves itself a second after it opens, and the dialog reads the list only as it opens:
+  // wait for that save so the capture always shows the scene's own entry.
+  await expect(page.locator('.scene-title__state.is-saved')).toBeAttached();
   await page.getByRole('button', { name: 'File' }).click();
   await page.getByRole('menuitem', { name: 'My scenes…' }).click();
-  // The name field starts with a timestamp; fix it so the capture does not change by the minute.
+  await expect(page.locator('.my-scenes__name', { hasText: 'Transforms' })).toBeVisible();
+  // The name field and the entry's time read the clock; fix and mask them so the capture does not change by the minute.
   await page.getByRole('dialog').getByRole('textbox').fill('Scene name');
-  await expect(page).toHaveScreenshot('my-scenes.png');
+  await expect(page).toHaveScreenshot('my-scenes.png', { mask: [page.locator('.my-scenes__time')] });
 });
 
 test('VIS-EDITOR-09: No horizontal page overflow at 960 px', async ({ page }) => {
