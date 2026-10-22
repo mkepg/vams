@@ -310,6 +310,23 @@ for (const width of [1280, 960]) {
     expect(await clipped()).toEqual([]);
   });
 
+  test(`VIS-EDITOR-34: Every Buffers row stays on one line, ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openSelected(page, 'light');
+    await page.locator('[data-group="buffers"] .inspector-group__header').click();
+    const panel = page.locator('[data-panel-id="buffers-panel"]');
+    await panel.scrollIntoViewIfNeeded();
+    await panel.getByRole('radiogroup', { name: 'Rendering mode' }).getByRole('radio', { name: /VBO/ }).click();
+    await panel.getByRole('radiogroup', { name: 'Buffer usage hint' }).getByRole('radio', { name: /Dynamic/ }).click();
+    await expect(panel.getByRole('radiogroup', { name: 'Buffer update method' })).toBeVisible();
+    const rows = panel.locator('.bp-row');
+    await expect(rows.first()).toBeVisible();
+    const tall = await rows.evaluateAll((els) => els.filter((el) => el.getBoundingClientRect().height > 32).map((el) => el.textContent));
+    const cut = await panel.locator('.bp-row__desc').evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth).map((el) => el.textContent));
+    expect(tall).toEqual([]);
+    expect(cut).toEqual([]);
+  });
+
   test(`VIS-EDITOR-32: The program window is the viewing volume's shape, ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
     await openEmpty(page, 'light');
