@@ -842,3 +842,23 @@ describe('BB-JOURNEY-30: The Stored stage draws the separate arrays the code dec
     unmount(host);
   });
 });
+
+describe('BB-JOURNEY-31: The Stored stage counts UVs in a textured vertex', () => {
+  it('shows 20 B per vertex for a plain shape and 28 B once it has a texture', async () => {
+    mockTriangle();
+    useVamsStore.setState({ pipelineMode: 'Playground' });
+    const host = mount(h(MathPanel, {}));
+    await settle();
+    row(host, 'Stored')?.click();
+    await settle();
+    const footprint = () => host.querySelector('.bm-footprint')!.textContent;
+    expect(footprint()).toContain('20 Bper vertex');
+    expect(footprint()).toContain('60 Btotal');
+    getState().attachTexture(getState().objects[0].id, 'sample-bricks');
+    await settle();
+    expect(footprint()).toContain('28 Bper vertex');
+    expect(footprint()).toContain('84 Btotal');
+    expect(host.querySelector('.bm-footprint [title]')!.getAttribute('title')).toBe('position (8 B) + colour (12 B) + UV (8 B)');
+    unmount(host);
+  });
+});

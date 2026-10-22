@@ -168,7 +168,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { kind: 'heading', text: 'Running your program' },
       {
         kind: 'paragraph',
-        text: 'Press Run in the canvas header to play your callbacks. Keys, clicks and drags go to your handlers, and the bar at the bottom shows the last call GLUT made. Drag the window’s edges or corner to resize it. Press Esc or Stop to end the run: your scene is just as you built it.',
+        text: 'Press Run in the canvas header to play your callbacks. Keys, clicks and drags go to your handlers, and the program window’s title bar shows the last call GLUT made. Drag the window’s edges or corner to resize it. Press Esc or Stop to end the run: your scene is just as you built it.',
       },
       { kind: 'shortcuts' },
       { kind: 'heading', text: 'Grid snapping & coordinates' },
@@ -406,7 +406,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: 'Move, rotate, and scale objects using the on-canvas gizmo or the numeric inputs. Every transform corresponds to a fixed-function matrix call.',
+        text: 'Move, rotate, and scale objects with the Transform group’s scale pad, rotate dial and numbers, or drag a shape on the canvas to move it. Every transform corresponds to a fixed-function matrix call.',
       },
       {
         kind: 'table',

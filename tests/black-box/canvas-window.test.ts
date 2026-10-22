@@ -240,11 +240,17 @@ describe('BB-CANVAS-09: The header has a View menu beside Run', () => {
   const trigger = (host: HTMLElement) => host.querySelector('button[aria-haspopup="menu"]') as HTMLButtonElement;
   const boxes = () => [...document.querySelectorAll('[role="menuitemcheckbox"]')] as HTMLElement[];
   it('has no Grid numbers icon button, and View sits directly left of Run', async () => {
+    useVamsStore.setState({ activeSection: 'Primitives' });
     const host = mount(h(CanvasHeader, {}));
     await settle();
     expect(host.querySelector('button[aria-label="Grid numbers"]')).toBeNull();
     expect(host.querySelector('.canvas-header__numbers')).toBeNull();
     expect(trigger(host).textContent).toContain('View');
+    expect(trigger(host).closest('.vmenu')!.nextElementSibling?.classList.contains('run-control')).toBe(true);
+    // Beside the Pipeline switch View is an icon, still named View.
+    useVamsStore.setState({ activeSection: 'Pipeline' });
+    await settle();
+    expect(trigger(host).getAttribute('aria-label')).toBe('View');
     expect(trigger(host).closest('.vmenu')!.nextElementSibling?.classList.contains('run-control')).toBe(true);
     unmount(host);
   });

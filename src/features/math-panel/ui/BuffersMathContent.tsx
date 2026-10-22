@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import { Pause, Play, RotateCcw, ChevronLeft, ChevronRight, Pin } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import { sanitizeName } from '@/shared/lib/sanitize-name';
+import { hasTexture, vertexKey } from '@/entities/scene/model/vertex-dedup';
 import type {
   BufferUpdateMethod,
   BufferUsage,
@@ -12,18 +13,20 @@ import type {
 
 const BYTES_POS   = 8;
 const BYTES_COLOR = 12;
+const BYTES_UV    = 8;
 const BYTES_INDEX = 4;
-const BYTES_PER_VERTEX = BYTES_POS + BYTES_COLOR;
+
+/** Bytes one vertex takes: its position and colour, and its UV when the shape is textured. */
+const bytesPerVertex = (o: SceneNode) => BYTES_POS + BYTES_COLOR + (hasTexture(o) ? BYTES_UV : 0);
 
 function isPrimitive(o: SceneNode): boolean {
   return o.type !== 'GROUP' && o.type !== 'TEXT';
 }
 
+/** Vertices in the shape, and how many are different, by the same test indexed drawing uses. */
 function dedupCount(o: SceneNode): { unique: number; total: number } {
-  const keys = new Set<string>();
-  for (const v of o.vertices) {
-    keys.add(`${v.x.toFixed(6)}|${v.y.toFixed(6)}|${v.color}`);
-  }
+  const textured = hasTexture(o);
+  const keys = new Set(o.vertices.map((v, i) => vertexKey(v, textured ? o.uvs![i] : null)));
   return { unique: keys.size, total: o.vertices.length };
 }
 
@@ -144,7 +147,9 @@ function CurrentDrawCall({ obj, mode }: { obj: SceneNode; mode: RenderingMode })
 
 function MemoryFootprint({ obj }: { obj: SceneNode }) {
   const { total } = dedupCount(obj);
-  const totalBytes = total * BYTES_PER_VERTEX;
+  const perVertex = bytesPerVertex(obj);
+  const totalBytes = total * perVertex;
+  const parts = `position (${BYTES_POS} B) + colour (${BYTES_COLOR} B)${hasTexture(obj) ? ` + UV (${BYTES_UV} B)` : ''}`;
 
   return (
     <div className="bm-footprint">
@@ -153,8 +158,8 @@ function MemoryFootprint({ obj }: { obj: SceneNode }) {
         <span className="bm-stat-label">vertices</span>
       </div>
       <span className="bm-stat-op">×</span>
-      <div className="bm-footprint-stat" title="position (8 B) + color (12 B)">
-        <span className="bm-stat-num">{BYTES_PER_VERTEX} B</span>
+      <div className="bm-footprint-stat" title={parts}>
+        <span className="bm-stat-num">{perVertex} B</span>
         <span className="bm-stat-label">per vertex</span>
       </div>
       <span className="bm-stat-op">=</span>
@@ -168,8 +173,9 @@ function MemoryFootprint({ obj }: { obj: SceneNode }) {
 
 function MemoryComparison({ obj }: { obj: SceneNode }) {
   const { unique, total } = dedupCount(obj);
-  const arrayBytes = total * BYTES_PER_VERTEX;
-  const indexedBytes = unique * BYTES_PER_VERTEX + total * BYTES_INDEX;
+  const perVertex = bytesPerVertex(obj);
+  const arrayBytes = total * perVertex;
+  const indexedBytes = unique * perVertex + total * BYTES_INDEX;
   const savings = arrayBytes - indexedBytes;
   const positive = savings > 0;
 
@@ -181,7 +187,7 @@ function MemoryComparison({ obj }: { obj: SceneNode }) {
           <span className="bm-memory-api">glDrawArrays</span>
         </div>
         <code className="bm-memory-val">{arrayBytes} B</code>
-        <span className="bm-memory-sub">{total} verts × {BYTES_PER_VERTEX} B</span>
+        <span className="bm-memory-sub">{total} verts × {perVertex} B</span>
       </div>
 
       <div className="bm-memory-row">
@@ -191,7 +197,7 @@ function MemoryComparison({ obj }: { obj: SceneNode }) {
         </div>
         <code className="bm-memory-val">{indexedBytes} B</code>
         <span className="bm-memory-sub">
-          {unique} unique × {BYTES_PER_VERTEX} B + {total} idx × {BYTES_INDEX} B
+          {unique} unique × {perVertex} B + {total} idx × {BYTES_INDEX} B
         </span>
       </div>
 
@@ -222,7 +228,7 @@ function SeparateArrays({ obj }: { obj: SceneNode }) {
     { name: `verts_${safe}`, cells: ['x', 'y'], kind: 'pos' },
     { name: `colors_${safe}`, cells: ['r', 'g', 'b'], kind: 'col' },
   ];
-  if (obj.texture && obj.uvs?.length === obj.vertices.length) rows.push({ name: `uvs_${safe}`, cells: ['u', 'v'], kind: 'uv' });
+  if (hasTexture(obj)) rows.push({ name: `uvs_${safe}`, cells: ['u', 'v'], kind: 'uv' });
 
   const blocks: Array<{ idx: number; ellipsis?: boolean }> = [];
   for (let i = 0; i < visibleCount; i++) blocks.push({ idx: i });

@@ -282,3 +282,12 @@ describe('BB-HELP-10: Help covers sharing, the top bar and the canvas window', (
     expect(basics).toContain('View menu');
   });
 });
+
+describe('BB-HELP-11: Help describes the editor as it is', () => {
+  it('never mentions the canvas gizmo or a Run bar at the bottom, and says the title bar shows the last call', () => {
+    const text = JSON.stringify(HELP_TOPICS);
+    expect(text).not.toMatch(/gizmo/i);
+    expect(text).not.toMatch(/bar at the bottom shows the last call/i);
+    expect(text).toMatch(/title bar shows the last call/i);
+  });
+});

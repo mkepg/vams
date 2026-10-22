@@ -340,7 +340,7 @@ export default function ObjectTransformPanel() {
             <GlHint call="glRotatef" args="angle, 0.0f, 0.0f, 1.0f" />
             <div className="tp-row">
               <span className="tp-row__label">Rotate</span>
-              <div className="tp-row__fields">
+              <div className="tp-row__fields tp-row__fields--single">
                 <NumberField
                   label="Rotate" tag="θ" value={transform.rotate} step={1} precision={1} unit="°"
                   onBeginChange={pushToHistory} onChange={(v) => liveUpdate({ rotate: v })}

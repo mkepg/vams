@@ -283,3 +283,30 @@ test('VIS-EDITOR-29: Lesson bar above the open drawer, 960', async ({ page }) =>
   await expect(page.locator('.editor__panel')).toBeVisible();
   await expect(page).toHaveScreenshot('lesson-drawer-960.png', { animations: 'disabled' });
 });
+
+for (const width of [1280, 960]) {
+  test(`VIS-EDITOR-30: Run stays whole in the header beside the Pipeline switch, ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await openEmpty(page, 'light');
+    await expect(page.locator('.canvas-header .pipeline-mode-switch')).toBeVisible();
+    const header = (await page.locator('.canvas-header').boundingBox())!;
+    const run = (await page.locator('.canvas-header .run-control').boundingBox())!;
+    expect(run.x + run.width).toBeLessThanOrEqual(header.x + header.width);
+  });
+
+  test(`VIS-EDITOR-31: The Transform fields show their whole value, ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openSelected(page, 'light');
+    const inputs = page.locator('.transform-panel .vnum__input');
+    const clipped = () =>
+      inputs.evaluateAll((els) =>
+        (els as HTMLInputElement[]).filter((el) => el.scrollWidth > el.clientWidth).map((el) => `${el.getAttribute('aria-label')}: ${el.value}`),
+      );
+    await expect(inputs.first()).toBeVisible();
+    expect(await clipped()).toEqual([]);
+    // The House group is turned 15° and scaled 0.8.
+    await page.locator('[data-panel-id="scene-hierarchy"] [role="treeitem"][aria-expanded] .tree-item').first().click();
+    await expect(page.locator('.inspector__meta')).toContainText('Group');
+    expect(await clipped()).toEqual([]);
+  });
+}

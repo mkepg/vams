@@ -27,6 +27,8 @@
 
   &__title { font-weight: 600; color: var(--ink); }
   &__volume, &__cursor { font-family: $font-mono; font-size: var(--text-xs); color: var(--ink-faint); }
+  // The volume gives way first when the row is full, so Run is never pushed out.
+  &__volume { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   &__hint {
     flex: 1 1 auto;
     min-width: 0;
@@ -45,6 +47,7 @@
   }
   &__spacer { flex: 1; }
   > .vmenu { flex-shrink: 0; }
+  > .run-control { flex-shrink: 0; }
   // The Pipeline view switch sits on the header's line, before View.
   > .pipeline-mode-switch {
     flex-shrink: 0;
