@@ -1016,7 +1016,7 @@ export const PRIMITIVES_LESSONS: Record<string, Lesson> = {
             now().addCustomObject('LINE_STRIP', ZIGZAG);
             now().updateLineWidth(now().objects[0].id, 4);
           }
-          if (!now().objects.some((o) => o.type === 'TEXT' && !!o.textContent?.trim())) now().addTextObject('My scene', 0, 0.8);
+          if (!now().objects.some((o) => o.type === 'TEXT' && !!o.textContent?.trim())) now().addTextObject('My scene', -0.15, 0.8);
         },
       },
       {

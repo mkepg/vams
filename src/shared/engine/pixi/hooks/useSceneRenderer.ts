@@ -2,7 +2,8 @@ import { useEffect, useRef } from "react";
 import * as PIXI from "pixi.js";
 import { Container, FederatedPointerEvent, Mesh } from "pixi.js";
 import { useVamsStore } from "@/core/store";
-import { createDrawable } from "@/shared/engine/pixi/primitives";
+import { BitmapTextLayout, createDrawable, releaseBitmapText } from "@/shared/engine/pixi/primitives";
+import { effectiveScaleY, textLineStep } from "@/shared/lib/text-raster";
 import { renderBridge } from "@/shared/engine/render-bridge";
 import { FollowRing, pickHandleVertex, ringTarget, type SelectionOverlay } from "@/shared/engine/selection-overlay";
 import type { SceneNode } from "@/core/types/scene";
@@ -77,6 +78,7 @@ export function useSceneRenderer({
   const rebuildContent = (container: Container, node: SceneNode) => {
     const world = worldRef.current;
     if (!world || container.destroyed) return;
+    releaseBitmapText(container);
     container.removeChildren();
     const content = createDrawable(node, world.scale.x, { worldScaleY: world.scale.y });
     while (content.children.length > 0) container.addChild(content.children[0]);
@@ -247,6 +249,35 @@ export function useSceneRenderer({
   }, [pixiReady, appRef, overlayRef, worldRef]);
   useEffect(() => {
     const app = appRef.current;
+    const overlay = overlayRef.current;
+    if (!app || !overlay || !pixiReady) return;
+    // Bitmap text lives in window pixels: after everything else has moved this frame (Run's rules
+    // included) and before it is drawn, put each line at its raster position.
+    const placeText = () => {
+      const { viewportLimits, selectedObjectId: selected } = useVamsStore.getState();
+      const width = app.screen.width;
+      const height = app.screen.height;
+      const pixelsPerUnitY = height / (viewportLimits.maxY - viewportLimits.minY);
+      let placed = false;
+      objectsRef.current.forEach((obj) => {
+        if (obj.type !== 'TEXT') return;
+        const container = containersRef.current.get(obj.id);
+        if (!container || container.destroyed || !(container.hitArea instanceof BitmapTextLayout)) return;
+        const step = textLineStep(pixelsPerUnitY, effectiveScaleY(obj, objectsRef.current));
+        container.hitArea.place(container, step, width, height);
+        placed = true;
+      });
+      // The outline measures the selection, which may be a text or a group holding one: measure it
+      // again now that the lines are in place.
+      if (placed && selected && !renderBridge.editorOverlaysHidden()) overlay.update();
+    };
+    app.ticker.add(placeText, undefined, PIXI.UPDATE_PRIORITY.LOW + 1);
+    return () => {
+      app.ticker?.remove(placeText);
+    };
+  }, [pixiReady, appRef, overlayRef]);
+  useEffect(() => {
+    const app = appRef.current;
     const world = worldRef.current;
     const overlay = overlayRef.current;
     if (!app || !world || !overlay || !pixiReady) return;
@@ -370,6 +401,7 @@ export function useSceneRenderer({
       }
       if (needsRebuild) {
         if (container) {
+          releaseBitmapText(container);
           container.removeChildren();
           let groupChildren: SceneNode[] | undefined;
           if (obj.type === "GROUP") {
@@ -472,6 +504,7 @@ export function useSceneRenderer({
     unusedIds.forEach((id) => {
       const c = containersRef.current.get(id);
       if (c) {
+        releaseBitmapText(c);
         c.children.forEach((child) => {
           if (child instanceof Mesh && child.geometry) {
             child.geometry.destroy();

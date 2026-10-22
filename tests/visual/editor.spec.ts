@@ -372,3 +372,19 @@ test('VIS-EDITOR-35: At 960 with the drawer open the window bar keeps Maximise a
     expect(button.x + button.width, name).toBeLessThanOrEqual(win.x + win.width + 0.5);
   }
 });
+
+for (const theme of THEMES) {
+  test(`VIS-EDITOR-36: Bitmap text in GLUT's 9×15 font, rotated, ${theme}, 1280`, async ({ page }) => {
+    await openEmpty(page, theme);
+    await page.getByRole('tab', { name: 'Add' }).click();
+    const input = page.getByRole('textbox', { name: 'Text', exact: true });
+    await input.fill('Hello');
+    await input.press('Enter');
+    await page.getByRole('textbox', { name: 'Edit text' }).fill('Hello\nOpenGL!');
+    const rotate = page.getByRole('textbox', { name: 'Rotate', exact: true }).or(page.getByRole('spinbutton', { name: 'Rotate', exact: true })).first();
+    await rotate.fill('30');
+    await rotate.press('Enter');
+    // Letters stay upright at one texel per pixel; only the second line's start swings round.
+    await expect(page.locator('.canvas-wrapper')).toHaveScreenshot(`bitmap-text-${theme}-1280.png`);
+  });
+}

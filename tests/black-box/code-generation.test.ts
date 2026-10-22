@@ -187,3 +187,34 @@ describe('BB-GEN-11: A textured program includes only what it uses', () => {
     expect(code).toContain('// stb_image: define its implementation in exactly one file, before including it\n#define STB_IMAGE_IMPLEMENTATION\n#include "stb_image.h"\n');
   });
 });
+
+describe('BB-GEN-12: Text lines start 17 window pixels apart', () => {
+  const text = () => getState().objects.find((o) => o.type === 'TEXT')!;
+
+  it('starts line 1 at the origin and steps down in units worth 17 pixels', () => {
+    // 600 px tall window over a -1..1 volume: 300 px per unit, so a line is 17/300 = 0.0567.
+    getState().addTextObject('a\nb\nc', 0, 0);
+    const code = gen();
+    expect(code).toContain('glRasterPos2f(0.0f, 0.0000f);');
+    expect(code).toContain('glRasterPos2f(0.0f, -0.0567f);');
+    expect(code).toContain('glRasterPos2f(0.0f, -0.1134f);');
+  });
+
+  it('widens the step when the text, or a group around it, scales it down', () => {
+    getState().addTextObject('a\nb', 0, 0);
+    getState().updateObjectTransform(text().id, { scaleY: 0.5 });
+    expect(gen()).toContain('glRasterPos2f(0.0f, -0.1133f);');
+    const tri = addTriangle(0.5, 0.5, 0.1);
+    getState().createGroup([text().id, tri.id]);
+    const group = getState().objects.find((o) => o.type === 'GROUP')!;
+    getState().updateObjectTransform(group.id, { scaleY: 2 });
+    // 0.5 × 2: back to one unit per unit, 17/300.
+    expect(gen()).toContain('glRasterPos2f(0.0f, -0.0567f);');
+  });
+
+  it('keeps every line on its spot when the scale is zero', () => {
+    getState().addTextObject('a\nb', 0, 0);
+    getState().updateObjectTransform(text().id, { scaleY: 0 });
+    expect(gen().match(/glRasterPos2f\(0\.0f, 0\.0000f\);/g)).toHaveLength(2);
+  });
+});

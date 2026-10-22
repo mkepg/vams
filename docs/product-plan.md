@@ -249,7 +249,7 @@ Covers: `glBegin`/`glEnd` with `GL_POINTS`, `GL_LINES`, `GL_LINE_STRIP`, `GL_LIN
 1. Students can place all curriculum primitives onto the canvas via a primitive palette and see the corresponding `glBegin`/`glVertex`/`glEnd` sequences in the code panel.
 2. Students can choose between float and byte color representations per object, and see both forms in the code and math panel.
 3. Students can style line primitives with width and stipple patterns, with visual feedback in both the canvas and the code panel.
-4. Text objects generate correct `glRasterPos2f` + `glutBitmapCharacter` code (not stroke text).
+4. Text objects generate correct `glRasterPos2f` + `glutBitmapCharacter` code (not stroke text), and the canvas draws them as that code does: GLUT's 9×15 bitmap glyphs in window pixels, starting at the raster position, never scaled or turned, with lines 17 pixels apart.
 5. Students can register GLUT callbacks, give them rules built from menus, see the handler bodies those rules produce in the generated code, and play the handlers on the canvas with Run.
 
 ### Workspace Configuration

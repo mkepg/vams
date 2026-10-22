@@ -329,7 +329,7 @@ export const HELP_TOPICS: HelpTopic[] = [
         items: [
           'Line width — glLineWidth makes lines thicker.',
           'Stipple — glLineStipple dashes a line using a 16-bit on/off pattern and a repeat factor.',
-          'Text — bitmap text is drawn with glRasterPos2f to set the position and glutBitmapCharacter for each glyph.',
+          'Text — bitmap text is drawn with glRasterPos2f to set where each line starts and glutBitmapCharacter for each glyph. The letters are GLUT_BITMAP_9_BY_15: always 9 × 15 window pixels, running right from the raster position, whatever the scale, rotation or viewing volume.',
         ],
       },
       {

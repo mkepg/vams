@@ -109,12 +109,15 @@ tests/
 │   │                                        canvas)
 │   ├── program-window.test.ts            (WB-WINDOW-*: the window's size and
 │   │                                        position rules)
+│   ├── bitmap-text.test.ts               (WB-TEXT-*: GLUT's 9×15 glyphs, line
+│   │                                        spacing, glBitmap placement and the
+│   │                                        canvas layout)
 │   └── british-spelling.test.ts          (WB-SPELL-*: British spelling in every
 │                                            string students read)
 ├── visual/                       ← Not part of `npm test`.
 │   ├── editor.spec.ts                    (VIS-EDITOR-*: screenshot checks,
 │   │                                        including the rail panels,
-│   │                                        the lesson bar, the tour and Run, VIS-EDITOR-14 to 28,
+│   │                                        the lesson bar, the tour and Run, VIS-EDITOR-14 to 28, bitmap text VIS-EDITOR-36,
 │   │                                        run with `npm run test:visual`;
 │   │                                        per-machine baselines that are
 │   │                                        not committed)

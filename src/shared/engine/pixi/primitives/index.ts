@@ -15,3 +15,4 @@ export {
 export { drawWithGraphics } from "./rendering/graphicsRenderer";
 export { createMesh } from "./rendering/meshRenderer";
 export type { MeshCreationResult } from "./rendering/meshRenderer";
+export { BitmapTextLayout, releaseBitmapText } from "./rendering/bitmapText";

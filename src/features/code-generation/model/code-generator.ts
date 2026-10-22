@@ -3,7 +3,7 @@ import type { TextureAsset } from '@/core/types/textures';
 import { PROGRAM_WINDOW_TITLE } from '@/shared/lib/program-window';
 import { sanitizeName } from './generator/utils';
 import { generateState } from './generator/state';
-import { generateObjectDrawBody, type DrawEffects } from './generator/render';
+import { generateObjectDrawBody, indentBlock, type DrawEffects } from './generator/render';
 import {
   generateHandlers,
   generateRegistrations,
@@ -34,6 +34,8 @@ export function generateAppOutput(
 ): string {
   const limits = viewportLimits ?? { minX: -1, maxX: 1, minY: -1, maxY: 1 };
   const effects: DrawEffects = { colorIds: plan.colorIds, visibilityIds: plan.visibilityIds };
+  // Bitmap text is spaced in window pixels: how many fall on one unit of the viewing volume.
+  const pixelsPerUnitY = canvasSize.height / (limits.maxY - limits.minY);
   const hasTextures = sceneNeedsTextures(allObjects);
   const needsBufferUpdate = sceneNeedsBufferUpdates(allObjects);
   // GLEW must be included BEFORE freeglut.h so that VBO entry points
@@ -65,7 +67,7 @@ export function generateAppOutput(
   allObjects.forEach((obj) => {
     if (obj.type !== 'GROUP' && obj.type !== 'TEXT') {
       code += `void draw_${sanitizeName(obj.name)}()\n{\n`;
-      code += generateObjectDrawBody(obj, allObjects, effects);
+      code += generateObjectDrawBody(obj, allObjects, effects, pixelsPerUnitY);
       code += `}\n\n`;
     }
   });
@@ -77,13 +79,9 @@ export function generateAppOutput(
       const name = sanitizeName(obj.name);
       const guarded = plan.visibilityIds.has(obj.id);
       if (obj.type === 'GROUP' || obj.type === 'TEXT') {
-        const block = generateObjectDrawBody(obj, allObjects, effects);
+        const block = generateObjectDrawBody(obj, allObjects, effects, pixelsPerUnitY);
         if (guarded) {
-          const indented = block
-            .split('\n')
-            .map((line) => (line ? `    ${line}` : line))
-            .join('\n');
-          code += `    if (state_${name}.visible) {\n${indented}    }\n`;
+          code += `    if (state_${name}.visible) {\n${indentBlock(block)}    }\n`;
         } else {
           code += block;
         }

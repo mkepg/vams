@@ -41,4 +41,11 @@
     resize: vertical;
     @include scrollbar;
   }
+
+  &__note {
+    margin: 0;
+    font-size: var(--text-xs);
+    line-height: var(--lh-xs);
+    color: var(--ink-muted);
+  }
 }
