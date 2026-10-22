@@ -20,6 +20,7 @@ export default function TextEditField() {
         className="vfield-input text-edit__area"
         rows={3}
       />
+      <p className="text-edit__note">Bitmap letters are always 9 × 15 pixels and never turn or stretch. Rotate only moves where each line starts.</p>
     </div>
   );
 }

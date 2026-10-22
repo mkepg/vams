@@ -116,3 +116,21 @@ describe('BB-CPP-06: Line width emission matches user setting', () => {
     expect(code).toContain('glLineWidth(4.50f);');
   });
 });
+
+describe('BB-CPP-07: A group holding text or another group calls only functions it declares', () => {
+  it('draws text and nested groups inline, never through a draw_ function that does not exist', () => {
+    getState().addTextObject('Label', 0, 0);
+    const label = getState().objects[0];
+    const tri = addTriangle(0.4, 0.4, 0.1);
+    getState().createGroup([label.id, tri.id]);
+    const inner = getState().objects.find((o) => o.type === 'GROUP')!;
+    const quad = addQuad(-0.5, -0.5, 0.1);
+    getState().createGroup([inner.id, quad.id]);
+    const code = gen();
+    const called = new Set([...code.matchAll(/\bdraw_(\w+)\(\);/g)].map((m) => m[1]));
+    const declared = new Set([...code.matchAll(/^void draw_(\w+)\(\)\n\{/gm)].map((m) => m[1]));
+    expect(called.size).toBeGreaterThan(0);
+    called.forEach((name) => expect(declared.has(name)).toBe(true));
+    expect(code).toContain('const char* textLine = "Label";');
+  });
+});

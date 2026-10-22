@@ -8,7 +8,6 @@ import { assemblyFor, provokingVertex } from '@/entities/scene/model/primitive-a
 import { deduplicate } from '@/entities/scene/model/vertex-dedup';
 import { fmt, int, short } from '@/shared/lib/format-number';
 import { sanitizeName } from '@/shared/lib/sanitize-name';
-import { firstRasterY } from '@/shared/lib/text-raster';
 
 export interface Point {
   x: number;
@@ -354,8 +353,8 @@ function shapeJourney(node: SceneNode, scene: JourneyScene, vertexIndex: number,
 }
 
 function textJourney(node: SceneNode, scene: JourneyScene, canvas: CanvasSize): VertexJourney {
-  // generator/render.ts centres the lines around the origin; the first line starts highest.
-  const raster = { x: 0, y: firstRasterY(node.textContent ?? '') };
+  // generator/render.ts starts the first line at the text's origin.
+  const raster = { x: 0, y: 0 };
   const { rows: moves, end: world } = transformRows(raster, chainOf(node, scene.objects));
   const view = programView(scene, canvas);
   const ndc = ndcOf(world, view.limits);

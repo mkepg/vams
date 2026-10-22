@@ -1,6 +1,7 @@
 import type { SceneNode, Vertex } from '@/core/types/scene';
 import { sanitizeName, hexToGlColor, hexToGlByteColor, getGlPrimitive } from './utils';
 import { generateVertexArrayDrawBody, generateVBODrawBody } from './buffers';
+import { effectiveScaleY, rasterLineYs, textLineStep, textLines } from '@/shared/lib/text-raster';
 const isLine = (t: SceneNode['type']): boolean =>
   t === 'LINES' || t === 'LINE_STRIP' || t === 'LINE_LOOP';
 function emitColor(
@@ -20,23 +21,30 @@ export interface DrawEffects {
   visibilityIds: ReadonlySet<string>;
 }
 export const NO_EFFECTS: DrawEffects = { colorIds: new Set(), visibilityIds: new Set() };
+/** Window pixels per object unit along y for the default 800 × 600 window and a -1..1 volume. */
+export const DEFAULT_PIXELS_PER_UNIT_Y = 300;
 export const generateObjectDrawBody = (
   object: SceneNode,
   allObjects: SceneNode[],
-  effects: DrawEffects = NO_EFFECTS
+  effects: DrawEffects = NO_EFFECTS,
+  pixelsPerUnitY: number = DEFAULT_PIXELS_PER_UNIT_Y,
 ): string => {
   if (object.type === 'GROUP' || object.type === 'TEXT') {
-    return generateImmediateDrawBody(object, allObjects, effects);
+    return generateImmediateDrawBody(object, allObjects, effects, pixelsPerUnitY);
   }
   const mode = object.renderingMode ?? 'IMMEDIATE';
   if (mode === 'VERTEX_ARRAY') return generateVertexArrayDrawBody(object, effects.colorIds.has(object.id));
   if (mode === 'VBO')          return generateVBODrawBody(object, effects.colorIds.has(object.id));
-  return generateImmediateDrawBody(object, allObjects, effects);
+  return generateImmediateDrawBody(object, allObjects, effects, pixelsPerUnitY);
 };
+/** Indents every non-empty line of a draw block by one level. */
+export const indentBlock = (block: string): string =>
+  block.split('\n').map((line) => (line ? `    ${line}` : line)).join('\n');
 const generateImmediateDrawBody = (
   object: SceneNode,
   allObjects: SceneNode[],
-  effects: DrawEffects
+  effects: DrawEffects,
+  pixelsPerUnitY: number,
 ): string => {
   let drawBody = '';
   const safeName = sanitizeName(object.name);
@@ -53,7 +61,14 @@ const generateImmediateDrawBody = (
     const children = allObjects.filter(o => o.parentId === object.id);
     [...children].reverse().forEach(child => {
       const childName = sanitizeName(child.name);
-      drawBody += effects.visibilityIds.has(child.id)
+      const guarded = effects.visibilityIds.has(child.id);
+      // Text and groups have no draw_ function of their own: their block goes inline, as in draw().
+      if (child.type === 'GROUP' || child.type === 'TEXT') {
+        const block = generateImmediateDrawBody(child, allObjects, effects, pixelsPerUnitY);
+        drawBody += guarded ? `    if (state_${childName}.visible) {\n${indentBlock(block)}    }\n` : block;
+        return;
+      }
+      drawBody += guarded
         ? `    if (state_${childName}.visible) draw_${childName}();\n`
         : `    draw_${childName}();\n`;
     });
@@ -68,22 +83,13 @@ const generateImmediateDrawBody = (
       ? `    ${guardText}glColor3ub(${hexToGlByteColor(colorHex)});\n`
       : `    ${guardText}glColor3f(${hexToGlColor(colorHex)});\n`;
     if (recolor) drawBody += `    if (${S}.useColor) glColor3f(${S}.r, ${S}.g, ${S}.b);\n`;
-    const lines = textContent.split('\n');
-    const lineHeight = 0.07;
+    // Bitmap fonts only render printable glyphs; textLines strips the rest.
+    const lines = textLines(textContent);
+    // Lines start TEXT_LINE_PIXELS apart in the window, whatever the text's scale.
+    const ys = rasterLineYs(lines.length, textLineStep(pixelsPerUnitY, effectiveScaleY(object, allObjects)));
     lines.forEach((line, index) => {
-      const safeLine = line
-        .replace(/\\/g, '\\\\')
-        .replace(/"/g, '\\"')
-        .replace(/\r/g, '')
-        // Strip non-printable ASCII; bitmap fonts only render printable glyphs.
-        .split('')
-        .filter((ch) => {
-          const c = ch.charCodeAt(0);
-          return c > 0x1F && c < 0x7F;
-        })
-        .join('');
-      const yOffset = ((lines.length - 1) / 2 - index) * lineHeight;
-      drawBody += `    glRasterPos2f(0.0f, ${yOffset.toFixed(4)}f);\n`;
+      const safeLine = line.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      drawBody += `    glRasterPos2f(0.0f, ${ys[index].toFixed(4)}f);\n`;
       drawBody += `    {\n`;
       drawBody += `        const char* textLine = "${safeLine}";\n`;
       drawBody += `        for (const char* c = textLine; *c != '\\0'; c++) {\n`;

@@ -13,6 +13,8 @@ import {
 import { drawWithGraphics } from "./graphicsRenderer";
 import { createMesh } from "./meshRenderer";
 import { readCssColor } from '@/shared/lib/theme';
+import { textLines } from '@/shared/lib/text-raster';
+import { BitmapTextLayout } from './bitmapText';
 
 export interface CreateDrawableOptions {
   groupChildren?: SceneNode[];
@@ -33,7 +35,7 @@ export function createDrawable(
     return createGroupDrawable(o, worldScaleX, options, container);
   }
   if (o.type === 'TEXT') {
-    return createTextDrawable(o, hitPadding, container);
+    return createTextDrawable(o, container);
   }
   // Add `&& !o.texture` so textured objects are forced into the Mesh pipeline
 const shouldUseGraphics = o.type === 'POINTS' || (hasUniformColor(o) && !o.texture) || !!o.lineStipple;
@@ -111,37 +113,17 @@ function drawDashedRectangle(
   }
 }
 
-function createTextDrawable(
-  o: SceneNode,
-  hitPadding: number,
-  container: PIXI.Container
-): PIXI.Container {
+function createTextDrawable(o: SceneNode, container: PIXI.Container): PIXI.Container {
   const color = toNumColor(o.vertices[0]?.color, 0xffffff);
-  const textStyle = new PIXI.TextStyle({
-    fontFamily: "Comfortaa",
-    fontSize: 64,
-    fill: color,
-    align: 'center',
-    fontWeight: '300',
-  });
-  const text = new PIXI.Text({
-    text: o.textContent || '',
-    style: textStyle,
-    resolution: 2,
-  });
-  text.anchor.set(0.5);
-  const textScaleX = 0.003;
-  const textScaleY = 0.003 * (0.0016 / 0.0011);
-  text.scale.set(textScaleX, -textScaleY);
+  // The renderer places the lines each frame (BitmapTextLayout.place); the layout is also the hit area.
+  const layout = new BitmapTextLayout(textLines(o.textContent ?? ''), color);
+  layout.sprites.forEach((sprite) => { if (sprite) container.addChild(sprite); });
   container.position.set(o.transform.translateX, o.transform.translateY);
   container.rotation = (o.transform.rotate * Math.PI) / 180;
   container.scale.set(o.transform.scaleX, o.transform.scaleY);
   container.visible = o.visible;
   container.zIndex = 10;
-  container.addChild(text);
-  const w = text.width;
-  const h = text.height;
-  container.hitArea = createPaddedHitArea(-w/2, -h/2, w, h, hitPadding);
+  container.hitArea = layout;
   return container;
 }
 

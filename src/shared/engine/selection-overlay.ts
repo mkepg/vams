@@ -1,6 +1,6 @@
 import { Container, Graphics } from 'pixi.js';
 import { readCssColor } from '@/shared/lib/theme';
-import { firstRasterY } from '@/shared/lib/text-raster';
+import { BitmapTextLayout } from '@/shared/engine/pixi/primitives/rendering/bitmapText';
 
 export class SelectionOverlay extends Container {
     private border: Graphics;
@@ -40,6 +40,10 @@ export class SelectionOverlay extends Container {
         }
 
         const target = this.target;
+        if (target.hitArea instanceof BitmapTextLayout) {
+            this.outlineBitmapText(target.hitArea);
+            return;
+        }
         const relativeMatrix = target.worldTransform.clone();
         const parentMatrix = this.parent.worldTransform.clone();
         
@@ -68,6 +72,22 @@ export class SelectionOverlay extends Container {
         this.border.rect(bounds.x, bounds.y, bounds.width, bounds.height);
         this.border.stroke({ width: lineWidth, color: lineColor });
     }
+
+    /** Bitmap text never turns with its object, so its outline is the upright box around the drawn lines. */
+    private outlineBitmapText(layout: BitmapTextLayout) {
+        const parent = this.parent!;
+        this.position.set(0, 0);
+        this.rotation = 0;
+        this.scale.set(1, 1);
+        this.skew.set(0, 0);
+        const r = layout.screenBounds();
+        const a = parent.toLocal({ x: r.x, y: r.y });
+        const b = parent.toLocal({ x: r.x + r.width, y: r.y + r.height });
+        const lineWidth = 2 / (Math.abs(parent.scale.x) || 1);
+        this.border.clear();
+        this.border.rect(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+        this.border.stroke({ width: lineWidth, color: readCssColor('--accent', 0x4762f5) });
+    }
 }
 
 export type RingTarget = { kind: 'vertex'; index: number } | { kind: 'raster'; x: number; y: number } | null;
@@ -82,7 +102,7 @@ export function ringTarget(
   showsMath: boolean,
 ): RingTarget {
   if (!node || !showsMath || node.type === 'GROUP') return null;
-  if (node.type === 'TEXT') return { kind: 'raster', x: 0, y: firstRasterY(node.textContent ?? '') };
+  if (node.type === 'TEXT') return { kind: 'raster', x: 0, y: 0 };
   if (node.vertices.length === 0) return null;
   return { kind: 'vertex', index: Math.min(Math.max(0, Math.floor(vertex)), node.vertices.length - 1) };
 }

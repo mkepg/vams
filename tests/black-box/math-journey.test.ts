@@ -415,8 +415,8 @@ describe('BB-JOURNEY-15: The canvas ring marks the followed vertex only while Ma
     expect(ringTarget(shape, 7, true)).toEqual({ kind: 'vertex', index: 2 });
     expect(ringTarget(shape, 1, false)).toBeNull();
     expect(ringTarget({ type: 'TEXT', vertices: [{}], textContent: 'Hi' }, 0, true)).toEqual({ kind: 'raster', x: 0, y: 0 });
-    // Three lines, 0.07 apart and centred: the first starts one line above the origin.
-    expect(ringTarget({ type: 'TEXT', vertices: [{}], textContent: 'a\nb\nc' }, 0, true)).toEqual({ kind: 'raster', x: 0, y: 0.07 });
+    // The first line starts at the text's origin, however many lines follow.
+    expect(ringTarget({ type: 'TEXT', vertices: [{}], textContent: 'a\nb\nc' }, 0, true)).toEqual({ kind: 'raster', x: 0, y: 0 });
     expect(ringTarget({ type: 'GROUP', vertices: [] }, 0, true)).toBeNull();
     expect(ringTarget(undefined, 0, true)).toBeNull();
     const ring = new FollowRing();
