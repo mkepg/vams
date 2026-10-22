@@ -275,7 +275,7 @@ for (const theme of THEMES) {
   });
 }
 
-test('VIS-EDITOR-29: Lesson bar above the open drawer, 960', async ({ page }) => {
+test('VIS-EDITOR-29: Lesson bar under the canvas, drawer beside it, 960', async ({ page }) => {
   await page.setViewportSize({ width: 960, height: 720 });
   await open(page, '/app?lesson=transforms-demo-1');
   await page.getByRole('button', { name: 'Next', exact: true }).click();

@@ -918,7 +918,7 @@ describe('BB-LCOL-33: The Transforms step that points at the math panel shows Ma
   });
 });
 
-describe('BB-LCOL-34: On narrow screens the lesson bar stays above the open drawer', () => {
+describe('BB-LCOL-34: On narrow screens the open drawer is not an overlay', () => {
   it('places the drawer beside the canvas, so nothing overlaps the lesson bar', () => {
     const scss = readFileSync('src/pages/editor/ui/editor-app.scss', 'utf8');
     const narrow = scss.slice(scss.indexOf('&--narrow'));

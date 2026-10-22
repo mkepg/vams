@@ -42,7 +42,7 @@
   }
 
   // The canvas and its overlays. Keeps their z-indexes (the pipeline diagram uses 100) inside the
-  // canvas, so the drawer, the lesson bar and the menus always sit above them.
+  // canvas, so the lesson bar and the menus always sit above them.
   &__stage {
     position: relative;
     min-width: 0;

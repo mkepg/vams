@@ -130,7 +130,7 @@ The workspace has a top bar and three working regions:
 
 While a lesson is active, a lesson bar runs along the bottom of the canvas with the title, the step, the narration, what an exercise is waiting for, and Back, Next and Exit; it folds to a slim strip. The step's control is opened in its rail panel and outlined in the live editor; demos also dim the other groups, exercises only outline, and a section's last exercise gives no focus. The top bar's Learn button opens the course map: the five sections in pipeline order, each section's demos and exercises, and the student's progress, stored in the browser.
 
-A first-visit tour, started from the welcome dialog or the Help Center, spotlights the regions in the order VAMS teaches (build a shape, read its code, change it, see the math, run it, then go on to the lessons) and invites the student to try each one.
+A first-visit tour, started from the welcome dialog or the Help Centre, spotlights the regions in the order VAMS teaches (build a shape, read its code, change it, see the math, run it, then go on to the lessons) and invites the student to try each one.
 
 ### Sharing
 
