@@ -4,7 +4,8 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  BAR_HEIGHT, FRAME_BORDER, MIN_BODY, MIN_WINDOW_SIZE, REACH, STAGE_MARGIN, centredRect, clampRect, fittedRect,
+  BAR_HEIGHT, FRAME_BORDER, MIN_BODY, MIN_FITTED_HEIGHT, MIN_FITTED_WIDTH, MIN_WINDOW_SIZE, REACH, STAGE_MARGIN, centredRect,
+  clampRect, fittedRect,
   resizeRect, volumeAspect, type Rect,
 } from '@/widgets/canvas/model/program-window';
 import { useProgramWindow } from '@/widgets/canvas/model/program-window-store';
@@ -166,5 +167,35 @@ describe('WB-WINDOW-07: The store refits to the volume until the student places 
     const before = s().rect;
     s().setStage({ width: 0, height: 0 });
     expect(s().rect).toEqual(before);
+  });
+});
+
+describe('WB-WINDOW-08: The fitted window is never narrower than its bar, nor shorter than its minimum, while the stage allows', () => {
+  it('sets the minimums from the bar and the frame', () => {
+    expect(MIN_FITTED_WIDTH).toBe(150);
+    expect(MIN_FITTED_HEIGHT).toBe(BAR_HEIGHT + 2 * FRAME_BORDER + 60);
+  });
+  it('keeps a tall volume at least 150 px wide', () => {
+    const r = fittedRect(stage, 24, volumeAspect({ minX: -1, maxX: 1, minY: -4, maxY: 4 }));
+    expect(r.width).toBeGreaterThanOrEqual(MIN_FITTED_WIDTH);
+    expect(r.height).toBeLessThanOrEqual(600 - 48);
+    expect(r.x).toBe(Math.round((1000 - r.width) / 2));
+  });
+  it('keeps a very wide volume at least MIN_FITTED_HEIGHT tall', () => {
+    const r = fittedRect(stage, 24, 20);
+    expect(r.height).toBeGreaterThanOrEqual(MIN_FITTED_HEIGHT);
+    expect(r.width).toBeLessThanOrEqual(1000 - 48);
+  });
+  it('stays within a stage too small for the minimums, and never negative', () => {
+    const tiny = { width: 100, height: 80 };
+    for (const aspect of [0.25, 1, 20]) {
+      const r = fittedRect(tiny, 24, aspect);
+      expect(r.width).toBeGreaterThanOrEqual(0);
+      expect(r.height).toBeGreaterThanOrEqual(0);
+      expect(r.width).toBeLessThanOrEqual(tiny.width);
+      expect(r.height).toBeLessThanOrEqual(tiny.height);
+      expect(r.x).toBeGreaterThanOrEqual(0);
+      expect(r.y).toBeGreaterThanOrEqual(0);
+    }
   });
 });

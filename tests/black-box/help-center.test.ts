@@ -291,3 +291,10 @@ describe('BB-HELP-11: Help describes the editor as it is', () => {
     expect(text).toMatch(/title bar shows the last call/i);
   });
 });
+
+describe("BB-HELP-12: Help says the program window takes the viewing volume's shape", () => {
+  it('says it opens and maximises to that shape, so a square draws square, and that an edge drag stretches it', () => {
+    const text = JSON.stringify(HELP_TOPICS);
+    expect(text).toMatch(/opens, and maximises, in the viewing volume’s shape, so a square draws square; dragging an edge stretches it\./);
+  });
+});

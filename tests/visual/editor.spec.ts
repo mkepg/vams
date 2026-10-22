@@ -354,3 +354,17 @@ test('VIS-EDITOR-33: At 960 the open drawer sits beside the canvas, never over i
   await expect(page.locator('.editor__panel')).toBeHidden();
   expect((await page.locator('.editor__canvas').boundingBox())!.width).toBeGreaterThan(canvas.width + 200);
 });
+
+test('VIS-EDITOR-35: At 960 with the drawer open the window bar keeps Maximise and Close', async ({ page }) => {
+  await page.setViewportSize({ width: 960, height: 720 });
+  await open(page, '/app?lesson=transforms-demo-1');
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(page.locator('.lesson-bar__step')).toContainText('Step 2');
+  await expect(page.locator('.editor__panel')).toBeVisible();
+  const win = (await page.locator('.canvas-window').boundingBox())!;
+  for (const name of ['Maximise', 'Close']) {
+    const button = (await page.locator('.canvas-window__bar').getByRole('button', { name, exact: true }).boundingBox())!;
+    expect(button.x, name).toBeGreaterThanOrEqual(win.x - 0.5);
+    expect(button.x + button.width, name).toBeLessThanOrEqual(win.x + win.width + 0.5);
+  }
+});

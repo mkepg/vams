@@ -55,8 +55,9 @@ export default function ProgramWindow({ size, away = false, children }: ProgramW
     return () => observer.disconnect();
   }, []);
 
-  // The window takes the shape of the viewing volume.
-  useEffect(() => {
+  // The window takes the shape of the viewing volume, before the first paint, so a saved non-square
+  // volume never shows one square frame.
+  useLayoutEffect(() => {
     useProgramWindow.getState().setAspect(volumeAspect(viewportLimits));
   }, [viewportLimits]);
 

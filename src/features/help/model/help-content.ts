@@ -83,7 +83,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       },
       {
         kind: 'paragraph',
-        text: 'The window works like a window on your desktop. Drag its title bar to move it; that changes nothing in your drawing or your code. Drag its right edge, bottom edge or corner to resize it: the scene stretches to fill the window, and the size in glutInitWindowSize follows. The — button minimises it and the ▢ button maximises or restores it (double-clicking the title bar does the same). ✕ closes it and stops a running program; the chip at the bottom of the stage, or pressing Run, brings it back.',
+        text: 'The window works like a window on your desktop. It opens, and maximises, in the viewing volume’s shape, so a square draws square; dragging an edge stretches it. Drag its title bar to move it; that changes nothing in your drawing or your code. Drag its right edge, bottom edge or corner to resize it: the scene stretches to fill the window, and the size in glutInitWindowSize follows. The — button minimises it and the ▢ button maximises or restores it (double-clicking the title bar does the same). ✕ closes it and stops a running program; the chip at the bottom of the stage, or pressing Run, brings it back.',
       },
       { kind: 'heading', text: 'The rail and its panels' },
       {
