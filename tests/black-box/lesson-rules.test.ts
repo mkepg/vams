@@ -28,7 +28,7 @@ import { templateParts } from '@/features/lesson-engine/model/code-blanks';
 import { courseOrder } from '@/features/lesson-engine/model/catalog';
 
 /** Sections whose lessons already meet the full bar. The content work adds each one as it lands. */
-export const SECTIONS_ON_THE_BAR: CurriculumSection[] = ['Pipeline', 'Primitives', 'Buffers'];
+export const SECTIONS_ON_THE_BAR: CurriculumSection[] = ['Pipeline', 'Primitives', 'Buffers', 'Transforms'];
 
 export function lessonsUnderRules(): Lesson[] {
   return [
@@ -95,10 +95,9 @@ function isTaught(name: string, text: string): boolean {
 
 /** GL names no lesson teaches yet. It only shrinks: teach a name, then delete it here. */
 const UNTAUGHT_ALLOWLIST: string[] = [
-  'GL_MODELVIEW', 'GL_PROJECTION', 'GL_REPLACE', 'GL_RGBA', 'GL_TEXTURE_2D', 'GL_TEXTURE_COORD_ARRAY',
-  'GL_TEXTURE_ENV', 'GL_TEXTURE_ENV_MODE', 'GL_TEXTURE_MIN_FILTER', 'GL_TEXTURE_WRAP_S', 'GL_TEXTURE_WRAP_T',
-  'GL_UNSIGNED_BYTE', 'glGenTextures', 'glLoadIdentity', 'glMatrixMode', 'glTexCoordPointer', 'glTexEnvi',
-  'glTexParameteri',
+  'GL_REPLACE', 'GL_RGBA', 'GL_TEXTURE_2D', 'GL_TEXTURE_COORD_ARRAY', 'GL_TEXTURE_ENV',
+  'GL_TEXTURE_ENV_MODE', 'GL_TEXTURE_MIN_FILTER', 'GL_TEXTURE_WRAP_S', 'GL_TEXTURE_WRAP_T',
+  'GL_UNSIGNED_BYTE', 'glGenTextures', 'glTexCoordPointer', 'glTexEnvi', 'glTexParameteri',
 ];
 
 describe('BB-LRULE-01: Every GL name the generator emits is taught or listed', () => {

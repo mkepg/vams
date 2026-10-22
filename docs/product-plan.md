@@ -443,17 +443,21 @@ The generated code emits transforms in the conventional T-R-S order (translate, 
 
 ### Demos (minimum 4)
 
-1. **"Translate, Rotate, Scale"** — applies each transform operation in sequence with narration, pointing to the generated code at each step.
-2. **"Matrix Representation"** — shows the math panel matrix updating as transforms are applied.
-3. **"The Matrix Stack"** — creates a parent-child group and narrates how `glPushMatrix`/`glPopMatrix` produce local transforms.
-4. **"glOrtho: Changing the View"** — adjusts glOrtho values and narrates how the viewport coordinate range changes.
+1. **"Translate, Rotate, Scale"** — moves, turns and scales an arrow, reading the `state_` values and `glTranslatef`, `glRotatef` and `glScalef`; the student predicts which way a 90° turn points and what Scale X does after it.
+2. **"Matrix Representation"** — the matrix in Math's Transformed stage: the identity, the move in the last column, the scale on the diagonal, cos and sin for a turn, and T · R · S, with predictions of where each value lands.
+3. **"The Matrix Stack"** — `glMatrixMode(GL_MODELVIEW)` and `glLoadIdentity`, `glPushMatrix` and `glPopMatrix` around each shape, and a group whose turn carries its children.
+4. **"Spin or Orbit: Order Matters"** — a sun and two planets: turning a child spins it, turning the group makes the children orbit, and the group's scale shrinks their distances.
+5. **"glOrtho: Changing the View"** — `glMatrixMode(GL_PROJECTION)` and `glOrtho`, with predictions for a wider volume, a shifted one and unequal ranges.
+6. **"Animation: Transformation Over Time"** — an idle rule turns a triangle each frame through `glutIdleFunc` and `glutPostRedisplay`.
 
 ### Exercises (minimum 4)
 
-1. **"Translate to Position"** — move an object to a specified coordinate using the gizmo or numeric inputs.
-2. **"Rotate to Angle"** — rotate an object to a specified angle.
-3. **"Build a Hierarchy"** — create a parent-child group and produce a specified nested transform sequence in generated code.
-4. **"Set the Viewport Range"** — configure `glOrtho` parameters to match a target visible coordinate range.
+1. **"Translate to Position"** — move a triangle to (0.5, −0.3), then to the corner of the view, where most of it is clipped.
+2. **"Rotate to Angle"** — turn a square to 45°, then to −30°, then pick the angle that draws the same.
+3. **"Build a Hierarchy"** — group two triangles, then turn and scale the group.
+4. **"Set the Viewport Range"** — set `glOrtho` to −2 to 2, then zoom in on a box with 0 to 1.
+5. **"Make It Orbit"** — idle rules that turn a group, so its moons orbit, and spin its sun.
+6. **"Write the Transform Calls"** — the section's capstone: a moved, turned and scaled shape, then `glMatrixMode`, `glLoadIdentity`, `glPushMatrix`, the three transform calls with the shape's own numbers, and `glPopMatrix` written by hand.
 
 ### Acceptance Criteria
 
