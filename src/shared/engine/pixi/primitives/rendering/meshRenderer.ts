@@ -27,6 +27,10 @@ export function createMesh(o: SceneNode): MeshCreationResult | null {
     usage: PIXI.BufferUsage.VERTEX | PIXI.BufferUsage.COPY_DST,
   });
 
+  // MeshGeometry always adds UVs, but the vertex-colour shader never reads them; left in, PixiJS warns
+  // on every draw. Meshes with their own shader are never batched, so nothing else reads them either.
+  delete geometry.attributes.aUV;
+
   geometry.addAttribute('aColor', {
     buffer: colorBuffer,
     format: 'float32x4',

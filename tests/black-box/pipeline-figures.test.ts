@@ -416,6 +416,23 @@ describe('switch in the canvas header', () => {
     });
   });
 
+  describe('BB-PFIG-33: With the Pipeline switch in the header, Run keeps its room', () => {
+    it('shows View as an icon beside the switch, lets the volume shrink and never shrinks Run', async () => {
+      const { readFileSync } = await import('node:fs');
+      useVamsStore.setState({ appMode: 'Author', activeSection: 'Pipeline', pipelineMode: 'Playground' });
+      const host = mount(h(CanvasHeader, {}));
+      await settle();
+      expect(host.querySelector('.canvas-header .vmenu .vbtn--icon')).not.toBeNull();
+      useVamsStore.setState({ activeSection: 'Primitives' });
+      await settle();
+      expect(host.querySelector('.canvas-header .vmenu .vbtn--icon')).toBeNull();
+      unmount(host);
+      const scss = readFileSync('src/widgets/canvas/canvas-pane.scss', 'utf8');
+      expect(scss).toMatch(/&__volume\s*\{[^}]*min-width:\s*0[^}]*text-overflow:\s*ellipsis/);
+      expect(scss).toMatch(/>\s*\.run-control\s*\{[^}]*flex-shrink:\s*0/);
+    });
+  });
+
   describe('BB-PFIG-18: A quiz step hides the switch and shows its stage', () => {
     it('hides the switch and keeps the illustration up even in Playground', async () => {
       useVamsStore.setState({ activeSection: 'Pipeline', pipelineMode: 'Playground' });

@@ -162,12 +162,37 @@
     }
   }
 
-  .bm-interleaved {
+  .bm-arrays {
     display: flex;
     flex-direction: column;
     gap: 0.55rem;
 
-    .bm-interleaved-row {
+    .bm-array {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .bm-array-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .bm-array-name {
+      font-family: $font-mono;
+      font-size: var(--text-xs);
+      color: $text-dim;
+    }
+
+    .bm-array-size {
+      font-family: $font-mono;
+      font-size: var(--text-xs);
+      color: $text-muted;
+    }
+
+    .bm-array-row {
       display: flex;
       gap: 0.4rem;
       flex-wrap: nowrap;
@@ -205,7 +230,7 @@
 
       .bm-vblock-cells {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
+        grid-auto-flow: column;
         gap: 2px;
       }
     }
@@ -232,35 +257,20 @@
         color: var(--accent-blue-light);
         border: 1px solid rgba(var(--accent-blue-rgb), 0.4);
       }
-    }
 
-    .bm-interleaved-foot {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.5rem;
-    }
-
-    .bm-interleaved-legend {
-      display: flex;
-      gap: 0.85rem;
-      font-family: $font-mono;
-      font-size: var(--text-xs);
-      color: $text-dim;
-      span { display: inline-flex; align-items: center; gap: 0.3rem; }
-      .bm-swatch {
-        width: 9px;
-        height: 9px;
-        border-radius: 2px;
-        &.pos { background: var(--hue-sky); }
-        &.col { background: var(--accent-blue-light); }
+      &.uv {
+        background: rgba(var(--hue-violet-rgb), 0.18);
+        color: var(--hue-violet);
+        border: 1px solid rgba(var(--hue-violet-rgb), 0.4);
       }
-    }
 
-    .bm-interleaved-summary {
-      font-family: $font-mono;
-      font-size: var(--text-xs);
-      color: $text-muted;
+      // An index: which vertex glDrawElements draws at that corner.
+      &.idx {
+        padding: 0 4px;
+        background: transparent;
+        color: $text-dim;
+        border: 1px solid $border-color;
+      }
     }
   }
 

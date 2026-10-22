@@ -918,12 +918,12 @@ describe('BB-LCOL-33: The Transforms step that points at the math panel shows Ma
   });
 });
 
-describe('BB-LCOL-34: On narrow screens the lesson bar stays above the open drawer', () => {
-  it('lifts the bar over the drawer and keeps the drawer clear of it', () => {
+describe('BB-LCOL-34: On narrow screens the open drawer is not an overlay', () => {
+  it('places the drawer beside the canvas, so nothing overlaps the lesson bar', () => {
     const scss = readFileSync('src/pages/editor/ui/editor-app.scss', 'utf8');
     const narrow = scss.slice(scss.indexOf('&--narrow'));
-    expect(narrow).toMatch(/\.lesson-bar\s*\{[^}]*z-index:\s*(3[1-9]|[4-9]\d)/);
-    expect(narrow).toMatch(/\.editor__panel\s*\{[^}]*padding-bottom:\s*var\(--lesson-bar-height/);
+    expect(narrow).not.toMatch(/position:\s*absolute/);
+    expect(narrow).not.toMatch(/\.lesson-bar\s*\{/);
   });
 
   it('publishes the bar height on the editor while a lesson runs', async () => {

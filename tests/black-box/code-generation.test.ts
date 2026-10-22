@@ -177,3 +177,13 @@ describe('BB-GEN-10: Required headers are present', () => {
     expect(code).toContain('#include <cmath>');
   });
 });
+
+describe('BB-GEN-11: A textured program includes only what it uses', () => {
+  it('has no iostream and explains why stb_image is defined first', () => {
+    const painted = addQuad(-0.3, 0.3, 0.2);
+    getState().attachTexture(painted.id, getState().getAllTextures()[0].id);
+    const code = gen();
+    expect(code).not.toContain('#include <iostream>');
+    expect(code).toContain('// stb_image: define its implementation in exactly one file, before including it\n#define STB_IMAGE_IMPLEMENTATION\n#include "stb_image.h"\n');
+  });
+});

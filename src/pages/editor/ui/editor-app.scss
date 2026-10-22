@@ -42,7 +42,7 @@
   }
 
   // The canvas and its overlays. Keeps their z-indexes (the pipeline diagram uses 100) inside the
-  // canvas, so the drawer, the lesson bar and the menus always sit above them.
+  // canvas, so the lesson bar and the menus always sit above them.
   &__stage {
     position: relative;
     min-width: 0;
@@ -58,37 +58,11 @@
   }
 
   &.is-panel-hidden { --editor-panel-width: 0px; }
-  &.is-panel-hidden:not(.editor--narrow) .editor__panel { display: none; }
+  &.is-panel-hidden .editor__panel { display: none; }
 
+  // Below 1100 px the code column is narrower; the open panel keeps its track beside the canvas.
   &--narrow {
-    --editor-panel-width: 0px;
     --editor-code-width: clamp(320px, 34vw, 400px);
-
-    .editor__panel {
-      // An absolutely placed grid item is positioned against its grid area: row 2, column 2,
-      // which starts right after the rail.
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 0;
-      z-index: 30;
-      width: 272px;
-      // The lesson bar sits above the drawer, so the drawer's content stops where the bar starts.
-      padding-bottom: var(--lesson-bar-height, 0px);
-      box-sizing: border-box;
-      box-shadow: 8px 0 28px rgba(var(--shadow-rgb), 0.22);
-      transform: translateX(-100%);
-      visibility: hidden;
-      transition: transform 0.2s ease, visibility 0.2s;
-    }
-
-    &:not(.is-panel-hidden) .editor__panel {
-      transform: none;
-      visibility: visible;
-    }
-
-    // Above the drawer (30) and level with the rail (31), so the narration is never covered.
-    .lesson-bar { z-index: 31; }
   }
 
   // The hidden code column leaves its 30 px edge tab.
@@ -101,8 +75,4 @@
       + (100vw - var(--editor-rail-width) - var(--editor-panel-width) - var(--editor-code-width)) / 2
     );
   }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .editor--narrow .editor__panel { transition: none; }
 }

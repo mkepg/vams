@@ -149,10 +149,10 @@ export function ColorField({
         </code>
       </div>
       {invalid && (
-        <span id={errorId} className="vcolor__error" role="alert">Enter a hex color like #B91C1C</span>
+        <span id={errorId} className="vcolor__error" role="alert">Enter a hex colour like #B91C1C</span>
       )}
       {showRecent && recent.length > 0 && (
-        <div className="vcolor__recent" role="group" aria-label="Recent colors">
+        <div className="vcolor__recent" role="group" aria-label="Recent colours">
           {recent.map((hex) => (
             <button
               key={hex}

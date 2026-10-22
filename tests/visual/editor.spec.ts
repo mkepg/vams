@@ -275,11 +275,96 @@ for (const theme of THEMES) {
   });
 }
 
-test('VIS-EDITOR-29: Lesson bar above the open drawer, 960', async ({ page }) => {
+test('VIS-EDITOR-29: Lesson bar under the canvas, drawer beside it, 960', async ({ page }) => {
   await page.setViewportSize({ width: 960, height: 720 });
   await open(page, '/app?lesson=transforms-demo-1');
   await page.getByRole('button', { name: 'Next', exact: true }).click();
   await expect(page.locator('.lesson-bar__step')).toContainText('Step 2');
   await expect(page.locator('.editor__panel')).toBeVisible();
   await expect(page).toHaveScreenshot('lesson-drawer-960.png', { animations: 'disabled' });
+});
+
+for (const width of [1280, 960]) {
+  test(`VIS-EDITOR-30: Run stays whole in the header beside the Pipeline switch, ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await openEmpty(page, 'light');
+    await expect(page.locator('.canvas-header .pipeline-mode-switch')).toBeVisible();
+    const header = (await page.locator('.canvas-header').boundingBox())!;
+    const run = (await page.locator('.canvas-header .run-control').boundingBox())!;
+    expect(run.x + run.width).toBeLessThanOrEqual(header.x + header.width);
+  });
+
+  test(`VIS-EDITOR-31: The Transform fields show their whole value, ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openSelected(page, 'light');
+    const inputs = page.locator('.transform-panel .vnum__input');
+    const clipped = () =>
+      inputs.evaluateAll((els) =>
+        (els as HTMLInputElement[]).filter((el) => el.scrollWidth > el.clientWidth).map((el) => `${el.getAttribute('aria-label')}: ${el.value}`),
+      );
+    await expect(inputs.first()).toBeVisible();
+    expect(await clipped()).toEqual([]);
+    // The House group is turned 15° and scaled 0.8.
+    await page.locator('[data-panel-id="scene-hierarchy"] [role="treeitem"][aria-expanded] .tree-item').first().click();
+    await expect(page.locator('.inspector__meta')).toContainText('Group');
+    expect(await clipped()).toEqual([]);
+  });
+
+  test(`VIS-EDITOR-34: Every Buffers row stays on one line, ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openSelected(page, 'light');
+    await page.locator('[data-group="buffers"] .inspector-group__header').click();
+    const panel = page.locator('[data-panel-id="buffers-panel"]');
+    await panel.scrollIntoViewIfNeeded();
+    await panel.getByRole('radiogroup', { name: 'Rendering mode' }).getByRole('radio', { name: /VBO/ }).click();
+    await panel.getByRole('radiogroup', { name: 'Buffer usage hint' }).getByRole('radio', { name: /Dynamic/ }).click();
+    await expect(panel.getByRole('radiogroup', { name: 'Buffer update method' })).toBeVisible();
+    const rows = panel.locator('.bp-row');
+    await expect(rows.first()).toBeVisible();
+    const tall = await rows.evaluateAll((els) => els.filter((el) => el.getBoundingClientRect().height > 32).map((el) => el.textContent));
+    const cut = await panel.locator('.bp-row__desc').evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth).map((el) => el.textContent));
+    expect(tall).toEqual([]);
+    expect(cut).toEqual([]);
+  });
+
+  test(`VIS-EDITOR-32: The program window is the viewing volume's shape, ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await openEmpty(page, 'light');
+    const body = (await page.locator('.canvas-window__body').boundingBox())!;
+    expect(Math.abs(body.width / body.height - 1)).toBeLessThan(0.02);
+    await page.getByRole('button', { name: 'Maximise' }).click();
+    const max = (await page.locator('.canvas-window__body').boundingBox())!;
+    expect(Math.abs(max.width / max.height - 1)).toBeLessThan(0.02);
+  });
+}
+
+test('VIS-EDITOR-33: At 960 the open drawer sits beside the canvas, never over it', async ({ page }) => {
+  await page.setViewportSize({ width: 960, height: 720 });
+  await open(page, '/app?lesson=transforms-demo-1');
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(page.locator('.editor__panel')).toBeVisible();
+  const panel = (await page.locator('.editor__panel').boundingBox())!;
+  const canvas = (await page.locator('.editor__canvas').boundingBox())!;
+  const win = (await page.locator('.canvas-window').boundingBox())!;
+  expect(panel.x + panel.width).toBeLessThanOrEqual(canvas.x + 0.5);
+  expect(win.x).toBeGreaterThanOrEqual(canvas.x);
+  expect(win.x + win.width).toBeLessThanOrEqual(canvas.x + canvas.width + 0.5);
+  // Closing the drawer gives the room back.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.editor__panel')).toBeHidden();
+  expect((await page.locator('.editor__canvas').boundingBox())!.width).toBeGreaterThan(canvas.width + 200);
+});
+
+test('VIS-EDITOR-35: At 960 with the drawer open the window bar keeps Maximise and Close', async ({ page }) => {
+  await page.setViewportSize({ width: 960, height: 720 });
+  await open(page, '/app?lesson=transforms-demo-1');
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(page.locator('.lesson-bar__step')).toContainText('Step 2');
+  await expect(page.locator('.editor__panel')).toBeVisible();
+  const win = (await page.locator('.canvas-window').boundingBox())!;
+  for (const name of ['Maximise', 'Close']) {
+    const button = (await page.locator('.canvas-window__bar').getByRole('button', { name, exact: true }).boundingBox())!;
+    expect(button.x, name).toBeGreaterThanOrEqual(win.x - 0.5);
+    expect(button.x + button.width, name).toBeLessThanOrEqual(win.x + win.width + 0.5);
+  }
 });

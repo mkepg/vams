@@ -1,6 +1,6 @@
 /**
  * BLACK-BOX TEST SUITE — BB-HELP
- * Help Center: content integrity, search, section deep-linking, and the
+ * Help Centre: content integrity, search, section deep-linking, and the
  * open/navigate/back/close state machine in the Help slice.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -168,7 +168,7 @@ describe('BB-HELP-06: Help teaches motion through the idle callback only', () =>
   });
 });
 
-describe('BB-HELP-07: The welcome card and the Help Center start the tour', () => {
+describe('BB-HELP-07: The welcome card and the Help Centre start the tour', () => {
   async function settle() {
     for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
   }
@@ -280,5 +280,21 @@ describe('BB-HELP-10: Help covers sharing, the top bar and the canvas window', (
     expect(searchHelpTopics('view settings').map((t) => t.id)).toContain('workspace-tour');
     const basics = JSON.stringify(HELP_TOPICS.find((t) => t.id === 'canvas-basics'));
     expect(basics).toContain('View menu');
+  });
+});
+
+describe('BB-HELP-11: Help describes the editor as it is', () => {
+  it('never mentions the canvas gizmo or a Run bar at the bottom, and says the title bar shows the last call', () => {
+    const text = JSON.stringify(HELP_TOPICS);
+    expect(text).not.toMatch(/gizmo/i);
+    expect(text).not.toMatch(/bar at the bottom shows the last call/i);
+    expect(text).toMatch(/title bar shows the last call/i);
+  });
+});
+
+describe("BB-HELP-12: Help says the program window takes the viewing volume's shape", () => {
+  it('says it opens and maximises to that shape, so a square draws square, and that an edge drag stretches it', () => {
+    const text = JSON.stringify(HELP_TOPICS);
+    expect(text).toMatch(/opens, and maximises, in the viewing volume’s shape, so a square draws square; dragging an edge stretches it\./);
   });
 });

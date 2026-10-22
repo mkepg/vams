@@ -214,13 +214,7 @@ function buildTexturedMesh(
     return container;
   }
 
-  const tex = ensureTexture(asset);
-  
-  if (tex && tex.source && tex.source.style) {
-  tex.source.style.scaleMode = o.texture!.filter === 'NEAREST' ? 'nearest' : 'linear';
-  tex.source.style.addressMode = o.texture!.wrap === 'CLAMP_TO_EDGE' ? 'clamp-to-edge' : 'repeat';
-  tex.source.style.update();
-}
+  const tex = ensureTexture(asset, o.texture!.filter, o.texture!.wrap);
 
   const positions: number[] = [];
   const uvs: number[] = [];

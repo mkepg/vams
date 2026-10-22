@@ -28,7 +28,8 @@ export default function CanvasHeader() {
         <span className="canvas-header__cursor">{`X ${fmt(cursor.x)}  Y ${fmt(cursor.y)}`}</span>
       )}
       {switchShown && <PipelineModeSwitch />}
-      <ViewMenu iconOnly={placing} />
+      {/* Icon only while placing or beside the Pipeline switch, so Run always fits. */}
+      <ViewMenu iconOnly={placing || switchShown} />
       <RunControl />
     </div>
   );

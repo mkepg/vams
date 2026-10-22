@@ -51,7 +51,7 @@ function WelcomeCardInner() {
             <Eye size={18} aria-hidden />
             <div>
               <strong>See</strong>
-              <span>The center canvas: your scene, drawn live.</span>
+              <span>The centre canvas: your scene, drawn live.</span>
             </div>
           </li>
           <li>

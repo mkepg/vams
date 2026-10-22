@@ -483,20 +483,38 @@ export const TRANSFORMS_LESSONS: Record<string, Lesson> = {
         codeChangeFocus: ['glOrtho'],
       },
       {
-        narration: 'Last: x from −2 to 2, y still −1 to 1. What happens to the arrow?',
+        narration: 'Now x from −2 to 2, y still −1 to 1: a volume twice as wide as it is tall. What happens to the arrow?',
         predict: {
           options: [
-            { id: 'squash', label: 'Half as wide as before, the same height', why: 'The x range doubled and the y range did not, so each pixel across covers twice as much world.' },
-            { id: 'same', label: 'Nothing changes', why: 'The two ranges no longer match, so x and y are scaled differently.' },
+            { id: 'keeps', label: 'It keeps its shape, with more world to its left and right', why: "The program window takes the viewing volume's shape, so it turns twice as wide as it is tall. One unit across still covers as many pixels as one unit up; the window still has to fit the stage, so the arrow may come out smaller." },
+            { id: 'squash', label: 'It is squashed: half as wide, the same height', why: 'That needs a window that stays square. This one took the new shape, so x and y are still scaled alike.' },
+            { id: 'edge', label: 'It stays on the left edge', why: "The left edge is x = −2 now, so x = 0, the arrow's centre, is back in the middle." },
           ],
-          correctId: 'squash',
+          correctId: 'keeps',
         },
         focusPanel: 'ortho-editor',
         action: (state) => state.setViewportLimits({ minX: -2, maxX: 2, minY: -1, maxY: 1 }),
         codeChangeFocus: ['glOrtho'],
       },
       {
-        narration: "Back to −1 to 1. When the window changes shape, a reshape handler can widen glOrtho to keep proportions, as in Primitives' When the Window Changes Size.",
+        narration: "glOrtho still says x −2 to 2 and y −1 to 1. Drag the grip in the window's bottom-right corner until the window is roughly square again. What will the arrow look like?",
+        predict: {
+          options: [
+            { id: 'squash', label: 'Squashed: half as wide for its height', why: 'The window is square now but the volume is not: 4 units of x share its width and only 2 units of y share its height, so x and y are scaled differently. Each unit across gets half the pixels of a unit up.' },
+            { id: 'keeps', label: 'It keeps its shape', why: "Only while the window's shape matches the volume's. A square window and a 2:1 volume don't match." },
+            { id: 'wider', label: 'Stretched: twice as wide for its height', why: 'The other way round. x has the bigger range, so x is the one squeezed.' },
+          ],
+          correctId: 'squash',
+        },
+        pane: 'math',
+        mathStage: 'projected',
+        action: (state) => {
+          const arrow = named(state, 'Arrow');
+          if (arrow) state.selectObject(arrow.id);
+        },
+      },
+      {
+        narration: "Back to −1 to 1: a square volume in a square window, so the arrow is its own shape again. When a window changes shape, a reshape handler can widen glOrtho to match, as in Primitives' When the Window Changes Size.",
         focusPanel: 'ortho-editor',
         action: (state) => state.setViewportLimits({ ...DEFAULT_VIEW }),
         codeChangeFocus: ['glOrtho'],
@@ -507,7 +525,7 @@ export const TRANSFORMS_LESSONS: Record<string, Lesson> = {
           points: [
             'glMatrixMode(GL_PROJECTION) and glLoadIdentity set up the projection; glOrtho fills it.',
             'A wider volume zooms out, a narrower one zooms in, a shifted one pans.',
-            'Different x and y ranges stretch the picture.',
+            "x and y ranges that don't match the window's shape stretch the picture.",
           ],
           calls: ['glMatrixMode', 'glOrtho'],
         },

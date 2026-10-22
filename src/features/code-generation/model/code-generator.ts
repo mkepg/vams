@@ -41,8 +41,8 @@ export function generateAppOutput(
   // GL_*_BUFFER / GL_*_DRAW constants are visible to the compiler.
   let code = `#include <GL/glew.h>\n#include <GL/freeglut.h>\n#include <cmath>\n`;
   if (hasTextures) {
-    code += `#include <iostream>\n\n`;
-    code += `// 1. Define the implementation macro BEFORE including the header\n`;
+    code += `\n`;
+    code += `// stb_image: define its implementation in exactly one file, before including it\n`;
     code += `#define STB_IMAGE_IMPLEMENTATION\n`;
     code += `#include "stb_image.h"\n`;
   }

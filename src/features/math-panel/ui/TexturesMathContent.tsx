@@ -265,7 +265,7 @@ export default function TexturesMathContent() {
     return (
       <div className="empty-state">
         Select a fillable primitive — triangle, quad, or polygon — to see how
-        its UV coordinates and sampling rules turn pixels into surface color.
+        its UV coordinates and sampling rules turn pixels into surface colour.
       </div>
     );
   }
@@ -296,7 +296,7 @@ export default function TexturesMathContent() {
 
       <Section title="UV Table">
         <p className="explanation">
-          Each vertex carries a <code>(u, v)</code> pair pointing into normalized
+          Each vertex carries a <code>(u, v)</code> pair pointing into normalised
           texture space. <code>(0, 0)</code> is bottom-left; <code>(1, 1)</code> is top-right.
         </p>
         <UVSpacePlot uvs={selected.uvs} />
@@ -326,10 +326,10 @@ export default function TexturesMathContent() {
             : 'Linear sampling blends the four texels surrounding (x, y) by fractional distance:'}
         </p>
         {filter === 'NEAREST' ? (
-          <pre className="tx-eq">color = T[ ⌊x⌋ , ⌊y⌋ ]</pre>
+          <pre className="tx-eq">colour = T[ ⌊x⌋ , ⌊y⌋ ]</pre>
         ) : (
           <pre className="tx-eq">{`α = x − ⌊x⌋   β = y − ⌊y⌋
-color = (1−α)(1−β) · T[i,j]
+colour = (1−α)(1−β) · T[i,j]
       +   α  (1−β) · T[i+1,j]
       + (1−α)  β   · T[i,j+1]
       +   α    β   · T[i+1,j+1]`}</pre>

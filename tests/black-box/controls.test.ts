@@ -354,7 +354,7 @@ describe('BB-CTRL-17: An invalid hex value shows a message and reverts', () => {
     hex.dispatchEvent(new Event('input', { bubbles: true }));
     key(hex, 'Enter');
     await settle();
-    expect(host.textContent).toContain('Enter a hex color like #B91C1C');
+    expect(host.textContent).toContain('Enter a hex colour like #B91C1C');
     hex.dispatchEvent(new FocusEvent('blur'));
     await settle();
     expect(onChange).not.toHaveBeenCalled();

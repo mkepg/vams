@@ -1,7 +1,6 @@
 import './buffers-panel.scss';
 import { useRef } from 'react';
-import type { ComponentChildren } from 'preact';
-import { Database, Cpu, HardDrive, Info, Boxes, Pencil, Pointer } from 'lucide-react';
+import { Database, Info, Boxes } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
 import CollapsibleSection from '@/shared/ui/collapsible-section/CollapsibleSection';
 import { GlHint, Switch } from '@/shared/ui/controls';
@@ -25,9 +24,9 @@ interface ModeOption {
 }
 
 const MODE_OPTIONS: ModeOption[] = [
-  { id: 'IMMEDIATE',    label: 'Immediate',    api: 'glBegin / glEnd', hint: 'Re-issued every frame',          call: 'glBegin',         args: 'mode' },
-  { id: 'VERTEX_ARRAY', label: 'Vertex Array', api: 'glDrawArrays',    hint: 'Client memory, sent each frame', call: 'glVertexPointer', args: '2, GL_FLOAT, 0, verts' },
-  { id: 'VBO',          label: 'VBO',          api: 'glBufferData',    hint: 'Uploaded once, lives on GPU',    call: 'glBufferData',    args: 'GL_ARRAY_BUFFER, size, data, usage' },
+  { id: 'IMMEDIATE',    label: 'Immediate',    api: 'glBegin / glEnd', hint: 're-sent each frame',          call: 'glBegin',         args: 'mode' },
+  { id: 'VERTEX_ARRAY', label: 'Vertex Array', api: 'glDrawArrays',    hint: 'sent each frame', call: 'glVertexPointer', args: '2, GL_FLOAT, 0, verts' },
+  { id: 'VBO',          label: 'VBO',          api: 'glBufferData',    hint: 'uploaded once',    call: 'glBufferData',    args: 'GL_ARRAY_BUFFER, size, data, usage' },
 ];
 
 interface UsageOption {
@@ -38,9 +37,9 @@ interface UsageOption {
 }
 
 const USAGE_OPTIONS: UsageOption[] = [
-  { id: 'STATIC',  label: 'Static',  macro: 'GL_STATIC_DRAW',  hint: 'Set once · drawn many times' },
-  { id: 'DYNAMIC', label: 'Dynamic', macro: 'GL_DYNAMIC_DRAW', hint: 'Updated occasionally' },
-  { id: 'STREAM',  label: 'Stream',  macro: 'GL_STREAM_DRAW',  hint: 'Updated every frame' },
+  { id: 'STATIC',  label: 'Static',  macro: 'GL_STATIC_DRAW',  hint: 'set once, drawn often' },
+  { id: 'DYNAMIC', label: 'Dynamic', macro: 'GL_DYNAMIC_DRAW', hint: 'changed sometimes' },
+  { id: 'STREAM',  label: 'Stream',  macro: 'GL_STREAM_DRAW',  hint: 'rebuilt every frame' },
 ];
 
 interface UpdateMethodOption {
@@ -48,7 +47,6 @@ interface UpdateMethodOption {
   label: string;
   api: string;
   hint: string;
-  icon: typeof Pencil;
   call: string;
   args: string;
 }
@@ -58,8 +56,7 @@ const UPDATE_METHOD_OPTIONS: UpdateMethodOption[] = [
     id: 'BUFFER_SUB_DATA',
     label: 'Sub Data',
     api: 'glBufferSubData',
-    hint: 'Push a range of bytes to the GPU',
-    icon: Pencil,
+    hint: 'rewrites a GPU range',
     call: 'glBufferSubData',
     args: 'GL_ARRAY_BUFFER, 0, size, data',
   },
@@ -67,8 +64,7 @@ const UPDATE_METHOD_OPTIONS: UpdateMethodOption[] = [
     id: 'MAP_BUFFER',
     label: 'Map Buffer',
     api: 'glMapBuffer',
-    hint: 'Edit GPU memory through a pointer',
-    icon: Pointer,
+    hint: 'writes by pointer',
     call: 'glMapBuffer',
     args: 'GL_ARRAY_BUFFER, GL_WRITE_ONLY',
   },
@@ -80,10 +76,10 @@ interface CardGroupProps<O extends { id: string }> {
   options: O[];
   value: O['id'];
   onChange: (id: O['id']) => void;
-  renderCard: (option: O) => { className: string; title: string; content: ComponentChildren };
+  renderCard: (option: O) => { title: string; name: string; desc: string };
 }
 
-/** Radiogroup of cards, each with a title and a hint line: roving tabIndex, arrows and Home/End. */
+/** Radiogroup of stacked rows, each with a marker, a name and a description: roving tabIndex, arrows and Home/End. */
 function CardGroup<O extends { id: string }>({ label, className, options, value, onChange, renderCard }: CardGroupProps<O>) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const current = Math.max(0, options.findIndex((o) => o.id === value));
@@ -128,14 +124,16 @@ function CardGroup<O extends { id: string }>({ label, className, options, value,
               refs.current[index] = el;
             }}
             type="button"
-            className={`${card.className} ${active ? 'active' : ''}`}
+            className={`bp-row ${active ? 'active' : ''}`}
             role="radio"
             aria-checked={active}
             tabIndex={index === current ? 0 : -1}
             onClick={() => onChange(option.id)}
             title={card.title}
           >
-            {card.content}
+            <span className="bp-row__mark" aria-hidden="true" />
+            <span className="bp-row__name">{card.name}</span>
+            <span className="bp-row__desc">{card.desc}</span>
           </button>
         );
       })}
@@ -210,28 +208,15 @@ export default function BuffersPanel() {
         <div className="bp-block">
           <div className="bp-block-head">
             <span className="bp-block-label">Rendering Mode</span>
+            <span className="bp-block-hint">{modeOption.api}</span>
           </div>
           <CardGroup
             label="Rendering mode"
-            className="bp-mode-grid"
+            className="bp-list"
             options={MODE_OPTIONS}
             value={mode}
             onChange={(id) => updateRenderingMode(selected.id, id)}
-            renderCard={(opt) => ({
-              className: 'bp-mode-btn',
-              title: opt.api,
-              content: (
-                <>
-                  <span className="bp-mode-icon" aria-hidden="true">
-                    {opt.id === 'IMMEDIATE' && <Cpu size={13} />}
-                    {opt.id === 'VERTEX_ARRAY' && <HardDrive size={13} />}
-                    {opt.id === 'VBO' && <Database size={13} />}
-                  </span>
-                  <span className="bp-mode-name">{opt.label}</span>
-                  <span className="bp-mode-hint">{opt.hint}</span>
-                </>
-              ),
-            })}
+            renderCard={(opt) => ({ title: opt.api, name: opt.label, desc: opt.hint })}
           />
           <GlHint call={modeOption.call} args={modeOption.args} />
         </div>
@@ -245,20 +230,11 @@ export default function BuffersPanel() {
             </div>
             <CardGroup
               label="Buffer usage hint"
-              className="bp-usage-grid"
+              className="bp-list"
               options={USAGE_OPTIONS}
               value={usage}
               onChange={(id) => updateBufferUsage(selected.id, id)}
-              renderCard={(opt) => ({
-                className: 'bp-usage-btn',
-                title: opt.macro,
-                content: (
-                  <>
-                    <span className="bp-usage-name">{opt.label}</span>
-                    <span className="bp-usage-hint">{opt.hint}</span>
-                  </>
-                ),
-              })}
+              renderCard={(opt) => ({ title: opt.macro, name: opt.label, desc: opt.hint })}
             />
           </div>
         )}
@@ -271,27 +247,15 @@ export default function BuffersPanel() {
           <div className="bp-block">
             <div className="bp-block-head">
               <span className="bp-block-label">Update Method</span>
+              <span className="bp-block-hint">{methodOption.api}</span>
             </div>
             <CardGroup
               label="Buffer update method"
-              className="bp-method-grid"
+              className="bp-list"
               options={UPDATE_METHOD_OPTIONS}
               value={updateMethod}
               onChange={(id) => updateUpdateMethod(selected.id, id)}
-              renderCard={(opt) => {
-                const Icon = opt.icon;
-                return {
-                  className: 'bp-method-btn',
-                  title: opt.api,
-                  content: (
-                    <>
-                      <span className="bp-method-icon" aria-hidden="true"><Icon size={13} /></span>
-                      <span className="bp-method-name">{opt.label}</span>
-                      <span className="bp-method-hint">{opt.hint}</span>
-                    </>
-                  ),
-                };
-              }}
+              renderCard={(opt) => ({ title: opt.api, name: opt.label, desc: opt.hint })}
             />
             <GlHint call={methodOption.call} args={methodOption.args} />
           </div>

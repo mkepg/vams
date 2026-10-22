@@ -1,12 +1,12 @@
 import { useVamsStore } from '@/core/store';
 
 const STAGE_NOTES: Record<number, { title: string; note: string }> = {
-  0: { title: 'Vertex Specification', note: 'Vertices come from your code as raw (x, y) pairs with optional color.' },
+  0: { title: 'Vertex Specification', note: 'Vertices come from your code as raw (x, y) pairs with optional colour.' },
   1: { title: 'Vertex Processing', note: 'Each vertex is multiplied by the model and projection matrices.' },
   2: { title: 'Primitive Assembly', note: 'Vertices are stitched into shapes — points, lines, or triangles.' },
   3: { title: 'Clipping', note: 'Anything outside the visible rectangle is removed.' },
-  4: { title: 'Rasterization', note: 'Smooth shapes turn into a grid of fragments — potential pixels.' },
-  5: { title: 'Fragment Processing', note: 'Each fragment is given its final color.' },
+  4: { title: 'Rasterisation', note: 'Smooth shapes turn into a grid of fragments — potential pixels.' },
+  5: { title: 'Fragment Processing', note: 'Each fragment is given its final colour.' },
   6: { title: 'Per-Sample Operations', note: 'Final tests decide which fragments make it onto the screen.' },
 };
 

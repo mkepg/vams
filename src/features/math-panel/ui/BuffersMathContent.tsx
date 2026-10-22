@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { Pause, Play, RotateCcw, ChevronLeft, ChevronRight, Pin } from 'lucide-react';
 import { useVamsStore } from '@/core/store';
+import { sanitizeName } from '@/shared/lib/sanitize-name';
+import { deduplicate, hasTexture, vertexKey } from '@/entities/scene/model/vertex-dedup';
 import type {
   BufferUpdateMethod,
   BufferUsage,
@@ -11,18 +13,20 @@ import type {
 
 const BYTES_POS   = 8;
 const BYTES_COLOR = 12;
+const BYTES_UV    = 8;
 const BYTES_INDEX = 4;
-const BYTES_PER_VERTEX = BYTES_POS + BYTES_COLOR;
+
+/** Bytes one vertex takes: its position and colour, and its UV when the shape is textured. */
+const bytesPerVertex = (o: SceneNode) => BYTES_POS + BYTES_COLOR + (hasTexture(o) ? BYTES_UV : 0);
 
 function isPrimitive(o: SceneNode): boolean {
   return o.type !== 'GROUP' && o.type !== 'TEXT';
 }
 
+/** Vertices in the shape, and how many are different, by the same test indexed drawing uses. */
 function dedupCount(o: SceneNode): { unique: number; total: number } {
-  const keys = new Set<string>();
-  for (const v of o.vertices) {
-    keys.add(`${v.x.toFixed(6)}|${v.y.toFixed(6)}|${v.color}`);
-  }
+  const textured = hasTexture(o);
+  const keys = new Set(o.vertices.map((v, i) => vertexKey(v, textured ? o.uvs![i] : null)));
   return { unique: keys.size, total: o.vertices.length };
 }
 
@@ -143,7 +147,9 @@ function CurrentDrawCall({ obj, mode }: { obj: SceneNode; mode: RenderingMode })
 
 function MemoryFootprint({ obj }: { obj: SceneNode }) {
   const { total } = dedupCount(obj);
-  const totalBytes = total * BYTES_PER_VERTEX;
+  const perVertex = bytesPerVertex(obj);
+  const totalBytes = total * perVertex;
+  const parts = `position (${BYTES_POS} B) + colour (${BYTES_COLOR} B)${hasTexture(obj) ? ` + UV (${BYTES_UV} B)` : ''}`;
 
   return (
     <div className="bm-footprint">
@@ -152,8 +158,8 @@ function MemoryFootprint({ obj }: { obj: SceneNode }) {
         <span className="bm-stat-label">vertices</span>
       </div>
       <span className="bm-stat-op">×</span>
-      <div className="bm-footprint-stat" title="position (8 B) + color (12 B)">
-        <span className="bm-stat-num">{BYTES_PER_VERTEX} B</span>
+      <div className="bm-footprint-stat" title={parts}>
+        <span className="bm-stat-num">{perVertex} B</span>
         <span className="bm-stat-label">per vertex</span>
       </div>
       <span className="bm-stat-op">=</span>
@@ -167,8 +173,9 @@ function MemoryFootprint({ obj }: { obj: SceneNode }) {
 
 function MemoryComparison({ obj }: { obj: SceneNode }) {
   const { unique, total } = dedupCount(obj);
-  const arrayBytes = total * BYTES_PER_VERTEX;
-  const indexedBytes = unique * BYTES_PER_VERTEX + total * BYTES_INDEX;
+  const perVertex = bytesPerVertex(obj);
+  const arrayBytes = total * perVertex;
+  const indexedBytes = unique * perVertex + total * BYTES_INDEX;
   const savings = arrayBytes - indexedBytes;
   const positive = savings > 0;
 
@@ -180,7 +187,7 @@ function MemoryComparison({ obj }: { obj: SceneNode }) {
           <span className="bm-memory-api">glDrawArrays</span>
         </div>
         <code className="bm-memory-val">{arrayBytes} B</code>
-        <span className="bm-memory-sub">{total} verts × {BYTES_PER_VERTEX} B</span>
+        <span className="bm-memory-sub">{total} verts × {perVertex} B</span>
       </div>
 
       <div className="bm-memory-row">
@@ -190,7 +197,7 @@ function MemoryComparison({ obj }: { obj: SceneNode }) {
         </div>
         <code className="bm-memory-val">{indexedBytes} B</code>
         <span className="bm-memory-sub">
-          {unique} unique × {BYTES_PER_VERTEX} B + {total} idx × {BYTES_INDEX} B
+          {unique} unique × {perVertex} B + {total} idx × {BYTES_INDEX} B
         </span>
       </div>
 
@@ -203,50 +210,96 @@ function MemoryComparison({ obj }: { obj: SceneNode }) {
   );
 }
 
-function InterleavedLayout({ obj }: { obj: SceneNode }) {
-  const { total } = dedupCount(obj);
-  const MAX_BLOCKS = 4;
-  const truncated = total > MAX_BLOCKS;
-  const visibleCount = truncated ? Math.min(MAX_BLOCKS - 1, total) : total;
+/** One array the program declares for a shape: its name, the letters of each vertex's block, and the bytes per vertex. */
+interface ArrayRow {
+  name: string;
+  cells: string[];
+  kind: 'pos' | 'col' | 'uv';
+}
 
-  const blocks: Array<{ idx: number; ellipsis?: boolean; trailing?: boolean }> = [];
-  for (let i = 0; i < visibleCount; i++) blocks.push({ idx: i });
+const MAX_BLOCKS = 4;
+
+/** Which of `count` blocks to draw: all of them, or the first few, a gap and the last. */
+function blockPlan(count: number): Array<{ idx: number; ellipsis?: boolean }> {
+  const truncated = count > MAX_BLOCKS;
+  const blocks: Array<{ idx: number; ellipsis?: boolean }> = [];
+  for (let i = 0; i < (truncated ? MAX_BLOCKS - 1 : count); i++) blocks.push({ idx: i });
   if (truncated) {
     blocks.push({ idx: -1, ellipsis: true });
-    blocks.push({ idx: total - 1, trailing: true });
+    blocks.push({ idx: count - 1 });
   }
+  return blocks;
+}
+
+const gapBlock = (i: number) => (
+  <div key={`gap-${i}`} className="bm-vblock ellipsis" aria-hidden>
+    <span className="bm-vblock-idx">…</span>
+  </div>
+);
+
+/**
+ * The separate arrays the generated code declares, one block per vertex in each. With indexed drawing
+ * the code keeps each different vertex once and adds an indices array, as the generator does.
+ */
+function SeparateArrays({ obj }: { obj: SceneNode }) {
+  const safe = sanitizeName(obj.name);
+  const dedup = deduplicate(obj);
+  const count = dedup ? dedup.uniqueVerts.length : obj.vertices.length;
+  const rows: ArrayRow[] = [
+    { name: `verts_${safe}`, cells: ['x', 'y'], kind: 'pos' },
+    { name: `colors_${safe}`, cells: ['r', 'g', 'b'], kind: 'col' },
+  ];
+  if (hasTexture(obj)) rows.push({ name: `uvs_${safe}`, cells: ['u', 'v'], kind: 'uv' });
+  const blocks = blockPlan(count);
 
   return (
-    <div className="bm-interleaved">
-      <div className="bm-interleaved-row">
-        {blocks.map((b, i) =>
-          b.ellipsis ? (
-            <div key={`gap-${i}`} className="bm-vblock ellipsis" aria-hidden>
-              <span className="bm-vblock-idx">…</span>
-            </div>
-          ) : (
-            <div key={`v-${b.idx}`} className="bm-vblock">
-              <span className="bm-vblock-idx">V{b.idx + 1}</span>
-              <div className="bm-vblock-cells">
-                <span className="bm-cell pos">x</span>
-                <span className="bm-cell pos">y</span>
-                <span className="bm-cell col">r</span>
-                <span className="bm-cell col">g</span>
-                <span className="bm-cell col">b</span>
-              </div>
-            </div>
-          )
-        )}
-      </div>
-      <div className="bm-interleaved-foot">
-        <div className="bm-interleaved-legend">
-          <span><span className="bm-swatch pos" /> position (8 B)</span>
-          <span><span className="bm-swatch col" /> color (12 B)</span>
+    <div className="bm-arrays">
+      {rows.map((r) => (
+        <div key={r.name} className="bm-array">
+          <div className="bm-array-head">
+            <code className="bm-array-name">{r.name}</code>
+            <span className="bm-array-size">{count} × {r.cells.length * 4} B</span>
+          </div>
+          <div className="bm-array-row">
+            {blocks.map((b, i) =>
+              b.ellipsis ? (
+                gapBlock(i)
+              ) : (
+                <div key={`v-${b.idx}`} className="bm-vblock">
+                  <span className="bm-vblock-idx">V{b.idx + 1}</span>
+                  <div className="bm-vblock-cells">
+                    {r.cells.map((c) => (
+                      <span key={c} className={`bm-cell ${r.kind}`}>{c}</span>
+                    ))}
+                  </div>
+                </div>
+              ),
+            )}
+          </div>
         </div>
-        <span className="bm-interleaved-summary">
-          {total} {total === 1 ? 'block' : 'blocks'} × 20 B
-        </span>
-      </div>
+      ))}
+      {dedup && (
+        <div className="bm-array">
+          <div className="bm-array-head">
+            <code className="bm-array-name">indices_{safe}</code>
+            <span className="bm-array-size">{dedup.indices.length} × {BYTES_INDEX} B</span>
+          </div>
+          <div className="bm-array-row">
+            {blockPlan(dedup.indices.length).map((b, i) =>
+              b.ellipsis ? (
+                gapBlock(i)
+              ) : (
+                <div key={`i-${b.idx}`} className="bm-vblock" title={`Draws V${dedup.indices[b.idx] + 1}`}>
+                  <span className="bm-vblock-idx">{b.idx + 1}</span>
+                  <div className="bm-vblock-cells">
+                    <span className="bm-cell idx">{dedup.indices[b.idx]}</span>
+                  </div>
+                </div>
+              ),
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -662,13 +715,19 @@ export default function BuffersMathContent() {
         </Section>
       )}
 
-      <Section title="Layout: Interleaved">
-        <p className="explanation">
-          Position and color are packed together, one block per vertex, so the GPU fetches both
-          in a single read.
-        </p>
-        <InterleavedLayout obj={selected} />
-      </Section>
+      {/* Immediate mode sends each vertex by glVertex2f, so the code declares no arrays. */}
+      {mode !== 'IMMEDIATE' && (
+        <Section title="Layout: Separate Arrays">
+          <p className="explanation">
+            In Vertex Array and VBO modes your program keeps one array per attribute. Positions,
+            colours and UVs each have their own array, and glVertexPointer, glColorPointer and
+            glTexCoordPointer each point at one.
+            {selected.useIndexed &&
+              ` With indexed drawing each different vertex is stored once, and indices_${sanitizeName(selected.name)} lists the vertex glDrawElements draws at each corner, in order.`}
+          </p>
+          <SeparateArrays obj={selected} />
+        </Section>
+      )}
 
       <Section title={
         mode === 'IMMEDIATE'    ? 'CPU → GPU Traffic — Immediate'    :

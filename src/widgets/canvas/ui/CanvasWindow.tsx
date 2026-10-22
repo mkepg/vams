@@ -39,7 +39,8 @@ export default function CanvasWindow({ size, running, status, children, controls
           <span className="canvas-window__size">{`${size.width} × ${size.height}`}</span>
           {running && (
             <span className="canvas-window__running">
-              <span className="canvas-window__dot" aria-hidden="true" />running
+              <span className="canvas-window__dot" aria-hidden="true" />
+              <span className="canvas-window__running-label">running</span>
             </span>
           )}
           {running && status && <span className="canvas-window__status">{status}</span>}

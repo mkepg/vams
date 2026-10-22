@@ -19,7 +19,7 @@ export interface EditorShellProps {
   overlays?: ComponentChildren;
 }
 
-/** The editor grid: rail, panel, canvas and code. Below 1100 px the panel is a drawer beside the rail. */
+/** The editor grid: rail, panel, canvas and code. Below 1100 px the panel is a drawer beside the canvas, which narrows to make room. */
 export default function EditorShell({ topBar, rail, panel, canvas, lessonBar, codeMath, overlays }: EditorShellProps) {
   const narrow = useNarrowLayout();
   const railPanel = useVamsStore((s) => s.railPanel);
@@ -35,7 +35,7 @@ export default function EditorShell({ topBar, rail, panel, canvas, lessonBar, co
     setRailHidden(narrow);
   }, [narrow, setRailHidden]);
 
-  // On a narrow screen, Run and the end of a lesson close the drawer so it never covers the canvas.
+  // On a narrow screen, Run and the end of a lesson close the drawer to give the canvas its room back.
   useEffect(() => {
     if (narrow && running) setRailHidden(true);
   }, [narrow, running, setRailHidden]);

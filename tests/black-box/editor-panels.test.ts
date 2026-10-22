@@ -197,7 +197,7 @@ describe('BB-PANEL-08: Appearance shows the colour values GL receives', () => {
     const fill = host.querySelector('input[aria-label="Fill hex value"]');
     expect(fill).not.toBeNull();
     expect(hints(host).some((t) => t?.startsWith('glColor3f('))).toBe(true);
-    const emission = host.querySelector('[role="radiogroup"][aria-label="Color emission"]')!;
+    const emission = host.querySelector('[role="radiogroup"][aria-label="Colour emission"]')!;
     ([...emission.querySelectorAll('[role="radio"]')].find((r) => r.textContent === 'glColor3ub') as HTMLButtonElement).click();
     await settle();
     expect(hints(host).some((t) => t?.startsWith('glColor3ub('))).toBe(true);
@@ -876,5 +876,78 @@ describe('BB-PANEL-37: The Add panel body holds its width while placing', () => 
     const panel = readFileSync('src/shared/ui/controls/panel.scss', 'utf8');
     const body = panel.slice(panel.indexOf('&__body {'), panel.indexOf('}', panel.indexOf('&__body {')));
     expect(body).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  });
+});
+
+describe('BB-PANEL-38: Buffers lists each choice as a row with its description', () => {
+  async function mountVbo() {
+    const tri = addTriangle();
+    select(tri.id);
+    useVamsStore.getState().updateRenderingMode(tri.id, 'VBO');
+    useVamsStore.getState().updateBufferUsage(tri.id, 'STATIC');
+    useVamsStore.setState({ activeSection: 'Buffers' });
+    const host = mount(h(BuffersPanel, {}));
+    await settle();
+    return { host, tri };
+  }
+  const group = (host: HTMLElement, label: string) =>
+    host.querySelector(`[role="radiogroup"][aria-label="${label}"]`) as HTMLElement | null;
+  const radios = (host: HTMLElement, label: string) =>
+    [...group(host, label)!.querySelectorAll('[role="radio"]')] as HTMLElement[];
+  const text = (els: Element[], cls: string) => els.map((r) => r.querySelector(cls)!.textContent);
+
+  it('gives every option a marker, a name and a one-line description, and marks the chosen row', async () => {
+    const { host } = await mountVbo();
+    const rows = radios(host, 'Rendering mode');
+    expect(text(rows, '.bp-row__name')).toEqual(['Immediate', 'Vertex Array', 'VBO']);
+    expect(text(rows, '.bp-row__desc')).toEqual(['re-sent each frame', 'sent each frame', 'uploaded once']);
+    expect(rows.every((r) => r.querySelector('.bp-row__mark'))).toBe(true);
+    expect(rows.find((r) => r.getAttribute('aria-checked') === 'true')!.classList.contains('active')).toBe(true);
+    unmount(host);
+  });
+
+  it('describes the usage hints the same way', async () => {
+    const { host } = await mountVbo();
+    expect(text(radios(host, 'Buffer usage hint'), '.bp-row__desc')).toEqual(['set once, drawn often', 'changed sometimes', 'rebuilt every frame']);
+    unmount(host);
+  });
+
+  it('labels each block on the left and names its GL call on the right', async () => {
+    const { host } = await mountVbo();
+    const heads = [...host.querySelectorAll('.bp-block-head')].map((hd) => hd.textContent);
+    expect(heads[0]).toBe('Rendering ModeglBufferData');
+    expect(heads[1]).toBe('Buffer UsageGL_STATIC_DRAW');
+    unmount(host);
+  });
+
+  it('keeps Home, End and the arrows, and shows Update Method only for VBO with Dynamic', async () => {
+    const { host, tri } = await mountVbo();
+    const checked = () => radios(host, 'Rendering mode').findIndex((r) => r.getAttribute('aria-checked') === 'true');
+    const modeOf = () => useVamsStore.getState().objects.find((o) => o.id === tri.id)!.renderingMode;
+
+    key(radios(host, 'Rendering mode')[checked()], 'Home');
+    await settle();
+    expect(modeOf()).toBe('IMMEDIATE');
+    expect(group(host, 'Buffer usage hint')).toBeNull();
+
+    key(radios(host, 'Rendering mode')[checked()], 'ArrowDown');
+    await settle();
+    expect(modeOf()).toBe('VERTEX_ARRAY');
+
+    key(radios(host, 'Rendering mode')[checked()], 'End');
+    await settle();
+    expect(modeOf()).toBe('VBO');
+    expect(radios(host, 'Rendering mode')[2].getAttribute('tabindex')).toBe('0');
+
+    // VBO + Static: no update method group.
+    expect(group(host, 'Buffer update method')).toBeNull();
+    radios(host, 'Buffer usage hint')[1].click();
+    await settle();
+    expect(text(radios(host, 'Buffer update method'), '.bp-row__name')).toEqual(['Sub Data', 'Map Buffer']);
+    expect(text(radios(host, 'Buffer update method'), '.bp-row__desc')).toEqual([
+      'rewrites a GPU range',
+      'writes by pointer',
+    ]);
+    unmount(host);
   });
 });

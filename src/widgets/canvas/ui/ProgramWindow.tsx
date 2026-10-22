@@ -3,7 +3,7 @@ import type { ComponentChildren, JSX } from 'preact';
 import { useVamsStore } from '@/core/store';
 import { RUN_HINT, runController, useRunSnapshot } from '@/features/callbacks';
 import { PROGRAM_WINDOW_TITLE } from '@/shared/lib/program-window';
-import { MIN_WINDOW_SIZE, resizeRect, type Rect, type ResizeEdge } from '../model/program-window';
+import { MIN_WINDOW_SIZE, fittedRect, resizeRect, volumeAspect, type Rect, type ResizeEdge } from '../model/program-window';
 import { useProgramWindow } from '../model/program-window-store';
 import CanvasWindow, { type WindowControls } from './CanvasWindow';
 
@@ -32,6 +32,10 @@ export default function ProgramWindow({ size, away = false, children }: ProgramW
   const running = run.running;
   const mode = useProgramWindow((s) => s.mode);
   const rect = useProgramWindow((s) => s.rect);
+  const stage = useProgramWindow((s) => s.stage);
+  const aspect = useProgramWindow((s) => s.aspect);
+  // The edited viewing volume, never a run's copy of it, so a Keep proportions run does not reshape the window.
+  const viewportLimits = useVamsStore((s) => s.viewportLimits);
   const frameRef = useRef<HTMLDivElement>(null);
   const chipRef = useRef<HTMLButtonElement>(null);
   const drag = useRef<Drag | null>(null);
@@ -50,6 +54,12 @@ export default function ProgramWindow({ size, away = false, children }: ProgramW
     observer.observe(frame);
     return () => observer.disconnect();
   }, []);
+
+  // The window takes the shape of the viewing volume, before the first paint, so a saved non-square
+  // volume never shows one square frame.
+  useLayoutEffect(() => {
+    useProgramWindow.getState().setAspect(volumeAspect(viewportLimits));
+  }, [viewportLimits]);
 
   // Starting the program shows its window.
   useEffect(() => {
@@ -139,10 +149,11 @@ export default function ProgramWindow({ size, away = false, children }: ProgramW
     }),
   };
 
-  const placed: JSX.CSSProperties | undefined =
-    rect && mode !== 'maximised'
-      ? { left: `${rect.x}px`, top: `${rect.y}px`, width: `${rect.width}px`, height: `${rect.height}px` }
-      : undefined;
+  // Maximised is the largest window of the volume's shape on the stage, so it refits as the stage changes.
+  const place = mode === 'maximised' ? (stage ? fittedRect(stage, 0, aspect) : null) : rect;
+  const placed: JSX.CSSProperties | undefined = place
+    ? { left: `${place.x}px`, top: `${place.y}px`, width: `${place.width}px`, height: `${place.height}px` }
+    : undefined;
   const classes = [`canvas-window--${mode === 'maximised' ? 'maximised' : 'floating'}`, hidden ? 'canvas-window--away' : '']
     .filter(Boolean)
     .join(' ');

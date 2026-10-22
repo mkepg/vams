@@ -30,7 +30,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'list',
         items: [
-          'Create every OpenGL 1.5 primitive and edit its vertices, color, and line style.',
+          'Create every OpenGL 1.5 primitive and edit its vertices, colour, and line style.',
           'Switch geometry between immediate mode, vertex arrays, and VBOs — and see the code change.',
           'Translate, rotate, scale, and group objects, and set the orthographic view.',
           'Give GLUT callbacks rules and press Run to play them, including idle rules that animate a shape every frame.',
@@ -45,13 +45,13 @@ export const HELP_TOPICS: HelpTopic[] = [
         items: [
           'Add a shape from the Add panel on the rail (or click “Add a shape” on the empty canvas).',
           'Watch the generated OpenGL code appear on the right.',
-          'Select the shape and edit its color or position in the Scene panel — notice the code and math update live.',
+          'Select the shape and edit its colour or position in the Scene panel — notice the code and math update live.',
         ],
       },
       {
         kind: 'callout',
         tone: 'tip',
-        text: 'New here? Take the tour from the Workspace Tour topic: six short steps through the workspace. Press ? or F1 any time to reopen this Help Center.',
+        text: 'New here? Take the tour from the Workspace Tour topic: six short steps through the workspace. Press ? or F1 any time to reopen this Help Centre.',
       },
     ],
     related: ['workspace-tour', 'canvas-basics', 'modes', 'shortcuts'],
@@ -60,7 +60,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     id: 'workspace-tour',
     category: 'workspace',
     title: 'Workspace Tour',
-    summary: 'The rail and its panels on the left, the canvas in the center, code and math on the right.',
+    summary: 'The rail and its panels on the left, the canvas in the centre, code and math on the right.',
     keywords: ['layout', 'panels', 'rail', 'regions', 'tour', 'top bar', 'add', 'scene', 'settings', 'callbacks', 'inspector', 'hide', 'code', 'math', 'learn', 'lesson bar', 'file menu', 'view settings', 'view menu', 'window', 'run', 'share', 'rename'],
     blocks: [
       { kind: 'start-tour' },
@@ -73,7 +73,7 @@ export const HELP_TOPICS: HelpTopic[] = [
         kind: 'list',
         items: [
           'Left — Build. A rail of four panels: Add, Scene, Settings and Callbacks. One panel shows at a time.',
-          'Center — See. The canvas, where your scene is drawn and where you place vertices. The canvas is drawn as your program’s window, with the View menu and Run in the header above it.',
+          'Centre — See. The canvas, where your scene is drawn and where you place vertices. The canvas is drawn as your program’s window, with the View menu and Run in the header above it.',
           'Right — Read. The generated OpenGL code, or the math behind it, with a Code / Math switch at the top.',
         ],
       },
@@ -83,7 +83,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       },
       {
         kind: 'paragraph',
-        text: 'The window works like a window on your desktop. Drag its title bar to move it; that changes nothing in your drawing or your code. Drag its right edge, bottom edge or corner to resize it: the scene stretches to fill the window, and the size in glutInitWindowSize follows. The — button minimises it and the ▢ button maximises or restores it (double-clicking the title bar does the same). ✕ closes it and stops a running program; the chip at the bottom of the stage, or pressing Run, brings it back.',
+        text: 'The window works like a window on your desktop. It opens, and maximises, in the viewing volume’s shape, so a square draws square; dragging an edge stretches it. Drag its title bar to move it; that changes nothing in your drawing or your code. Drag its right edge, bottom edge or corner to resize it: the scene stretches to fill the window, and the size in glutInitWindowSize follows. The — button minimises it and the ▢ button maximises or restores it (double-clicking the title bar does the same). ✕ closes it and stops a running program; the chip at the bottom of the stage, or pressing Run, brings it back.',
       },
       { kind: 'heading', text: 'The rail and its panels' },
       {
@@ -110,8 +110,8 @@ export const HELP_TOPICS: HelpTopic[] = [
         kind: 'table',
         headers: ['Section', 'What it covers'],
         rows: [
-          ['Pipeline', 'How vertices become pixels: NDC, rasterization, GLUT structure'],
-          ['Primitives', 'Points, lines, triangles, color, line style, and text'],
+          ['Pipeline', 'How vertices become pixels: NDC, rasterisation, GLUT structure'],
+          ['Primitives', 'Points, lines, triangles, colour, line style, and text'],
           ['Buffers', 'Immediate mode, vertex arrays, VBOs, and memory layout'],
           ['Transforms', 'Translate, rotate, scale, the matrix stack, and glOrtho'],
           ['Textures', 'Images, UV mapping, filtering, and wrapping'],
@@ -132,7 +132,7 @@ export const HELP_TOPICS: HelpTopic[] = [
           'Scene name — click it to rename the scene. The note beside it shows whether the scene is saved: Saving…, Saved or Not saved.',
           'Settings — choose the theme and open the shortcut list.',
           'Share — make a link and a QR code for your scene.',
-          'Help — open this Help Center (also ? or F1).',
+          'Help — open this Help Centre (also ? or F1).',
         ],
       },
       {
@@ -153,7 +153,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { kind: 'heading', text: 'The coordinate system' },
       {
         kind: 'paragraph',
-        text: 'The canvas shows your world coordinates. By default the visible window runs from -1 to 1 on both axes — the same Normalized Device Coordinates (NDC) that OpenGL clips against. The origin (0, 0) sits at the center; X increases to the right and Y increases upward, matching OpenGL (not screen pixels, where Y points down).',
+        text: 'The canvas shows your world coordinates. By default the visible window runs from -1 to 1 on both axes — the same Normalised Device Coordinates (NDC) that OpenGL clips against. The origin (0, 0) sits at the centre; X increases to the right and Y increases upward, matching OpenGL (not screen pixels, where Y points down).',
       },
       { kind: 'heading', text: 'Selecting objects' },
       {
@@ -168,7 +168,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { kind: 'heading', text: 'Running your program' },
       {
         kind: 'paragraph',
-        text: 'Press Run in the canvas header to play your callbacks. Keys, clicks and drags go to your handlers, and the bar at the bottom shows the last call GLUT made. Drag the window’s edges or corner to resize it. Press Esc or Stop to end the run: your scene is just as you built it.',
+        text: 'Press Run in the canvas header to play your callbacks. Keys, clicks and drags go to your handlers, and the program window’s title bar shows the last call GLUT made. Drag the window’s edges or corner to resize it. Press Esc or Stop to end the run: your scene is just as you built it.',
       },
       { kind: 'shortcuts' },
       { kind: 'heading', text: 'Grid snapping & coordinates' },
@@ -227,7 +227,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     id: 'section-pipeline',
     category: 'sections',
     title: 'Pipeline',
-    summary: 'The OpenGL rendering pipeline, NDC, rasterization, and GLUT program structure.',
+    summary: 'The OpenGL rendering pipeline, NDC, rasterisation, and GLUT program structure.',
     keywords: ['pipeline', 'ndc', 'raster', 'rasterization', 'glut', 'stages', 'display', 'mainloop'],
     section: 'Pipeline',
     blocks: [
@@ -251,8 +251,8 @@ export const HELP_TOPICS: HelpTopic[] = [
           'Vertices are specified in world coordinates.',
           'The projection (glOrtho) maps them into the clip/NDC cube (-1 to 1).',
           'The viewport transform maps NDC to window pixels.',
-          'Rasterization fills the primitive’s pixels (fragments).',
-          'Per-vertex colors are interpolated across each fragment.',
+          'Rasterisation fills the primitive’s pixels (fragments).',
+          'Per-vertex colours are interpolated across each fragment.',
         ],
       },
       { kind: 'heading', text: 'A minimal GLUT program' },
@@ -276,13 +276,13 @@ export const HELP_TOPICS: HelpTopic[] = [
     id: 'section-primitives',
     category: 'sections',
     title: 'Primitives',
-    summary: 'Points, lines, triangles, quads and polygons, plus color, line style, and text.',
+    summary: 'Points, lines, triangles, quads and polygons, plus colour, line style, and text.',
     keywords: ['primitive', 'triangle', 'line', 'quad', 'polygon', 'color', 'stipple', 'text', 'glcolor', 'glvertex'],
     section: 'Primitives',
     blocks: [
       {
         kind: 'paragraph',
-        text: 'Build geometry from the ten OpenGL 1.5 primitive types. Add a shape, then edit its vertices, per-vertex color, and line styling. Each primitive interprets your vertex list differently.',
+        text: 'Build geometry from the ten OpenGL 1.5 primitive types. Add a shape, then edit its vertices, per-vertex colour, and line styling. Each primitive interprets your vertex list differently.',
       },
       {
         kind: 'table',
@@ -303,20 +303,20 @@ export const HELP_TOPICS: HelpTopic[] = [
       { kind: 'heading', text: 'Immediate-mode drawing' },
       {
         kind: 'paragraph',
-        text: 'In immediate mode each shape is drawn between glBegin and glEnd, with a color and position for each vertex:',
+        text: 'In immediate mode each shape is drawn between glBegin and glEnd, with a colour and position for each vertex:',
       },
       {
         kind: 'code',
         code: 'glBegin(GL_TRIANGLES);\n    glColor3f(1.0f, 0.0f, 0.0f); glVertex2f(-0.5f, -0.5f);\n    glColor3f(0.0f, 1.0f, 0.0f); glVertex2f( 0.5f, -0.5f);\n    glColor3f(0.0f, 0.0f, 1.0f); glVertex2f( 0.0f,  0.5f);\nglEnd();',
       },
-      { kind: 'heading', text: 'Color modes' },
+      { kind: 'heading', text: 'Colour modes' },
       {
         kind: 'paragraph',
-        text: 'Each object can use float color (glColor3f, components 0.0–1.0) or byte color (glColor3ub, components 0–255). They describe the same colors; the math panel shows the conversion.',
+        text: 'Each object can use float colour (glColor3f, components 0.0–1.0) or byte colour (glColor3ub, components 0–255). They describe the same colours; the math panel shows the conversion.',
       },
       {
         kind: 'table',
-        headers: ['Float (glColor3f)', 'Byte (glColor3ub)', 'Color'],
+        headers: ['Float (glColor3f)', 'Byte (glColor3ub)', 'Colour'],
         rows: [
           ['1.0, 0.0, 0.0', '255, 0, 0', 'Red'],
           ['0.0, 1.0, 0.0', '0, 255, 0', 'Green'],
@@ -335,7 +335,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'callout',
         tone: 'tip',
-        text: 'Give a triangle three different vertex colors to see barycentric interpolation: OpenGL blends the corner colors smoothly across the face. The math panel shows the weights.',
+        text: 'Give a triangle three different vertex colours to see barycentric interpolation: OpenGL blends the corner colours smoothly across the face. The math panel shows the weights.',
       },
       { kind: 'heading', text: 'GLUT callbacks' },
       {
@@ -406,7 +406,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: 'Move, rotate, and scale objects using the on-canvas gizmo or the numeric inputs. Every transform corresponds to a fixed-function matrix call.',
+        text: 'Move, rotate, and scale objects with the Transform group’s scale pad, rotate dial and numbers, or drag a shape on the canvas to move it. Every transform corresponds to a fixed-function matrix call.',
       },
       {
         kind: 'table',
@@ -489,12 +489,12 @@ export const HELP_TOPICS: HelpTopic[] = [
     id: 'scene-hierarchy',
     category: 'panels',
     title: 'Scene Hierarchy & Grouping',
-    summary: 'Organize, rename, group, reorder, and show or hide your objects.',
+    summary: 'Organise, rename, group, reorder, and show or hide your objects.',
     keywords: ['hierarchy', 'scene', 'list', 'group', 'ungroup', 'rename', 'duplicate', 'delete', 'visibility', 'reorder', 'drag', 'parent', 'child', 'tree'],
     blocks: [
       {
         kind: 'paragraph',
-        text: 'The Scene list sits at the top of the Scene panel and lists every object in your scene. It is where you organize, name, and structure your work.',
+        text: 'The Scene list sits at the top of the Scene panel and lists every object in your scene. It is where you organise, name, and structure your work.',
       },
       { kind: 'heading', text: 'What you can do' },
       {
@@ -672,7 +672,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'definitions',
         items: [
-          { term: 'Save project file', description: 'Writes the entire scene — objects, colors, transforms, buffers, callbacks, and textures — to a project file you can keep or share.' },
+          { term: 'Save project file', description: 'Writes the entire scene — objects, colours, transforms, buffers, callbacks, and textures — to a project file you can keep or share.' },
           { term: 'Open project file', description: 'Reads a project file back into the workspace, replacing the current scene.' },
           { term: 'New workspace', description: 'Clears the scene to a blank slate (with a confirmation first).' },
         ],
@@ -756,16 +756,16 @@ export const HELP_TOPICS: HelpTopic[] = [
           { term: 'Fixed-function pipeline', description: 'The built-in, configurable (but not programmable) sequence of stages that turns geometry into pixels.' },
           { term: 'GLUT', description: 'The OpenGL Utility Toolkit — handles windows, input, and the main loop so you can focus on drawing.' },
           { term: 'Primitive', description: 'A basic drawable shape: point, line, triangle, quad, or polygon.' },
-          { term: 'Vertex', description: 'A point with a position (and optionally color and texture coordinates) that defines a primitive’s corner.' },
-          { term: 'NDC', description: 'Normalized Device Coordinates — the -1 to 1 space geometry maps into before the viewport transform.' },
-          { term: 'Rasterization', description: 'Turning vector geometry into the pixels (fragments) that fill it.' },
-          { term: 'Fragment', description: 'A candidate pixel produced by rasterization, before it is written to the screen.' },
+          { term: 'Vertex', description: 'A point with a position (and optionally colour and texture coordinates) that defines a primitive’s corner.' },
+          { term: 'NDC', description: 'Normalised Device Coordinates — the -1 to 1 space geometry maps into before the viewport transform.' },
+          { term: 'Rasterisation', description: 'Turning vector geometry into the pixels (fragments) that fill it.' },
+          { term: 'Fragment', description: 'A candidate pixel produced by rasterisation, before it is written to the screen.' },
           { term: 'Immediate mode', description: 'Drawing one vertex at a time between glBegin and glEnd, every frame.' },
           { term: 'Vertex array', description: 'Client-side arrays of vertex data drawn in a single call with glDrawArrays.' },
           { term: 'VBO', description: 'Vertex Buffer Object — vertex data stored in GPU memory and reused, avoiding per-frame uploads.' },
           { term: 'Indexed drawing', description: 'Reusing shared vertices via an index list with glDrawElements, saving memory.' },
           { term: 'Usage hint', description: 'A flag (STATIC / DYNAMIC / STREAM) telling the driver how often buffer data will change.' },
-          { term: 'Barycentric coordinates', description: 'Weights (α, β, γ) that blend a triangle’s three corners — used to interpolate vertex colors across the face.' },
+          { term: 'Barycentric coordinates', description: 'Weights (α, β, γ) that blend a triangle’s three corners — used to interpolate vertex colours across the face.' },
           { term: 'Stipple', description: 'A 16-bit on/off pattern that dashes a line, set with glLineStipple.' },
           { term: 'glOrtho', description: 'Defines the orthographic viewing window mapping world units onto the viewport.' },
           { term: 'Matrix stack', description: 'The glPushMatrix / glPopMatrix stack of transforms used to build object hierarchies.' },
@@ -797,7 +797,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'callout',
         tone: 'tip',
-        text: 'You can reopen this Help Center any time with the ? or F1 key, or from the Help button in the top bar.',
+        text: 'You can reopen this Help Centre any time with the ? or F1 key, or from the Help button in the top bar.',
       },
     ],
     related: ['welcome', 'shortcuts'],

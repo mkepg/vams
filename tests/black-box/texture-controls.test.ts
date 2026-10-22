@@ -379,3 +379,48 @@ describe('BB-TEX-16: The Textures lessons name the samples and panels the editor
     expect(text).toContain('The Pixel fox');
   });
 });
+
+describe('BB-TEX-17: Two shapes on one image keep their own filter and wrap on the canvas', () => {
+  it('gives each filter and wrap its own texture source over the one decoded image', async () => {
+    vi.resetModules();
+    const image = { decoded: true };
+    class FakeSource {
+      resource: unknown;
+      scaleMode: string;
+      addressMode: string;
+      destroyed = false;
+      constructor(o: { resource: unknown; scaleMode: string; addressMode: string }) {
+        this.resource = o.resource;
+        this.scaleMode = o.scaleMode;
+        this.addressMode = o.addressMode;
+      }
+      destroy() { this.destroyed = true; }
+    }
+    class FakeTexture {
+      source: FakeSource;
+      constructor(o: { source: FakeSource }) { this.source = o.source; }
+      destroy(withSource?: boolean) { if (withSource) this.source.destroy(); }
+    }
+    const base = new FakeTexture({ source: new FakeSource({ resource: image, scaleMode: 'linear', addressMode: 'repeat' }) });
+    vi.doMock('pixi.js', () => ({ Assets: { load: () => Promise.resolve(base) }, Texture: FakeTexture, ImageSource: FakeSource }));
+    try {
+      const { ensureTexture, dropTexture } = await import('@/features/textures/lib/pixi-texture-cache');
+      const asset = { id: 'sample-uv-grid', name: 'UV grid', dataUrl: 'data:', width: 256, height: 256 } as never;
+      expect(ensureTexture(asset, 'LINEAR', 'REPEAT')).toBeNull();
+      await new Promise((r) => setTimeout(r, 0));
+      const sharp = ensureTexture(asset, 'NEAREST', 'CLAMP_TO_EDGE') as unknown as FakeTexture;
+      const soft = ensureTexture(asset, 'LINEAR', 'REPEAT') as unknown as FakeTexture;
+      expect(sharp.source).not.toBe(soft.source);
+      expect([sharp.source.scaleMode, sharp.source.addressMode]).toEqual(['nearest', 'clamp-to-edge']);
+      expect([soft.source.scaleMode, soft.source.addressMode]).toEqual(['linear', 'repeat']);
+      expect(sharp.source.resource).toBe(image);
+      expect(soft.source.resource).toBe(image);
+      expect(ensureTexture(asset, 'NEAREST', 'CLAMP_TO_EDGE')).toBe(sharp);
+      dropTexture(asset.id);
+      expect(sharp.source.destroyed && soft.source.destroyed && base.source.destroyed).toBe(true);
+    } finally {
+      vi.doUnmock('pixi.js');
+      vi.resetModules();
+    }
+  });
+});

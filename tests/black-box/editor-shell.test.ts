@@ -1151,3 +1151,17 @@ describe('BB-SHELL-43: The View menu toggles Grid numbers', () => {
     useVamsStore.getState().setAxisVisibility({ showGridNumbers: true });
   });
 });
+
+describe('BB-SHELL-44: A shape without a texture hands its shader only the attributes it reads', () => {
+  it('builds the vertex-colour mesh with positions and colours and no UVs', async () => {
+    const { createMesh } = await import('@/shared/engine/pixi/primitives/rendering/meshRenderer');
+    const result = createMesh({
+      id: 't', name: 'T', type: 'TRIANGLES', visible: true, shading: 'SMOOTH', parentId: null, children: [],
+      transform: { translateX: 0, translateY: 0, rotate: 0, scaleX: 1, scaleY: 1 },
+      vertices: [
+        { id: 'a', x: 0, y: 0.5, color: '#ff0000' }, { id: 'b', x: -0.5, y: -0.5, color: '#00ff00' }, { id: 'c', x: 0.5, y: -0.5, color: '#0000ff' },
+      ],
+    } as never)!;
+    expect(Object.keys(result.mesh.geometry.attributes).sort()).toEqual(['aColor', 'aPosition']);
+  });
+});

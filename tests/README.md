@@ -75,7 +75,7 @@ tests/
 │   │                                        choosing a link)
 │   ├── scene-view.test.ts                (BB-VIEW-*: the read-only scene view
 │   │                                        on phones)
-│   ├── help-center.test.ts               (BB-HELP-*: the Help Center's topics
+│   ├── help-center.test.ts               (BB-HELP-*: the Help Centre's topics
 │   │                                        and search)
 │   ├── pipeline-figures.test.ts          (BB-PFIG-*: the Pipeline geometry,
 │   │                                        rasteriser, stage pictures, Raster
@@ -107,8 +107,10 @@ tests/
 │   │                                        that stores shares)
 │   ├── grid-labels.test.ts               (WB-GRID-*: axis labels inside the
 │   │                                        canvas)
-│   └── program-window.test.ts            (WB-WINDOW-*: the window's size and
-│                                            position rules)
+│   ├── program-window.test.ts            (WB-WINDOW-*: the window's size and
+│   │                                        position rules)
+│   └── british-spelling.test.ts          (WB-SPELL-*: British spelling in every
+│                                            string students read)
 ├── visual/                       ← Not part of `npm test`.
 │   ├── editor.spec.ts                    (VIS-EDITOR-*: screenshot checks,
 │   │                                        including the rail panels,

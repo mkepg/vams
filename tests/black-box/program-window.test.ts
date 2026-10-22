@@ -8,6 +8,7 @@ import { useVamsStore } from '@/core/store';
 import ProgramWindow from '@/widgets/canvas/ui/ProgramWindow';
 import CanvasWindow from '@/widgets/canvas/ui/CanvasWindow';
 import { useProgramWindow } from '@/widgets/canvas/model/program-window-store';
+import { fittedRect } from '@/widgets/canvas/model/program-window';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { runController } from '@/features/callbacks';
@@ -52,12 +53,12 @@ afterEach(() => {
   runController.stop();
 });
 
-describe('BB-WINDOW-01: The window starts floating and centred on the stage', () => {
-  it('leaves a 24 px margin on every side, with three real buttons in the bar', async () => {
+describe('BB-WINDOW-01: The window starts floating and centred on the stage, shaped to the viewing volume', () => {
+  it('fits the stage height inside a 24 px margin, with three real buttons in the bar', async () => {
     const host = mountWindow();
     await settle();
     const el = windowEl(host);
-    expect([el.style.left, el.style.top, el.style.width, el.style.height]).toEqual(['24px', '24px', '952px', '552px']);
+    expect([el.style.left, el.style.top, el.style.width, el.style.height]).toEqual(['238px', '24px', '524px', '552px']);
     const labels = [...host.querySelectorAll('.canvas-window__bar button')].map((b) => b.getAttribute('aria-label'));
     expect(labels).toEqual(['Minimise', 'Maximise', 'Close']);
     expect(chip(host)).toBeNull();
@@ -67,13 +68,13 @@ describe('BB-WINDOW-01: The window starts floating and centred on the stage', ()
     const host = mountWindow();
     windowState().setStage({ width: 800, height: 500 });
     await settle();
-    expect(windowEl(host).style.width).toBe('752px');
+    expect(windowEl(host).style.width).toBe('424px');
     windowState().moveTo(200, 100);
     windowState().setStage({ width: 600, height: 400 });
     await settle();
     expect(windowState().placedByUser).toBe(true);
     expect(windowEl(host).style.left).toBe('200px');
-    expect(windowEl(host).style.width).toBe('600px');
+    expect(windowEl(host).style.width).toBe('424px');
     unmount(host);
   });
   it('gives the plain CanvasWindow no buttons or handles', () => {
@@ -95,12 +96,12 @@ describe('BB-WINDOW-02: Dragging the title bar moves the window and changes no c
     press(bar, 'pointermove', 180, 100);
     press(bar, 'pointerup', 180, 100);
     await settle();
-    expect([windowEl(host).style.left, windowEl(host).style.top]).toEqual(['-96px', '84px']);
-    expect(windowEl(host).style.width).toBe('952px');
+    expect([windowEl(host).style.left, windowEl(host).style.top]).toEqual(['118px', '84px']);
+    expect(windowEl(host).style.width).toBe('524px');
     expect(code()).toBe(before);
     press(button(host, 'Minimise'), 'pointerdown', 10, 10);
     press(bar, 'pointermove', 0, 0);
-    expect(windowEl(host).style.left).toBe('-96px');
+    expect(windowEl(host).style.left).toBe('118px');
     unmount(host);
   });
   it('keeps the title bar reachable', async () => {
@@ -154,21 +155,23 @@ describe('BB-WINDOW-04: Minimise and Maximise act like a real window', () => {
     await settle();
     expect(chip(host)).toBeNull();
     expect(windowEl(host).classList.contains('canvas-window--away')).toBe(false);
-    expect(windowEl(host).style.left).toBe('24px');
+    expect(windowEl(host).style.left).toBe('238px');
     unmount(host);
   });
-  it('maximise fills the stage, flips its label to Restore, and restores the floating window', async () => {
+  it('maximise gives the largest window of the volume shape, flips its label to Restore, and restores the fitted window', async () => {
     const host = mountWindow();
     await settle();
     button(host, 'Maximise').click();
     await settle();
     expect(windowEl(host).classList.contains('canvas-window--maximised')).toBe(true);
+    expect(windowEl(host).style.width).toBe('572px');
+    expect(windowEl(host).style.height).toBe('600px');
     expect(button(host, 'Maximise')).toBeNull();
     button(host, 'Restore').click();
     await settle();
     expect(windowEl(host).classList.contains('canvas-window--maximised')).toBe(false);
     expect(button(host, 'Maximise')).not.toBeNull();
-    expect(windowEl(host).style.width).toBe('952px');
+    expect(windowEl(host).style.width).toBe('524px');
     unmount(host);
   });
   it('double-clicking the title bar toggles maximise, but not on a button; a maximised window does not drag', async () => {
@@ -180,7 +183,7 @@ describe('BB-WINDOW-04: Minimise and Maximise act like a real window', () => {
     expect(windowState().mode).toBe('maximised');
     press(bar, 'pointerdown', 300, 40);
     press(bar, 'pointermove', 100, 100);
-    expect(windowState().rect).toEqual({ x: 24, y: 24, width: 952, height: 552 });
+    expect(windowState().rect).toEqual({ x: 238, y: 24, width: 524, height: 552 });
     button(host, 'Restore').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     await settle();
     expect(windowState().mode).toBe('maximised');
@@ -314,5 +317,66 @@ describe('BB-WINDOW-08: A lesson, a swapped scene or vertex placement brings the
     await settle();
     expect(windowState().mode).toBe('floating');
     unmount(host);
+  });
+});
+
+describe("BB-WINDOW-09: The window keeps the viewing volume's shape", () => {
+  it('reshapes when the volume changes in Settings', async () => {
+    const host = mountWindow();
+    await settle();
+    try {
+      useVamsStore.getState().setViewportLimits({ minX: 0, maxX: 2, minY: -0.5, maxY: 0.5 });
+      await settle();
+      const el = windowEl(host);
+      const w = parseFloat(el.style.width) - 2;
+      const h = parseFloat(el.style.height) - 30;
+      expect(Math.abs(w / h - 2)).toBeLessThan(0.01);
+    } finally {
+      unmount(host);
+      useVamsStore.getState().setViewportLimits({ minX: -1, maxX: 1, minY: -1, maxY: 1 });
+    }
+  });
+  it('maximised, takes the largest window of that shape on the stage, centred, and keeps refitting', async () => {
+    const host = mountWindow();
+    await settle();
+    button(host, 'Maximise').click();
+    await settle();
+    expect(windowEl(host).style.width).toBe(`${fittedRect(STAGE, 0, 1).width}px`);
+    windowState().setStage({ width: 800, height: 500 });
+    await settle();
+    expect(windowEl(host).style.height).toBe(`${fittedRect({ width: 800, height: 500 }, 0, 1).height}px`);
+    unmount(host);
+  });
+  it("a window resized during a Keep proportions run keeps the student's size", async () => {
+    addTriangle();
+    useVamsStore.getState().setCallbackHandler('reshape', 'onReshape');
+    useVamsStore.getState().setReshapeMode('keep');
+    let view: { minX: number; maxX: number; minY: number; maxY: number } | null = null;
+    const unregister = registerFakeRenderer(new Map(), {
+      getCanvasSize: () => ({ width: 1200, height: 400 }),
+      setView: (v) => { view = { ...v }; },
+    });
+    const host = mountWindow();
+    try {
+      await settle();
+      expect(runController.start({ loop: false })).toBe(true);
+      await settle();
+      expect(runController.getSnapshot().running).toBe(true);
+      // The run widened its own view to the wide canvas; the edited volume is untouched.
+      const limits = useVamsStore.getState().viewportLimits;
+      expect(view).not.toBeNull();
+      expect(view).not.toEqual({ minX: limits.minX, maxX: limits.maxX, minY: limits.minY, maxY: limits.maxY });
+      expect(view!.maxX - view!.minX).toBeGreaterThan(limits.maxX - limits.minX);
+      windowState().resizeTo({ x: 10, y: 10, width: 900, height: 300 });
+      await settle();
+      expect(windowState().rect).toEqual({ x: 10, y: 10, width: 900, height: 300 });
+      expect(windowState().aspect).toBe(1);
+    } finally {
+      runController.stop();
+      unmount(host);
+      unregister();
+      useVamsStore.getState().setReshapeMode('stretch');
+      useVamsStore.getState().setCallbackHandler('reshape', '');
+    }
   });
 });
