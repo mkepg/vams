@@ -24,8 +24,8 @@ interface ModeOption {
 }
 
 const MODE_OPTIONS: ModeOption[] = [
-  { id: 'IMMEDIATE',    label: 'Immediate',    api: 'glBegin / glEnd', hint: 'sent every frame',          call: 'glBegin',         args: 'mode' },
-  { id: 'VERTEX_ARRAY', label: 'Vertex Array', api: 'glDrawArrays',    hint: 'sent in a batch', call: 'glVertexPointer', args: '2, GL_FLOAT, 0, verts' },
+  { id: 'IMMEDIATE',    label: 'Immediate',    api: 'glBegin / glEnd', hint: 'vertex by vertex',          call: 'glBegin',         args: 'mode' },
+  { id: 'VERTEX_ARRAY', label: 'Vertex Array', api: 'glDrawArrays',    hint: 'sent each frame', call: 'glVertexPointer', args: '2, GL_FLOAT, 0, verts' },
   { id: 'VBO',          label: 'VBO',          api: 'glBufferData',    hint: 'uploaded once',    call: 'glBufferData',    args: 'GL_ARRAY_BUFFER, size, data, usage' },
 ];
 
@@ -37,7 +37,7 @@ interface UsageOption {
 }
 
 const USAGE_OPTIONS: UsageOption[] = [
-  { id: 'STATIC',  label: 'Static',  macro: 'GL_STATIC_DRAW',  hint: 'set once' },
+  { id: 'STATIC',  label: 'Static',  macro: 'GL_STATIC_DRAW',  hint: 'set once, drawn often' },
   { id: 'DYNAMIC', label: 'Dynamic', macro: 'GL_DYNAMIC_DRAW', hint: 'changed sometimes' },
   { id: 'STREAM',  label: 'Stream',  macro: 'GL_STREAM_DRAW',  hint: 'rebuilt every frame' },
 ];
@@ -56,7 +56,7 @@ const UPDATE_METHOD_OPTIONS: UpdateMethodOption[] = [
     id: 'BUFFER_SUB_DATA',
     label: 'Sub Data',
     api: 'glBufferSubData',
-    hint: 'rewrites a range',
+    hint: 'rewrites a GPU range',
     call: 'glBufferSubData',
     args: 'GL_ARRAY_BUFFER, 0, size, data',
   },

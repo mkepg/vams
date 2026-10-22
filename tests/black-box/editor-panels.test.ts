@@ -900,7 +900,7 @@ describe('BB-PANEL-38: Buffers lists each choice as a row with its description',
     const { host } = await mountVbo();
     const rows = radios(host, 'Rendering mode');
     expect(text(rows, '.bp-row__name')).toEqual(['Immediate', 'Vertex Array', 'VBO']);
-    expect(text(rows, '.bp-row__desc')).toEqual(['sent every frame', 'sent in a batch', 'uploaded once']);
+    expect(text(rows, '.bp-row__desc')).toEqual(['vertex by vertex', 'sent each frame', 'uploaded once']);
     expect(rows.every((r) => r.querySelector('.bp-row__mark'))).toBe(true);
     expect(rows.find((r) => r.getAttribute('aria-checked') === 'true')!.classList.contains('active')).toBe(true);
     unmount(host);
@@ -908,7 +908,7 @@ describe('BB-PANEL-38: Buffers lists each choice as a row with its description',
 
   it('describes the usage hints the same way', async () => {
     const { host } = await mountVbo();
-    expect(text(radios(host, 'Buffer usage hint'), '.bp-row__desc')).toEqual(['set once', 'changed sometimes', 'rebuilt every frame']);
+    expect(text(radios(host, 'Buffer usage hint'), '.bp-row__desc')).toEqual(['set once, drawn often', 'changed sometimes', 'rebuilt every frame']);
     unmount(host);
   });
 
@@ -945,7 +945,7 @@ describe('BB-PANEL-38: Buffers lists each choice as a row with its description',
     await settle();
     expect(text(radios(host, 'Buffer update method'), '.bp-row__name')).toEqual(['Sub Data', 'Map Buffer']);
     expect(text(radios(host, 'Buffer update method'), '.bp-row__desc')).toEqual([
-      'rewrites a range',
+      'rewrites a GPU range',
       'writes by pointer',
     ]);
     unmount(host);
