@@ -5,6 +5,7 @@ import { lineOrigin, rasterLineYs, rasterizeLine } from '@/shared/lib/text-raste
 const HIT_PADDING = 4;
 /** Half the side of the pick square at the origin when no line is drawn. */
 const EMPTY_HIT = 6;
+const ZERO_SCALE = 1e-6;
 
 function lineTexture(line: string, color: number): Texture | null {
   const { width, height, bits } = rasterizeLine(line);
@@ -35,6 +36,8 @@ export class BitmapTextLayout {
   private rects: Rectangle[] = [];
   private origin = { x: 0, y: 0 };
   private toScreen = new Matrix();
+  /** Until the first placement nothing is drawn where a click could find it. */
+  private placed = false;
 
   constructor(lines: readonly string[], color: number) {
     this.sprites = lines.map((line) => {
@@ -49,9 +52,14 @@ export class BitmapTextLayout {
 
   /** Puts every line at its raster position for a window `width` × `height` pixels, lines `step` units apart. */
   place(container: Container, step: number, width: number, height: number): void {
+    // A zero glScalef still draws every line at the origin. A scale of exactly 0 has no inverse to
+    // cancel, so it is nudged to a millionth: the same pixels, and a container clicks can reach.
+    if (container.scale.x === 0) container.scale.x = ZERO_SCALE;
+    if (container.scale.y === 0) container.scale.y = ZERO_SCALE;
     const m = container.getGlobalTransform(this.toScreen, false);
     const det = m.a * m.d - m.b * m.c;
     const toLocal = det === 0 ? null : m.clone().invert();
+    this.placed = true;
     const o = m.apply({ x: 0, y: 0 });
     this.origin = { x: o.x, y: o.y };
     this.rects = [];
@@ -83,6 +91,7 @@ export class BitmapTextLayout {
   }
 
   contains(x: number, y: number): boolean {
+    if (!this.placed) return false;
     const p = this.toScreen.apply({ x, y });
     if (this.rects.length === 0) return this.screenBounds().contains(p.x, p.y);
     return this.rects.some((r) =>

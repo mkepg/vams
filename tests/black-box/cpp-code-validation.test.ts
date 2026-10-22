@@ -134,3 +134,12 @@ describe('BB-CPP-07: A group holding text or another group calls only functions 
     expect(code).toContain('const char* textLine = "Label";');
   });
 });
+
+describe('BB-CPP-08: A carriage return in text never escapes the comment', () => {
+  it('keeps the whole text comment on one line', () => {
+    getState().addTextObject('Hello\r\nWorld', 0, 0);
+    const code = gen();
+    expect(code).toContain('// Text: "Hello\\nWorld"\n');
+    expect(code).not.toContain('\r');
+  });
+});

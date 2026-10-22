@@ -74,7 +74,8 @@ const generateImmediateDrawBody = (
     });
   } else if (object.type === 'TEXT') {
     const textContent = object.textContent || '';
-    const safeTextComment = textContent.replace(/\n/g, '\\n');
+    // A carriage return would end the // comment early, so it goes; newlines are written as \n.
+    const safeTextComment = textContent.replace(/\r/g, '').replace(/\n/g, '\\n');
     const colorHex = object.vertices[0]?.color || '#ffffff';
     const useByte = object.colorMode === 'BYTE';
     drawBody += `    // Text: "${safeTextComment}"\n`;

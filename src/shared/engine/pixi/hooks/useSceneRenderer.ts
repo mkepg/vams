@@ -258,16 +258,18 @@ export function useSceneRenderer({
       const width = app.screen.width;
       const height = app.screen.height;
       const pixelsPerUnitY = height / (viewportLimits.maxY - viewportLimits.minY);
-      let selectedIsText = false;
+      let placed = false;
       objectsRef.current.forEach((obj) => {
         if (obj.type !== 'TEXT') return;
         const container = containersRef.current.get(obj.id);
         if (!container || container.destroyed || !(container.hitArea instanceof BitmapTextLayout)) return;
         const step = textLineStep(pixelsPerUnitY, effectiveScaleY(obj, objectsRef.current));
         container.hitArea.place(container, step, width, height);
-        if (obj.id === selected) selectedIsText = true;
+        placed = true;
       });
-      if (selectedIsText && !renderBridge.editorOverlaysHidden()) overlay.update();
+      // The outline measures the selection, which may be a text or a group holding one: measure it
+      // again now that the lines are in place.
+      if (placed && selected && !renderBridge.editorOverlaysHidden()) overlay.update();
     };
     app.ticker.add(placeText, undefined, PIXI.UPDATE_PRIORITY.LOW + 1);
     return () => {

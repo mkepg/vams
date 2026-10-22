@@ -210,6 +210,5 @@ The thesis manuscript is final and describes the evaluated build. The overhauled
 
 The following manuscript descriptions may also be crossed by later sub-projects. When one is, it is added to the list above:
 - The default canvas background `#000000`. Changing it changes generated code and the replay baseline.
-- The canvas text font.
 - §1.5's desktop-only input.
 - Table 4's browser floor: Chrome 99+, Firefox 101+, Edge 121+.

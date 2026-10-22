@@ -104,3 +104,28 @@ describe('WB-TEXT-04: The canvas layout keeps letters in window pixels', () => {
     expect(layout.contains(0, 0)).toBe(true);
   });
 });
+
+describe('WB-TEXT-05: Text at scale 0 still draws at its origin and can be picked', () => {
+  it('stacks every line on the translated origin, as GL does with a zero glScalef', () => {
+    const world = new Container();
+    world.scale.set(400, -300);
+    world.position.set(400, 300);
+    const container = new Container();
+    container.scale.set(0, 0);
+    world.addChild(container);
+    const layout = new BitmapTextLayout(['Hi', 'there'], 0xffffff);
+    layout.sprites.forEach((s) => s && container.addChild(s));
+    layout.place(container, 0, 800, 600);
+    expect(layout.sprites.every((s) => s!.visible)).toBe(true);
+    const m = layout.sprites[1]!.getGlobalTransform();
+    expect([m.a, m.d, Math.round(m.tx), Math.round(m.ty)]).toEqual([expect.closeTo(1, 6), expect.closeTo(1, 6), 400, 288]);
+    // PIXI hands contains() the click in the container's own coordinates.
+    const local = container.toLocal({ x: 410, y: 295 });
+    expect(layout.contains(local.x, local.y)).toBe(true);
+  });
+
+  it('picks nothing before its first placement', () => {
+    const layout = new BitmapTextLayout(['Hi'], 0xffffff);
+    expect(layout.contains(0, 0)).toBe(false);
+  });
+});
