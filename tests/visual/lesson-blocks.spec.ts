@@ -49,6 +49,9 @@ for (const theme of THEMES) {
     const next = page.locator('.lesson-bar__next');
     for (let i = 0; i < 40 && !(await next.innerText()).includes('Vector vs Raster'); i++) {
       const before = await bar.innerText();
+      // A prediction step lights Next once an option is picked.
+      const prediction = page.getByRole('group', { name: 'Your prediction' });
+      if (await prediction.isVisible()) await prediction.getByRole('button').first().click();
       await expect(next).toBeEnabled();
       await next.click();
       await expect.poll(async () => bar.innerText()).not.toBe(before);

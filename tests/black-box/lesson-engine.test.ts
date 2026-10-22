@@ -11,6 +11,7 @@
 import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { describe, it, expect } from 'vitest';
 import { useVamsStore } from '@/core/store';
+import type { LessonStep } from '@/core/types/lesson';
 import { LESSON_REGISTRY, getLessonById } from '@/features/lesson-engine/model/lesson-registry';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { addTriangle, getState } from '../helpers/store';
@@ -91,24 +92,28 @@ describe('BB-LESSON-05: clearLessonState restores the original scene', () => {
   });
 });
 
+/** A step's success predicates: its successCheck and each of its goals' checks. */
+const stepChecks = (step: LessonStep) => [...(step.successCheck ? [step.successCheck] : []), ...(step.goals ?? []).map((g) => g.check)];
+
 describe('BB-LESSON-06: successCheck predicates classify pass/fail correctly', () => {
-  it('every successCheck returns a boolean and never throws on an empty store', () => {
+  it('every success check returns a boolean and never throws on an empty store', () => {
     let total = 0;
     let returnedBool = 0;
     for (const lesson of Object.values(LESSON_REGISTRY)) {
       for (const step of lesson.steps) {
-        if (!step.successCheck) continue;
-        total++;
-        useVamsStore.setState({
-          objects: [], selectedObjectId: null, pendingVertices: [],
-          pendingShapeType: null,
-          callbacks: emptyCallbacks(),
-        });
-        try {
-          const ok = step.successCheck(useVamsStore.getState());
-          if (typeof ok === 'boolean') returnedBool++;
-        } catch {
-          /* a thrown predicate is permitted but should be rare */
+        for (const check of stepChecks(step)) {
+          total++;
+          useVamsStore.setState({
+            objects: [], selectedObjectId: null, pendingVertices: [],
+            pendingShapeType: null,
+            callbacks: emptyCallbacks(),
+          });
+          try {
+            const ok = check(useVamsStore.getState());
+            if (typeof ok === 'boolean') returnedBool++;
+          } catch {
+            /* a thrown predicate is permitted but should be rare */
+          }
         }
       }
     }
@@ -128,28 +133,32 @@ describe('BB-LESSON-06: successCheck predicates classify pass/fail correctly', (
     let passed = 0;
     for (const lesson of Object.values(LESSON_REGISTRY)) {
       for (const step of lesson.steps) {
-        if (!step.successCheck) continue;
-        try {
-          if (step.successCheck(useVamsStore.getState())) passed++;
-        } catch { /* tolerate */ }
+        // A step detects success with its successCheck and with each of its goals.
+        for (const check of stepChecks(step)) {
+          try {
+            if (check(useVamsStore.getState())) passed++;
+          } catch { /* tolerate */ }
+        }
       }
     }
     expect(passed).toBeGreaterThanOrEqual(1);
   });
 
-  it('an empty scene fails the successCheck of a step that requires content', () => {
+  it('an empty scene fails the success check of a step that requires content', () => {
     let evaluatedFail = 0;
     for (const lesson of Object.values(LESSON_REGISTRY)) {
       for (const step of lesson.steps) {
-        if (!step.successCheck) continue;
-        useVamsStore.setState({
-          objects: [], selectedObjectId: null, pendingVertices: [],
-        });
-        try {
-          const ok = step.successCheck(useVamsStore.getState());
-          if (!ok) evaluatedFail++;
-        } catch {
-          evaluatedFail++; // throwing on empty state still counts as "fail"
+        for (const check of stepChecks(step)) {
+          useVamsStore.setState({
+            objects: [], selectedObjectId: null, pendingVertices: [],
+          });
+          try {
+            const ok = check(useVamsStore.getState());
+            if (!ok) evaluatedFail++;
+          } catch {
+            evaluatedFail++; // throwing on empty state still counts as "fail"
+          }
+          if (evaluatedFail >= 1) break;
         }
         if (evaluatedFail >= 1) break;
       }
@@ -177,7 +186,7 @@ describe('BB-LESSON-07: The callbacks demo builds onKey with a D case', () => {
 
 describe('BB-LESSON-08: The mouse exercise needs a left-down Move to pointer rule', () => {
   it('fails without the rule and passes with it', () => {
-    const check = lessonStep('primitives-exercise-5', 1).successCheck!;
+    const check = lessonStep('primitives-exercise-5', 1).goals![0].check;
     const t = addTriangle();
     getState().setCallbackHandler('mouse', 'onMouse');
     expect(check(useVamsStore.getState())).toBe(false);
@@ -190,12 +199,11 @@ describe('BB-LESSON-08: The mouse exercise needs a left-down Move to pointer rul
 
 describe('BB-LESSON-09: Drive with the Arrow Keys', () => {
   it('needs Special keys, then → and ← translates on one object', () => {
-    const first = lessonStep('primitives-exercise-6', 0).successCheck!;
-    const second = lessonStep('primitives-exercise-6', 1).successCheck!;
-    getState().setCallbackHandler('special', 'onSpecial');
+    const [first, second] = lessonStep('primitives-exercise-6', 1).goals!.map((g) => g.check);
     expect(first(useVamsStore.getState())).toBe(false);
-    const t = addTriangle();
+    getState().setCallbackHandler('special', 'onSpecial');
     expect(first(useVamsStore.getState())).toBe(true);
+    const t = addTriangle();
     getState().addCallbackRule('special', { id: 'r', objectId: t.id, trigger: { kind: 'special', key: 'right' }, action: { type: 'translate', dx: 0.1, dy: 0 } });
     expect(second(useVamsStore.getState())).toBe(false);
     getState().addCallbackRule('special', { id: 'l', objectId: t.id, trigger: { kind: 'special', key: 'left' }, action: { type: 'translate', dx: -0.1, dy: 0 } });

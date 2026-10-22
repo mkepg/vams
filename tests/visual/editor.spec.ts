@@ -228,7 +228,7 @@ for (const theme of THEMES) {
 
   test(`VIS-EDITOR-22: Lesson bar waiting on an exercise, ${theme}, 1280`, async ({ page }) => {
     await open(page, '/app?lesson=transforms-exercise-1', theme);
-    await expect(page.locator('.lesson-bar__task')).toContainText('Waiting for you');
+    await expect(page.locator('.lesson-bar__goal')).toContainText('At (0.5, −0.3)');
     await expect(page).toHaveScreenshot(`lesson-bar-exercise-${theme}-1280.png`);
   });
 

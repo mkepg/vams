@@ -211,16 +211,18 @@ Covers: pipeline stages (vertex specification → vertex processing → primitiv
 
 ### Demos (minimum 4)
 
-1. **"From Vertex to Pixel"** — steps through the seven pipeline stages, highlighting each stage in the diagram with narration.
-2. **"Raster vs Vector"** — demonstrates the raster/vector split view and narrates the key difference.
-3. **"Normalized Device Coordinates"** — places a marker in the coordinate playground at several positions and narrates the coordinate system.
-4. **"Anatomy of a GLUT Program"** — steps through the boilerplate line by line, with narration explaining each section.
+1. **"From Vertex to Pixel"** — the student first predicts which stage turns a triangle into squares, then steps through the seven stages in the diagram, each with the code line that does it, and follows one corner through the Transformed stage in Math.
+2. **"Vector vs Raster"** — the raster/vector split view: the student predicts what stretching a shape does to its stair steps, changes the pixels across, turns `GLUT_MULTISAMPLE` on and off, and fills in the `glutInitDisplayMode` flag that asks for it.
+3. **"Normalised Device Coordinates"** — the −1 to 1 box read through the cursor's NDC position in Math, a prediction of where (0.5, −0.5) lands, the `glTranslatef` that places it, and a window resize that leaves it in place.
+4. **"Anatomy of a GLUT Program"** — steps through `main()` and `display()` line by line, with predictions of what happens without `GLUT_DOUBLE` and without `glutMainLoop`.
 
 ### Exercises (minimum 3)
 
-1. **"Place the Point"** — the student places a marker at a specified NDC coordinate within a given tolerance.
-2. **"Which Stage?"** — given a visual artifact (e.g., visible pixel stepping on a diagonal edge), the student identifies which pipeline stage produced it from a set of labeled choices.
-3. **"Order the Pipeline"** — given a scrambled list of pipeline stage names, the student reorders them correctly.
+1. **"Place the Point"** — the student moves a point to two NDC positions within a tolerance, and sees that `glTranslatef` changes while `glVertex2f` does not.
+2. **"Paint the Background"** — the student sets the background to dark blue, then white, and reads the `glClearColor` and `glClear(GL_COLOR_BUFFER_BIT)` lines that use it.
+3. **"Which Stage?"** — given a picture of one stage on the canvas, the student identifies the stage from a set of labelled choices.
+4. **"Order the Pipeline"** — the student reorders the seven stages, then the calls in `main()`.
+5. **"Write main()"** — the section's capstone: the student builds a scene, then fills in the display flags, `glutCreateWindow`, their own `glClearColor` values, `glutDisplayFunc` and `glutMainLoop`.
 
 ### Acceptance Criteria
 
@@ -274,20 +276,24 @@ Run is a transient canvas state, not a mode. While it runs, keys, clicks, drags,
 
 ### Demos (minimum 4)
 
-1. **"Drawing a Triangle"** — adds a triangle vertex by vertex, narrating each step. Both the viewport and code panel update in sync.
-2. **"Float vs Byte Colors"** — toggles an object's color mode and narrates the conversion shown in the math panel.
-3. **"Barycentric Color Across a Triangle"** — sets per-vertex colors, demonstrates interpolation, narrates the formula in the math panel.
-4. **"Line Stippling"** — applies stipple to a line, demonstrates different patterns.
-5. **"Hooking Up Callbacks"**: registers a keyboard handler with a rule, narrates the generated switch case and its registration, and runs it.
+1. **"Your First Triangle"** — a triangle appears and the narration walks `glBegin`, `glColor3f`, `glVertex2f` and `glEnd`; the student predicts what hiding it does to the code.
+2. **"The Geometry Alphabet: Points to Polygons"** — the same corners under `GL_POINTS` (with `glPointSize`), `GL_LINES`, `GL_LINE_STRIP`, `GL_LINE_LOOP`, `GL_TRIANGLES`, `GL_QUADS` and `GL_POLYGON`, with predictions of how many lines and shapes appear.
+3. **"Strips and Fans"** — `GL_TRIANGLE_STRIP`, `GL_TRIANGLE_FAN` and `GL_QUAD_STRIP`, with predictions of how many triangles and quads a corner count makes.
+4. **"Painting with Barycentrics"** — per-vertex colours blended across the face, the Coloured stage in Math, `glShadeModel` with `GL_SMOOTH` and `GL_FLAT`, and the same colours as `glColor3ub`.
+5. **"Styling Lines (Width & Stipple)"** — `glLineWidth`, the stipple pattern's bits and factor, and `GL_LINE_STIPPLE` switched on and off.
+6. **"Rendering Text in OpenGL"** — `glRasterPos2f`, `glutBitmapCharacter` and `GLUT_BITMAP_9_BY_15`, and why the colour comes before the raster position.
+7. **"Hooking Up Callbacks"** — keyboard, special keys, mouse and motion callbacks with a rule each, their registrations, `windowToWorld` with `glutGet`, and Run.
+8. **"When the Window Changes Size"** — `glutReshapeFunc`, `glViewport`, and Stretch against Keep proportions.
 
 ### Exercises (minimum 4)
 
-1. **"Build a Triangle"** — add a non-degenerate triangle to an empty scene.
-2. **"Match the Color"** — match a target color swatch using the color picker, within a defined tolerance.
-3. **"Toggle to Byte Color"** — switch a given object from float to byte color mode and match a target byte value.
-4. **"Enable Stippling"** — apply a stipple with specified factor and pattern to a given line.
-5. **"Hooking up the Mouse"**: register a Mouse callback with a rule that moves a shape to the pointer on a left-button press. Success when that rule exists on a valid handler.
-6. **"Drive with the Arrow Keys"**: register Special keys with a → rule that translates a shape right and a ← rule that translates the same shape left.
+1. **"Quad Assembly"** — build a `GL_QUADS` shape, then a two-quad `GL_QUAD_STRIP`.
+2. **"Neon Gradient"** — colour one corner green and one magenta, then switch the colours to `glColor3ub`.
+3. **"Dotted Outline"** — make an outline dotted, at least 3 pixels wide, with a stipple factor of 3.
+4. **"Hello World!"** — add a label, then split it over two lines.
+5. **"Hooking up the Mouse"** — a left click moves a shape to the pointer, a right click resets it, and a drag moves it.
+6. **"Drive with the Arrow Keys"** — Special keys rules for all four arrows.
+7. **"Draw It Yourself"** — the section's capstone: a two-colour filled shape, a styled line and a label, then the filled shape's `glBegin`, first `glColor3f`, first `glVertex2f` and `glEnd` written by hand.
 
 ### Acceptance Criteria
 
@@ -355,18 +361,19 @@ During the `glMapBuffer` demo, the math panel's Stored stage displays a diagram 
 
 ### Demos (minimum 4)
 
-1. **"Immediate Mode: Every Frame"** — narrates what happens on each frame in immediate mode; the buffer flow diagram shows per-frame transfer.
-2. **"Converting to Vertex Arrays"** — switches existing scene objects to Vertex Array mode; the code panel diff is the pedagogical centerpiece.
-3. **"VBOs: Send Once"** — switches to VBO mode; narrates the `init()` setup and `display()` drawing separation.
-4. **"Buffer Usage Hints"** — toggles a VBO object's usage hint through all three values; the buffer flow diagram and narration explain the performance semantics of each.
-5. **"glMapBuffer: Direct Memory Access"** — narrates the mapping lifecycle step by step, with pointer diagram and a real vertex update reflected in the viewport.
+1. **"Immediate Mode: Every Frame"** — the student predicts how many `glVertex2f` calls a 1,000-corner shape makes in a second; the traffic row in Math shows every frame sending.
+2. **"Converting to Vertex Arrays"** — the switch to Vertex Array, read through `glEnableClientState`, `glVertexPointer`, `glColorPointer`, `glDrawArrays` and `glDisableClientState`, with a prediction of what the 2 in `glVertexPointer` means.
+3. **"VBOs: Send Once"** — `glGenBuffers`, `glBindBuffer` and `glBufferData` in `init()`, the position and colour buffers, the pointer offset 0, and unbinding.
+4. **"Buffer Usage Hints"** — Static, Dynamic and Stream, `update_buffers()` with `glBufferSubData` or `glBufferData`, and `glutIdleFunc`, with a prediction of what Dynamic adds to the code.
+5. **"Updating in Place: glMapBuffer"** — Sub Data against Map Buffer, `GL_WRITE_ONLY`, and the mapping lifecycle stepped through in Math.
 
 ### Exercises (minimum 4)
 
-1. **"Switch to VBO"** — given an immediate-mode scene, switch all objects to VBO mode.
-2. **"Use Static for Unchanging Data"** — given a VBO-mode object, select the appropriate usage hint.
-3. **"Reduce Memory with Indexed Drawing"** — switch a naive vertex-repeated quad to an indexed primitive.
-4. **"Pick the Right Usage Hint"** — given a described scenario, select the appropriate usage hint from the three choices.
+1. **"Switch to VBO"** — switch a triangle to VBO, then add a quad drawn from a VBO.
+2. **"Use Static for Unchanging Data"** — set a logo to Static and a spark to Stream.
+3. **"Reduce Memory with Indexed Drawing"** — switch on indexed drawing for a square made of two triangles, then keep its indices in a VBO.
+4. **"Pick the Right Usage Hint"** — three scenarios, one hint each.
+5. **"Build a VBO by Hand"** — the section's capstone: a Static VBO shape, then `glGenBuffers`, `GL_ARRAY_BUFFER`, the usage hint, `glVertexPointer`'s size and type, and `glDrawArrays` written by hand.
 
 ### Acceptance Criteria
 
@@ -436,17 +443,21 @@ The generated code emits transforms in the conventional T-R-S order (translate, 
 
 ### Demos (minimum 4)
 
-1. **"Translate, Rotate, Scale"** — applies each transform operation in sequence with narration, pointing to the generated code at each step.
-2. **"Matrix Representation"** — shows the math panel matrix updating as transforms are applied.
-3. **"The Matrix Stack"** — creates a parent-child group and narrates how `glPushMatrix`/`glPopMatrix` produce local transforms.
-4. **"glOrtho: Changing the View"** — adjusts glOrtho values and narrates how the viewport coordinate range changes.
+1. **"Translate, Rotate, Scale"** — moves, turns and scales an arrow, reading the `state_` values and `glTranslatef`, `glRotatef` and `glScalef`; the student predicts which way a 90° turn points and what Scale X does after it.
+2. **"Matrix Representation"** — the matrix in Math's Transformed stage: the identity, the move in the last column, the scale on the diagonal, cos and sin for a turn, and T · R · S, with predictions of where each value lands.
+3. **"The Matrix Stack"** — `glMatrixMode(GL_MODELVIEW)` and `glLoadIdentity`, `glPushMatrix` and `glPopMatrix` around each shape, and a group whose turn carries its children.
+4. **"Spin or Orbit: Order Matters"** — a sun and two planets: turning a child spins it, turning the group makes the children orbit, and the group's scale shrinks their distances.
+5. **"glOrtho: Changing the View"** — `glMatrixMode(GL_PROJECTION)` and `glOrtho`, with predictions for a wider volume, a shifted one and unequal ranges.
+6. **"Animation: Transformation Over Time"** — an idle rule turns a triangle each frame through `glutIdleFunc` and `glutPostRedisplay`.
 
 ### Exercises (minimum 4)
 
-1. **"Translate to Position"** — move an object to a specified coordinate using the gizmo or numeric inputs.
-2. **"Rotate to Angle"** — rotate an object to a specified angle.
-3. **"Build a Hierarchy"** — create a parent-child group and produce a specified nested transform sequence in generated code.
-4. **"Set the Viewport Range"** — configure `glOrtho` parameters to match a target visible coordinate range.
+1. **"Translate to Position"** — move a triangle to (0.5, −0.3), then to the corner of the view, where most of it is clipped.
+2. **"Rotate to Angle"** — turn a square to 45°, then to −30°, then pick the angle that draws the same.
+3. **"Build a Hierarchy"** — group two triangles, then turn and scale the group.
+4. **"Set the Viewport Range"** — set `glOrtho` to −2 to 2, then zoom in on a box with 0 to 1.
+5. **"Make It Orbit"** — idle rules that turn a group, so its moons orbit, and spin its sun.
+6. **"Write the Transform Calls"** — the section's capstone: a moved, turned and scaled shape, then `glMatrixMode`, `glLoadIdentity`, `glPushMatrix`, the three transform calls with the shape's own numbers, and `glPopMatrix` written by hand.
 
 ### Acceptance Criteria
 
@@ -508,18 +519,22 @@ VAMS ships with five sample textures in the Texture group's picker, each teachin
 
 ### Demos (minimum 4)
 
-1. **"From Image to Texture"** — uploads a sample texture, applies it to a quad, and narrates each section of the generated setup code.
-2. **"UV Coordinates"** — starts with default UV mapping, adjusts coordinates, and narrates the effect.
-3. **"Filtering"** — zooms in on a textured object and toggles between Nearest and Linear filtering, narrating the visual difference.
-4. **"Wrapping"** — pushes UVs outside `[0, 1]` and toggles between Repeat and Clamp, narrating the visual difference.
-5. **"Texture on a Triangle"** — applies a texture to a triangle, drags UV handles, and narrates how barycentric interpolation samples the texture.
+1. **"The Foundation of Textures"** — Brick wall on a quad, read through `glGenTextures`, `glBindTexture`, `glTexImage2D` with `GL_RGBA` and `GL_UNSIGNED_BYTE`, `glEnable(GL_TEXTURE_2D)` and `glTexCoord2f`; the student predicts what `GL_UNSIGNED_BYTE` means and what red corners do under `GL_REPLACE`.
+2. **"Mapping with UVs"** — the UV grid sample: u across, v up, Flip U and half-range UVs, each predicted first.
+3. **"Unlocking the Texture Atlas"** — the Sprite sheet: picking the coin, then the heart, by UVs.
+4. **"The Pixel Art Problem"** — the Pixel fox under `GL_LINEAR` and `GL_NEAREST`, and `GL_TEXTURE_MAG_FILTER` against `GL_TEXTURE_MIN_FILTER` when the fox is scaled down.
+5. **"Pushing Boundaries (Wrapping)"** — UVs from 0 to 3 with `GL_REPEAT`, `GL_TEXTURE_WRAP_S` and `GL_TEXTURE_WRAP_T`, and the Coloured edges sample under `GL_CLAMP_TO_EDGE`.
+6. **"Texture on a Triangle"** — the UV grid on a triangle; moving the tip's UV changes the whole face through barycentric weights.
+7. **"Textures from Arrays"** — a textured quad switched to Vertex Array and VBO: `uvs_` arrays, `GL_TEXTURE_COORD_ARRAY` and `glTexCoordPointer`.
 
 ### Exercises (minimum 4)
 
-1. **"Apply a Texture"** — upload a sample texture and apply it to a created quad.
-2. **"Tile the Texture"** — produce a 3×3 tile by setting UVs to `(0,0)–(3,3)` with Repeat wrapping.
-3. **"Pixelate"** — switch a zoomed textured quad to Nearest filtering to make it appear pixelated.
-4. **"Map UVs to Match Target"** — adjust UV coordinates to match a target rendered result, within a defined tolerance.
+1. **"First Coat of Paint"** — put Brick wall on a quad, then swap it for the UV grid.
+2. **"Sprite Extraction"** — UVs that show only the star, then only the gem, then a question about the heart.
+3. **"Retro Crispness"** — Nearest filtering for the Pixel fox, then scale it up, then a question about the two filter lines.
+4. **"The Endless Floor"** — Repeat, UVs from 0 to 2, then bricks half as tall with v from 0 to 4.
+5. **"Clamp the Edges"** — Clamp on the Coloured edges sample, then the image pushed to the right half with u from −1 to 1.
+6. **"Write the Texture Calls"** — the course's capstone: a textured shape with Nearest and Clamp, then `glGenTextures`, `GL_TEXTURE_2D`, the filter, `GL_TEXTURE_WRAP_S` and the wrap mode, `GL_RGBA` and `GL_UNSIGNED_BYTE`, and the first corner's `glTexCoord2f` written by hand.
 
 ### Acceptance Criteria
 

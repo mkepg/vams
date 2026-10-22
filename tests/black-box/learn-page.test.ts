@@ -121,14 +121,14 @@ describe('BB-LPAGE-02: A prerendered page reads progress after mount and follows
 
 describe('BB-LPAGE-03: Each lesson reads as not started, in progress or done', () => {
   it('words the meta and the spoken status, and never counts past the last step', () => {
-    const lesson = entry('transforms-demo-2'); // Matrix Representation, 6 steps
-    expect(lessonStatus(lesson, progressOf({}))).toEqual({ kind: 'new', meta: '6 steps', spoken: 'not started, 6 steps' });
+    const lesson = entry('transforms-demo-2'); // Matrix Representation, 9 steps
+    expect(lessonStatus(lesson, progressOf({}))).toEqual({ kind: 'new', meta: '9 steps', spoken: 'not started, 9 steps' });
     expect(lessonStatus(lesson, progressOf({ current: { lessonId: lesson.id, step: 2 } }))).toEqual({
       kind: 'progress',
-      meta: 'Left at step 3 of 6',
-      spoken: 'in progress, left at step 3 of 6',
+      meta: 'Left at step 3 of 9',
+      spoken: 'in progress, left at step 3 of 9',
     });
-    expect(lessonStatus(lesson, progressOf({ current: { lessonId: lesson.id, step: 40 } })).meta).toBe('Left at step 6 of 6');
+    expect(lessonStatus(lesson, progressOf({ current: { lessonId: lesson.id, step: 40 } })).meta).toBe('Left at step 9 of 9');
     expect(lessonStatus(lesson, progressOf({ completed: [lesson.id] }))).toEqual({ kind: 'complete', meta: 'Done', spoken: 'done' });
   });
 });
@@ -182,11 +182,11 @@ describe('BB-LPAGE-07: Progress shows on rows, counts, the index and Next up', (
     expect(rowFor(transforms, 'transforms-demo-1').className).toContain('is-complete');
     expect(rowFor(transforms, 'transforms-demo-1').getAttribute('aria-label')).toBe('Translate, Rotate, Scale, done');
     expect(rowFor(transforms, 'transforms-demo-2').getAttribute('aria-label')).toBe(
-      'Matrix Representation, in progress, left at step 3 of 6',
+      'Matrix Representation, in progress, left at step 3 of 9',
     );
-    expect(rowFor(transforms, 'transforms-demo-3').getAttribute('aria-label')).toBe('The Matrix Stack, not started, 4 steps');
-    expect(transforms.querySelector('.learn-section__count')!.textContent).toBe('1 of 9 done');
-    expect(host.querySelector('section#pipeline .learn-section__count')!.textContent).toBe('7 lessons');
+    expect(rowFor(transforms, 'transforms-demo-3').getAttribute('aria-label')).toBe('The Matrix Stack, not started, 7 steps');
+    expect(transforms.querySelector('.learn-section__count')!.textContent).toBe('1 of 12 done');
+    expect(host.querySelector('section#pipeline .learn-section__count')!.textContent).toBe('9 lessons');
     expect(host.querySelector('.learn__status')!.textContent).toBe(`1 of ${LESSON_CATALOG.length} lessons done`);
     expect(host.querySelector('.learn-next a.learn-row')!.getAttribute('href')).toBe('/app?lesson=transforms-demo-2');
   });

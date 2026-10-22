@@ -82,16 +82,16 @@ describe('BB-LCOL-02: The bar shows the title, the step, a progress hairline and
     const host = mount(h(LessonBar, {}));
     await settle();
     expect(host.querySelector('.lesson-bar__title')!.textContent).toBe('Translate to Position');
-    expect(host.querySelector('.lesson-bar__step')!.textContent).toBe('Step 1 of 2');
+    expect(host.querySelector('.lesson-bar__step')!.textContent).toBe('Step 1 of 5');
     expect(host.querySelector('.lesson-card__chip, .lesson-bar__chip')).toBeNull();
     const progress = host.querySelector('[role="progressbar"]') as HTMLElement;
     expect(progress.getAttribute('aria-valuenow')).toBe('1');
-    expect(progress.getAttribute('aria-valuemax')).toBe('2');
-    expect((progress.firstElementChild as HTMLElement).style.width).toBe('50%');
+    expect(progress.getAttribute('aria-valuemax')).toBe('5');
+    expect((progress.firstElementChild as HTMLElement).style.width).toBe('20%');
     expect(host.querySelector('.lesson-bar__narration')!.textContent).toContain('Move the triangle to (0.5,');
     expect(buttonNamed(host, 'Next')!.disabled).toBe(true);
     expect(buttonNamed(host, 'Back')!.disabled).toBe(true);
-    expect(host.querySelector('.lesson-bar__task')!.textContent).toContain('Waiting for you');
+    expect(host.querySelector('.lesson-bar__goal')!.textContent).toContain('At (0.5, −0.3)');
     unmount(host);
   });
 });
@@ -111,6 +111,8 @@ describe('BB-LCOL-03: Meeting the success check enables Next; the last step name
     next.click();
     await settle();
     expect(host.querySelector('.lesson-bar__narration')!.textContent).toContain('Spot on!');
+    useVamsStore.getState().setCurrentStep(LESSON_REGISTRY['transforms-exercise-1'].steps.length - 1);
+    await settle();
     expect(buttonNamed(host, 'Finish')).toBeUndefined();
     const named = buttonNamed(host, 'Rotate to Angle')!;
     expect(named.title).toBe('Next lesson: Rotate to Angle');
@@ -126,14 +128,14 @@ describe('BB-LCOL-03: Meeting the success check enables Next; the last step name
 describe('BB-LCOL-04: The named Next stays in Lesson mode, and Exit returns to Author mode', () => {
   it('the last step starts the next lesson, still in Lesson mode, and Exit then ends it', async () => {
     startLesson('transforms-exercise-1');
-    useVamsStore.getState().setCurrentStep(1);
+    useVamsStore.getState().setCurrentStep(LESSON_REGISTRY['transforms-exercise-1'].steps.length - 1);
     const host = mount(h(LessonBar, {}));
     await settle();
     buttonNamed(host, 'Rotate to Angle')!.click();
     await settle();
     expect(useVamsStore.getState().appMode).toBe('Lesson');
     expect(useVamsStore.getState().activeLessonId).toBe('transforms-exercise-2');
-    expect(host.querySelector('.lesson-bar__step')!.textContent).toBe('Step 1 of 2');
+    expect(host.querySelector('.lesson-bar__step')!.textContent).toBe('Step 1 of 5');
     exitButton(host).click();
     await settle();
     expect(useVamsStore.getState().appMode).toBe('Author');
@@ -435,12 +437,12 @@ describe('BB-LCOL-17: The narration is one live region across steps', () => {
     const host = mount(h(LessonBar, {}));
     await settle();
     const region = host.querySelector('[aria-live="polite"]')!;
-    expect(region.textContent).toContain('Welcome to Transforms');
+    expect(region.textContent).toContain('So far every shape stayed');
     buttonNamed(host, 'Next')!.click();
     await settle();
     expect(host.querySelectorAll('[aria-live="polite"]')).toHaveLength(1);
     expect(host.querySelector('[aria-live="polite"]')).toBe(region);
-    expect(region.textContent).toContain('Translate moves the shape');
+    expect(region.textContent).toContain('Transform group holds where it is');
     unmount(host);
   });
 });
@@ -453,13 +455,13 @@ describe('BB-LCOL-18: Guidance fades through a section', () => {
       const expected = lesson.type === 'demo' ? 'tight' : lastExercise.get(lesson.section) === lesson.id ? 'none' : 'outline';
       expect(focusStyleFor(lesson), lesson.id).toBe(expected);
     }
-    expect(focusStyleFor(LESSON_REGISTRY['transforms-exercise-4'])).toBe('none');
+    expect(focusStyleFor(LESSON_REGISTRY['transforms-exercise-6'])).toBe('none');
     expect(focusStyleFor(LESSON_REGISTRY['transforms-exercise-1'])).toBe('outline');
   });
 });
 
 describe('BB-LCOL-19: An exercise outlines its group and dims nothing; the last exercise focuses nothing', () => {
-  it('outlines Transform in transforms-exercise-1 and sets no focus in transforms-exercise-4', async () => {
+  it('outlines Transform in transforms-exercise-1 and sets no focus in transforms-exercise-6', async () => {
     startLesson('transforms-exercise-1');
     let host = mount(lessonEditor());
     await settle();
@@ -469,7 +471,7 @@ describe('BB-LCOL-19: An exercise outlines its group and dims nothing; the last 
     useVamsStore.getState().clearLessonState();
     useVamsStore.setState({ appMode: 'Author' });
 
-    startLesson('transforms-exercise-4');
+    startLesson('transforms-exercise-6');
     host = mount(lessonEditor());
     await settle();
     expect(useVamsStore.getState().lessonFocusPanel).toBeNull();
@@ -495,7 +497,7 @@ describe('BB-LCOL-20: A per-object focus selects the newest object, and never cr
     await settle();
     useVamsStore.setState({ selectedObjectId: null });
     await settle();
-    // Step 2 focuses object-transform; its own action needs a selection and does nothing without one.
+    // Step 2 focuses object-transform.
     buttonNamed(host, 'Next')!.click();
     await settle();
     const s = useVamsStore.getState();
@@ -574,7 +576,7 @@ describe('BB-LCOL-22: A demo scrolls to the focused group on its final layout', 
     buttonNamed(host, 'Next')!.click();
     await settle();
     expect(narrationAtScroll.length).toBeGreaterThan(0);
-    for (const text of narrationAtScroll) expect(text).toContain('Stippling');
+    for (const text of narrationAtScroll) expect(text).toContain('stipple pattern of 16 bits');
     unmount(host);
   });
 });
@@ -606,7 +608,7 @@ describe('BB-LCOL-23: Leaving a lesson leaves the plain editor, and starting one
     useVamsStore.getState().toggleGroup('viewing-volume');
     useVamsStore.getState().toggleGroup('viewing-volume');
     expect(useVamsStore.getState().lastOpenedGroup).toBe('viewing-volume');
-    expect(await startLessonFromLearn('transforms-exercise-4')).toBe(true);
+    expect(await startLessonFromLearn('transforms-exercise-6')).toBe(true);
     expect(useVamsStore.getState().lastOpenedGroup).toBeNull();
     expect(journeyStageFor(useVamsStore.getState())).toBe('transformed');
   });
@@ -641,7 +643,7 @@ describe('BB-LCOL-24: Focus on the Scene list shows the Scene panel, and a new l
       const writes: number[] = [];
       Object.defineProperty(root, 'scrollTop', { configurable: true, get: () => 400, set: (v: number) => writes.push(v) });
       // The section's last exercise has no focus, so nothing else scrolls the panel.
-      startLesson('transforms-exercise-4');
+      startLesson('transforms-exercise-6');
       await settle();
       expect(writes).toEqual([0]);
     } finally {
@@ -651,21 +653,40 @@ describe('BB-LCOL-24: Focus on the Scene list shows the Scene panel, and a new l
 });
 
 describe('BB-LCOL-25: The task line waits for the student and says Done when the step passes', () => {
+  const ID = 'test-task-line-lesson';
   it('falls back to "Waiting for you", shows the step’s task, and turns to Done', async () => {
-    const lesson = LESSON_REGISTRY['transforms-exercise-1'];
-    const original = lesson.steps[0].task;
+    const lesson: Lesson = {
+      id: ID,
+      title: 'Task line',
+      type: 'exercise',
+      section: 'Transforms',
+      steps: [
+        {
+          narration: 'Move the triangle to (0.5, −0.3).',
+          action: (state) => state.addCustomObject('TRIANGLES', [{ x: 0, y: 0.5 }, { x: -0.5, y: -0.5 }, { x: 0.5, y: -0.5 }]),
+          successCheck: (state) => {
+            const t = state.objects[0]?.transform;
+            return !!t && Math.abs(t.translateX - 0.5) < 0.01 && Math.abs(t.translateY + 0.3) < 0.01;
+          },
+        },
+        { narration: 'Moved.' },
+      ],
+    };
+    LESSON_REGISTRY[ID] = lesson;
+    let host: HTMLElement | null = null;
     try {
-      startLesson('transforms-exercise-1');
-      let host = mount(h(LessonBar, {}));
+      startLesson(ID);
+      host = mount(h(LessonBar, {}));
       await settle();
       expect(host.querySelector('.lesson-bar__task')!.textContent).toBe('Waiting for you');
       expect(host.querySelector('.lesson-bar__task')!.classList.contains('is-done')).toBe(false);
       unmount(host);
+      host = null;
       useVamsStore.getState().clearLessonState();
       useVamsStore.setState({ appMode: 'Author' });
 
       lesson.steps[0].task = 'Move the triangle to (0.5, −0.3)';
-      startLesson('transforms-exercise-1');
+      startLesson(ID);
       host = mount(h(LessonBar, {}));
       await settle();
       expect(host.querySelector('.lesson-bar__task')!.textContent).toBe('Move the triangle to (0.5, −0.3)');
@@ -675,9 +696,10 @@ describe('BB-LCOL-25: The task line waits for the student and says Done when the
       const task = host.querySelector('.lesson-bar__task')!;
       expect(task.classList.contains('is-done')).toBe(true);
       expect(task.textContent).toBe('Done · Move the triangle to (0.5, −0.3)');
-      unmount(host);
     } finally {
-      lesson.steps[0].task = original;
+      if (host) unmount(host);
+      useVamsStore.getState().clearLessonState();
+      delete LESSON_REGISTRY[ID];
     }
   });
 });
@@ -691,12 +713,12 @@ describe('BB-LCOL-26: Folding leaves a strip with the title, the step and Next; 
     await settle();
     expect(host.querySelector('.lesson-bar')!.classList.contains('is-folded')).toBe(true);
     expect(host.querySelector('.lesson-bar__narration')).toBeNull();
-    expect(host.querySelector('.lesson-bar__step')!.textContent).toBe('Step 1 of 5');
+    expect(host.querySelector('.lesson-bar__step')!.textContent).toBe('Step 1 of 10');
     expect(host.querySelector('button[aria-label="Unfold lesson"]')).not.toBeNull();
     buttonNamed(host, 'Next')!.click();
     await settle();
     expect(host.querySelector('.lesson-bar')!.classList.contains('is-folded')).toBe(false);
-    expect(host.querySelector('.lesson-bar__narration')!.textContent).toContain('Translate moves the shape');
+    expect(host.querySelector('.lesson-bar__narration')!.textContent).toContain('Transform group holds where it is');
     unmount(host);
   });
 });
@@ -889,7 +911,7 @@ describe('BB-LCOL-33: The Transforms step that points at the math panel shows Ma
     startLesson('transforms-demo-2');
     const host = mount(h(LessonBar, {}));
     await settle();
-    expect(host.querySelector('.lesson-bar__narration')!.textContent).toContain('Watch the Transformed stage');
+    expect(host.querySelector('.lesson-bar__narration')!.textContent).toContain("Math's Transformed stage");
     expect(useVamsStore.getState().codePane).toBe('math');
     unmount(host);
     useVamsStore.setState({ codePane: 'code' });
@@ -947,7 +969,7 @@ describe('BB-LCOL-35: Steps about the math name a journey stage, and Math opens 
         if (stage) named.push({ lesson: lesson.id, index, stage });
       });
     }
-    expect(named).toHaveLength(10);
+    expect(named).toHaveLength(17);
     for (const { lesson, index, stage } of named) {
       expect(await startLessonFromLearn(lesson)).toBe(true);
       const host = mount(h('div', {}, h(LessonBar, {}), h(MathPanel, {})));
@@ -1277,12 +1299,23 @@ describe('BB-LCOL-45: Skip this step ticks every goal and lights Next', () => {
 });
 
 describe('BB-LCOL-46: A waiting step with no hints and no way to skip shows no Stuck?', () => {
-  it('leaves Stuck? out of the first step of Translate to Position', async () => {
-    const step = LESSON_REGISTRY['transforms-exercise-1'].steps[0];
-    expect(step.hints ?? []).toEqual([]);
-    expect(step.solve).toBeUndefined();
-    expect(step.exercise).toBeUndefined();
-    startLesson('transforms-exercise-1');
+  const ID = 'test-no-stuck-lesson';
+  it('leaves Stuck? out of a goals step with no hints and no solve', async () => {
+    LESSON_REGISTRY[ID] = {
+      id: ID,
+      title: 'No hints',
+      type: 'exercise',
+      section: 'Transforms',
+      steps: [
+        {
+          narration: 'Move the triangle right.',
+          action: (state) => state.addCustomObject('TRIANGLES', [{ x: 0, y: 0.5 }, { x: -0.5, y: -0.5 }, { x: 0.5, y: -0.5 }]),
+          goals: [{ label: 'At x 0.5', check: (s) => Math.abs((s.objects[0]?.transform.translateX ?? 0) - 0.5) <= 0.01 }],
+        },
+        { narration: 'It moved.' },
+      ],
+    };
+    startLesson(ID);
     const host = mount(h(LessonBar, {}));
     try {
       await settle();
@@ -1291,6 +1324,8 @@ describe('BB-LCOL-46: A waiting step with no hints and no way to skip shows no S
       expect(host.querySelector('.lesson-bar__stuck')).toBeNull();
     } finally {
       unmount(host);
+      useVamsStore.getState().clearLessonState();
+      delete LESSON_REGISTRY[ID];
     }
   });
 });

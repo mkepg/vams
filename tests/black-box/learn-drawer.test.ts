@@ -72,15 +72,15 @@ describe('BB-LEARN-02: Unreadable or foreign progress reads as clean progress', 
 });
 
 describe('BB-LEARN-03: A failed progress write never blocks finishing a lesson', () => {
-  // transforms-exercise-4 ends the Transforms section, so Finish then opens the course map.
+  // transforms-exercise-6 ends the Transforms section, so Finish then opens the course map.
   async function finishLastStep() {
     vi.spyOn(courseMap, 'go').mockImplementation(() => {});
     useVamsStore.setState({ activeSection: 'Transforms' });
-    useVamsStore.getState().setActiveLesson('transforms-exercise-4');
+    useVamsStore.getState().setActiveLesson('transforms-exercise-6');
     useVamsStore.getState().setAppMode('Lesson');
     const host = mount(h(LessonBar, {}));
     await settle();
-    useVamsStore.getState().setCurrentStep(LESSON_REGISTRY['transforms-exercise-4'].steps.length - 1);
+    useVamsStore.getState().setCurrentStep(LESSON_REGISTRY['transforms-exercise-6'].steps.length - 1);
     await settle();
     return host;
   }
@@ -96,7 +96,7 @@ describe('BB-LEARN-03: A failed progress write never blocks finishing a lesson',
     const host = await finishLastStep();
     await clickFinish(host);
     expect(useVamsStore.getState().appMode).toBe('Author');
-    expect(readProgress().completed).toContain('transforms-exercise-4');
+    expect(readProgress().completed).toContain('transforms-exercise-6');
     expect(courseMap.go).toHaveBeenCalledWith('/learn#transforms');
   });
 
@@ -122,7 +122,9 @@ describe('BB-LEARN-04: The course lists the five sections in pipeline order with
     expect(COURSE.map((c) => c.section)).toEqual(['Pipeline', 'Primitives', 'Buffers', 'Transforms', 'Textures']);
     const { demos, exercises } = lessonsFor('Transforms');
     expect(demos.every((l) => l.type === 'demo' && l.section === 'Transforms')).toBe(true);
-    expect(exercises.map((l) => l.id)).toEqual(['transforms-exercise-1', 'transforms-exercise-2', 'transforms-exercise-3', 'transforms-exercise-4']);
+    expect(exercises.map((l) => l.id)).toEqual([
+      'transforms-exercise-1', 'transforms-exercise-2', 'transforms-exercise-3', 'transforms-exercise-4', 'transforms-exercise-5', 'transforms-exercise-6',
+    ]);
   });
 });
 
@@ -152,7 +154,7 @@ describe('BB-LEARN-06: The drawer marks complete and in-progress lessons and sta
     await settle();
     const row = (title: string) => [...document.querySelectorAll('.learn-lesson')].find((el) => el.textContent?.includes(title)) as HTMLButtonElement;
     expect(row('Translate to Position').classList.contains('is-complete')).toBe(true);
-    expect(row('Rotate to Angle').textContent).toContain('Step 1 of 2');
+    expect(row('Rotate to Angle').textContent).toContain('Step 1 of 5');
     row('Build a Hierarchy').click();
     await settle();
     const s = useVamsStore.getState();

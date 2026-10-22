@@ -1,5 +1,34 @@
 import type { Lesson } from '@/core/types/lesson';
+import type { VamsState } from '@/core/store/types';
+import type { BufferUsage, PendingVertex, PrimitiveType, RenderingMode, SceneNode } from '@/core/types/scene';
 import { useVamsStore } from '@/core/store';
+
+const TRIANGLE: PendingVertex[] = [{ x: -0.5, y: -0.4 }, { x: 0.5, y: -0.4 }, { x: 0, y: 0.5 }];
+const SQUARE: PendingVertex[] = [{ x: -0.4, y: -0.4 }, { x: 0.4, y: -0.4 }, { x: 0.4, y: 0.4 }, { x: -0.4, y: 0.4 }];
+/** A square as two triangles: six corners, four of them different. */
+const TWO_TRIANGLES: PendingVertex[] = [
+  { x: -0.4, y: -0.4 }, { x: 0.4, y: -0.4 }, { x: -0.4, y: 0.4 },
+  { x: 0.4, y: -0.4 }, { x: 0.4, y: 0.4 }, { x: -0.4, y: 0.4 },
+];
+const DRAWABLE = new Set<SceneNode['type']>(['POINTS', 'LINES', 'LINE_STRIP', 'LINE_LOOP', 'TRIANGLES', 'TRIANGLE_STRIP', 'TRIANGLE_FAN', 'QUADS', 'QUAD_STRIP', 'POLYGON']);
+
+const now = () => useVamsStore.getState();
+const shapes = (state: VamsState) => state.objects.filter((o) => DRAWABLE.has(o.type));
+const first = (state: VamsState) => shapes(state)[0];
+const modeOf = (o: SceneNode | undefined): RenderingMode => o?.renderingMode ?? 'IMMEDIATE';
+const usageOf = (o: SceneNode | undefined): BufferUsage => o?.bufferUsage ?? 'STATIC';
+
+/** Adds a shape, selected, in a rendering mode and usage; returns it. */
+function addShape(type: PrimitiveType, vertices: PendingVertex[], mode: RenderingMode = 'IMMEDIATE', usage?: BufferUsage): SceneNode {
+  now().addCustomObject(type, vertices);
+  const o = now().objects[0];
+  if (mode !== 'IMMEDIATE') now().updateRenderingMode(o.id, mode);
+  if (usage) now().updateBufferUsage(o.id, usage);
+  return now().objects[0];
+}
+
+/** The capstone's shape: the first one drawn from a VBO, else the first shape. */
+const capstoneShape = (state: VamsState) => shapes(state).find((o) => modeOf(o) === 'VBO') ?? first(state);
 
 export const BUFFERS_LESSONS: Record<string, Lesson> = {
   'buffers-demo-1': {
@@ -9,27 +38,45 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
     section: 'Buffers',
     steps: [
       {
-        narration: "Welcome to Buffers! Let's begin with how OpenGL 1.x has worked since the start: immediate mode.",
-        waitForUser: true,
-        action: (state) => {
-          state.addCustomObject('TRIANGLES', [
-            { x: -0.5, y: -0.4 }, { x: 0.5, y: -0.4 }, { x: 0, y: 0.5 },
-          ]);
-          const id = useVamsStore.getState().selectedObjectId;
-          if (id) state.updateRenderingMode(id, 'IMMEDIATE');
+        narration: 'Where do your corners live while the program runs, and how often are they sent to the graphics card? This section is about that.',
+      },
+      {
+        narration: 'This triangle is drawn in immediate mode: its corners are listed between glBegin and glEnd, as in Primitives.',
+        focusPanel: 'buffers-panel',
+        action: () => { addShape('TRIANGLES', TRIANGLE); },
+        codeChangeFocus: ['glBegin('],
+      },
+      {
+        narration: "Every frame, display() calls draw(), draw() calls the triangle's draw function, and every glColor3f and glVertex2f runs again.",
+        pane: 'code',
+        codeChangeFocus: ['glVertex2f'],
+      },
+      {
+        narration: 'A shape with 1,000 corners, drawn 60 times a second. How many glVertex2f calls does it make in one second?',
+        predict: {
+          options: [
+            { id: '60000', label: '60,000', why: 'Immediate mode sends every corner again in every frame: 1,000 × 60.' },
+            { id: '1000', label: '1,000', why: 'That would be true only if the corners were sent once and kept.' },
+            { id: '60', label: '60', why: 'One call per frame would need the corners sent as a single block.' },
+          ],
+          correctId: '60000',
         },
+        action: (state) => state.setCodePane('math'),
       },
       {
-        narration: "VAMS wraps each object in its own draw_*() function. Find draw_TRIANGLES_1() in the code panel — that's where glBegin and glEnd live.",
-        waitForUser: true,
+        narration: "The traffic row in Math's Stored stage shows it: every frame sends the corners again, one by one.",
+        pane: 'math',
+        mathStage: 'stored',
       },
       {
-        narration: "Each frame, display() calls draw(), which calls draw_TRIANGLES_1(), which re-issues every glVertex2f. The CPU is doing real work for each vertex, every single frame.",
-        waitForUser: true,
-      },
-      {
-        narration: "Three vertices is fine. Three thousand is wasteful — same data, sent 60 times a second. That's what the next two modes solve.",
-        waitForUser: true,
+        narration: 'For three corners that is nothing. For thousands it adds up, which is what vertex arrays and buffer objects fix.',
+        recap: {
+          points: [
+            'Immediate mode lists the corners between glBegin and glEnd.',
+            'Every frame, every corner is sent to the graphics card again.',
+          ],
+          calls: ['glBegin', 'glVertex2f'],
+        },
       },
     ],
   },
@@ -40,31 +87,60 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
     section: 'Buffers',
     steps: [
       {
-        narration: "Vertex arrays move the vertex list out of glBegin/glEnd and into a flat C array, drawn with one call.",
-        waitForUser: true,
-        action: (state) => {
-          state.addCustomObject('TRIANGLES', [
-            { x: -0.5, y: -0.4 }, { x: 0.5, y: -0.4 }, { x: 0, y: 0.5 },
-          ]);
-        },
+        narration: 'A vertex array keeps the corners in a C array and draws them all with one call. Here is the same triangle in immediate mode.',
+        focusPanel: 'buffers-panel',
+        action: () => { addShape('TRIANGLES', TRIANGLE); },
       },
       {
-        narration: "Watch the code panel as the rendering mode is switched to Vertex Array.",
-        waitForUser: true,
+        narration: 'Now its Rendering Mode is Vertex Array. The corners move out of the draw function into verts_, a list of x, y pairs at the top of the program.',
         focusPanel: 'buffers-panel',
         action: (state) => {
-          const id = state.selectedObjectId;
-          if (id) state.updateRenderingMode(id, 'VERTEX_ARRAY');
+          const o = first(state);
+          if (o) state.updateRenderingMode(o.id, 'VERTEX_ARRAY');
         },
+        codeChangeFocus: ['GLfloat verts_', 'GLfloat colors_'],
       },
       {
-        narration: "Two big changes: vertex data is now declared at file scope as verts_TRIANGLES_1[], and the draw function uses one glDrawArrays call instead of N glVertex2f calls.",
-        waitForUser: true,
+        narration: 'glEnableClientState(GL_VERTEX_ARRAY) and glEnableClientState(GL_COLOR_ARRAY) tell OpenGL to read positions and colours from arrays.',
+        pane: 'code',
+        codeChangeFocus: ['glEnableClientState'],
       },
       {
+        narration: 'The code says glVertexPointer(2, GL_FLOAT, 0, verts_…). What does the 2 mean?',
+        predict: {
+          options: [
+            { id: 'per', label: 'Two numbers per corner', why: 'Each corner is an x and a y, so OpenGL reads the array two floats at a time.' },
+            { id: 'corners', label: 'Two corners', why: 'The number of corners goes to glDrawArrays, not glVertexPointer.' },
+            { id: 'bytes', label: 'Two bytes per number', why: 'GL_FLOAT gives the size: each number is a 4-byte float.' },
+          ],
+          correctId: 'per',
+        },
+        action: (state) => state.setCodePane('code'),
+      },
+      {
+        narration: 'GL_FLOAT is the type of each number. glColorPointer(3, GL_FLOAT, 0, colors_…) reads three numbers per corner: red, green and blue.',
+        pane: 'code',
+        codeChangeFocus: ['glColorPointer'],
+      },
+      {
+        narration: 'glDrawArrays(GL_TRIANGLES, 0, 3) draws three corners starting at corner 0, in one call. glDisableClientState switches the arrays off again afterwards.',
+        pane: 'code',
+        codeChangeFocus: ['glDrawArrays', 'glDisableClientState'],
+      },
+      {
+        narration: "In Math's Stored stage, the traffic row still lights up every frame: the array lives in your program's memory and is sent each time, but in one batch.",
         pane: 'math',
-        narration: "Look at the traffic timeline in Math's Stored stage. The data still travels every frame — but now in one batched send instead of vertex-by-vertex.",
-        waitForUser: true,
+        mathStage: 'stored',
+      },
+      {
+        narration: 'Fewer calls, same traffic. The next step is to keep the corners on the graphics card itself.',
+        recap: {
+          points: [
+            'glVertexPointer and glColorPointer point OpenGL at arrays of numbers.',
+            'glDrawArrays draws them in one call, but the arrays are still sent every frame.',
+          ],
+          calls: ['glVertexPointer', 'glColorPointer', 'glDrawArrays'],
+        },
       },
     ],
   },
@@ -75,47 +151,65 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
     section: 'Buffers',
     steps: [
       {
-        narration: "A Vertex Buffer Object lives on the GPU. Once you upload it, drawing means binding it — no more CPU→GPU traffic for the vertex data.",
-        waitForUser: true,
-        action: (state) => {
-          state.addCustomObject('TRIANGLES', [
-            { x: -0.5, y: -0.4 }, { x: 0.5, y: -0.4 }, { x: 0, y: 0.5 },
-          ]);
-        },
+        narration: 'A vertex buffer object, or VBO, is memory on the graphics card. Upload the corners once, and every frame after draws from there.',
+        focusPanel: 'buffers-panel',
+        action: () => { addShape('TRIANGLES', TRIANGLE, 'VERTEX_ARRAY'); },
       },
       {
-        narration: "Notice where the heavy lifting moves as the rendering mode is switched to VBO.",
-        waitForUser: true,
+        narration: 'The Rendering Mode is now VBO. Look at init(), which runs once before the first frame.',
         focusPanel: 'buffers-panel',
         action: (state) => {
-          const id = state.selectedObjectId;
-          if (id) state.updateRenderingMode(id, 'VBO');
+          const o = first(state);
+          if (o) state.updateRenderingMode(o.id, 'VBO');
         },
+        codeChangeFocus: ['glGenBuffers', 'glBufferData'],
       },
       {
-        narration: "Notice how init() now contains glGenBuffers, glBindBuffer, and glBufferData. That setup runs exactly once. After that, the per-object draw function just binds the VBO and draws.",
-        waitForUser: true,
+        narration: 'glGenBuffers makes a buffer name, glBindBuffer(GL_ARRAY_BUFFER, …) selects it, and glBufferData copies the array into it.',
+        pane: 'code',
+        codeChangeFocus: ['glGenBuffers', 'glBindBuffer(GL_ARRAY_BUFFER, vbo_', 'glBufferData'],
       },
       {
+        narration: 'There are two buffers: vbo_ for the positions and cbo_ for the colours. Each one is uploaded once.',
+        pane: 'code',
+        codeChangeFocus: ['cbo_'],
+      },
+      {
+        narration: 'In the draw function, glVertexPointer now ends in 0 instead of the array. What does that 0 mean?',
+        predict: {
+          options: [
+            { id: 'offset', label: 'Start of the bound buffer', why: 'With a buffer bound, the last number is an offset into it, and 0 is its start.' },
+            { id: 'null', label: 'No data at all', why: 'The data is there, in the buffer glBindBuffer just selected.' },
+            { id: 'first', label: 'Draw only the first corner', why: 'How many corners to draw is set by glDrawArrays.' },
+          ],
+          correctId: 'offset',
+        },
+        action: (state) => state.setCodePane('code'),
+      },
+      {
+        narration: 'After drawing, glBindBuffer(GL_ARRAY_BUFFER, 0) unbinds it, so the next shape is not drawn from this buffer by mistake.',
+        pane: 'code',
+        codeChangeFocus: ['glBindBuffer(GL_ARRAY_BUFFER, 0)'],
+      },
+      {
+        narration: "In Math's Stored stage, only frame 1 sends anything. The graphics card keeps the data for every frame after.",
         pane: 'math',
-        narration: "Look at the traffic timeline in the Stored stage — only frame 1 lights up green. The GPU keeps the data; subsequent frames are pure draw calls.",
-        waitForUser: true,
+        mathStage: 'stored',
       },
       {
-        narration: "Buffers aren't just for triangles. Let's add a quad in VBO mode to show the same machinery applies to every primitive type.",
-        waitForUser: true,
-        action: (state) => {
-          state.addCustomObject('QUADS', [
-            { x: -0.7, y: 0.55 }, { x: -0.3, y: 0.55 },
-            { x: -0.3, y: 0.85 }, { x: -0.7, y: 0.85 },
-          ]);
-          const id = useVamsStore.getState().selectedObjectId;
-          if (id) state.updateRenderingMode(id, 'VBO');
+        narration: 'Every shape type works the same way. Here is a quad, also from a VBO, with its own buffers.',
+        action: () => { addShape('QUADS', [{ x: -0.7, y: 0.55 }, { x: -0.3, y: 0.55 }, { x: -0.3, y: 0.85 }, { x: -0.7, y: 0.85 }], 'VBO'); },
+        codeChangeFocus: ['vbo_QUADS'],
+      },
+      {
+        narration: 'Upload once in init(), bind and draw every frame: that is the whole VBO pattern.',
+        recap: {
+          points: [
+            'glGenBuffers, glBindBuffer and glBufferData put the corners on the graphics card once, in init().',
+            'Each frame binds the buffer and draws from it, with no corners sent.',
+          ],
+          calls: ['glGenBuffers', 'glBindBuffer', 'glBufferData'],
         },
-      },
-      {
-        narration: "Same code shape — verts_QUADS_1, glGenBuffers in init, bind-and-draw at render time. The pattern is uniform across primitive types.",
-        waitForUser: true,
       },
     ],
   },
@@ -126,54 +220,64 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
     section: 'Buffers',
     steps: [
       {
-        narration: "When you upload a VBO, you also tell OpenGL how often the data will change. Different hints produce structurally different programs — let's see how.",
-        waitForUser: true,
-        action: (state) => {
-          state.addCustomObject('TRIANGLES', [
-            { x: -0.5, y: -0.4 }, { x: 0.5, y: -0.4 }, { x: 0, y: 0.5 },
-          ]);
-          const id = useVamsStore.getState().selectedObjectId;
-          if (id) {
-            state.updateRenderingMode(id, 'VBO');
-            state.updateBufferUsage(id, 'STATIC');
-          }
-        },
+        narration: "glBufferData's last argument tells OpenGL how often the data will change, so the driver can keep it in the best place. Here it is GL_STATIC_DRAW.",
+        focusPanel: 'buffers-panel',
+        action: () => { addShape('TRIANGLES', TRIANGLE, 'VBO', 'STATIC'); },
+        codeChangeFocus: ['GL_STATIC_DRAW'],
       },
       {
-        narration: "STATIC is what we have now — for terrain, logos, anything that never changes. Notice the program has no update_buffers() function. There's nothing to refresh, so the generator doesn't emit anything.",
-        waitForUser: true,
+        narration: 'Static is for data set once and drawn many times, such as a logo or a level. The program has nothing to refresh.',
         focusPanel: 'buffers-panel',
       },
       {
-        narration: "Watch the code panel as the hint is changed to DYNAMIC — a whole new function appears.",
-        waitForUser: true,
+        narration: 'Next you will see Dynamic, for data that changes now and then. What appears in the code?',
         focusPanel: 'buffers-panel',
+        predict: {
+          options: [
+            { id: 'update', label: 'A function that updates the buffer', why: 'Data that changes must be sent again, so update_buffers() appears with glBufferSubData.' },
+            { id: 'nothing', label: 'Only the word in glBufferData', why: 'The hint changes too, but changing data also needs code that sends it.' },
+            { id: 'immediate', label: 'glBegin and glEnd come back', why: 'The shape still draws from its VBO; only the uploads change.' },
+          ],
+          correctId: 'update',
+        },
         action: (state) => {
-          const id = state.selectedObjectId;
-          if (id) state.updateBufferUsage(id, 'DYNAMIC');
+          const o = first(state);
+          if (o) state.updateBufferUsage(o.id, 'DYNAMIC');
         },
       },
       {
-        narration: "update_buffers() is now defined and registered as the idle callback at the bottom of main(). It runs every frame, calling glBufferSubData to push changed bytes to the GPU.",
-        waitForUser: true,
+        narration: 'update_buffers() binds the buffer and calls glBufferSubData, which copies new bytes over part or all of it. The hint is now GL_DYNAMIC_DRAW.',
+        pane: 'code',
+        codeChangeFocus: ['glBufferSubData', 'GL_DYNAMIC_DRAW'],
       },
       {
-        narration: "Now observe what happens when the hint changes to STREAM. The same function remains, but its body changes.",
-        waitForUser: true,
+        narration: 'Who calls it? main() registers _vams_idle with glutIdleFunc, which GLUT calls whenever it has nothing else to do. Here it updates every frame so you can see where an update goes; a real program sends only when the data has changed.',
+        pane: 'code',
+        codeChangeFocus: ['glutIdleFunc'],
+      },
+      {
+        narration: 'Stream is for data rebuilt every frame, such as particles. update_buffers() now re-uploads the position buffer with glBufferData and GL_STREAM_DRAW.',
         focusPanel: 'buffers-panel',
         action: (state) => {
-          const id = state.selectedObjectId;
-          if (id) state.updateBufferUsage(id, 'STREAM');
+          const o = first(state);
+          if (o) state.updateBufferUsage(o.id, 'STREAM');
         },
+        codeChangeFocus: ['GL_STREAM_DRAW'],
       },
       {
-        narration: "STREAM re-uploads the entire buffer every frame with glBufferData — the same call from init(), but in a hot loop. That's how particle systems or fully-deformed meshes work.",
-        waitForUser: true,
-      },
-      {
+        narration: "In Math's Stored stage, the traffic row now lights up every frame: Stream sends each one. Static would light only frame 1.",
         pane: 'math',
-        narration: "Look at the Stored stage's traffic timeline to see the difference. STATIC is one green cell. DYNAMIC is sparse blue. STREAM is solid orange. The hint matches the actual data transfer cost.",
-        waitForUser: true,
+        mathStage: 'stored',
+      },
+      {
+        narration: 'The hint is a promise about your data. Keep it, and the driver can do its best.',
+        recap: {
+          points: [
+            'GL_STATIC_DRAW: set once. GL_DYNAMIC_DRAW: changed now and then. GL_STREAM_DRAW: rebuilt every frame.',
+            'Changing data is sent from update_buffers(), which runs from glutIdleFunc.',
+          ],
+          calls: ['glBufferData', 'glutIdleFunc'],
+        },
       },
     ],
   },
@@ -184,85 +288,93 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
     section: 'Buffers',
     steps: [
       {
-        narration: "DYNAMIC buffers come with two ways to update them. The default — glBufferSubData — pushes a range of bytes from CPU to GPU. There's another path that's worth knowing.",
-        waitForUser: true,
-        action: (state) => {
-          state.addCustomObject('TRIANGLES', [
-            { x: -0.5, y: -0.4 }, { x: 0.5, y: -0.4 }, { x: 0, y: 0.5 },
-          ]);
-          const id = useVamsStore.getState().selectedObjectId;
-          if (id) {
-            state.updateRenderingMode(id, 'VBO');
-            state.updateBufferUsage(id, 'DYNAMIC');
-            state.updateUpdateMethod(id, 'BUFFER_SUB_DATA');
-          }
+        narration: 'A Dynamic buffer can be updated two ways. Sub Data sends bytes from your array; Map Buffer writes straight into the buffer.',
+        focusPanel: 'buffers-panel',
+        action: () => {
+          const o = addShape('TRIANGLES', TRIANGLE, 'VBO', 'DYNAMIC');
+          now().updateUpdateMethod(o.id, 'BUFFER_SUB_DATA');
         },
       },
       {
-        narration: "Look at update_buffers() — right now it calls glBufferSubData. We're going to switch the update method to Map Buffer and watch what happens.",
-        waitForUser: true,
+        narration: 'Right now update_buffers() calls glBufferSubData: change the array in your program, then copy it across.',
         focusPanel: 'buffers-panel',
+        codeChangeFocus: ['glBufferSubData'],
       },
       {
-        narration: "Switching to Map Buffer now.",
-        waitForUser: true,
+        narration: 'Here the Update Method is Map Buffer instead. update_buffers() now asks for a pointer into the buffer and writes through it.',
         focusPanel: 'buffers-panel',
         action: (state) => {
-          const id = state.selectedObjectId;
-          if (id) state.updateUpdateMethod(id, 'MAP_BUFFER');
+          const o = first(state);
+          if (o) state.updateUpdateMethod(o.id, 'MAP_BUFFER');
         },
+        codeChangeFocus: ['glMapBuffer'],
       },
       {
+        narration: 'glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY) maps the bound buffer. GL_WRITE_ONLY promises you will only write, so the driver need not copy the old contents to you.',
+        pane: 'code',
+        codeChangeFocus: ['GL_WRITE_ONLY'],
+      },
+      {
+        narration: "Math's Stored stage walks through it. First, bind: every buffer call now works on this VBO.",
         pane: 'math',
-        narration: "The function body is completely different. Instead of pushing bytes, we ask the driver for a raw pointer into GPU memory and write through it. Math's Stored stage now shows a Mapping diagram — that's the lifecycle we'll walk through now.",
-        waitForUser: true,
-      },
-      {
-        narration: "Step one: bind the buffer. After this, every buffer call talks to this VBO until something else binds.",
-        waitForUser: true,
+        mathStage: 'stored',
         dmaStep: 0,
       },
       {
-        narration: "Step two: map it. The driver hands back a pointer to GPU memory you can write to directly — no upload, no copy.",
-        waitForUser: true,
+        narration: 'Map it: the driver hands back a pointer you can write to. The code checks it is not NULL before using it.',
+        pane: 'math',
+        mathStage: 'stored',
         dmaStep: 1,
       },
       {
-        narration: "Step three: ptr[0] = 0.5f. The first slot is updated in place.",
-        waitForUser: true,
+        narration: 'ptr[0] = 0.5f writes the first number in place.',
+        pane: 'math',
+        mathStage: 'stored',
         dmaStep: 2,
       },
       {
-        narration: "Step four: ptr[1] = 0.7f. C pointer arithmetic moves the cursor forward; each write modifies GPU memory directly.",
-        waitForUser: true,
+        narration: 'ptr[1] = 0.7f writes the next one. Each index is one float further into the buffer.',
+        pane: 'math',
+        mathStage: 'stored',
         dmaStep: 3,
       },
       {
-        narration: "Step five: two more writes at once. The cells you don't touch keep their previous values — this is the whole point of mapping.",
-        waitForUser: true,
+        narration: 'Two more writes. The cells you do not touch keep their old values.',
+        pane: 'math',
+        mathStage: 'stored',
         dmaStep: 4,
       },
       {
-        narration: "Step six: glUnmapBuffer commits the writes and invalidates the pointer. The green cells stay highlighted — only those slots changed.",
-        waitForUser: true,
-        dmaStep: 5,
-      },
-      {
-        narration: "Now watch what happens as the top vertex of the triangle is moved automatically. Behind the scenes, this is exactly the kind of small, in-place change mapping is designed for.",
-        waitForUser: true,
-        dmaStep: 5,
-        action: (state) => {
-          const id = state.selectedObjectId;
-          if (!id) return;
-          const obj = state.objects.find(o => o.id === id);
-          if (obj && obj.vertices[2]) {
-            state.updateVertexPosition(id, obj.vertices[2].id, 0, 0.7);
-          }
+        narration: 'Which method changes numbers without keeping a copy of the array in your program?',
+        pane: 'math',
+        mathStage: 'stored',
+        dmaStep: 4,
+        predict: {
+          options: [
+            { id: 'map', label: 'Map Buffer', why: "You write through the driver's pointer; Sub Data copies from your own array." },
+            { id: 'sub', label: 'Sub Data', why: 'glBufferSubData copies bytes from an array in your program, so you keep one.' },
+            { id: 'neither', label: 'Neither', why: 'Mapping writes straight into the buffer, with no array of your own.' },
+          ],
+          correctId: 'map',
         },
+        action: (state) => state.setDmaDriverStep(4),
       },
       {
-        narration: "Sub-data and Map Buffer reach the same destination — both update the GPU's copy. Pick the one that matches the shape of your update.",
-        waitForUser: true,
+        narration: 'Last, glUnmapBuffer finishes the writes. The pointer is no longer valid, and the buffer is ready to draw.',
+        pane: 'math',
+        mathStage: 'stored',
+        dmaStep: 5,
+        codeChangeFocus: ['glUnmapBuffer'],
+      },
+      {
+        narration: 'Both methods end with the same buffer. Pick the one that matches how much of it changes.',
+        recap: {
+          points: [
+            'glBufferSubData copies a range of bytes from your array into the buffer.',
+            'glMapBuffer gives a pointer into the buffer; glUnmapBuffer finishes the writes.',
+          ],
+          calls: ['glMapBuffer', 'glUnmapBuffer'],
+        },
       },
     ],
   },
@@ -273,22 +385,41 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
     section: 'Buffers',
     steps: [
       {
-        narration: "I've added a triangle in immediate mode. Switch its rendering mode to VBO.",
-        waitForUser: true,
+        narration: 'Here is a triangle in immediate mode. Move its corners onto the graphics card.',
         focusPanel: 'buffers-panel',
-        action: (state) => {
-          state.addCustomObject('TRIANGLES', [
-            { x: -0.5, y: -0.4 }, { x: 0.5, y: -0.4 }, { x: 0, y: 0.5 },
-          ]);
-        },
-        successCheck: (state) => {
-          const obj = state.objects.find(o => o.id === state.selectedObjectId);
-          return obj?.renderingMode === 'VBO';
+        goals: [{ label: 'Drawn from a VBO', check: (state) => modeOf(first(state)) === 'VBO' }],
+        task: 'Switch the triangle to VBO',
+        hints: ['Select the triangle. Buffers is in its inspector.', 'Under Rendering Mode, pick VBO.'],
+        action: () => { addShape('TRIANGLES', TRIANGLE); },
+        solve: (state) => {
+          const o = first(state);
+          if (o) state.updateRenderingMode(o.id, 'VBO');
         },
       },
       {
-        narration: "Excellent! The GPU upload moved into init() and the draw function now just binds the buffer — that's the whole point of a VBO.",
-        waitForUser: true,
+        narration: 'How your code does it: init() uploads the corners once with glBufferData, and the draw function binds the buffer and calls glDrawArrays.',
+        pane: 'code',
+        codeChangeFocus: ['glBufferData', 'glDrawArrays'],
+      },
+      {
+        narration: 'Add a quad and draw it from a VBO too.',
+        focusPanel: 'buffers-panel',
+        goals: [{ label: 'A quad drawn from a VBO', check: (state) => shapes(state).some((o) => o.type === 'QUADS' && modeOf(o) === 'VBO') }],
+        task: 'Add a quad and switch it to VBO',
+        hints: ['In Add, pick Quads and click four corners, then press Enter.', 'Then, in its Buffers group, pick VBO.'],
+        solve: () => { addShape('QUADS', SQUARE, 'VBO'); },
+      },
+      {
+        narration: 'Each shape gets its own buffers, made in init(): look for vbo_ and cbo_ with the quad\'s name.',
+        pane: 'code',
+        codeChangeFocus: ['glGenBuffers'],
+      },
+      {
+        narration: 'Two shapes, uploaded once each.',
+        recap: {
+          points: ['A VBO is uploaded once in init() and drawn from every frame.', 'Every shape has its own position and colour buffers.'],
+          calls: ['glGenBuffers', 'glDrawArrays'],
+        },
       },
     ],
   },
@@ -299,27 +430,45 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
     section: 'Buffers',
     steps: [
       {
-        narration: "This logo never moves and never deforms. Set the right usage hint.",
-        waitForUser: true,
+        narration: 'This logo never moves and never changes shape, but its buffer is marked Dynamic. Choose the right hint.',
         focusPanel: 'buffers-panel',
-        action: (state) => {
-          state.addCustomObject('QUADS', [
-            { x: -0.4, y: -0.4 }, { x: 0.4, y: -0.4 }, { x: 0.4, y: 0.4 }, { x: -0.4, y: 0.4 },
-          ]);
-          const id = useVamsStore.getState().selectedObjectId;
-          if (id) {
-            state.updateRenderingMode(id, 'VBO');
-            state.updateBufferUsage(id, 'DYNAMIC');
-          }
-        },
-        successCheck: (state) => {
-          const obj = state.objects.find(o => o.id === state.selectedObjectId);
-          return obj?.renderingMode === 'VBO' && obj?.bufferUsage === 'STATIC';
+        goals: [{ label: 'The logo is Static', check: (state) => usageOf(first(state)) === 'STATIC' && modeOf(first(state)) === 'VBO' }],
+        task: 'Set the logo to Static',
+        hints: ['Select the logo. Buffer Usage is in its Buffers group.', 'Data set once and drawn many times is Static.'],
+        action: () => { addShape('QUADS', SQUARE, 'VBO', 'DYNAMIC'); },
+        solve: (state) => {
+          const o = first(state);
+          if (o) state.updateBufferUsage(o.id, 'STATIC');
         },
       },
       {
-        narration: "Perfect! GL_STATIC_DRAW is exactly right. Notice update_buffers() disappeared from the code panel; STATIC has nothing to refresh.",
-        waitForUser: true,
+        narration: 'How your code does it: glBufferData now ends in GL_STATIC_DRAW, and update_buffers() and its glutIdleFunc are gone: there is nothing to refresh.',
+        pane: 'code',
+        codeChangeFocus: ['GL_STATIC_DRAW'],
+      },
+      {
+        narration: 'This new triangle is a spark that is rebuilt every frame. Give it the hint for that.',
+        focusPanel: 'buffers-panel',
+        goals: [{ label: 'The spark is Stream', check: (state) => usageOf(first(state)) === 'STREAM' && modeOf(first(state)) === 'VBO' }],
+        task: 'Set the spark to Stream',
+        hints: ['The spark is the newest shape, at the top of Scene.', 'Data rebuilt every frame is Stream.'],
+        action: () => { addShape('TRIANGLES', [{ x: 0.6, y: 0.5 }, { x: 0.8, y: 0.5 }, { x: 0.7, y: 0.7 }], 'VBO', 'STATIC'); },
+        solve: (state) => {
+          const o = first(state);
+          if (o) state.updateBufferUsage(o.id, 'STREAM');
+        },
+      },
+      {
+        narration: 'Now update_buffers() re-uploads the spark with glBufferData and GL_STREAM_DRAW every frame, while the logo is left alone.',
+        pane: 'code',
+        codeChangeFocus: ['GL_STREAM_DRAW'],
+      },
+      {
+        narration: 'Each buffer gets the hint that matches how its data behaves.',
+        recap: {
+          points: ['GL_STATIC_DRAW for data that never changes.', 'GL_STREAM_DRAW for data rebuilt every frame.'],
+          calls: ['glBufferData'],
+        },
       },
     ],
   },
@@ -330,26 +479,59 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
     section: 'Buffers',
     steps: [
       {
-        narration: "Here's a quad drawn as two triangles — six vertices, but only four are unique. Enable indexed drawing to deduplicate.",
-        waitForUser: true,
+        narration: 'This square is two triangles: six corners, but only four different ones. Store each corner once.',
         focusPanel: 'buffers-panel',
-        action: (state) => {
-          state.addCustomObject('TRIANGLES', [
-            { x: -0.4, y: -0.4 }, { x: 0.4, y: -0.4 }, { x: -0.4, y: 0.4 },
-            { x: 0.4, y: -0.4 },  { x: 0.4, y: 0.4 },  { x: -0.4, y: 0.4 },
-          ]);
-          const id = useVamsStore.getState().selectedObjectId;
-          if (id) state.updateRenderingMode(id, 'VERTEX_ARRAY');
-        },
-        successCheck: (state) => {
-          const obj = state.objects.find(o => o.id === state.selectedObjectId);
-          return !!obj?.useIndexed;
+        goals: [{ label: 'Indexed drawing on', check: (state) => !!first(state)?.useIndexed }],
+        task: 'Switch on indexed drawing',
+        hints: ['Select the square. Indexed Drawing is at the bottom of its Buffers group.', 'Switch on Deduplicate vertices.'],
+        action: () => { addShape('TRIANGLES', TWO_TRIANGLES, 'VERTEX_ARRAY'); },
+        solve: (state) => {
+          const o = first(state);
+          if (o) state.updateUseIndexed(o.id, true);
         },
       },
       {
+        narration: 'How your code does it: verts_ now holds four corners, and indices_ lists which corner each of the six slots uses: 0, 1, 2, 1, 3, 2.',
+        pane: 'code',
+        codeChangeFocus: ['GLuint indices_'],
+      },
+      {
+        narration: 'glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, indices_…) draws six slots, reading each index as an unsigned int.',
+        pane: 'code',
+        codeChangeFocus: ['glDrawElements'],
+      },
+      {
+        narration: "Array vs Indexed in Math's Stored stage compares the memory: four stored corners and six small indices take less than six full corners.",
         pane: 'math',
-        narration: "Brilliant! Look at Array vs Indexed in the Stored stage — the indexed version stores 4 vertices plus 6 indices instead of 6 full vertices. The code panel now uses glDrawElements.",
-        waitForUser: true,
+        mathStage: 'stored',
+      },
+      {
+        narration: 'Now keep the indices on the graphics card too: switch the square to VBO.',
+        focusPanel: 'buffers-panel',
+        goals: [{ label: 'Drawn from a VBO', check: (state) => modeOf(first(state)) === 'VBO' && !!first(state)?.useIndexed }],
+        task: 'Switch the square to VBO',
+        hints: ['Under Rendering Mode, pick VBO. Leave indexed drawing on.'],
+        solve: (state) => {
+          const o = first(state);
+          if (!o) return;
+          state.updateRenderingMode(o.id, 'VBO');
+          if (!now().objects.find((x) => x.id === o.id)?.useIndexed) now().updateUseIndexed(o.id, true);
+        },
+      },
+      {
+        narration: 'The indices get a buffer of their own, bound to GL_ELEMENT_ARRAY_BUFFER, and glDrawElements now reads them from it.',
+        pane: 'code',
+        codeChangeFocus: ['GL_ELEMENT_ARRAY_BUFFER'],
+      },
+      {
+        narration: 'Shared corners are stored once and named by index.',
+        recap: {
+          points: [
+            'An index array lists which stored corner each slot uses.',
+            'glDrawElements draws through the indices; with a VBO they live in a GL_ELEMENT_ARRAY_BUFFER.',
+          ],
+          calls: ['glDrawElements'],
+        },
       },
     ],
   },
@@ -360,23 +542,162 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
     section: 'Buffers',
     steps: [
       {
-        narration: "A quick check on what you've learned.",
-        waitForUser: true,
+        narration: 'Three programs, three kinds of data. Pick the usage hint for each.',
+      },
+      {
+        narration: 'A particle system rebuilds every particle every frame.',
+        task: 'Pick the hint',
+        hints: ['How often is the data replaced?'],
         exercise: {
           kind: 'multiple-choice',
-          prompt: "You're writing a particle system that regenerates every frame. Which usage hint fits best?",
+          prompt: 'Which usage hint fits particles rebuilt every frame?',
           options: [
-            { id: 'stream',  label: 'GL_STREAM_DRAW' },
-            { id: 'static',  label: 'GL_STATIC_DRAW' },
+            { id: 'stream', label: 'GL_STREAM_DRAW' },
+            { id: 'static', label: 'GL_STATIC_DRAW' },
             { id: 'dynamic', label: 'GL_DYNAMIC_DRAW' },
-            { id: 'none',    label: 'No hint needed' },
           ],
           correctId: 'stream',
         },
       },
       {
-        narration: "Spot on! Stream tells the driver this data is short-lived. Anything else and you'd waste memory or stall the GPU.",
-        waitForUser: true,
+        narration: 'A game level is loaded once and drawn for the whole level.',
+        task: 'Pick the hint',
+        hints: ['Does the data ever change after it is uploaded?'],
+        exercise: {
+          kind: 'multiple-choice',
+          prompt: 'Which usage hint fits a level that never changes?',
+          options: [
+            { id: 'dynamic', label: 'GL_DYNAMIC_DRAW' },
+            { id: 'static', label: 'GL_STATIC_DRAW' },
+            { id: 'stream', label: 'GL_STREAM_DRAW' },
+          ],
+          correctId: 'static',
+        },
+      },
+      {
+        narration: 'A drawing program changes a shape only when the user drags one of its corners.',
+        task: 'Pick the hint',
+        hints: ['The data changes, but not every frame.'],
+        exercise: {
+          kind: 'multiple-choice',
+          prompt: 'Which usage hint fits data changed now and then?',
+          options: [
+            { id: 'static', label: 'GL_STATIC_DRAW' },
+            { id: 'stream', label: 'GL_STREAM_DRAW' },
+            { id: 'dynamic', label: 'GL_DYNAMIC_DRAW' },
+          ],
+          correctId: 'dynamic',
+        },
+      },
+      {
+        narration: 'Here is a Stream buffer: its glBufferData runs in init() and again every frame in update_buffers().',
+        action: () => { addShape('TRIANGLES', TRIANGLE, 'VBO', 'STREAM'); },
+        recap: {
+          points: ['Static: set once. Dynamic: changed now and then. Stream: rebuilt every frame.'],
+          calls: ['glBufferData'],
+        },
+      },
+    ],
+  },
+  'buffers-exercise-5': {
+    id: 'buffers-exercise-5',
+    title: 'Build a VBO by Hand',
+    type: 'exercise',
+    section: 'Buffers',
+    steps: [
+      {
+        narration: "The section's last exercise: set up a shape's buffer, then write the calls that upload and draw it.",
+      },
+      {
+        narration: 'Add any shape, draw it from a VBO, and mark its data as never changing.',
+        focusPanel: 'buffers-panel',
+        goals: [
+          { label: 'A shape drawn from a VBO', check: (state) => shapes(state).some((o) => modeOf(o) === 'VBO') },
+          { label: 'Its usage is Static', check: (state) => modeOf(capstoneShape(state)) === 'VBO' && usageOf(capstoneShape(state)) === 'STATIC' },
+          { label: 'Indexed drawing off', check: (state) => modeOf(capstoneShape(state)) === 'VBO' && !capstoneShape(state)?.useIndexed },
+        ],
+        task: 'Set up a Static VBO shape',
+        hints: [
+          'Add a shape from Add, then open its Buffers group.',
+          'Rendering Mode: VBO. Buffer Usage: Static. Leave Deduplicate vertices off.',
+        ],
+        solve: (state) => {
+          const o = capstoneShape(state);
+          if (!o) {
+            addShape('TRIANGLES', TRIANGLE, 'VBO', 'STATIC');
+            return;
+          }
+          if (modeOf(o) !== 'VBO') state.updateRenderingMode(o.id, 'VBO');
+          now().updateBufferUsage(o.id, 'STATIC');
+          if (o.useIndexed) now().updateUseIndexed(o.id, false);
+        },
+      },
+      {
+        narration: 'In init(), first make a name for the buffer.',
+        task: 'Name the call',
+        hints: ['It generates buffer names.'],
+        exercise: {
+          kind: 'code',
+          template: '{0}(1, &vbo);',
+          blanks: [{ answer: () => 'glGenBuffers', wrong: 'not the call that makes a buffer name' }],
+        },
+      },
+      {
+        narration: 'Select it as the buffer for corner data.',
+        task: 'Name the target',
+        hints: ['Corner data goes in an array buffer.'],
+        exercise: {
+          kind: 'code',
+          template: 'glBindBuffer({0}, vbo);',
+          blanks: [{ answer: () => 'GL_ARRAY_BUFFER', wrong: 'not the target for corner data' }],
+        },
+      },
+      {
+        narration: 'Upload the corners with your usage hint.',
+        task: 'Fill in the hint',
+        hints: ['Your shape is Static.'],
+        exercise: {
+          kind: 'code',
+          template: 'glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, {0});',
+          blanks: [{ answer: (state) => `GL_${usageOf(capstoneShape(state))}_DRAW`, wrong: "that's not your shape's hint" }],
+        },
+      },
+      {
+        narration: 'In the draw function, describe the data: how many numbers per corner, and their type.',
+        task: 'Fill in the size and type',
+        hints: ['Each corner is an x and a y.', 'They are floats.'],
+        exercise: {
+          kind: 'code',
+          template: 'glVertexPointer({0}, {1}, 0, 0);',
+          blanks: [
+            { answer: () => 2, wrong: 'not the numbers per corner' },
+            { answer: () => 'GL_FLOAT', wrong: 'not the type of each number' },
+          ],
+        },
+      },
+      {
+        narration: 'Draw it: the mode, the first corner and the number of corners.',
+        task: 'Fill in the mode and count',
+        hints: ["The mode matches your shape's type.", 'Count its corners, or read the count from the code panel.'],
+        exercise: {
+          kind: 'code',
+          template: 'glDrawArrays({0}, 0, {1});',
+          blanks: [
+            { answer: (state) => `GL_${capstoneShape(state)?.type ?? 'TRIANGLES'}`, wrong: "that's not your shape's mode" },
+            { answer: (state) => capstoneShape(state)?.vertices.length ?? 3, wrong: "that's not its number of corners" },
+          ],
+        },
+      },
+      {
+        narration: 'You set up a buffer by hand. Next, Transforms: moving, turning and scaling what you draw.',
+        recap: {
+          points: [
+            'Make, bind and fill a buffer once: glGenBuffers, glBindBuffer, glBufferData.',
+            'Each frame, glVertexPointer describes it and glDrawArrays draws it.',
+            'The usage hint says how often the data will change.',
+          ],
+          calls: ['glGenBuffers', 'glBufferData', 'glDrawArrays'],
+        },
       },
     ],
   },

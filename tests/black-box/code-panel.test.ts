@@ -734,9 +734,14 @@ describe('BB-CODE-33: A lesson starting, Back, and opening a scene mark no value
     getState().setAppMode('Lesson');
     await settle();
     expect(marked(host)).toEqual([]);
-    buttonNamed(host, 'Next').click();
+    // Step 4 asks first; its move to x 0.5 runs once an answer is picked.
+    for (let i = 0; i < 3; i++) {
+      buttonNamed(host, 'Next').click();
+      await settle();
+    }
+    buttonNamed(host, 'They stay the same').click();
     await settle();
-    expect(marked(host)).toEqual(['0.4000f']);
+    expect(marked(host)).toEqual(['0.5000f']);
     buttonNamed(host, 'Next').click();
     await settle();
     buttonNamed(host, 'Back').click();

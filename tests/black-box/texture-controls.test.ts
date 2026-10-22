@@ -375,7 +375,7 @@ describe('BB-TEX-16: The Textures lessons name the samples and panels the editor
     const text = Object.values(TEXTURES_LESSONS).flatMap((l) => l.steps.map((s) => s.narration)).join(' ');
     expect(text).not.toContain('UV Editor');
     expect(text).not.toContain('full Texture Atlas');
-    expect(text).toContain("the 'Sprite sheet' sample");
-    expect(text).toContain("the 'Pixel fox'");
+    expect(text).toContain('the Sprite sheet');
+    expect(text).toContain('The Pixel fox');
   });
 });
