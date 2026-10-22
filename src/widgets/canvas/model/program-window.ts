@@ -35,6 +35,34 @@ export function centredRect(stage: Size, margin: number): Rect {
   };
 }
 
+/**
+ * The window whose canvas body has the viewing volume's shape (`aspect` is width over height): the
+ * largest such body that fits the stage less `margin`, with the title bar and frame added back,
+ * centred on the stage.
+ */
+export function fittedRect(stage: Size, margin: number, aspect: number): Rect {
+  const chromeW = 2 * FRAME_BORDER;
+  const chromeH = BAR_HEIGHT + 2 * FRAME_BORDER;
+  const spaceW = Math.max(0, stage.width - 2 * margin - chromeW);
+  const spaceH = Math.max(0, stage.height - 2 * margin - chromeH);
+  const bodyW = Math.min(spaceW, spaceH * aspect);
+  const bodyH = bodyW / aspect;
+  const width = Math.round(bodyW + chromeW);
+  const height = Math.round(bodyH + chromeH);
+  return {
+    x: Math.round((stage.width - width) / 2),
+    y: Math.round((stage.height - height) / 2),
+    width,
+    height,
+  };
+}
+
+/** The viewing volume's width over its height; 1 when that is not a positive number. */
+export function volumeAspect(limits: { minX: number; maxX: number; minY: number; maxY: number }): number {
+  const aspect = (limits.maxX - limits.minX) / (limits.maxY - limits.minY);
+  return Number.isFinite(aspect) && aspect > 0 ? aspect : 1;
+}
+
 /** Shrinks the window to the stage if need be, and keeps its title bar reachable. */
 export function clampRect(rect: Rect, stage: Size): Rect {
   const width = Math.min(rect.width, stage.width);
