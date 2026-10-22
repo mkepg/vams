@@ -24,8 +24,8 @@ interface ModeOption {
 }
 
 const MODE_OPTIONS: ModeOption[] = [
-  { id: 'IMMEDIATE',    label: 'Immediate',    api: 'glBegin / glEnd', hint: 'per frame, singly',          call: 'glBegin',         args: 'mode' },
-  { id: 'VERTEX_ARRAY', label: 'Vertex Array', api: 'glDrawArrays',    hint: 'per frame, in bulk', call: 'glVertexPointer', args: '2, GL_FLOAT, 0, verts' },
+  { id: 'IMMEDIATE',    label: 'Immediate',    api: 'glBegin / glEnd', hint: 're-sent each frame',          call: 'glBegin',         args: 'mode' },
+  { id: 'VERTEX_ARRAY', label: 'Vertex Array', api: 'glDrawArrays',    hint: 'sent each frame', call: 'glVertexPointer', args: '2, GL_FLOAT, 0, verts' },
   { id: 'VBO',          label: 'VBO',          api: 'glBufferData',    hint: 'uploaded once',    call: 'glBufferData',    args: 'GL_ARRAY_BUFFER, size, data, usage' },
 ];
 

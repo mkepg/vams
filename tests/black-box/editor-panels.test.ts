@@ -900,7 +900,7 @@ describe('BB-PANEL-38: Buffers lists each choice as a row with its description',
     const { host } = await mountVbo();
     const rows = radios(host, 'Rendering mode');
     expect(text(rows, '.bp-row__name')).toEqual(['Immediate', 'Vertex Array', 'VBO']);
-    expect(text(rows, '.bp-row__desc')).toEqual(['per frame, singly', 'per frame, in bulk', 'uploaded once']);
+    expect(text(rows, '.bp-row__desc')).toEqual(['re-sent each frame', 'sent each frame', 'uploaded once']);
     expect(rows.every((r) => r.querySelector('.bp-row__mark'))).toBe(true);
     expect(rows.find((r) => r.getAttribute('aria-checked') === 'true')!.classList.contains('active')).toBe(true);
     unmount(host);
