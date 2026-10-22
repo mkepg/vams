@@ -309,4 +309,14 @@ for (const width of [1280, 960]) {
     await expect(page.locator('.inspector__meta')).toContainText('Group');
     expect(await clipped()).toEqual([]);
   });
+
+  test(`VIS-EDITOR-32: The program window is the viewing volume's shape, ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await openEmpty(page, 'light');
+    const body = (await page.locator('.canvas-window__body').boundingBox())!;
+    expect(Math.abs(body.width / body.height - 1)).toBeLessThan(0.02);
+    await page.getByRole('button', { name: 'Maximise' }).click();
+    const max = (await page.locator('.canvas-window__body').boundingBox())!;
+    expect(Math.abs(max.width / max.height - 1)).toBeLessThan(0.02);
+  });
 }

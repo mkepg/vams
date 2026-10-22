@@ -8,6 +8,7 @@ import { useVamsStore } from '@/core/store';
 import ProgramWindow from '@/widgets/canvas/ui/ProgramWindow';
 import CanvasWindow from '@/widgets/canvas/ui/CanvasWindow';
 import { useProgramWindow } from '@/widgets/canvas/model/program-window-store';
+import { fittedRect } from '@/widgets/canvas/model/program-window';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { runController } from '@/features/callbacks';
@@ -157,12 +158,14 @@ describe('BB-WINDOW-04: Minimise and Maximise act like a real window', () => {
     expect(windowEl(host).style.left).toBe('238px');
     unmount(host);
   });
-  it('maximise fills the stage, flips its label to Restore, and restores the floating window', async () => {
+  it('maximise gives the largest window of the volume shape, flips its label to Restore, and restores the fitted window', async () => {
     const host = mountWindow();
     await settle();
     button(host, 'Maximise').click();
     await settle();
     expect(windowEl(host).classList.contains('canvas-window--maximised')).toBe(true);
+    expect(windowEl(host).style.width).toBe('572px');
+    expect(windowEl(host).style.height).toBe('600px');
     expect(button(host, 'Maximise')).toBeNull();
     button(host, 'Restore').click();
     await settle();
@@ -314,5 +317,49 @@ describe('BB-WINDOW-08: A lesson, a swapped scene or vertex placement brings the
     await settle();
     expect(windowState().mode).toBe('floating');
     unmount(host);
+  });
+});
+
+describe("BB-WINDOW-09: The window keeps the viewing volume's shape", () => {
+  it('reshapes when the volume changes in Settings', async () => {
+    const host = mountWindow();
+    await settle();
+    useVamsStore.getState().setViewportLimits({ minX: 0, maxX: 2, minY: -0.5, maxY: 0.5 });
+    await settle();
+    const el = windowEl(host);
+    const w = parseFloat(el.style.width) - 2;
+    const h = parseFloat(el.style.height) - 30;
+    expect(Math.abs(w / h - 2)).toBeLessThan(0.01);
+    unmount(host);
+    useVamsStore.getState().setViewportLimits({ minX: -1, maxX: 1, minY: -1, maxY: 1 });
+  });
+  it('maximised, takes the largest window of that shape on the stage, centred, and keeps refitting', async () => {
+    const host = mountWindow();
+    await settle();
+    button(host, 'Maximise').click();
+    await settle();
+    expect(windowEl(host).style.width).toBe(`${fittedRect(STAGE, 0, 1).width}px`);
+    windowState().setStage({ width: 800, height: 500 });
+    await settle();
+    expect(windowEl(host).style.height).toBe(`${fittedRect({ width: 800, height: 500 }, 0, 1).height}px`);
+    unmount(host);
+  });
+  it("a window resized during a Keep proportions run keeps the student's size", async () => {
+    addTriangle();
+    useVamsStore.getState().setCallbackHandler('keyboard', 'onKey');
+    const unregister = registerFakeRenderer(new Map(), { getCanvasSize: () => ({ width: 800, height: 600 }) });
+    const host = mountWindow();
+    await settle();
+    useVamsStore.getState().setReshapeMode('keep');
+    expect(runController.start({ loop: false })).toBe(true);
+    await settle();
+    windowState().resizeTo({ x: 10, y: 10, width: 900, height: 300 });
+    await settle();
+    expect(windowState().rect).toEqual({ x: 10, y: 10, width: 900, height: 300 });
+    expect(windowState().aspect).toBe(1);
+    runController.stop();
+    unmount(host);
+    unregister();
+    useVamsStore.getState().setReshapeMode('stretch');
   });
 });

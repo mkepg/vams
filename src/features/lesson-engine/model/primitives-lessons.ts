@@ -609,7 +609,7 @@ export const PRIMITIVES_LESSONS: Record<string, Lesson> = {
         codeChangeFocus: ['glViewport'],
       },
       {
-        narration: 'Stretch keeps the viewing volume as it is and fills the window with it. In a wide window, what happens to the triangle?',
+        narration: 'Stretch keeps the viewing volume as it is and fills the window with it. If you drag the window wider, what happens to the triangle?',
         focusPanel: 'callbacks-panel',
         predict: {
           options: [

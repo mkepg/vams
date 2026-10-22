@@ -22,13 +22,11 @@
     box-shadow: var(--window-shadow);
   }
 
-  // Floating on the stage: placed by inline left, top, width and height; until the stage has been
-  // measured it sits a margin in from every side.
+  // Floating or maximised on the stage: placed by inline left, top, width and height (maximised is the
+  // largest window of the viewing volume's shape); until the stage has been measured it sits a margin in
+  // from every side.
   &--floating,
   &--maximised { position: absolute; flex: none; inset: 24px; }
-  // Maximised fills the stage edge to edge.
-  &--maximised { inset: 0; }
-  &--maximised &__frame { border: 0; border-radius: 0; box-shadow: none; }
   // Minimised or closed: still laid out, so the canvas keeps its size and the code keeps its size line.
   &--away { visibility: hidden; pointer-events: none; }
 
