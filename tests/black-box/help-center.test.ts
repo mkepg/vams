@@ -1,6 +1,6 @@
 /**
  * BLACK-BOX TEST SUITE — BB-HELP
- * Help Center: content integrity, search, section deep-linking, and the
+ * Help Centre: content integrity, search, section deep-linking, and the
  * open/navigate/back/close state machine in the Help slice.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -168,7 +168,7 @@ describe('BB-HELP-06: Help teaches motion through the idle callback only', () =>
   });
 });
 
-describe('BB-HELP-07: The welcome card and the Help Center start the tour', () => {
+describe('BB-HELP-07: The welcome card and the Help Centre start the tour', () => {
   async function settle() {
     for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
   }

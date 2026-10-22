@@ -48,9 +48,9 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     group: 'General',
     items: [
-      { keys: '?', label: 'Open this Help Center' },
-      { keys: 'F1', label: 'Open this Help Center' },
-      { keys: 'Esc', label: 'Close the Help Center' },
+      { keys: '?', label: 'Open this Help Centre' },
+      { keys: 'F1', label: 'Open this Help Centre' },
+      { keys: 'Esc', label: 'Close the Help Centre' },
     ],
   },
 ];

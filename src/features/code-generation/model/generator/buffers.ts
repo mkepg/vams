@@ -104,7 +104,7 @@ export function generateInitBody(allObjects: SceneNode[]): string {
     lines.push('');
   }
   if (lines.length === 0) {
-    return '    // No VBO primitives to initialize\n';
+    return '    // No VBO primitives to initialise\n';
   }
   return lines.join('\n') + '\n';
 }

@@ -41,7 +41,7 @@ export default function HelpButton() {
     <Button
       variant="quiet"
       iconOnly
-      label="Open Help Center"
+      label="Open Help Centre"
       title="Help (?)"
       icon={<HelpCircle />}
       aria-haspopup="dialog"

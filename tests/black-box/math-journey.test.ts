@@ -577,7 +577,7 @@ describe('BB-JOURNEY-18: Rasterised keeps the pointer readout in every Pipeline 
     const host = await showRasterised('Diagram');
     expect(host.textContent).toContain('Cursor (NDC)');
     expect(host.textContent).toContain('Vector vs Raster');
-    expect(host.textContent).toContain('Rasterization');
+    expect(host.textContent).toContain('Rasterisation');
     expect(host.textContent).toContain('The formula, with your numbers');
     // The canvas is 800 × 600 when no canvas wrapper is mounted.
     expect(formula(host)).toContain('= (0.27 + 1) / 2 · 800 = 508.2 → 508');
@@ -590,7 +590,7 @@ describe('BB-JOURNEY-18: Rasterised keeps the pointer readout in every Pipeline 
     const host = await showRasterised('Playground');
     expect(host.textContent).toContain('Cursor (NDC)');
     expect(host.textContent).toContain('Vector vs Raster');
-    expect(host.textContent).not.toContain('Rasterization');
+    expect(host.textContent).not.toContain('Rasterisation');
     expect(formula(host)).toContain('→');
     expect(host.querySelector('.journey-picture__caption')!.textContent).toContain('whole number at or below it');
     unmount(host);

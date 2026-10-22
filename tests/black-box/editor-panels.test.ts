@@ -197,7 +197,7 @@ describe('BB-PANEL-08: Appearance shows the colour values GL receives', () => {
     const fill = host.querySelector('input[aria-label="Fill hex value"]');
     expect(fill).not.toBeNull();
     expect(hints(host).some((t) => t?.startsWith('glColor3f('))).toBe(true);
-    const emission = host.querySelector('[role="radiogroup"][aria-label="Color emission"]')!;
+    const emission = host.querySelector('[role="radiogroup"][aria-label="Colour emission"]')!;
     ([...emission.querySelectorAll('[role="radio"]')].find((r) => r.textContent === 'glColor3ub') as HTMLButtonElement).click();
     await settle();
     expect(hints(host).some((t) => t?.startsWith('glColor3ub('))).toBe(true);

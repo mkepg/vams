@@ -68,7 +68,7 @@ function HelpDialog() {
         <header className="help-dialog-header">
           <div className="help-title">
             <BookOpen size={18} />
-            <span>Help Center</span>
+            <span>Help Centre</span>
           </div>
           <div className="help-search">
             <Search size={14} />
@@ -96,7 +96,7 @@ function HelpDialog() {
               </button>
             )}
           </div>
-          <button type="button" className="help-close" onClick={closeHelp} aria-label="Close Help Center">
+          <button type="button" className="help-close" onClick={closeHelp} aria-label="Close Help Centre">
             <X size={18} />
           </button>
         </header>

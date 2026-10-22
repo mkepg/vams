@@ -29,13 +29,13 @@ export interface LessonEntry {
 export const COURSE: readonly CourseSection[] = [
   {
     section: 'Pipeline',
-    description: 'The rendering pipeline, NDC, and rasterization',
+    description: 'The rendering pipeline, NDC, and rasterisation',
     summary: 'The rendering pipeline, rasterisation, normalised device coordinates and the GLUT program structure.',
     calls: ['glutInit', 'glutDisplayFunc', 'glutMainLoop'],
   },
   {
     section: 'Primitives',
-    description: 'Points, lines, triangles, color, and line style',
+    description: 'Points, lines, triangles, colour, and line style',
     summary: 'glBegin and glEnd primitives, colour, line styles, bitmap text and GLUT callbacks.',
     calls: ['glBegin', 'glColor3f', 'glLineStipple'],
   },

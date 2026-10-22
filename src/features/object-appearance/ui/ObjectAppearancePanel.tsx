@@ -11,13 +11,13 @@ import { GRADIENT_PRESETS, gradientColours } from '../lib/gradient';
 
 type EmissionOption = '3f' | '3ub';
 const EMISSION_OPTIONS: SegmentOption<EmissionOption>[] = [
-  { value: '3f', label: 'glColor3f', title: 'Emit colors as glColor3f (normalized 0.0–1.0)' },
-  { value: '3ub', label: 'glColor3ub', title: 'Emit colors as glColor3ub (integer 0–255)' },
+  { value: '3f', label: 'glColor3f', title: 'Emit colours as glColor3f (normalised 0.0–1.0)' },
+  { value: '3ub', label: 'glColor3ub', title: 'Emit colours as glColor3ub (integer 0–255)' },
 ];
 const EMISSION_TO_MODE: Record<EmissionOption, ColorMode> = { '3f': 'FLOAT', '3ub': 'BYTE' };
 
 const APPLICATION_OPTIONS: SegmentOption<'OBJECT' | 'VERTEX'>[] = [
-  { value: 'OBJECT', label: 'Uniform', title: 'Apply one uniform color to the entire object' },
+  { value: 'OBJECT', label: 'Uniform', title: 'Apply one uniform colour to the entire object' },
   { value: 'VERTEX', label: 'Per vertex', title: 'Paint individual vertices for interpolated gradients' },
 ];
 
@@ -133,7 +133,7 @@ export default function ObjectAppearancePanel() {
   const glCall = objColorMode === 'BYTE' ? 'glColor3ub' : 'glColor3f';
 
   return (
-    <CollapsibleSection panelId="appearance-panel" title="Color & Shading" icon={<Palette size={14} />} defaultOpen={true}>
+    <CollapsibleSection panelId="appearance-panel" title="Colour & Shading" icon={<Palette size={14} />} defaultOpen={true}>
       <div className="color-section">
 
         {/* Emission Mode Toggle */}
@@ -145,7 +145,7 @@ export default function ObjectAppearancePanel() {
             </span>
           </div>
           <SegmentedControl
-            label="Color emission"
+            label="Colour emission"
             mono
             options={EMISSION_OPTIONS}
             value={objColorMode === 'BYTE' ? '3ub' : '3f'}
@@ -157,13 +157,13 @@ export default function ObjectAppearancePanel() {
         {supportsPerVertexColor && (
           <div className="color-mode-section" ref={toggleContainerRef}>
             <div className="mode-label">
-              <span>Color Mode</span>
+              <span>Colour Mode</span>
               <span className="mode-hint">
                 {colorMode === 'OBJECT' ? 'Solid Fill' : 'Barycentric Gradient'}
               </span>
             </div>
             <SegmentedControl
-              label="Color application mode"
+              label="Colour application mode"
               options={APPLICATION_OPTIONS}
               value={colorMode}
               onChange={switchColorMode}
@@ -176,7 +176,7 @@ export default function ObjectAppearancePanel() {
           <div className="vertex-color-list">
             {supportsPerVertexColor && isMultiColor && (
               <div className="vertex-hint warning">
-                Mixed colors detected. Selecting a color below will overwrite all vertex colors.
+                Mixed colours detected. Selecting a colour below will overwrite all vertex colours.
               </div>
             )}
             <ColorField

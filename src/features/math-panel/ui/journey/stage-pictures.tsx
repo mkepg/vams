@@ -355,7 +355,7 @@ export function StagePictures({ stage, node, deeper, deeperId, world, ndc }: Pic
       return (
         <div className="primitives-math">
           {FILLED.includes(node.type) && <FacePicture node={node} vertex={vertex} />}
-          <PrimitivesSection title="Color">
+          <PrimitivesSection title="Colour">
             <ColorConversion hex={node.vertices[source]?.color ?? '#ffffff'} />
           </PrimitivesSection>
           {node.type !== 'POINTS' && multi && (
