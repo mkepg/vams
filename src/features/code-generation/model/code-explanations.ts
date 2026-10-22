@@ -129,7 +129,6 @@ const ENTRIES: Entry[] = [
   { test: /^#include <GL\/glew\.h>/, explain: () => plain('#include <GL/glew.h>', 'Loads GLEW, which finds the buffer functions (glGenBuffers, glBufferData, glMapBuffer) in the graphics driver. It must come before freeglut.h.') },
   { test: /^#include <GL\/freeglut\.h>/, explain: () => plain('#include <GL/freeglut.h>', 'Loads FreeGLUT, which opens the window, runs the main loop and calls your callbacks.') },
   { test: /^#include <cmath>/, explain: () => plain('#include <cmath>', 'Loads C++’s maths functions, such as sin and cos.') },
-  { test: /^#include <iostream>/, explain: () => plain('#include <iostream>', 'Loads C++ input and output, which the texture loader uses.') },
   { test: /^#define STB_IMAGE_IMPLEMENTATION/, explain: () => plain('#define STB_IMAGE_IMPLEMENTATION', 'Tells stb_image.h to include its code here, not just its declarations.') },
   { test: /^#include "stb_image\.h"/, explain: () => plain('#include "stb_image.h"', 'Loads stb_image, which reads image files for textures.', 'coloured') },
 
