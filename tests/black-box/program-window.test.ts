@@ -324,14 +324,17 @@ describe("BB-WINDOW-09: The window keeps the viewing volume's shape", () => {
   it('reshapes when the volume changes in Settings', async () => {
     const host = mountWindow();
     await settle();
-    useVamsStore.getState().setViewportLimits({ minX: 0, maxX: 2, minY: -0.5, maxY: 0.5 });
-    await settle();
-    const el = windowEl(host);
-    const w = parseFloat(el.style.width) - 2;
-    const h = parseFloat(el.style.height) - 30;
-    expect(Math.abs(w / h - 2)).toBeLessThan(0.01);
-    unmount(host);
-    useVamsStore.getState().setViewportLimits({ minX: -1, maxX: 1, minY: -1, maxY: 1 });
+    try {
+      useVamsStore.getState().setViewportLimits({ minX: 0, maxX: 2, minY: -0.5, maxY: 0.5 });
+      await settle();
+      const el = windowEl(host);
+      const w = parseFloat(el.style.width) - 2;
+      const h = parseFloat(el.style.height) - 30;
+      expect(Math.abs(w / h - 2)).toBeLessThan(0.01);
+    } finally {
+      unmount(host);
+      useVamsStore.getState().setViewportLimits({ minX: -1, maxX: 1, minY: -1, maxY: 1 });
+    }
   });
   it('maximised, takes the largest window of that shape on the stage, centred, and keeps refitting', async () => {
     const host = mountWindow();
@@ -346,20 +349,34 @@ describe("BB-WINDOW-09: The window keeps the viewing volume's shape", () => {
   });
   it("a window resized during a Keep proportions run keeps the student's size", async () => {
     addTriangle();
-    useVamsStore.getState().setCallbackHandler('keyboard', 'onKey');
-    const unregister = registerFakeRenderer(new Map(), { getCanvasSize: () => ({ width: 800, height: 600 }) });
-    const host = mountWindow();
-    await settle();
+    useVamsStore.getState().setCallbackHandler('reshape', 'onReshape');
     useVamsStore.getState().setReshapeMode('keep');
-    expect(runController.start({ loop: false })).toBe(true);
-    await settle();
-    windowState().resizeTo({ x: 10, y: 10, width: 900, height: 300 });
-    await settle();
-    expect(windowState().rect).toEqual({ x: 10, y: 10, width: 900, height: 300 });
-    expect(windowState().aspect).toBe(1);
-    runController.stop();
-    unmount(host);
-    unregister();
-    useVamsStore.getState().setReshapeMode('stretch');
+    let view: { minX: number; maxX: number; minY: number; maxY: number } | null = null;
+    const unregister = registerFakeRenderer(new Map(), {
+      getCanvasSize: () => ({ width: 1200, height: 400 }),
+      setView: (v) => { view = { ...v }; },
+    });
+    const host = mountWindow();
+    try {
+      await settle();
+      expect(runController.start({ loop: false })).toBe(true);
+      await settle();
+      expect(runController.getSnapshot().running).toBe(true);
+      // The run widened its own view to the wide canvas; the edited volume is untouched.
+      const limits = useVamsStore.getState().viewportLimits;
+      expect(view).not.toBeNull();
+      expect(view).not.toEqual({ minX: limits.minX, maxX: limits.maxX, minY: limits.minY, maxY: limits.maxY });
+      expect(view!.maxX - view!.minX).toBeGreaterThan(limits.maxX - limits.minX);
+      windowState().resizeTo({ x: 10, y: 10, width: 900, height: 300 });
+      await settle();
+      expect(windowState().rect).toEqual({ x: 10, y: 10, width: 900, height: 300 });
+      expect(windowState().aspect).toBe(1);
+    } finally {
+      runController.stop();
+      unmount(host);
+      unregister();
+      useVamsStore.getState().setReshapeMode('stretch');
+      useVamsStore.getState().setCallbackHandler('reshape', '');
+    }
   });
 });
