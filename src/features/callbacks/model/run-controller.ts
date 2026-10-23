@@ -5,7 +5,7 @@ import type { GlutCallbackKind, MouseButton, RuleTrigger, SpecialKey } from '@/c
 import { CALLBACK_KINDS, isCallbackValid } from '@/core/callbacks/callbacks-model';
 import { renderBridge } from '@/shared/engine/render-bridge';
 import {
-  createRunState, dispatch, runStateColor, type RunEvent, type RunState,
+  createRunState, dispatch, runStateColor, windowToWorld, type RunEvent, type RunState,
 } from './runtime';
 
 /**
@@ -33,6 +33,8 @@ const DEGREES_TO_RADIANS = Math.PI / 180;
 const SPECIAL: Record<string, SpecialKey> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
 const KEYBOARD = /^[a-zA-Z0-9 ]$/;
 const BUTTONS: MouseButton[] = ['left', 'middle', 'right'];
+/** Pointer Events' `buttons` bit for each MouseEvent `button`: left 1, middle 4, right 2. */
+const BUTTON_BITS = [1, 4, 2];
 const STOPPED: RunSnapshot = { running: false, lastCall: null, fired: null, window: null, canvas: null };
 
 export type RunBlock = 'illustration' | 'empty' | 'no-callback' | null;
@@ -61,6 +63,8 @@ class RunController {
   private flashTimer: ReturnType<typeof setTimeout> | null = null;
   private pointer = { x: 0, y: 0 };
   private pendingMotion: { x: number; y: number } | null = null;
+  /** The `buttons` bits the handler has been told are down. */
+  private held = 0;
   private applied = new Map<string, string>();
   private seq = 0;
   private listeners = new Set<() => void>();
@@ -76,6 +80,7 @@ class RunController {
     this.run = createRunState(state.objects, state.viewportLimits, canvas);
     this.pointer = { x: 0, y: 0 };
     this.pendingMotion = null;
+    this.held = 0;
     this.applied = new Map(Object.keys(this.run.objects).map((id) => [id, 'null|true']));
     this.publish({ running: true, lastCall: null, fired: null, window: { ...canvas }, canvas: { ...canvas } });
     renderBridge.setEditorOverlaysHidden(true);
@@ -104,21 +109,27 @@ class RunController {
   }
 
   pointerDown(button: number, x: number, y: number): void {
-    const b = BUTTONS[button];
-    this.pointer = { x, y };
-    if (b) this.handle({ type: 'mouse', button: b, state: 'down', x, y });
+    this.button(button, 'down', x, y);
   }
 
   pointerUp(button: number, x: number, y: number): void {
-    const b = BUTTONS[button];
-    this.pointer = { x, y };
-    if (b) this.handle({ type: 'mouse', button: b, state: 'up', x, y });
+    this.button(button, 'up', x, y);
   }
 
-  /** Motion reaches the handler at most once per frame; the last position wins. */
-  pointerMove(x: number, y: number, dragging: boolean): void {
-    this.pointer = { x, y };
+  /**
+   * Motion reaches the handler at most once per frame; the last position wins. `buttons` is the
+   * event's bitmask: Pointer Events report a second button pressed or released while another is
+   * held as a move whose bits changed, and GLUT reports it to the Mouse handler.
+   */
+  pointerMove(x: number, y: number, buttons: number | boolean): void {
+    this.setPointer(x, y);
+    const dragging = typeof buttons === 'number' ? buttons !== 0 : buttons;
     if (dragging && this.snapshot.running) this.pendingMotion = { x, y };
+    if (typeof buttons !== 'number' || buttons === this.held || this.held === 0) return;
+    BUTTON_BITS.forEach((bit, button) => {
+      const now = (buttons & bit) !== 0;
+      if (now !== ((this.held & bit) !== 0)) this.button(button, now ? 'down' : 'up', x, y);
+    });
   }
 
   /** One frame: a resize of the program's window, pending motion, the idle pass, then a draw. */
@@ -153,6 +164,27 @@ class RunController {
   };
 
   getSnapshot = (): RunSnapshot => this.snapshot;
+
+  private button(button: number, state: 'down' | 'up', x: number, y: number): void {
+    const b = BUTTONS[button];
+    this.setPointer(x, y);
+    const bit = BUTTON_BITS[button] ?? 0;
+    this.held = state === 'down' ? this.held | bit : this.held & ~bit;
+    // GLUT keeps the order events happened in: a drag waiting for the next frame comes first.
+    const motion = this.pendingMotion;
+    this.pendingMotion = null;
+    if (motion) this.handle({ type: 'motion', x: motion.x, y: motion.y });
+    if (b) this.handle({ type: 'mouse', button: b, state, x, y });
+  }
+
+  /**
+   * The pointer, and the readout's world position as the generated windowToWorld computes it.
+   * The readout is interaction state, outside history and saving; Run's store watcher ignores it.
+   */
+  private setPointer(x: number, y: number): void {
+    this.pointer = { x, y };
+    if (this.run) useVamsStore.getState().setCursorWorld(windowToWorld(this.run.view, this.run.window, x, y));
+  }
 
   private handle(event: RunEvent): void {
     if (!this.run) return;

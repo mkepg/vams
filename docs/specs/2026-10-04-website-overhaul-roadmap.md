@@ -106,7 +106,7 @@ These issues already exist on the `main` from before the overhaul. They are wort
 
 - Fixed 2026-10-22: PixiJS logged a shader warning for every shape without a texture (not only textured ones), because the vertex-colour mesh carried UVs its shader never read.
 
-The site is hosted on Cloudflare Pages at <https://vams.pages.dev/> since 2026-10-12, built from `main` on every push. The old address <https://panic-vams.netlify.app/> forwards there with a 301 from the static site in `deploy/netlify-forward/`, which `netlify.toml` publishes only when those files change. One deployment check is outstanding: the real 404 status on Cloudflare (`curl -I https://vams.pages.dev/nope`).
+The site is hosted on Cloudflare Pages at <https://vams.pages.dev/> since 2026-10-12, built from `main` on every push. The old address <https://panic-vams.netlify.app/> forwards there with a 301 from the static site in `deploy/netlify-forward/`, which `netlify.toml` publishes only when those files change. Cloudflare returns a real 404 status for unknown pages (`curl -I https://vams.pages.dev/nope`, checked 2026-10-23).
 
 Rehearsal checklist (Nov 3):
 
@@ -126,12 +126,12 @@ Run mode:
 
 1. Fixed 2026-10-15 (editor rail redesign): The Running strip covers the top ~30px of the program window and takes clicks there, so a shape near the top edge is hidden during Run. Fix by starting the window below the strip.
 2. Fixed 2026-10-15 (editor rail redesign): A selected object's outline and handles stay at the saved pose while a rule moves the object.
-3. The Math panel's cursor readout shows editor coordinates during Run, not `windowToWorld`'s.
-4. The code panel can re-scroll within the 700 ms branch flash, and a repeat of the same call does not restart the flash.
-5. Motion is delivered on the next frame, so it can arrive after an immediate Mouse Up. GLUT keeps the order, and the two differ for a pair such as Mouse Up → Reset with Motion → Move to pointer.
-6. A second mouse button pressed while one is held never reaches the Mouse handler (Pointer Events report only the first down and the last up).
-7. When Run stops because the store changed, focus moves to the Run button even if it was elsewhere.
-8. A File menu open when Run starts stays open, inert, until Stop.
+3. Fixed 2026-10-23 ([Run and Callbacks leftovers](2026-10-23-run-callbacks-leftovers-design.md)): The Math panel's cursor readout shows editor coordinates during Run, not `windowToWorld`'s.
+4. Fixed 2026-10-23 ([Run and Callbacks leftovers](2026-10-23-run-callbacks-leftovers-design.md)): The code panel can re-scroll within the 700 ms branch flash, and a repeat of the same call does not restart the flash.
+5. Fixed 2026-10-23 ([Run and Callbacks leftovers](2026-10-23-run-callbacks-leftovers-design.md)): Motion is delivered on the next frame, so it can arrive after an immediate Mouse Up. GLUT keeps the order, and the two differ for a pair such as Mouse Up → Reset with Motion → Move to pointer.
+6. Fixed 2026-10-23 ([Run and Callbacks leftovers](2026-10-23-run-callbacks-leftovers-design.md)): A second mouse button pressed while one is held never reaches the Mouse handler (Pointer Events report only the first down and the last up).
+7. Fixed 2026-10-23 ([Run and Callbacks leftovers](2026-10-23-run-callbacks-leftovers-design.md)): When Run stops because the store changed, focus moves to the Run button even if it was elsewhere.
+8. No longer reproducible (2026-10-23): the File menu closes on any outside press and on Tab. A File menu open when Run starts stays open, inert, until Stop.
 9. A theme change after a window resize during Run can clear Run's colour overrides. The top bar is inert during Run, so this is hard to reach.
 10. Fixed 2026-10-22 (Run in the program window): the separate Run window and its handle are gone; the program window's own resize grip handles `pointercancel` and has `touch-action: none`.
 11. Fixed 2026-10-22 (Run in the program window): Run no longer draws its own handle or readout. The program window is the running program: the scene stays in place, the window's own edges resize it and fire Reshape, and its title bar shows that it runs and the last call.
@@ -139,23 +139,23 @@ Run mode:
 
 Callbacks panel and generated code:
 
-13. When a rule's target stops being eligible (for example, a Move to pointer target that is later grouped), the Object menu shows the first option while the rule keeps its target. The summary line and the code stay correct.
-14. The Do menu offers Set colour when the only objects are groups, and choosing it does nothing.
-15. After rules for D, A, W and S, a new rule defaults to D again. The generator merges the two into one `case`.
-16. Delete in a rule form drops focus to the page, and undo or redo can reopen a rule's form.
-17. Rule summary lines lack `font: inherit`.
-18. The handler comment "No rules yet" appears when every rule targets a hidden object.
-19. Handler names such as `rand`, `abort`, `clock`, `near`, `far`, or names starting with `GL_` or `GLUT_` are accepted but clash with library declarations or macros when compiled.
-20. The store's add and update actions do not lower-case keys or reject NaN. An upper-case key beside its lower-case twin would emit a duplicate `case`, and NaN would emit `NaNf`. Only direct store writes can do this; the editor's fields and the file loader already normalise.
-21. Fallback rule ids from the sanitizer are not de-duplicated.
+13. Fixed 2026-10-23 ([Run and Callbacks leftovers](2026-10-23-run-callbacks-leftovers-design.md)): When a rule's target stops being eligible (for example, a Move to pointer target that is later grouped), the Object menu shows the first option while the rule keeps its target. The summary line and the code stay correct.
+14. Fixed 2026-10-23 ([Run and Callbacks leftovers](2026-10-23-run-callbacks-leftovers-design.md)): The Do menu offers Set colour when the only objects are groups, and choosing it does nothing.
+15. Fixed 2026-10-23 ([Run and Callbacks leftovers](2026-10-23-run-callbacks-leftovers-design.md)): After rules for D, A, W and S, a new rule defaults to D again. The generator merges the two into one `case`.
+16. Fixed 2026-10-23 ([Run and Callbacks leftovers](2026-10-23-run-callbacks-leftovers-design.md)): Delete in a rule form drops focus to the page, and undo or redo can reopen a rule's form.
+17. Fixed 2026-10-23 ([Run and Callbacks leftovers](2026-10-23-run-callbacks-leftovers-design.md)): Rule summary lines lack `font: inherit`.
+18. Fixed 2026-10-23 ([Run and Callbacks leftovers](2026-10-23-run-callbacks-leftovers-design.md)): The handler comment "No rules yet" appears when every rule targets a hidden object.
+19. Fixed 2026-10-23 ([Run and Callbacks leftovers](2026-10-23-run-callbacks-leftovers-design.md)): Handler names such as `rand`, `abort`, `clock`, `near`, `far`, or names starting with `GL_` or `GLUT_` are accepted but clash with library declarations or macros when compiled.
+20. Fixed 2026-10-23 ([Run and Callbacks leftovers](2026-10-23-run-callbacks-leftovers-design.md)): The store's add and update actions do not lower-case keys or reject NaN. An upper-case key beside its lower-case twin would emit a duplicate `case`, and NaN would emit `NaNf`. Only direct store writes can do this; the editor's fields and the file loader already normalise.
+21. Fixed 2026-10-23 ([Run and Callbacks leftovers](2026-10-23-run-callbacks-leftovers-design.md)): Fallback rule ids from the sanitizer are not de-duplicated.
 
 Lessons:
 
-22. Exercise 6 step 2 passes if the handler name is cleared after the rules are added, and it accepts any tiny move.
+22. Resolved by the lesson content rewrite (2026-10-22): the arrow-keys exercise checks the handler and both rules together. Exercise 6 step 2 passes if the handler name is cleared after the rules are added, and it accepts any tiny move.
 
 Tests:
 
-23. BB-CB-12 rewrites `tests/fixtures/no-callbacks-program.cpp` when the file is missing, so deleting the fixture makes the no-callbacks guarantee pass vacuously. Write it only behind an environment flag.
+23. Fixed 2026-10-23 ([Run and Callbacks leftovers](2026-10-23-run-callbacks-leftovers-design.md)): BB-CB-12 rewrites `tests/fixtures/no-callbacks-program.cpp` when the file is missing, so deleting the fixture makes the no-callbacks guarantee pass vacuously. Write it only behind an environment flag.
 24. Missing tests: editing and removing a rule in the store; the v7 → v8 upgrade through a real rehydrate (only the pure function is tested); text, vertex-array and group-child recolour and visibility paths; Set colour excluding groups and Done returning focus; lesson checks on rules whose object was deleted; top-bar and Math panel inertness and flash-over-lesson precedence during Run; the real renderer's `setAppearance`, `setView` and `resync`.
 25. WB-PERSIST-07's undo-history fixture predates the `callbacks` field.
 26. WB-CB-1 cannot tell show from hide, and its values never exercise rounding. Pointer-mapping parity is checked against hand-worked numbers, and the test C++ interpreter skips every `gl*` call.

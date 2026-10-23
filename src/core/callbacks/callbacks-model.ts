@@ -40,13 +40,34 @@ const RESERVED_NAMES: ReadonlySet<string> = new Set([
 const RESERVED_PREFIXES = [
   'draw_', 'state_', 'initial_',
   'vbo_', 'cbo_', 'ebo_', 'uvbo_', 'verts_', 'colors_', 'uvs_', 'indices_', 'tex_',
+  // The libraries' constants and macros.
+  'GL_', 'GLU_', 'GLUT_', 'GLEW_',
 ];
+/**
+ * Names the program's headers already declare: C and C++ standard functions from <cmath>,
+ * <cstdlib>, <cstdio>, <cstring> and <ctime> (stb_image includes several), and the macros
+ * <windows.h> defines under freeglut on Windows.
+ */
+const LIBRARY_NAMES: ReadonlySet<string> = new Set([
+  'abs', 'acos', 'asin', 'atan', 'atan2', 'ceil', 'cos', 'cosh', 'exp', 'fabs', 'floor', 'fmod',
+  'frexp', 'hypot', 'ldexp', 'log', 'log10', 'log2', 'modf', 'pow', 'round', 'sin', 'sinh', 'sqrt',
+  'tan', 'tanh', 'trunc', 'fmin', 'fmax', 'cbrt',
+  'abort', 'atexit', 'atof', 'atoi', 'atol', 'calloc', 'div', 'exit', 'free', 'getenv', 'labs',
+  'malloc', 'qsort', 'rand', 'realloc', 'srand', 'strtod', 'strtol', 'system',
+  'fclose', 'fgets', 'fopen', 'fprintf', 'fread', 'fscanf', 'fwrite', 'getchar', 'printf', 'putchar',
+  'puts', 'remove', 'rename', 'scanf', 'sprintf', 'snprintf',
+  'memcmp', 'memcpy', 'memmove', 'memset', 'strcat', 'strchr', 'strcmp', 'strcpy', 'strlen', 'strncmp', 'strncpy',
+  'clock', 'difftime', 'mktime', 'time',
+  'near', 'far', 'min', 'max', 'NULL', 'TRUE', 'FALSE', 'APIENTRY', 'CALLBACK', 'WINAPI',
+]);
+/** OpenGL, GLU, GLUT, GLEW and WGL function names: glClear, gluOrtho2D, glutInit, glewInit. */
+const LIBRARY_FUNCTION = /^(gl|glu|glut|glew|wgl)[A-Z0-9]/;
 
 /** A C++ identifier that the generated program does not already use. */
 export function isValidHandlerName(name: string): boolean {
   const n = name.trim();
   if (!IDENTIFIER.test(n)) return false;
-  if (RESERVED_NAMES.has(n) || CPP_KEYWORDS.has(n)) return false;
+  if (RESERVED_NAMES.has(n) || CPP_KEYWORDS.has(n) || LIBRARY_NAMES.has(n) || LIBRARY_FUNCTION.test(n)) return false;
   return !RESERVED_PREFIXES.some((prefix) => n.startsWith(prefix));
 }
 
@@ -72,14 +93,17 @@ const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(mi
 const toDecimals = (v: number, decimals: number) => Number(v.toFixed(decimals));
 const HEX = /^#[0-9a-f]{6}$/i;
 
+/** Within the field's range and precision; a non-finite number becomes the field's default. */
 export function clampAction(action: RuleAction): RuleAction {
+  const field = (v: number, min: number, max: number, decimals: number, fallback: number) =>
+    toDecimals(clamp(num(v, fallback), min, max), decimals);
   switch (action.type) {
     case 'translate':
-      return { type: 'translate', dx: toDecimals(clamp(action.dx, -10, 10), 2), dy: toDecimals(clamp(action.dy, -10, 10), 2) };
+      return { type: 'translate', dx: field(action.dx, -10, 10, 2, 0), dy: field(action.dy, -10, 10, 2, 0) };
     case 'rotate':
-      return { type: 'rotate', degrees: toDecimals(clamp(action.degrees, -360, 360), 0) };
+      return { type: 'rotate', degrees: field(action.degrees, -360, 360, 0, 0) };
     case 'scale':
-      return { type: 'scale', sx: toDecimals(clamp(action.sx, 0.1, 10), 2), sy: toDecimals(clamp(action.sy, 0.1, 10), 2) };
+      return { type: 'scale', sx: field(action.sx, 0.1, 10, 2, 1), sy: field(action.sy, 0.1, 10, 2, 1) };
     case 'setColor':
       return { type: 'setColor', color: HEX.test(action.color) ? action.color.toLowerCase() : '#ffffff' };
     default:
@@ -115,7 +139,8 @@ export function programObjects(objects: SceneNode[]): SceneNode[] {
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
 
-function sanitizeTrigger(raw: unknown, kind: RuleCallbackKind): RuleTrigger | null {
+/** A trigger the generator can emit for `kind`, with keyboard keys lower-cased; null otherwise. */
+export function sanitizeTrigger(raw: unknown, kind: RuleCallbackKind): RuleTrigger | null {
   if (!isRecord(raw) || raw.kind !== kind) return null;
   switch (kind) {
     case 'keyboard': {
@@ -185,6 +210,14 @@ export function sanitizeCallbacks(raw: unknown, liveIds: ReadonlySet<string>): C
             .filter((r): r is CallbackRule => r !== null && liveIds.has(r.objectId))
             .slice(0, MAX_RULES)
         : [];
+      // Ids key the panel's rows and its open form, so a file that repeats or omits one gets fresh ones.
+      const seen = new Set<string>();
+      rules.forEach((r, i) => {
+        let id = r.id;
+        for (let n = 0; seen.has(id); n++) id = `rule-${kind}-${i}-${n}`;
+        seen.add(id);
+        r.id = id;
+      });
       out[kind] = { handlerName: typeof v.handlerName === 'string' ? v.handlerName : '', rules };
     }
   }

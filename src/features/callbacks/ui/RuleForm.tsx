@@ -2,7 +2,7 @@ import { useVamsStore } from '@/core/store';
 import type { CallbackRule, RuleAction, RuleActionType, RuleCallbackKind, SceneNode } from '@/core/types/scene';
 import { Button, ColorField, NumberField, SegmentedControl, SelectField } from '@/shared/ui/controls';
 import {
-  ACTION_LABELS, actionTypesFor, defaultAction, eligibleTargets, triggerFromValue,
+  ACTION_LABELS, availableActionTypes, defaultAction, eligibleTargets, targetOptions, triggerFromValue,
   triggerOptionLabel, triggerOptions, triggerValue,
 } from '../model/rule-copy';
 
@@ -11,13 +11,15 @@ interface RuleFormProps {
   rule: CallbackRule;
   objects: SceneNode[];
   onClose: () => void;
+  /** After Delete has removed the rule. */
+  onDeleted: () => void;
 }
 
-export function RuleForm({ kind, rule, objects, onClose }: RuleFormProps) {
+export function RuleForm({ kind, rule, objects, onClose, onDeleted }: RuleFormProps) {
   const update = useVamsStore((s) => s.updateCallbackRule);
   const remove = useVamsStore((s) => s.removeCallbackRule);
   const pushToHistory = useVamsStore((s) => s.pushToHistory);
-  const targets = eligibleTargets(rule.action.type, objects);
+  const targets = targetOptions(rule, objects);
   const live = (action: RuleAction) => update(kind, rule.id, { action }, false);
   const action = rule.action;
 
@@ -48,7 +50,7 @@ export function RuleForm({ kind, rule, objects, onClose }: RuleFormProps) {
       <SelectField
         label="Do"
         value={action.type}
-        options={actionTypesFor(kind).map((type) => ({ value: type, label: ACTION_LABELS[type] }))}
+        options={availableActionTypes(kind, objects).map((type) => ({ value: type, label: ACTION_LABELS[type] }))}
         onChange={changeType}
       />
       <SelectField
@@ -90,7 +92,7 @@ export function RuleForm({ kind, rule, objects, onClose }: RuleFormProps) {
         />
       )}
       <div className="cb-rule-form__actions">
-        <Button variant="quiet" onClick={() => { remove(kind, rule.id); onClose(); }}>Delete</Button>
+        <Button variant="quiet" onClick={() => { remove(kind, rule.id); onDeleted(); }}>Delete</Button>
         <Button variant="primary" onClick={onClose}>Done</Button>
       </div>
     </div>

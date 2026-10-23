@@ -7,6 +7,9 @@ import { Button } from '@/shared/ui/controls';
 import { actionSentence, newRule, ruleLabel, triggerChip } from '../model/rule-copy';
 import { RuleForm } from './RuleForm';
 
+/** pendingFocus's value for the Add rule button; rule ids are UUIDs or rule-…, never this. */
+const ADD = 'add-rule';
+
 export function RuleList({ kind, label }: { kind: RuleCallbackKind; label: string }) {
   const rules = useVamsStore((s) => s.callbacks[kind].rules);
   const objects = useVamsStore((s) => s.objects);
@@ -14,17 +17,26 @@ export function RuleList({ kind, label }: { kind: RuleCallbackKind; label: strin
   const [openId, setOpenId] = useState<string | null>(null);
   const pendingFocus = useRef<string | null>(null);
   const lines = useRef(new Map<string, HTMLButtonElement>());
+  const addRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!pendingFocus.current) return;
-    lines.current.get(pendingFocus.current)?.focus();
+    (pendingFocus.current === ADD ? addRef.current : lines.current.get(pendingFocus.current))?.focus();
     pendingFocus.current = null;
   }, [openId]);
+
+  // Undo can take away the rule whose form is open. Forget it, so redo brings the rule back closed.
+  if (openId !== null && !rules.some((r) => r.id === openId)) setOpenId(null);
 
   const names = new Map(objects.map((o) => [o.id, o.name]));
   const full = rules.length >= MAX_RULES;
   const empty = objects.length === 0;
   const close = (id: string) => { pendingFocus.current = id; setOpenId(null); };
+  // Focus goes to the rule that took the deleted one's place, else the one above, else Add rule.
+  const deleted = (id: string) => {
+    const index = rules.findIndex((r) => r.id === id);
+    close((rules[index + 1] ?? rules[index - 1])?.id ?? ADD);
+  };
   const onAdd = () => {
     const rule = newRule(kind, rules, objects, newRuleId());
     if (!rule) return;
@@ -58,13 +70,15 @@ export function RuleList({ kind, label }: { kind: RuleCallbackKind; label: strin
                   </span>
                   <Pencil size={12} aria-hidden="true" />
                 </button>
-                {open && <RuleForm kind={kind} rule={rule} objects={objects} onClose={() => close(rule.id)} />}
+                {open && (
+                  <RuleForm kind={kind} rule={rule} objects={objects} onClose={() => close(rule.id)} onDeleted={() => deleted(rule.id)} />
+                )}
               </li>
             );
           })}
         </ul>
       )}
-      <Button variant="quiet" className="cb-add-rule" icon={<Plus />} disabled={full || empty} onClick={onAdd}>
+      <Button ref={addRef} variant="quiet" className="cb-add-rule" icon={<Plus />} disabled={full || empty} onClick={onAdd}>
         {full ? '8 rules is the limit' : empty ? 'Add a shape first' : 'Add rule'}
       </Button>
     </div>

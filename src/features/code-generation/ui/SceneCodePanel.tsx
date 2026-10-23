@@ -182,6 +182,7 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
       marksKey={marksKey}
       revealLines={revealLines}
       firedLines={flashLines}
+      firedSeq={flashBranch?.seq}
       onFindLine={setFindLine}
       isLessonMode={isLessonMode}
       headerLead={headerLead}

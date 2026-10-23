@@ -16,6 +16,8 @@ export interface CallbackPlan {
   registered: Array<{ kind: GlutCallbackKind; handlerName: string }>;
   /** Rules per kind whose target is in the program, in list order. */
   rules: Record<RuleCallbackKind, CallbackRule[]>;
+  /** Registered kinds that have rules, every one on an object the program does not draw. */
+  hiddenOnly: ReadonlySet<RuleCallbackKind>;
   resize: ResizeMode;
   colorIds: ReadonlySet<string>;
   visibilityIds: ReadonlySet<string>;
@@ -59,6 +61,7 @@ export function planCallbacks(callbacks: CallbacksState, programObjects: SceneNo
   const on = new Set(registered.map((r) => r.kind));
   const rules = {} as Record<RuleCallbackKind, CallbackRule[]>;
   for (const k of RULE_KINDS) rules[k] = on.has(k) ? callbacks[k].rules.filter((r) => names.has(r.objectId)) : [];
+  const hiddenOnly = new Set(RULE_KINDS.filter((k) => on.has(k) && rules[k].length === 0 && callbacks[k].rules.length > 0));
   const all = RULE_KINDS.flatMap((k) => rules[k]);
   const idsFor = (type: RuleAction['type']) => new Set(all.filter((r) => r.action.type === type).map((r) => r.objectId));
   const colorIds = idsFor('setColor');
@@ -67,7 +70,7 @@ export function planCallbacks(callbacks: CallbacksState, programObjects: SceneNo
   const needsPointer = all.some((r) => r.action.type === 'moveToPointer');
   const resize = callbacks.reshape.resize;
   return {
-    registered, rules, resize, colorIds, visibilityIds, resetIds, needsPointer,
+    registered, rules, hiddenOnly, resize, colorIds, visibilityIds, resetIds, needsPointer,
     needsView: needsPointer || (on.has('reshape') && resize === 'keep'),
     extendedState: colorIds.size > 0 || visibilityIds.size > 0,
     names,
@@ -145,7 +148,12 @@ function reshapeBody(resize: ResizeMode, limits: ViewportLimits): string[] {
 function handlerBody(kind: GlutCallbackKind, plan: CallbackPlan, limits: ViewportLimits): string[] {
   if (kind === 'reshape') return reshapeBody(plan.resize, limits);
   const rules = plan.rules[kind];
-  if (rules.length === 0) return ['    // No rules yet: add them in the Callbacks panel', '    glutPostRedisplay();'];
+  if (rules.length === 0) {
+    const comment = plan.hiddenOnly.has(kind as RuleCallbackKind)
+      ? '    // Its rules act on hidden objects, which the program does not draw'
+      : '    // No rules yet: add them in the Callbacks panel';
+    return [comment, '    glutPostRedisplay();'];
+  }
   const out: string[] = [];
   if (kind === 'keyboard' || kind === 'special') {
     out.push('    switch (key) {');

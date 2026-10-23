@@ -96,6 +96,21 @@ export function eligibleTargets(type: RuleActionType, objects: SceneNode[]): Sce
   return objects;
 }
 
+/** The Do menu: the callback's actions that have at least one object to act on. */
+export const availableActionTypes = (kind: RuleCallbackKind, objects: SceneNode[]): RuleActionType[] =>
+  actionTypesFor(kind).filter((type) => eligibleTargets(type, objects).length > 0);
+
+/**
+ * The Object menu: the action's eligible objects, plus the rule's own target when it has stopped
+ * being eligible (grouped after Move to pointer chose it), so the menu shows what the rule and its code use.
+ */
+export function targetOptions(rule: CallbackRule, objects: SceneNode[]): SceneNode[] {
+  const targets = eligibleTargets(rule.action.type, objects);
+  if (targets.some((o) => o.id === rule.objectId)) return targets;
+  const own = objects.find((o) => o.id === rule.objectId);
+  return own ? [own, ...targets] : targets;
+}
+
 export function defaultAction(type: RuleActionType, kind: RuleCallbackKind, target?: SceneNode): RuleAction {
   switch (type) {
     case 'translate': return { type, dx: 0.1, dy: 0 };
@@ -141,7 +156,7 @@ export function triggerOptionLabel(t: RuleTrigger): string {
   }
 }
 
-/** The first trigger not yet used, in teaching order: D A W S, → ← ↑ ↓, left down first. */
+/** The first trigger not yet used: teaching order first (D A W S, → ← ↑ ↓, left down first), then the rest. */
 export function nextTrigger(kind: RuleCallbackKind, rules: CallbackRule[]): RuleTrigger {
   const used = new Set(rules.map((r) => triggerValue(r.trigger)));
   const preferred: RuleTrigger[] =
@@ -149,7 +164,7 @@ export function nextTrigger(kind: RuleCallbackKind, rules: CallbackRule[]): Rule
       : kind === 'special' ? (['right', 'left', 'up', 'down'] as SpecialKey[]).map((key) => ({ kind, key }))
         : kind === 'mouse' ? MOUSE_ORDER.map(([button, state]) => ({ kind, button, state }))
           : triggerOptions(kind);
-  return preferred.find((t) => !used.has(triggerValue(t))) ?? preferred[0];
+  return [...preferred, ...triggerOptions(kind)].find((t) => !used.has(triggerValue(t))) ?? preferred[0];
 }
 
 /** A new rule for the first top-level object, or null when the scene is empty. */

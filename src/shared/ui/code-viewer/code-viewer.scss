@@ -186,9 +186,28 @@ $fold-col: 20px;
 
 .code-find.is-current { outline-color: var(--ink); }
 
+// Each call widens the fired bar for a moment. A repeat switches to the twin animation, which
+// restarts it, so every key press shows.
+@keyframes run-fired-pulse {
+  from { box-shadow: inset 8px 0 0 var(--run-fired); }
+  to { box-shadow: inset 3px 0 0 var(--run-fired); }
+}
+
+@keyframes run-fired-pulse-again {
+  from { box-shadow: inset 8px 0 0 var(--run-fired); }
+  to { box-shadow: inset 3px 0 0 var(--run-fired); }
+}
+
 .code-line.is-fired {
   background: var(--run-fired-wash);
   box-shadow: inset 3px 0 0 var(--run-fired);
+  animation: run-fired-pulse 300ms ease-out;
+
+  &.is-fired--again { animation-name: run-fired-pulse-again; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .code-line.is-fired { animation: none; }
 }
 
 .code-row,

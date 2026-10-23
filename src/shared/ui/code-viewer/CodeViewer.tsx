@@ -19,6 +19,8 @@ export interface CodeViewerProps {
   revealLines?: readonly number[];
   /** Run's fired branch. */
   firedLines?: readonly number[];
+  /** Counts Run's calls, so a repeat of the same branch restarts its flash. */
+  firedSeq?: number;
   /** Find's current match is on this line; null when Find is empty or closed. */
   onFindLine?: (line: number | null) => void;
   isLessonMode?: boolean;
@@ -95,7 +97,7 @@ function byLine<T extends { line: number }>(items: readonly T[] | undefined): Ma
 }
 
 const CodeViewer = memo(function CodeViewer({
-  code, rows, onToggleFold, marks, marksKey = 0, revealLines, firedLines, onFindLine, isLessonMode,
+  code, rows, onToggleFold, marks, marksKey = 0, revealLines, firedLines, firedSeq, onFindLine, isLessonMode,
   headerLead, headerTrail, explainable, explainedLine, onExplain, strip, notes, notesOn, onToggleNotes,
 }: CodeViewerProps) {
   const baseId = useId();
@@ -158,12 +160,17 @@ const CodeViewer = memo(function CodeViewer({
   }, [currentMatch, rowList]);
 
   // Scroll a lesson's highlighted lines, or the changed values, into view: centred when they fit, else from the top.
+  // The same lines in the same code scroll once: a key Run repeats does not pull back a student who scrolled away.
+  const revealed = useRef<{ range: string; code: string } | null>(null);
   useEffect(() => {
     if (!revealLines || revealLines.length === 0) return;
     const scroller = scrollRef.current;
     if (!scroller) return;
     const top = Math.min(...revealLines);
     const bottom = Math.max(...revealLines);
+    const range = `${top}:${bottom}`;
+    if (revealed.current?.range === range && revealed.current.code === code) return;
+    revealed.current = { range, code };
     const raf = requestAnimationFrame(() => {
       const el = lineEls.current.get(top);
       if (!el || !scroller.contains(el)) return;
@@ -270,6 +277,7 @@ const CodeViewer = memo(function CodeViewer({
     const note = notes?.get(line);
     const classes = [
       'code-line', changed ? 'is-changed' : '', fired.has(line) ? 'is-fired' : '',
+      fired.has(line) && firedSeq !== undefined && firedSeq % 2 === 0 ? 'is-fired--again' : '',
       canExplain ? 'is-explainable' : '', explained ? 'is-explained' : '',
     ].filter(Boolean).join(' ');
     return (

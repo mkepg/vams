@@ -58,7 +58,8 @@ export default function VamsCanvas({ isHidden = false, readOnly = false }: VamsC
   }, []);
 
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (isHidden || readOnly) return;
+    // During Run the program's windowToWorld drives the readout (run-controller).
+    if (isHidden || readOnly || runController.isRunning()) return;
     const { x, y } = screenToWorld(event.clientX, event.clientY);
 
     pendingCoordRef.current = { x, y };
