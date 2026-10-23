@@ -1,7 +1,7 @@
 import type { StateCreator } from 'zustand';
 import type { VamsState, CallbacksSlice } from '@/core/store/types';
 import {
-  CALLBACK_KINDS, MAX_RULES, actionAllowed, clampAction, emptyCallbacks, isCallbackValid, withRuleCallback,
+  CALLBACK_KINDS, MAX_RULES, actionAllowed, clampAction, emptyCallbacks, isCallbackValid, sanitizeTrigger, withRuleCallback,
 } from '@/core/callbacks/callbacks-model';
 
 export const createCallbacksSlice: StateCreator<VamsState, [], [], CallbacksSlice> = (set, get) => ({
@@ -25,12 +25,14 @@ export const createCallbacksSlice: StateCreator<VamsState, [], [], CallbacksSlic
   addCallbackRule: (kind, rule) => {
     const current = get().callbacks[kind];
     if (current.rules.length >= MAX_RULES) return;
-    if (rule.trigger.kind !== kind || !actionAllowed(kind, rule.action.type)) return;
+    // The same checks a project file gets: a key the generator can emit, lower-cased.
+    const trigger = sanitizeTrigger(rule.trigger, kind);
+    if (!trigger || !actionAllowed(kind, rule.action.type)) return;
     get().pushToHistory();
     set((state) => ({
       callbacks: withRuleCallback(state.callbacks, kind, {
         ...state.callbacks[kind],
-        rules: [...state.callbacks[kind].rules, { ...rule, action: clampAction(rule.action) }],
+        rules: [...state.callbacks[kind].rules, { ...rule, trigger, action: clampAction(rule.action) }],
       }),
     }));
   },
@@ -38,8 +40,9 @@ export const createCallbacksSlice: StateCreator<VamsState, [], [], CallbacksSlic
   updateCallbackRule: (kind, ruleId, patch, recordHistory = true) => {
     const existing = get().callbacks[kind].rules.find((r) => r.id === ruleId);
     if (!existing) return;
-    const next = { ...existing, ...patch };
-    if (next.trigger.kind !== kind || !actionAllowed(kind, next.action.type)) return;
+    const trigger = sanitizeTrigger(patch.trigger ?? existing.trigger, kind);
+    const next = { ...existing, ...patch, trigger: trigger ?? existing.trigger };
+    if (!trigger || !actionAllowed(kind, next.action.type)) return;
     if (recordHistory) get().pushToHistory();
     set((state) => ({
       callbacks: withRuleCallback(state.callbacks, kind, {

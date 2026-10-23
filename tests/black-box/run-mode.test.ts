@@ -545,3 +545,116 @@ describe('BB-RUN-19: A blocked Run opens a small dialog that says what to do', (
     host.remove();
   });
 });
+
+describe('BB-RUN-20: The cursor readout shows windowToWorld during Run', () => {
+  it('maps the pointer through Run\'s widened volume, not the editor\'s', () => {
+    setup();
+    getState().setCallbackHandler('reshape', 'onReshape');
+    runController.start({ loop: false });
+    runController.pointerMove(0, 0, false);
+    expect(getState().cursorWorld!.x).toBeCloseTo(-4 / 3, 4);
+    expect(getState().cursorWorld!.y).toBeCloseTo(1, 4);
+    runController.pointerMove(800, 600, false);
+    expect(getState().cursorWorld!.x).toBeCloseTo(4 / 3, 4);
+    expect(getState().cursorWorld!.y).toBeCloseTo(-1, 4);
+    expect(runController.getSnapshot().running).toBe(true);
+  });
+});
+
+describe('BB-RUN-21: A repeat restarts the flash and does not scroll the code again', () => {
+  it('alternates the flash class per call and scrolls once for the same branch', async () => {
+    setup();
+    const scrollTo = vi.fn();
+    const original = HTMLElement.prototype.scrollTo;
+    HTMLElement.prototype.scrollTo = scrollTo as unknown as typeof original;
+    const branch = (seq: number) => ({ handlerName: 'onKey', trigger: { kind: 'keyboard' as const, key: 'd' }, seq });
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    render(h(SceneCodePanel, { flashBranch: branch(1) }), host);
+    await settle();
+    const calls = scrollTo.mock.calls.length;
+    expect(calls).toBeGreaterThan(0);
+    const again = () => host.querySelectorAll('.code-line.is-fired.is-fired--again').length;
+    expect(host.querySelectorAll('.code-line.is-fired').length).toBeGreaterThan(0);
+    expect(again()).toBe(0);
+    render(h(SceneCodePanel, { flashBranch: branch(2) }), host);
+    await settle();
+    expect(again()).toBe(host.querySelectorAll('.code-line.is-fired').length);
+    render(h(SceneCodePanel, { flashBranch: branch(3) }), host);
+    await settle();
+    expect(again()).toBe(0);
+    expect(scrollTo.mock.calls.length).toBe(calls);
+    HTMLElement.prototype.scrollTo = original;
+    render(null, host);
+    host.remove();
+  });
+});
+
+describe('BB-RUN-22: Motion waiting for the frame reaches the handler before a button change', () => {
+  it('moves to the pointer, then the release resets it', () => {
+    const { t, display } = setup();
+    getState().setCallbackHandler('mouse', 'onMouse');
+    getState().setCallbackHandler('motion', 'onMotion');
+    getState().addCallbackRule('motion', { id: 'mv', objectId: t.id, trigger: { kind: 'motion' }, action: { type: 'moveToPointer' } });
+    getState().addCallbackRule('mouse', {
+      id: 'up', objectId: t.id, trigger: { kind: 'mouse', button: 'left', state: 'up' }, action: { type: 'reset' },
+    });
+    runController.start({ loop: false });
+    runController.pointerDown(0, 400, 300);
+    runController.pointerMove(600, 150, true);
+    runController.pointerUp(0, 600, 150);
+    runController.stepFrame();
+    expect(display.position.x).toBeCloseTo(0, 6);
+    expect(display.position.y).toBeCloseTo(0, 6);
+    expect(runController.getSnapshot().lastCall).toBe('onMouse(GLUT_LEFT_BUTTON, GLUT_UP, 600, 150)');
+  });
+});
+
+describe('BB-RUN-23: A second button pressed while one is held reaches the Mouse handler', () => {
+  it('reports the right button down and up from the moves that change buttons', async () => {
+    setup();
+    getState().setCallbackHandler('mouse', 'onMouse');
+    const host = mount(h(RunOverlay, {}));
+    runController.start({ loop: false });
+    await settle();
+    const surface = host.querySelector('.run-surface') as HTMLElement;
+    const fire = (type: string, init: PointerEventInit) =>
+      surface.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: 30, clientY: 40, pointerId: 1, ...init }));
+    fire('pointerdown', { button: 0, buttons: 1 });
+    expect(runController.getSnapshot().lastCall).toBe('onMouse(GLUT_LEFT_BUTTON, GLUT_DOWN, 30, 40)');
+    fire('pointermove', { button: 2, buttons: 3 });
+    expect(runController.getSnapshot().lastCall).toBe('onMouse(GLUT_RIGHT_BUTTON, GLUT_DOWN, 30, 40)');
+    fire('pointermove', { button: 2, buttons: 1 });
+    expect(runController.getSnapshot().lastCall).toBe('onMouse(GLUT_RIGHT_BUTTON, GLUT_UP, 30, 40)');
+    fire('pointerup', { button: 0, buttons: 0 });
+    expect(runController.getSnapshot().lastCall).toBe('onMouse(GLUT_LEFT_BUTTON, GLUT_UP, 30, 40)');
+    render(null, host);
+    host.remove();
+  });
+});
+
+describe('BB-RUN-24: When the scene stops Run, focus stays where the student put it', () => {
+  it('keeps focus on an outside field, and still returns it to Run after Stop', async () => {
+    const { t } = setup();
+    const host = mount(h(RunOverlay, {}));
+    const field = document.createElement('input');
+    document.body.appendChild(field);
+    await settle();
+    (host.querySelector('.run-button') as HTMLButtonElement).click();
+    await settle();
+    field.focus();
+    getState().updateObjectName(t.id, 'Moved');
+    await settle();
+    expect(runController.getSnapshot().running).toBe(false);
+    expect(document.activeElement).toBe(field);
+    (host.querySelector('.run-button') as HTMLButtonElement).click();
+    await settle();
+    expect(document.activeElement).toBe(host.querySelector('.run-surface'));
+    press('Escape');
+    await settle();
+    expect(document.activeElement).toBe(host.querySelector('.run-button'));
+    field.remove();
+    render(null, host);
+    host.remove();
+  });
+});

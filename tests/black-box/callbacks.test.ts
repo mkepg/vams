@@ -9,10 +9,12 @@ import { locateHandlerBranch } from '@/features/code-generation/model/locate-bra
 import { useVamsStore } from '@/core/store';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import {
-  emptyCallbacks, isCallbackValid, isValidHandlerName, MAX_RULES,
+  emptyCallbacks, isCallbackValid, isValidHandlerName, MAX_RULES, sanitizeCallbacks,
 } from '@/core/callbacks/callbacks-model';
 import type { CallbackRule } from '@/core/types/scene';
-import { CALLBACK_DEFS, actionSentence, triggerChip, triggerPhrase, invalidNameMessage } from '@/features/callbacks/model/rule-copy';
+import {
+  CALLBACK_DEFS, actionSentence, availableActionTypes, invalidNameMessage, newRule, targetOptions, triggerChip, triggerPhrase,
+} from '@/features/callbacks/model/rule-copy';
 import { RUN_HINT, RUN_SURFACE_LABEL, RUN_POPOVER_COPY, RUN_EMPTY_REASON, RUN_NO_CALLBACK_REASON, RUN_OPEN_CALLBACKS } from '@/features/callbacks/ui/RunOverlay';
 import { HELP_TOPICS } from '@/features/help/model/help-content';
 import { PRIMITIVES_LESSONS } from '@/features/lesson-engine/model/primitives-lessons';
@@ -155,7 +157,9 @@ describe('BB-CB-12: A scene with no callbacks generates the same program as befo
   it('matches the stored fixture', () => {
     buildRichScene();
     const code = gen();
-    if (process.env.WRITE_CALLBACK_FIXTURE === '1' || !existsSync(FIXTURE)) writeFileSync(FIXTURE, code);
+    if (process.env.WRITE_CALLBACK_FIXTURE === '1') writeFileSync(FIXTURE, code);
+    // A missing fixture fails here: the guarantee must never pass against a file it just wrote.
+    expect(existsSync(FIXTURE)).toBe(true);
     expect(code).toBe(readFileSync(FIXTURE, 'utf8').replace(/\r\n/g, '\n'));
   });
 });
@@ -366,7 +370,8 @@ describe('BB-CB-13b: Invalid, reserved or duplicate names are left out of the co
     getState().setCallbackHandler('keyboard', 'onKey');
     add('keyboard', { id: 'a', objectId: t.id, trigger: { kind: 'keyboard', key: 'd' }, action: { type: 'translate', dx: 0.1, dy: 0 } });
     getState().toggleObjectVisibility(t.id);
-    expect(body(gen(), 'onKey')).toContain('// No rules yet');
+    expect(body(gen(), 'onKey')).not.toContain('translate_');
+    expect(body(gen(), 'onKey')).not.toContain('case ');
   });
 });
 
@@ -418,5 +423,101 @@ describe('BB-CB-17: No banned word in callbacks copy, help, narration or generat
     getState().addCallbackRule('mouse', { id: 'p', objectId: t.id, trigger: { kind: 'mouse', button: 'left', state: 'down' }, action: { type: 'moveToPointer' } });
     copy.push(comments(gen()));
     for (const text of copy) expect(text).not.toMatch(banned);
+  });
+});
+
+describe('BB-CB-18: A new rule takes the first trigger no rule uses yet', () => {
+  it('after D, A, W and S it offers another key, and repeats only when every trigger is taken', () => {
+    const t = addTriangle();
+    const keys = (...ks: string[]) => ks.map((key) => rule(t.id, { trigger: { kind: 'keyboard', key } }));
+    expect(newRule('keyboard', keys('d', 'a', 'w', 's'), getState().objects, 'n')!.trigger).toEqual({ kind: 'keyboard', key: 'b' });
+    expect(newRule('keyboard', keys('d'), getState().objects, 'n')!.trigger).toEqual({ kind: 'keyboard', key: 'a' });
+    const arrows = (['right', 'left', 'up', 'down'] as const).map((key) => rule(t.id, { trigger: { kind: 'special', key } }));
+    expect(newRule('special', arrows, getState().objects, 'n')!.trigger).toEqual({ kind: 'special', key: 'right' });
+  });
+});
+
+describe('BB-CB-19: A callback whose rules all act on hidden objects says so', () => {
+  it('names the hidden objects instead of "No rules yet"', () => {
+    const t = addTriangle();
+    getState().setCallbackHandler('keyboard', 'onKey');
+    add('keyboard', rule(t.id));
+    getState().toggleObjectVisibility(t.id);
+    const handler = body(gen(), 'onKey');
+    expect(handler).not.toContain('No rules yet');
+    expect(handler).toContain('    // Its rules act on hidden objects, which the program does not draw');
+    expect(handler).toContain('    glutPostRedisplay();');
+  });
+});
+
+describe('BB-CB-20: Handler names that clash with the program\'s libraries are refused', () => {
+  it('refuses library functions, macros and GL-style names, and keeps ordinary names', () => {
+    for (const name of ['rand', 'abort', 'clock', 'sin', 'exit', 'near', 'far', 'min', 'max', 'GL_KEY', 'GLUT_DOWN', 'GLU_X', 'GLEW_OK', 'glClear', 'glutInit', 'gluOrtho2D', 'glewInit', 'glVertex2f']) {
+      expect(isValidHandlerName(name), name).toBe(false);
+    }
+    for (const name of ['onKey', 'glow', 'global', 'gluey', 'nearby', 'randomise', 'onRand']) {
+      expect(isValidHandlerName(name), name).toBe(true);
+    }
+  });
+});
+
+describe('BB-CB-21: The store keeps rule keys and numbers valid', () => {
+  it('lower-cases keys, refuses keys outside the list, and turns non-finite numbers into defaults', () => {
+    const t = addTriangle();
+    getState().setCallbackHandler('keyboard', 'onKey');
+    add('keyboard', rule(t.id, { id: 'up', trigger: { kind: 'keyboard', key: 'D' } }));
+    expect(getState().callbacks.keyboard.rules[0].trigger).toEqual({ kind: 'keyboard', key: 'd' });
+    add('keyboard', rule(t.id, { id: 'bad', trigger: { kind: 'keyboard', key: '!' } }));
+    expect(getState().callbacks.keyboard.rules.map((r) => r.id)).toEqual(['up']);
+    getState().updateCallbackRule('keyboard', 'up', { trigger: { kind: 'keyboard', key: 'A' } });
+    expect(getState().callbacks.keyboard.rules[0].trigger).toEqual({ kind: 'keyboard', key: 'a' });
+    getState().updateCallbackRule('keyboard', 'up', { trigger: { kind: 'keyboard', key: 'ab' } });
+    expect(getState().callbacks.keyboard.rules[0].trigger).toEqual({ kind: 'keyboard', key: 'a' });
+    getState().updateCallbackRule('keyboard', 'up', { action: { type: 'translate', dx: Number.NaN, dy: Infinity } });
+    expect(getState().callbacks.keyboard.rules[0].action).toEqual({ type: 'translate', dx: 0, dy: 0 });
+    getState().updateCallbackRule('keyboard', 'up', { action: { type: 'scale', sx: Number.NaN, sy: 2 } });
+    expect(getState().callbacks.keyboard.rules[0].action).toEqual({ type: 'scale', sx: 1, sy: 2 });
+    getState().updateCallbackRule('keyboard', 'up', { action: { type: 'rotate', degrees: -Infinity } });
+    expect(getState().callbacks.keyboard.rules[0].action).toEqual({ type: 'rotate', degrees: 0 });
+    expect(gen()).not.toContain('NaN');
+  });
+});
+
+describe('BB-CB-22: Rules loaded from a file get unique ids', () => {
+  it('replaces repeated and missing ids', () => {
+    const raw = {
+      keyboard: {
+        handlerName: 'onKey',
+        rules: [
+          { id: 'x', objectId: 'o', trigger: { kind: 'keyboard', key: 'd' }, action: { type: 'reset' } },
+          { id: 'x', objectId: 'o', trigger: { kind: 'keyboard', key: 'a' }, action: { type: 'reset' } },
+          { objectId: 'o', trigger: { kind: 'keyboard', key: 'w' }, action: { type: 'reset' } },
+          { id: 'rule-keyboard-3', objectId: 'o', trigger: { kind: 'keyboard', key: 's' }, action: { type: 'reset' } },
+          { objectId: 'o', trigger: { kind: 'keyboard', key: 'q' }, action: { type: 'reset' } },
+        ],
+      },
+    };
+    const ids = sanitizeCallbacks(raw, new Set(['o'])).keyboard.rules.map((r) => r.id);
+    expect(ids).toHaveLength(5);
+    expect(new Set(ids).size).toBe(5);
+    expect(ids[0]).toBe('x');
+  });
+});
+
+describe('BB-CB-23: The Do and Object menus match the scene', () => {
+  it('leaves out actions with no target, and keeps a target that is no longer eligible', () => {
+    const a = addTriangle();
+    const b = addQuad(0.5, 0.5, 0.1);
+    const groupOnly = [{ ...a, id: 'g', type: 'GROUP' as const, parentId: null }];
+    expect(availableActionTypes('keyboard', groupOnly)).not.toContain('setColor');
+    expect(availableActionTypes('keyboard', groupOnly)).toContain('translate');
+    expect(availableActionTypes('mouse', getState().objects)).toContain('moveToPointer');
+    expect(availableActionTypes('keyboard', getState().objects)).toContain('setColor');
+    getState().createGroup([a.id, b.id]);
+    const objects = getState().objects;
+    const pointer = { id: 'p', objectId: a.id, trigger: { kind: 'mouse', button: 'left', state: 'down' }, action: { type: 'moveToPointer' } } as CallbackRule;
+    const options = targetOptions(pointer, objects);
+    expect(options.map((o) => o.id)).toContain(a.id);
+    expect(options.map((o) => o.id)).not.toContain(b.id);
   });
 });

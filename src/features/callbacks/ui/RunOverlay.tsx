@@ -46,8 +46,12 @@ export function RunControl() {
   // Forget the reason once it changes, so an undo that brings it back can't reopen the dialog unasked.
   if (openFor !== null && openFor !== reason) setOpenFor(null);
 
+  // Focus comes back to Run only when it went with the program window (Stop, Escape). When a store
+  // change stops Run, the student is working somewhere else, and focus stays there.
   useEffect(() => {
-    if (!snap.running && wasRunning.current) runButtonRef.current?.focus();
+    const active = document.activeElement;
+    const lost = !active || active === document.body || !active.isConnected;
+    if (!snap.running && wasRunning.current && lost) runButtonRef.current?.focus();
     wasRunning.current = snap.running;
   }, [snap.running]);
 
@@ -166,7 +170,7 @@ export function RunLayer() {
         }}
         onPointerMove={(e) => {
           const p = local(e);
-          runController.pointerMove(p.x, p.y, e.buttons !== 0);
+          runController.pointerMove(p.x, p.y, e.buttons);
         }}
         onContextMenu={(e) => e.preventDefault()}
       />

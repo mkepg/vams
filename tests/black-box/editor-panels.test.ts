@@ -951,3 +951,54 @@ describe('BB-PANEL-38: Buffers lists each choice as a row with its description',
     unmount(host);
   });
 });
+
+describe('BB-PANEL-39: Delete moves focus to the next rule, else the previous, else Add rule', () => {
+  it('never drops focus to the page', async () => {
+    const tri = addTriangle();
+    useVamsStore.getState().setCallbackHandler('keyboard', 'onKey');
+    for (const [id, k] of [['r1', 'd'], ['r2', 'a'], ['r3', 'w']] as const) {
+      useVamsStore.getState().addCallbackRule('keyboard', {
+        id, objectId: tri.id, trigger: { kind: 'keyboard', key: k }, action: { type: 'rotate', degrees: 15 },
+      });
+    }
+    const host = openCallbacks();
+    await settle();
+    const lines = () => [...host.querySelectorAll('.cb-rule__line')] as HTMLButtonElement[];
+    const remove = async (index: number) => {
+      lines()[index].click();
+      await settle();
+      button(host.querySelector('.cb-rule-form') as HTMLElement, 'Delete').click();
+      await settle();
+    };
+    await remove(0);
+    expect(document.activeElement).toBe(lines()[0]);
+    expect(document.activeElement?.getAttribute('aria-label')).toContain('when A is pressed');
+    await remove(1);
+    expect(document.activeElement).toBe(lines()[0]);
+    await remove(0);
+    expect(document.activeElement).toBe(host.querySelector('.cb-add-rule'));
+    unmount(host);
+  });
+});
+
+describe('BB-PANEL-40: Redo does not reopen the form of a rule that undo removed', () => {
+  it('keeps the form closed', async () => {
+    addTriangle();
+    useVamsStore.getState().setCallbackHandler('keyboard', 'onKey');
+    // Past the history throttle, so undo takes back only the new rule.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const host = openCallbacks();
+    await settle();
+    button(row(host, 'Keyboard'), 'Add rule').click();
+    await settle();
+    expect(host.querySelector('.cb-rule-form')).not.toBeNull();
+    useVamsStore.getState().undo();
+    await settle();
+    expect(host.querySelector('.cb-rule')).toBeNull();
+    useVamsStore.getState().redo();
+    await settle();
+    expect(host.querySelector('.cb-rule')).not.toBeNull();
+    expect(host.querySelector('.cb-rule-form')).toBeNull();
+    unmount(host);
+  });
+});

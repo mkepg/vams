@@ -23,6 +23,7 @@ tests/
 ├── fixtures/
 │   └── no-callbacks-program.cpp  ← The program generated for a scene with
 │                                    no callbacks, pinned by BB-CB-12.
+│                                    Rewrite it with WRITE_CALLBACK_FIXTURE=1.
 ├── black-box/                    ← Maps to Table 12.
 │   ├── primitive-creation.test.ts        (BB-PRIM-*)
 │   ├── transformation-operations.test.ts (BB-XFORM-*)
