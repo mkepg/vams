@@ -510,6 +510,7 @@ describe('BB-SITE-29: /learn is a finished, linked, prerendered page', () => {
     expect(NAV_LINKS.map(({ href, label }) => ({ href, label }))).toEqual([
       { href: '/', label: 'Home' },
       { href: '/learn', label: 'Learn' },
+      { href: '/gallery', label: 'Gallery' },
       { href: '/about', label: 'About' },
     ]);
     expect(buildSitemap(SITE)).toContain('<loc>https://example.test/learn/</loc>');
@@ -548,13 +549,14 @@ describe('BB-SITE-31: About is current only on /about, and has no icon', () => {
   });
 });
 
-describe('BB-SITE-32: The footer links run Learn, About, then the source', () => {
-  it('lists Learn and About ahead of the source and license links', () => {
+describe('BB-SITE-32: The footer links run Learn, Gallery, About, then the source', () => {
+  it('lists Learn, Gallery and About ahead of the source and license links', () => {
     const host = document.createElement('div');
     render(h(SiteFooter, {}), host);
     const links = [...host.querySelectorAll('.site-footer__links a')];
     expect(links.map((a) => [a.textContent, a.getAttribute('href')])).toEqual([
       ['Learn', '/learn'],
+      ['Gallery', '/gallery'],
       ['About', '/about'],
       ['Source on GitHub', 'https://github.com/mkepg/vams'],
     ]);
@@ -562,23 +564,25 @@ describe('BB-SITE-32: The footer links run Learn, About, then the source', () =>
   });
 });
 
-describe('BB-SITE-33: On phones the header CTA reads Open app', () => {
-  it('wraps "the " in a span that the 480 px rule hides', async () => {
+describe('BB-SITE-33: On narrow screens the header CTA reads Open app', () => {
+  it('wraps "the " in a span that the 760 px rule hides', async () => {
     const host = document.createElement('div');
     host.innerHTML = (await prerenderAt('/')).html;
     const cta = host.querySelector('.site-header__cta')!;
     expect(cta.textContent).toBe('Open the app');
     expect(cta.querySelector('.site-header__cta-the')!.textContent).toBe('the ');
     const scss = readFileSync('src/widgets/site-header/ui/site-header.scss', 'utf8').replace(/\r\n/g, '\n');
-    const phone = scss.slice(scss.indexOf('@media (max-width: 480px)'));
+    const start = scss.indexOf('@media (max-width: 760px)');
+    expect(start).toBeGreaterThanOrEqual(0);
+    const phone = scss.slice(start, scss.indexOf('@media', start + 1));
     expect(phone).toMatch(/\.site-header__cta-the\s*\{\s*display:\s*none;\s*\}/);
   });
 });
 
-describe('BB-SITE-34: Below 375 px the switcher drops Home', () => {
-  it('hides the list item that holds the Home link in the 374 px rule', () => {
+describe('BB-SITE-34: On narrow screens the switcher drops Home', () => {
+  it('hides the list item that holds the Home link in the 760 px rule', () => {
     const scss = readFileSync('src/widgets/site-header/ui/site-header.scss', 'utf8').replace(/\r\n/g, '\n');
-    const start = scss.indexOf('@media (max-width: 374px)');
+    const start = scss.indexOf('@media (max-width: 760px)');
     expect(start).toBeGreaterThanOrEqual(0);
     const rest = scss.slice(start + 1);
     const next = rest.indexOf('@media');

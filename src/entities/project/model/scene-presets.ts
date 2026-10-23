@@ -1,11 +1,14 @@
 import type { CurriculumSection } from '@/core/store/types';
-import type { CallbacksState, SceneNode, TransformState, Vertex } from '@/core/types/scene';
+import type { CallbacksState, SceneNode } from '@/core/types/scene';
 import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { sanitizeProjectData, type VamsProjectData } from './project-io';
 import { PRESET_LINKS, type PresetSlug } from './preset-links';
+import { at, node, vertices } from './scene-nodes';
+import { GALLERY_SCENES, type GallerySlug } from './gallery-links';
+import { GALLERY_BUILDERS, GALLERY_VIEW } from './gallery-scenes';
 
 export interface ScenePreset {
-  slug: PresetSlug;
+  slug: PresetSlug | GallerySlug;
   title: string;
   section: CurriculumSection;
   data: VamsProjectData;
@@ -13,41 +16,6 @@ export interface ScenePreset {
 
 /** Id of the editor's built-in "Brick wall" sample texture (features/textures/lib/sample-textures.ts). */
 const SAMPLE_BRICKS_ID = 'sample-bricks';
-const IDENTITY: TransformState = { translateX: 0, translateY: 0, rotate: 0, scaleX: 1, scaleY: 1 };
-
-/** A scene object with the same defaults the editor gives a newly placed shape. */
-function node(fields: Pick<SceneNode, 'id' | 'name' | 'type' | 'vertices'> & Partial<SceneNode>): SceneNode {
-  return {
-    visible: true,
-    shading: 'SMOOTH',
-    transform: { ...IDENTITY },
-    parentId: null,
-    children: [],
-    colorMode: 'FLOAT',
-    lineStipple: null,
-    renderingMode: 'IMMEDIATE',
-    bufferUsage: 'STATIC',
-    useIndexed: false,
-    updateMethod: 'BUFFER_SUB_DATA',
-    texture: null,
-    uvs: null,
-    ...fields,
-  };
-}
-
-function vertices(prefix: string, points: [number, number][], colors: string | string[]): Vertex[] {
-  return points.map(([x, y], i) => ({
-    id: `${prefix}-v${i}`,
-    x,
-    y,
-    color: typeof colors === 'string' ? colors : colors[i],
-  }));
-}
-
-function at(x: number, y: number): TransformState {
-  return { ...IDENTITY, translateX: x, translateY: y };
-}
-
 /** The home page's live demo triangle (src/pages/home/model/demo-code.ts), so the talk hands over seamlessly. */
 function triangle(): SceneNode[] {
   return [
@@ -167,14 +135,33 @@ const BUILDERS: Record<PresetSlug, { section: CurriculumSection; build: () => Sc
   'textured-quad': { section: 'Textures', build: texturedQuad },
 };
 
-export function isPresetSlug(slug: string): slug is PresetSlug {
-  return PRESET_LINKS.some((link) => link.slug === slug);
+/** A slug a scene link can name: a starter scene or a gallery scene. */
+export function isPresetSlug(slug: string): slug is PresetSlug | GallerySlug {
+  return PRESET_LINKS.some((link) => link.slug === slug) || GALLERY_SCENES.some((scene) => scene.slug === slug);
+}
+
+/** A gallery scene draws on its own background in the 16:9 view, without the editor's axes and grid. */
+function galleryData(slug: GallerySlug) {
+  const scene = GALLERY_BUILDERS[slug];
+  return {
+    objects: scene.build(),
+    callbacks: scene.callbacks(),
+    viewportLimits: { ...GALLERY_VIEW },
+    axisVisibility: { showGlobalAxes: false, showLocalAxes: false, showOriginMarker: false, showGridlines: false, showGridNumbers: false },
+    showCoordinateTracker: true,
+    canvasBackgroundColor: scene.background,
+    uploadedTextures: [...(scene.textures ?? [])],
+  };
 }
 
 /** A fresh copy of a prepared scene, passed through the same validator as an opened file. */
 export function getPreset(slug: string): ScenePreset | undefined {
   const link = PRESET_LINKS.find((l) => l.slug === slug);
-  if (!link) return undefined;
-  const { section, build, callbacks } = BUILDERS[link.slug];
-  return { slug: link.slug, title: link.title, section, data: sanitizeProjectData({ objects: build(), callbacks: callbacks?.() }) };
+  if (link) {
+    const { section, build, callbacks } = BUILDERS[link.slug];
+    return { slug: link.slug, title: link.title, section, data: sanitizeProjectData({ objects: build(), callbacks: callbacks?.() }) };
+  }
+  const scene = GALLERY_SCENES.find((s) => s.slug === slug);
+  if (!scene) return undefined;
+  return { slug: scene.slug, title: scene.title, section: GALLERY_BUILDERS[scene.slug].section, data: sanitizeProjectData(galleryData(scene.slug)) };
 }

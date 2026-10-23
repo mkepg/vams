@@ -282,6 +282,11 @@
 
   }
 
+  /* The gallery sits on its own line under the starting points. */
+  &__gallery {
+    flex-basis: 100%;
+  }
+
   a {
     color: var(--ink);
     text-decoration: underline;

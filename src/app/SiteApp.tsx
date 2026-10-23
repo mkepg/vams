@@ -3,6 +3,7 @@ import { ErrorBoundary, LocationProvider, Route, Router } from 'preact-iso';
 import HomePage from '@/pages/home';
 import LearnPage from '@/pages/learn';
 import AboutPage from '@/pages/about';
+import GalleryPage from '@/pages/gallery';
 import EditorPage from '@/pages/editor';
 import NotFoundPage from '@/pages/not-found';
 import { findRouteMeta } from '@/app/routes/route-meta';
@@ -30,6 +31,7 @@ export default function SiteApp() {
         <Router onRouteChange={syncDocumentTitle}>
           <Route path="/" component={HomePage} />
           <Route path="/learn" component={LearnPage} />
+          <Route path="/gallery" component={GalleryPage} />
           <Route path="/about" component={AboutPage} />
           <Route path="/app" component={EditorPage} />
           <Route path="/s/:id" component={EditorPage} />

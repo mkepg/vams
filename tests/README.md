@@ -38,6 +38,8 @@ tests/
 │   │                                        backups, dialog)
 │   ├── editor-links.test.ts              (BB-LINK-*: prepared scenes,
 │   │                                        /app links, slide 07)
+│   ├── gallery.test.ts                   (BB-GALLERY-*: gallery scenes,
+│   │                                        their links, the /gallery page)
 │   ├── about-page.test.ts                (BB-ABOUT-*: The /about page: copy,
 │   │                                        citation tabs, prerendered page,
 │   │                                        import boundary)
@@ -125,6 +127,8 @@ tests/
 │   ├── learn.spec.ts                     (VIS-LEARN-*: the /learn course map)
 │   ├── about.spec.ts                     (VIS-ABOUT-*: the /about page at
 │   │                                        1280 and 390, citation tabs)
+│   ├── gallery.spec.ts                   (VIS-GALLERY-*: the /gallery page at
+│   │                                        1280 and 390, a card opening its scene)
 │   ├── lesson-blocks.spec.ts             (VIS-LB-*: goals, recap, predict and
 │   │                                        fill-in steps in both themes)
 │   ├── code-math.spec.ts                 (VIS-CM-*: the code panel and the math journey in the approved mocks' scene)
@@ -182,7 +186,7 @@ browsers) that the developer's CI machine cannot be assumed to have:
 * **Compilation of generated C++** — see `reports/manual-compile-procedure.md`.
 * **Cross-browser execution** — see `reports/manual-cross-browser-procedure.md`.
 * **Playwright UI scenarios** — out of scope for this iteration. The only
-  Playwright suite is the screenshot check set (VIS-EDITOR, VIS-LEARN, VIS-ABOUT), which needs a
+  Playwright suite is the screenshot check set (VIS-EDITOR, VIS-LEARN, VIS-ABOUT, VIS-GALLERY), which needs a
   locally created baseline and is not part of `npm test` or CI.
 
 Their results, once collected, are inserted into the corresponding

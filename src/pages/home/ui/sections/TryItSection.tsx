@@ -20,6 +20,7 @@ export default function TryItSection() {
             </li>
           ))}
         </ul>
+        <a className="try-presets__gallery" href="/gallery">{TRY_IT.gallery}</a>
       </nav>
       <figure className="try-qr">
         <QrCode text={SHARE_ORIGIN} label={`QR code for ${TRY_IT.displayUrl}`} size={168} className="try-qr__code" />

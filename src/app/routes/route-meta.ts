@@ -27,6 +27,13 @@ export const ROUTES: readonly RouteMeta[] = [
     indexable: true,
   },
   {
+    path: '/gallery',
+    title: 'Gallery — VAMS',
+    description:
+      'Finished scenes made in VAMS, from a jeepney street to a solar system. Open one in the editor, press Run, and read the OpenGL that draws it.',
+    indexable: true,
+  },
+  {
     path: '/about',
     title: 'About — VAMS',
     description:
