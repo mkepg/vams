@@ -24,7 +24,7 @@ The overhaul has three goals:
 | Themes | `dark` and `light`. A first visit follows the operating system; the toggle overrides it and is remembered. One choice is shared by the site and the editor |
 | Logo | The pixel wordmark: "VAMS" in Minecrafter, yellow with a black outline and a cyan offset shadow. A pixel "V" is the favicon |
 | Framework | Preact + Vite. preact-iso routing; the editor is lazy-loaded on `/app`; content pages are prerendered at build time with per-page metadata. Next.js was considered and rejected: migration risk before the expo, and no server needs at the time. Sharing later added one Pages Function and one KV namespace for shared scenes ([editor chrome and sharing](2026-10-16-editor-chrome-share-design.md)) |
-| Pages | Home `/`, editor `/app`, About `/about`, Learn `/learn`, Guide `/guide`. The header links only finished pages |
+| Pages | Home `/`, editor `/app`, About `/about`, Learn `/learn`, Gallery `/gallery`, Guide `/guide`. The header links only finished pages |
 | Accessibility | WCAG 2.2 AA in every sub-project |
 | Analytics | None for now |
 | Editor freeze | No large editor changes after **2026-10-28**, so a late regression cannot break the live demo |
@@ -54,7 +54,7 @@ The product rules in `AGENTS.md` and [docs/product-plan.md](../product-plan.md) 
 ### Should
 
 8. Shareable scene links and QR code. Complete (2026-10-17) with the editor chrome and sharing project
-9. Example gallery of curated scenes
+9. Example gallery of curated scenes. Complete (2026-10-23): [spec](2026-10-23-example-gallery-design.md). A `/gallery` page of five finished scenes that run, led by the jeepney street, each opening in the editor from its scene link
 10. `/learn` page (replaces the SP4 Learn hub): the course map outside the editor, reusing the Learn drawer's course data and progress. By Nov 2. The Guide page follows it. Complete (2026-10-10): [spec](2026-10-10-learn-page-design.md), [plan](../plans/2026-10-10-learn-page.md)
 11. Polish the demo lesson(s)
 12. Screenshot regression checks, a safety net for SP5. Done with SP5 (`npm run test:visual`)
@@ -207,6 +207,7 @@ The thesis manuscript is final and describes the evaluated build. The overhauled
 19. The evaluated canvas filled the space it was given, so its shape followed the layout. The program window now opens, refits and maximises to the viewing volume's shape, so a square draws square; the student's own resize still stretches it, as GLUT does.
 20. In the evaluated build the panel drawer below 1100 px covered the left of the canvas. It now takes its place beside the canvas, which narrows to make room.
 21. The evaluated canvas drew text in a smooth display font, centred on its position, that scaled and rotated with the object, while the generated code drew GLUT's 9×15 bitmap font. The canvas now draws those same bitmap glyphs in window pixels from the raster position, as the compiled program does. The generated code starts the first line at the text's position, with the lines 17 window pixels apart, where it used to centre them 0.07 units apart. A group holding text or another group now draws it inline; before, it called a `draw_` function the program never declared.
+22. The manuscript's prepared content is the lesson library. The site now also has a gallery of five finished scenes with callbacks, which open in the editor like any prepared scene (example gallery).
 
 The following manuscript descriptions may also be crossed by later sub-projects. When one is, it is added to the list above:
 - The default canvas background `#000000`. Changing it changes generated code and the replay baseline.

@@ -94,6 +94,7 @@ export const TRY_IT = {
   cta: 'Open the app',
   note: 'Runs in your desktop browser. Nothing to install.',
   startFrom: 'Start from:',
+  gallery: 'Or open a finished scene from the gallery',
   /** Must match DEFAULT_SITE_URL in src/app/routes/route-meta.ts (checked by BB-HOME-12). */
   displayUrl: 'vams.pages.dev',
 };

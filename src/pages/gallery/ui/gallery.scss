@@ -1,0 +1,150 @@
+/* The gallery: an introduction, the lead scene wide, then the rest two to a row. */
+.gallery {
+  padding: var(--space-7) var(--site-gutter) var(--space-8);
+
+  &__intro { max-width: 760px; margin-bottom: var(--space-6); }
+  &__title {
+    margin: 0 0 var(--space-3);
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: var(--text-2xl);
+    line-height: var(--lh-2xl);
+    letter-spacing: -0.01em;
+  }
+  &__lede {
+    margin: 0;
+    max-width: 62ch;
+    font-size: var(--text-lg);
+    line-height: 1.55;
+    color: var(--ink-muted);
+  }
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-6);
+    margin-top: var(--space-6);
+  }
+}
+
+/* The whole card opens the scene: the link's overlay covers it, and only the link takes focus. */
+.gallery-card {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-m);
+  background: var(--paper-raised);
+  overflow: hidden;
+  transition: border-color 120ms ease;
+
+  &:hover { border-color: var(--rule-strong); }
+  &:hover &__open { text-decoration: underline; text-underline-offset: 3px; }
+  &:focus-within { border-color: var(--accent); }
+
+  &__image {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    background: var(--paper-sunken);
+    border-bottom: 1px solid var(--rule);
+  }
+  &__body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5) var(--space-5);
+  }
+  &__title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: var(--text-xl);
+    line-height: var(--lh-xl);
+  }
+  &__summary { margin: 0; font-size: var(--text-md); line-height: var(--lh-md); color: var(--ink-muted); }
+  &__shows {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    li {
+      padding: 2px var(--space-2);
+      border: 1px solid var(--rule);
+      border-radius: var(--radius-s);
+      background: var(--paper);
+      font-size: var(--text-sm);
+      color: var(--ink);
+    }
+  }
+  &__run {
+    margin: 0;
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    color: var(--ink);
+  }
+  &__run-label {
+    margin-right: var(--space-2);
+    font-weight: 600;
+    color: var(--accent-text);
+  }
+  &__open {
+    margin-top: auto;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-weight: 600;
+    font-size: var(--text-md);
+    color: var(--accent-text);
+    text-decoration: none;
+    &::after {
+      content: '→';
+      content: '→' / '';
+      margin-left: var(--space-2);
+      transition: transform 120ms ease;
+    }
+    /* Stretches the link over the card, so the image and text open the scene too. */
+    &::before { content: ''; position: absolute; inset: 0; }
+    &:focus-visible { outline: none; }
+    &:focus-visible::before { outline: 2px solid var(--focus-ring); outline-offset: -2px; border-radius: var(--radius-m); }
+  }
+  &:hover &__open::after { transform: translateX(3px); }
+
+  &--lead {
+    grid-template-rows: none;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    .gallery-card__image { height: 100%; border-bottom: 0; border-right: 1px solid var(--rule); }
+    .gallery-card__body { padding: var(--space-5) var(--space-6); justify-content: center; }
+    .gallery-card__title { font-size: var(--text-2xl); line-height: var(--lh-2xl); }
+    .gallery-card__open { margin-top: var(--space-2); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery-card { transition: none; }
+  .gallery-card__open::after { transition: none; }
+  .gallery-card:hover .gallery-card__open::after { transform: none; }
+}
+
+@media (max-width: 900px) {
+  .gallery-card--lead {
+    grid-template-columns: minmax(0, 1fr);
+    .gallery-card__image { height: auto; border-right: 0; border-bottom: 1px solid var(--rule); }
+    .gallery-card__body { padding: var(--space-4) var(--space-5) var(--space-5); }
+    .gallery-card__title { font-size: var(--text-xl); line-height: var(--lh-xl); }
+  }
+}
+
+@media (max-width: 719px) {
+  .gallery__grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .gallery { padding-top: var(--space-6); }
+  .gallery-card__body,
+  .gallery-card--lead .gallery-card__body { padding: var(--space-3) var(--space-4) var(--space-4); }
+}

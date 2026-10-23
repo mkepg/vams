@@ -64,19 +64,20 @@ test('VIS-LEARN-04: An index link brings its section below the sticky header', a
   expect(top).toBeGreaterThanOrEqual(headerBottom);
 });
 
-test('VIS-LEARN-05: The header page switcher fits 360–390 px phones on every site page', async ({ page }) => {
-  for (const width of [360, 375, 390]) {
+test('VIS-LEARN-05: The header page switcher fits 320–760 px screens on every site page', async ({ page }) => {
+  for (const width of [320, 360, 375, 390, 480, 520, 640, 760]) {
     await page.setViewportSize({ width, height: 844 });
-    for (const path of ['/', '/learn', '/about', '/404']) {
+    for (const path of ['/', '/learn', '/gallery', '/about', '/404']) {
       const label = `${width} ${path}`;
       await page.goto(path);
       await page.waitForSelector('.site-header');
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow, label).toBeLessThanOrEqual(0);
       const home = page.locator('.site-header__link', { hasText: 'Home' });
-      if (width >= 375) await expect(home, label).toBeVisible();
-      else await expect(home, label).toBeHidden();
+      // The logo links home, so on narrow screens the switcher drops its Home segment.
+      await expect(home, label).toBeHidden();
       await expect(page.locator('.site-header__link', { hasText: 'Learn' }), label).toBeVisible();
+      await expect(page.locator('.site-header__link', { hasText: 'Gallery' }), label).toBeVisible();
       await expect(page.locator('.site-header__link', { hasText: 'About' }), label).toBeVisible();
       await expect(page.locator('.site-header__cta'), label).toHaveText('Open app', { useInnerText: true });
       await expect(page.locator('.site-header__cta'), label).toBeVisible();
