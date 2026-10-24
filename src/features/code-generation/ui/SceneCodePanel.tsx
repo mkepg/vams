@@ -17,13 +17,15 @@ import type { RuleTrigger } from '@/core/types/scene';
 interface SceneCodePanelProps {
   /** The handler branch Run just fired; its lines flash in the code. */
   flashBranch?: { handlerName: string; trigger: RuleTrigger | null; seq: number } | null;
+  /** The last branch Run fired; it stays unfolded after its flash until Run stops. */
+  heldBranch?: { handlerName: string; trigger: RuleTrigger | null } | null;
   headerLead?: ComponentChildren;
   headerTrail?: ComponentChildren;
 }
 
 const NO_LINES: number[] = [];
 
-export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }: SceneCodePanelProps = {}) {
+export default function SceneCodePanel({ flashBranch, heldBranch, headerLead, headerTrail }: SceneCodePanelProps = {}) {
   const objects = useVamsStore((s) => s.objects);
   const selectedObjectId = useVamsStore((s) => s.selectedObjectId);
   const canvasBackgroundColor = useVamsStore((s) => s.canvasBackgroundColor);
@@ -99,14 +101,18 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
     () => (flashBranch ? locateHandlerBranch(generatedCode, flashBranch.handlerName, flashBranch.trigger) : NO_LINES),
     [flashBranch, generatedCode],
   );
+  const heldLines = useMemo(
+    () => (heldBranch ? locateHandlerBranch(generatedCode, heldBranch.handlerName, heldBranch.trigger) : NO_LINES),
+    [heldBranch, generatedCode],
+  );
   const { marks, key: marksKey } = useValueMarks(generatedCode, canvasSize, `${appMode}:${activeLessonId ?? ''}:${sceneSwapSeq}`, selectedObjectId);
   const [findLine, setFindLine] = useState<number | null>(null);
   const lessonLines = isLessonMode ? changedCodeLines : NO_LINES;
 
   const rows = useMemo(() => {
-    const forced = [...lessonLines, ...marks.map((m) => m.line), ...flashLines, ...(findLine === null ? [] : [findLine]), ...(explained === null ? [] : [explained])];
+    const forced = [...lessonLines, ...marks.map((m) => m.line), ...flashLines, ...heldLines, ...(findLine === null ? [] : [findLine]), ...(explained === null ? [] : [explained])];
     return visibleRows(outline, selection, opened, forced, closed);
-  }, [outline, selection, opened, closed, lessonLines, marks, flashLines, findLine, explained]);
+  }, [outline, selection, opened, closed, lessonLines, marks, flashLines, heldLines, findLine, explained]);
 
   // A block whose first line shows its ▾ is open, whoever opened it: that toggle folds it, any other opens it.
   const openBlocks = useMemo(() => new Set(rows.flatMap((r) => (r.kind === 'line' && r.closes ? [r.closes.block] : []))), [rows]);
@@ -120,6 +126,20 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
     if (flashLines.length > 0) return flashLines;
     return lessonLines.length > 0 ? lessonLines : marks.map((m) => m.line);
   }, [flashLines, lessonLines, marks]);
+
+  // A new selection scrolls the code to the function that draws it. Groups and text are drawn
+  // inline in draw(), where a group's lines also hold its children's; text in a group is found by
+  // its state. Run's branch and a lesson's highlight keep their place.
+  const follow = useMemo(() => {
+    if (selection === null || !selectedObjectId) return null;
+    const block = outline.blocks.find((b) => b.id === `draw:${selection}`);
+    const own = `state_${selection}.`;
+    const lines = block
+      ? Array.from({ length: block.end - block.start + 1 }, (_, i) => block.start + i)
+      : outline.lines.flatMap((l, i) => (l.block === 'draw' && (l.object === selection || l.text.includes(own)) ? [i] : []));
+    if (lines.length === 0) return null;
+    return { key: selectedObjectId, lines, hold: flashLines.length > 0 || lessonLines.length > 0 };
+  }, [outline, selection, selectedObjectId, flashLines, lessonLines]);
 
   // A note's value is amber when the student's last edit changed the state field it shows.
   const changedRefs = useMemo(
@@ -181,6 +201,7 @@ export default function SceneCodePanel({ flashBranch, headerLead, headerTrail }:
       marks={marks}
       marksKey={marksKey}
       revealLines={revealLines}
+      follow={follow}
       firedLines={flashLines}
       firedSeq={flashBranch?.seq}
       onFindLine={setFindLine}

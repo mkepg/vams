@@ -6,7 +6,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
 import { useVamsStore, STORAGE_KEY } from '@/core/store';
 import { buildProjectFile } from '@/entities/project/model/project-io';
-import { canRun, runController } from '@/features/callbacks/model/run-controller';
+import { canRun, FLASH_MS, runController } from '@/features/callbacks/model/run-controller';
 import { makeFakeDisplay, registerFakeRenderer, type FakeDisplay } from '../helpers/fake-renderer';
 import { addTriangle, getState } from '../helpers/store';
 import RunOverlay, { RUN_EMPTY_REASON, RUN_HINT, RUN_NO_CALLBACK_REASON, RUN_OPEN_CALLBACKS } from '@/features/callbacks/ui/RunOverlay';
@@ -654,6 +654,43 @@ describe('BB-RUN-24: When the scene stops Run, focus stays where the student put
     await settle();
     expect(document.activeElement).toBe(host.querySelector('.run-button'));
     field.remove();
+    render(null, host);
+    host.remove();
+  });
+});
+
+describe('BB-RUN-25: The handler that fired stays open in the code until Run stops', () => {
+  it('keeps the last branch after its flash ends, and clears it on Stop', () => {
+    vi.useFakeTimers();
+    try {
+      setup();
+      runController.start({ loop: false });
+      press('d');
+      const fired = { handlerName: 'onKey', trigger: { kind: 'keyboard', key: 'd' } };
+      expect(runController.getSnapshot().lastFired).toMatchObject(fired);
+      vi.advanceTimersByTime(FLASH_MS + 1);
+      expect(runController.getSnapshot().fired).toBeNull();
+      expect(runController.getSnapshot().lastFired).toMatchObject(fired);
+      runController.stop();
+      expect(runController.getSnapshot().lastFired).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows the held branch unfolded and unlit once the flash is over', async () => {
+    const { t } = setup();
+    getState().selectObject(t.id);
+    const held = { handlerName: 'onKey', trigger: { kind: 'keyboard' as const, key: 'd' } };
+    const host = mount(h(SceneCodePanel, { heldBranch: held }));
+    await settle();
+    const shown = [...host.querySelectorAll('.code-line .code-line__text')].map((el) => el.textContent?.trim());
+    expect(shown).toEqual(expect.arrayContaining(["case 'd':", 'break;']));
+    expect(host.querySelector('.code-line.is-fired')).toBeNull();
+    render(h(SceneCodePanel, {}), host);
+    await settle();
+    const folded = [...host.querySelectorAll('.code-line .code-line__text')].map((el) => el.textContent?.trim());
+    expect(folded).not.toContain("case 'd':");
     render(null, host);
     host.remove();
   });

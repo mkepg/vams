@@ -7,6 +7,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
 import CodeViewer, { lineSegments } from '@/shared/ui/code-viewer/CodeViewer';
 import type { CodeRow } from '@/shared/ui/code-viewer/types';
+import { REVEAL_PADDING, revealTop, scrollBehavior } from '@/shared/ui/code-viewer/reveal-scroll';
 import { useVamsStore } from '@/core/store';
 import SceneCodePanel from '@/features/code-generation/ui/SceneCodePanel';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
@@ -926,5 +927,151 @@ describe('BB-CODE-39: Each toggle is a button with aria-expanded and a label tha
     expect(key(toggle, 'Enter').defaultPrevented).toBe(false);
     expect(key(toggle, ' ').defaultPrevented).toBe(false);
     unmount(host);
+  });
+});
+
+describe('BB-CODE-40: A long scroll jumps, so a flash is still lit when its line arrives', () => {
+  it('glides within two screens, jumps beyond them, and never glides with reduced motion', () => {
+    expect(scrollBehavior(0, 800, 400, false)).toBe('smooth');
+    expect(scrollBehavior(0, 801, 400, false)).toBe('auto');
+    expect(scrollBehavior(5000, 100, 400, false)).toBe('auto');
+    expect(scrollBehavior(0, 100, 400, true)).toBe('auto');
+  });
+
+  it('centres lines that fit and puts taller ones at the top, below a little room', () => {
+    expect(revealTop(1000, 40, 400)).toBe(1000 - 200 + 20);
+    expect(revealTop(1000, 300, 400)).toBe(1000 - REVEAL_PADDING);
+    expect(revealTop(10, 20, 400)).toBe(0);
+  });
+});
+
+describe('BB-CODE-41: Choosing an object scrolls the code to its draw function', () => {
+  /** Lays the code out as 20 px rows in a 200 px window, so happy-dom can tell what is on screen. */
+  function layOut() {
+    const original = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      const scroller = this.closest('.code-content') as HTMLElement | null;
+      if (this.classList.contains('code-content')) return { top: 0, bottom: 200, height: 200, left: 0, right: 300, width: 300, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
+      if (!scroller) return original.call(this);
+      const rows = [...scroller.querySelectorAll('[data-line], .code-fold-row')];
+      const top = rows.indexOf(this) * 20 - scroller.scrollTop;
+      return { top, bottom: top + 20, height: 20, left: 0, right: 300, width: 300, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
+    };
+    return () => { Element.prototype.getBoundingClientRect = original; };
+  }
+  const frame = () => new Promise((r) => requestAnimationFrame(() => r(null)));
+  /** happy-dom keeps scrollTop at 0 without layout; give the code window one it can set. */
+  function scrollable(host: HTMLElement) {
+    const scroller = host.querySelector('.code-content') as HTMLElement;
+    let top = 0;
+    Object.defineProperty(scroller, 'scrollTop', { configurable: true, get: () => top, set: (v: number) => { top = v; } });
+    return scroller;
+  }
+  const ROWS = '.code-content [data-line], .code-content .code-fold-row';
+
+  it('brings an off-screen draw_ function to the top, and leaves one already on screen alone', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(null);
+    const restore = layOut();
+    const scrollTo = vi.fn();
+    const original = HTMLElement.prototype.scrollTo;
+    HTMLElement.prototype.scrollTo = scrollTo as unknown as typeof original;
+    try {
+      const host = mount(h(SceneCodePanel, {}));
+      await settle();
+      const scroller = scrollable(host);
+      // The student has scrolled far down, past every draw_ function.
+      scroller.scrollTop = 4000;
+      getState().selectObject(tri.id);
+      await settle();
+      await frame();
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      const signature = [...host.querySelectorAll('[data-line]')].find((el) => el.textContent?.includes('void draw_Triangle()'))!;
+      const rows = [...host.querySelectorAll(ROWS)];
+      expect(scrollTo.mock.calls[0][0].top).toBe(rows.indexOf(signature) * 20 - REVEAL_PADDING);
+      // Once the code shows draw_Triangle(), choosing Triangle again moves nothing.
+      scrollTo.mockClear();
+      scroller.scrollTop = rows.indexOf(signature) * 20;
+      getState().selectObject(null);
+      await settle();
+      getState().selectObject(tri.id);
+      await settle();
+      await frame();
+      expect(scrollTo).not.toHaveBeenCalled();
+      unmount(host);
+    } finally {
+      HTMLElement.prototype.scrollTo = original;
+      restore();
+    }
+  });
+
+  /** Mounts the panel with scrollTo spied on and the code laid out; `run` gets the host and the spy. */
+  async function withPanel(run: (host: HTMLElement, scrollTo: ReturnType<typeof vi.fn>) => Promise<void>) {
+    const restore = layOut();
+    const scrollTo = vi.fn();
+    const original = HTMLElement.prototype.scrollTo;
+    HTMLElement.prototype.scrollTo = scrollTo as unknown as typeof original;
+    const host = mount(h(SceneCodePanel, {}));
+    try {
+      await settle();
+      await frame();
+      await run(host, scrollTo);
+    } finally {
+      unmount(host);
+      HTMLElement.prototype.scrollTo = original;
+      restore();
+    }
+  }
+  /** Where the follow puts the first line containing `text`. */
+  const followTop = (host: HTMLElement, text: string) => {
+    const rows = [...host.querySelectorAll(ROWS)];
+    return rows.findIndex((el) => el.textContent?.includes(text)) * 20 - REVEAL_PADDING;
+  };
+
+  it('stays put when an edit, not a new selection, changes the code', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(tri.id);
+    await withPanel(async (host, scrollTo) => {
+      scrollable(host).scrollTop = 4000;
+      scrollTo.mockClear();
+      getState().updateObjectTransform(tri.id, { translateX: 0.55 });
+      await settle();
+      await frame();
+      const target = followTop(host, 'void draw_Triangle()');
+      expect(scrollTo.mock.calls.every(([o]) => o.top !== target)).toBe(true);
+    });
+  });
+
+  it('still follows the next selection after an edit left its changed values marked', async () => {
+    const { tri, square } = mockScene();
+    getState().selectObject(square.id);
+    await withPanel(async (host, scrollTo) => {
+      getState().updateObjectTransform(square.id, { translateX: -0.4 });
+      await settle();
+      await frame();
+      scrollable(host).scrollTop = 4000;
+      scrollTo.mockClear();
+      getState().selectObject(tri.id);
+      await settle();
+      await frame();
+      await settle();
+      expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ top: followTop(host, 'void draw_Triangle()') }));
+    });
+  });
+
+  it('follows a group, which draw() draws inline', async () => {
+    const { tri, square } = mockScene();
+    getState().createGroup([tri.id, square.id]);
+    const group = getState().objects.find((o) => o.type === 'GROUP')!;
+    getState().selectObject(null);
+    await withPanel(async (host, scrollTo) => {
+      scrollable(host).scrollTop = 4000;
+      scrollTo.mockClear();
+      getState().selectObject(group.id);
+      await settle();
+      await frame();
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      expect(scrollTo.mock.calls[0][0].top).toBe(followTop(host, `// ${group.name}`));
+    });
   });
 });

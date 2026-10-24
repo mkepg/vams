@@ -8,6 +8,9 @@
   font-size: inherit;
 }
 
+// Four 24 px action buttons and a gap before them.
+$tree-actions-width: calc(4 * 24px + var(--space-1));
+
 .tree-list {
   list-style: none;
   padding: 0;
@@ -46,12 +49,14 @@
       }
     }
 
+    // As tall as the action buttons that sit over the row, so the row's height never depends on them.
     .label {
       display: flex;
       align-items: center;
       gap: 6px;
       flex: 1;
       min-width: 0;
+      min-height: 24px;
 
       .tree-icon {
         display: inline-flex;
@@ -90,10 +95,15 @@
       }
     }
 
+    // The actions sit over the end of the row, so only the row showing them gives up room for them.
     .item-actions {
+      position: absolute;
+      top: 50%;
+      right: var(--space-1);
       display: flex;
-      flex-shrink: 0;
       opacity: 0;
+      pointer-events: none;
+      transform: translateY(-50%);
       transition: opacity 0.15s ease;
 
       .vbtn--icon {
@@ -111,12 +121,18 @@
       }
     }
 
+    // Keyboard focus shows the actions; a button kept focused by a click does not hold them open.
     &:hover,
-    &:focus-within {
+    &:has(:focus-visible) {
       background: var(--paper-sunken);
+
+      .label {
+        padding-right: $tree-actions-width;
+      }
 
       .item-actions {
         opacity: 1;
+        pointer-events: auto;
       }
     }
 
@@ -153,8 +169,15 @@
     }
   }
 
-  .tree-node:focus-visible > .tree-item .item-actions {
-    opacity: 1;
+  .tree-node:focus-visible > .tree-item {
+    .label {
+      padding-right: $tree-actions-width;
+    }
+
+    .item-actions {
+      opacity: 1;
+      pointer-events: auto;
+    }
   }
 }
 

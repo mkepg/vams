@@ -64,7 +64,7 @@ export const UNDER_THE_HOOD = {
     },
     {
       term: 'Verified',
-      text: 'More than 270 automated tests, with the matrix math checked against an independent reference implementation.',
+      text: 'More than 1,600 automated tests, with the matrix math checked against an independent reference implementation.',
     },
   ],
   stack: ['Preact', 'TypeScript', 'Zustand + Immer', 'PixiJS 8', 'Vitest'],

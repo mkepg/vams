@@ -11,7 +11,7 @@ import './code-math-column.scss';
 
 /** The right column: the generated code or the math behind it, one at a time, and Hide. */
 export default function CodeMathColumn() {
-  const { running, fired } = useRunSnapshot();
+  const { running, fired, lastFired } = useRunSnapshot();
   const pane = useVamsStore((s) => s.codePane);
   const hidden = useVamsStore((s) => s.codeHidden);
   const unseen = useVamsStore((s) => s.codeChangedUnseen);
@@ -84,7 +84,7 @@ export default function CodeMathColumn() {
   return (
     <div className="code-math-column">
       {pane === 'code' ? (
-        <SceneCodePanel flashBranch={flashBranch} headerLead={lead} headerTrail={hide} />
+        <SceneCodePanel flashBranch={flashBranch} heldBranch={lastFired} headerLead={lead} headerTrail={hide} />
       ) : (
         <MathPanel headerLead={lead} headerTrail={hide} contentInert={running} />
       )}

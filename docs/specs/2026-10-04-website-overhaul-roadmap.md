@@ -108,10 +108,12 @@ These issues already exist on the `main` from before the overhaul. They are wort
 
 The site is hosted on Cloudflare Pages at <https://vams.pages.dev/> since 2026-10-12, built from `main` on every push. The old address <https://panic-vams.netlify.app/> forwards there with a 301 from the static site in `deploy/netlify-forward/`, which `netlify.toml` publishes only when those files change. Cloudflare returns a real 404 status for unknown pages (`curl -I https://vams.pages.dev/nope`, checked 2026-10-23).
 
+Dry run (2026-10-24): the whole talk ran against the production build at 1920, 1366 and 1280 px wide in both themes, with no layout or console problems. Four rough spots were fixed ([spec](2026-10-24-stage-dry-run-design.md)): names cut short in the scene list, the code not following a new selection, Run's branch arriving after its flash, and the slide's out-of-date test count. Stepping past the last slide now opens the jeepney street.
+
 Rehearsal checklist (Nov 3):
 
 - On the demo machine, open `/` and `/app` once online and wait for "VAMS now works offline". Then turn networking off and run the whole talk.
-- Open each "Start from" link on slide 07 once.
+- Open each "Start from" link on slide 07 once, and the jeepney street, which stepping past slide 07 opens.
 - Present fullscreen and test the F key.
 - Dismiss the editor welcome dialog on the demo machine.
 - Step through every slide at the projector's real resolution.
