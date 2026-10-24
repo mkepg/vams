@@ -23,6 +23,8 @@ export interface RunSnapshot {
   running: boolean;
   lastCall: string | null;
   fired: RunFired | null;
+  /** The last handler that fired, kept open in the code after its flash until Run stops. */
+  lastFired: RunFired | null;
   window: { width: number; height: number } | null;
   canvas: { width: number; height: number } | null;
 }
@@ -35,7 +37,7 @@ const KEYBOARD = /^[a-zA-Z0-9 ]$/;
 const BUTTONS: MouseButton[] = ['left', 'middle', 'right'];
 /** Pointer Events' `buttons` bit for each MouseEvent `button`: left 1, middle 4, right 2. */
 const BUTTON_BITS = [1, 4, 2];
-const STOPPED: RunSnapshot = { running: false, lastCall: null, fired: null, window: null, canvas: null };
+const STOPPED: RunSnapshot = { running: false, lastCall: null, fired: null, lastFired: null, window: null, canvas: null };
 
 export type RunBlock = 'illustration' | 'empty' | 'no-callback' | null;
 
@@ -82,7 +84,7 @@ class RunController {
     this.pendingMotion = null;
     this.held = 0;
     this.applied = new Map(Object.keys(this.run.objects).map((id) => [id, 'null|true']));
-    this.publish({ running: true, lastCall: null, fired: null, window: { ...canvas }, canvas: { ...canvas } });
+    this.publish({ running: true, lastCall: null, fired: null, lastFired: null, window: { ...canvas }, canvas: { ...canvas } });
     renderBridge.setEditorOverlaysHidden(true);
     window.addEventListener('keydown', this.keyHandler, true);
     this.watchStore();
@@ -193,11 +195,8 @@ class RunController {
     let next = this.snapshot;
     if (event.type === 'reshape') next = { ...next, window: { ...this.run.window } };
     if (result.call && result.kind && result.handlerName) {
-      next = {
-        ...next,
-        lastCall: result.call,
-        fired: { kind: result.kind, handlerName: result.handlerName, trigger: result.matched, seq: ++this.seq },
-      };
+      const fired = { kind: result.kind, handlerName: result.handlerName, trigger: result.matched, seq: ++this.seq };
+      next = { ...next, lastCall: result.call, fired, lastFired: fired };
       this.armFlashClear();
     }
     if (next !== this.snapshot) this.publish(next);

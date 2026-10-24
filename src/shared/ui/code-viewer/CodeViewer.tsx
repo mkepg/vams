@@ -1,8 +1,9 @@
 import './code-viewer.scss';
-import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentChildren } from 'preact';
 import { X } from 'lucide-react';
 import { tokenizeLine } from './tokenize';
+import { REVEAL_PADDING, revealTop, scrollBehavior } from './reveal-scroll';
 import type { CodeMark, CodeNote, CodeRow, CodeStrip } from './types';
 
 export interface CodeViewerProps {
@@ -17,6 +18,11 @@ export interface CodeViewerProps {
   marksKey?: number;
   /** Lines to scroll into view when they change: a lesson's highlighted lines, else the changed values. */
   revealLines?: readonly number[];
+  /**
+   * The selected object's lines. When `key` changes they scroll to the top, unless one is already
+   * on screen, `hold` is set, or `revealLines` scrolls in the same update.
+   */
+  follow?: { key: string; lines: readonly number[]; hold: boolean } | null;
   /** Run's fired branch. */
   firedLines?: readonly number[];
   /** Counts Run's calls, so a repeat of the same branch restarts its flash. */
@@ -90,6 +96,8 @@ const LineText = memo(function LineText({ text, overlays }: { text: string; over
 
 const NO_OVERLAYS: readonly Overlay[] = [];
 
+const prefersReducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
 function byLine<T extends { line: number }>(items: readonly T[] | undefined): Map<number, T[]> {
   const map = new Map<number, T[]>();
   for (const item of items ?? []) map.set(item.line, [...(map.get(item.line) ?? []), item]);
@@ -97,7 +105,7 @@ function byLine<T extends { line: number }>(items: readonly T[] | undefined): Ma
 }
 
 const CodeViewer = memo(function CodeViewer({
-  code, rows, onToggleFold, marks, marksKey = 0, revealLines, firedLines, firedSeq, onFindLine, isLessonMode,
+  code, rows, onToggleFold, marks, marksKey = 0, revealLines, follow, firedLines, firedSeq, onFindLine, isLessonMode,
   headerLead, headerTrail, explainable, explainedLine, onExplain, strip, notes, notesOn, onToggleNotes,
 }: CodeViewerProps) {
   const baseId = useId();
@@ -162,6 +170,8 @@ const CodeViewer = memo(function CodeViewer({
   // Scroll a lesson's highlighted lines, or the changed values, into view: centred when they fit, else from the top.
   // The same lines in the same code scroll once: a key Run repeats does not pull back a student who scrolled away.
   const revealed = useRef<{ range: string; code: string } | null>(null);
+  // True from when a reveal is scheduled until it runs, so a follow in the same update yields to it.
+  const revealPending = useRef(false);
   useEffect(() => {
     if (!revealLines || revealLines.length === 0) return;
     const scroller = scrollRef.current;
@@ -171,7 +181,9 @@ const CodeViewer = memo(function CodeViewer({
     const range = `${top}:${bottom}`;
     if (revealed.current?.range === range && revealed.current.code === code) return;
     revealed.current = { range, code };
+    revealPending.current = true;
     const raf = requestAnimationFrame(() => {
+      revealPending.current = false;
       const el = lineEls.current.get(top);
       if (!el || !scroller.contains(el)) return;
       const scrollerRect = scroller.getBoundingClientRect();
@@ -179,14 +191,44 @@ const CodeViewer = memo(function CodeViewer({
       const elTop = scroller.scrollTop + (elRect.top - scrollerRect.top);
       const endEl = lineEls.current.get(bottom);
       const height = endEl ? endEl.getBoundingClientRect().bottom - elRect.top : elRect.height;
-      let target = elTop - scroller.clientHeight / 2 + height / 2;
-      const withPadding = elTop - 24;
-      if (height > scroller.clientHeight * 0.7 || target > withPadding) target = withPadding;
-      const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-      scroller.scrollTo({ top: Math.max(0, target), left: 0, behavior: reduced ? 'auto' : 'smooth' });
+      const target = revealTop(elTop, height, scroller.clientHeight);
+      scroller.scrollTo({ top: target, left: 0, behavior: scrollBehavior(scroller.scrollTop, target, scroller.clientHeight, prefersReducedMotion()) });
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      revealPending.current = false;
+    };
+  }, [revealLines, code]);
+
+  // A new selection brings its lines to the top when none of them is on screen. Only the key
+  // starts this, so an edit that moves the lines leaves the student where they are.
+  const followKey = follow?.key ?? null;
+  const followRef = useRef(follow);
+  // Mirror the latest lines before the effect below reads them; it runs only when the key changes.
+  useLayoutEffect(() => {
+    followRef.current = follow;
+  });
+  useEffect(() => {
+    const target = followRef.current;
+    const scroller = scrollRef.current;
+    if (!target || target.hold || !scroller || revealPending.current) return;
+    const raf = requestAnimationFrame(() => {
+      const shown = target.lines.flatMap((line) => {
+        const el = lineEls.current.get(line);
+        return el && scroller.contains(el) ? [el] : [];
+      });
+      if (shown.length === 0) return;
+      const box = scroller.getBoundingClientRect();
+      const onScreen = shown.some((el) => {
+        const r = el.getBoundingClientRect();
+        return r.bottom > box.top && r.top < box.bottom;
+      });
+      if (onScreen) return;
+      const top = Math.max(0, scroller.scrollTop + (shown[0].getBoundingClientRect().top - box.top) - REVEAL_PADDING);
+      scroller.scrollTo({ top, left: 0, behavior: scrollBehavior(scroller.scrollTop, top, box.height, prefersReducedMotion()) });
     });
     return () => cancelAnimationFrame(raf);
-  }, [revealLines, code]);
+  }, [followKey]);
 
   const stripId = `${baseId}-strip`;
   const shownLines = useMemo(

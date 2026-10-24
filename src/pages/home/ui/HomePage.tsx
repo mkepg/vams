@@ -1,5 +1,5 @@
 import { useLocation } from 'preact-iso';
-import { presetHref } from '@/entities/project/model/preset-links';
+import { galleryHref } from '@/entities/project/model/gallery-links';
 import SiteHeader from '@/widgets/site-header';
 import SiteFooter from '@/widgets/site-footer';
 import { PresentButton, StageIndicator, useStageMode } from '@/features/stage-mode';
@@ -19,7 +19,8 @@ const SECTION_IDS = SECTIONS.map((section) => section.id);
 
 export default function HomePage() {
   const { route } = useLocation();
-  const stage = useStageMode(SECTION_IDS, () => route(presetHref('triangle')));
+  // Stepping past the last slide opens the gallery's lead scene, ready to run on stage.
+  const stage = useStageMode(SECTION_IDS, () => route(galleryHref('jeepney-street')));
   return (
     <div className="site-page">
       <SiteHeader current="/" />

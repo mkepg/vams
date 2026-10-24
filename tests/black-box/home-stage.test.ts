@@ -334,7 +334,7 @@ describe('BB-HOME-16: A stage URL opens on its slide and keys step and exit', ()
   });
 });
 
-describe('BB-HOME-17: P enters stage mode and stepping past the end opens the editor', () => {
+describe('BB-HOME-17: P enters stage mode and stepping past the end opens the jeepney street', () => {
   afterEach(resetStage);
   it('enters from the scroll page, jumps to the last slide, routes to /app and cleans up on unmount', async () => {
     vi.stubGlobal('IntersectionObserver', undefined);
@@ -356,7 +356,7 @@ describe('BB-HOME-17: P enters stage mode and stepping past the end opens the ed
     press('PageDown');
     await settle();
     expect(window.location.pathname).toBe('/app');
-    expect(window.location.search).toBe('?scene=triangle');
+    expect(window.location.search).toBe('?scene=jeepney-street');
 
     render(null, host);
     host.remove();

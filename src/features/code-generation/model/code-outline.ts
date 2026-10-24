@@ -215,6 +215,7 @@ function owners(block: CodeBlock, text: string[]): (string | null)[] {
       break;
     case 'draw': {
       // Groups and text are drawn inline, between `// <name>` and glPopMatrix, or inside `if (state_X.visible) { … }`.
+      // Ranges nest: the scan carries on inside each one, so a line belongs to the innermost object around it.
       for (let l = block.signature! + 2; l < block.close!; l++) {
         const trimmed = text[l].trim();
         const guarded = /^if \(state_(\w+)\.visible\) \{$/.exec(trimmed);
@@ -227,7 +228,6 @@ function owners(block: CodeBlock, text: string[]): (string | null)[] {
         let owner = guarded ? guarded[1] : null;
         for (let k = l; k <= last && !owner; k++) owner = STATE_REF.exec(text[k])?.[1] ?? null;
         for (let k = l; k <= last; k++) set(k, owner);
-        l = last;
       }
       break;
     }

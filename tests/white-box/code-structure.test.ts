@@ -615,3 +615,23 @@ describe('WB-CODE-32: findCallLine finds a GL constant as a whole word', () => {
     expect(findCallLine(o, null, 'GL_TRIANGLE')).toBeNull();
   });
 });
+
+describe('WB-CODE-33: Inline draws nest, so a group or text inside a group owns its own lines', () => {
+  it('gives each glTranslatef in draw() to the object it moves', () => {
+    const a = addTriangle(-0.4, 0, 0.2);
+    const b = addQuad(0.4, 0, 0.2);
+    getState().createGroup([a.id, b.id]);
+    const inner = getState().objects.find((o) => o.type === 'GROUP')!;
+    getState().addTextObject('Hi', 0, 0.6);
+    const text = getState().objects.find((o) => o.type === 'TEXT')!;
+    getState().createGroup([inner.id, text.id]);
+    const o = outlineCode(program());
+    const moves = o.lines.flatMap((l) => {
+      const m = /glTranslatef\(state_(\w+)\.x/.exec(l.text);
+      return l.block === 'draw' && m ? [[m[1], l.object]] : [];
+    });
+    // The outer group, the inner group and the text are each moved inside draw().
+    expect(moves.length).toBe(3);
+    for (const [moved, owner] of moves) expect(owner).toBe(moved);
+  });
+});
