@@ -155,7 +155,9 @@ export function lineTriangles(
 /**
  * A segment's window fragments: one per pixel along the major axis whose centre lies on the
  * segment, first end included and last end left out. `span` turns fragments `k0` up to `k1` into
- * the stretch of the segment, 0 to 1, that their pixels cover.
+ * the stretch of the segment, as 0 to 1, that their pixels cover. A fragment's whole pixel column
+ * is covered even where it reaches past the segment's end, as on the reference driver, so the
+ * stretch can run a little below 0 or above 1.
  */
 function fragmentColumns(A: GeoVertex, B: GeoVertex): { count: number; span: (k0: number, k1: number) => [number, number] } {
   const xMajor = Math.abs(B.x - A.x) >= Math.abs(B.y - A.y);
@@ -166,7 +168,7 @@ function fragmentColumns(A: GeoVertex, B: GeoVertex): { count: number; span: (k0
   const first = forward ? Math.ceil(m0 - 0.5) : Math.floor(m0 - 0.5);
   const last = forward ? Math.ceil(m1 - 0.5) - 1 : Math.floor(m1 - 0.5) + 1;
   const count = Math.max(0, forward ? last - first + 1 : first - last + 1);
-  const t = (m: number) => Math.min(1, Math.max(0, (m - m0) / (m1 - m0)));
+  const t = (m: number) => (m - m0) / (m1 - m0);
   return {
     count,
     span: (k0, k1) => (forward ? [t(first + k0), t(first + k1)] : [t(first + 1 - k0), t(first + 1 - k1)]),

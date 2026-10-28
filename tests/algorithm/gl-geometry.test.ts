@@ -135,6 +135,13 @@ describe('ALG-FID-05: The stipple counter carries through a strip and resets for
     expect([pieces(left)[0].minX, pieces(left)[0].maxX]).toEqual([48, 49]);
   });
 
+  it('covers whole pixel columns at the ends of a stippled segment', () => {
+    // Measured on the reference machine: at a strip's bend the stippled line fills the bend's whole column.
+    // From x = 26.4 the first fragment is column 26 (centre 26.5), and all of it is drawn.
+    const t = lineTriangles('LINES', [v(26.4, 0.5), v(30.3, 0.5)], 1, 'SMOOTH', { factor: 1, pattern: 0xffff });
+    expect([pieces(t)[0].minX, pieces(t)[0].maxX]).toEqual([26, 30]);
+  });
+
   it('counts fragments along the major axis, not the length', () => {
     // 40 px across and 10 up: 40 fragments, so 20 dashes of 0x5555.
     const t = lineTriangles('LINES', [v(0, 0), v(40, 10)], 1, 'SMOOTH', { factor: 1, pattern: 0x5555 });
