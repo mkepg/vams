@@ -106,7 +106,18 @@ export function generateInitBody(allObjects: SceneNode[]): string {
   if (lines.length === 0) {
     return '    // No VBO primitives to initialise\n';
   }
-  return lines.join('\n') + '\n';
+  return lines.join('\n') + '\n' + unbindBuffers(lines);
+}
+
+/**
+ * Unbinds what the lines above left bound. While a buffer is bound, glVertexPointer reads its
+ * pointer as an offset into that buffer, so a client-side array drawn next would draw nothing.
+ */
+function unbindBuffers(lines: string[]): string {
+  let out = '    // Unbind, so client-side arrays read from memory again\n';
+  out += '    glBindBuffer(GL_ARRAY_BUFFER, 0);\n';
+  if (lines.some((l) => l.includes('glBindBuffer(GL_ELEMENT_ARRAY_BUFFER'))) out += '    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);\n';
+  return out;
 }
 export function generateUpdateBuffersBody(allObjects: SceneNode[]): string {
   const lines: string[] = [];
@@ -150,7 +161,7 @@ export function generateUpdateBuffersBody(allObjects: SceneNode[]): string {
     // The function was emitted but had nothing to do. This shouldn't normally
     return '    // No DYNAMIC or STREAM buffers to refresh\n';
   }
-  return lines.join('\n') + '\n';
+  return lines.join('\n') + '\n' + unbindBuffers(lines);
 }
 function transformPrelude(o: SceneNode): string {
   const safe = sanitizeName(o.name);

@@ -173,6 +173,34 @@ describe('BB-FID-07: Texturing is on only while a textured shape draws', () => {
   });
 });
 
+describe('BB-FID-08: Buffer setup leaves no buffer bound for the client-side arrays drawn after it', () => {
+  it('unbinds after init() and after update_buffers()', () => {
+    const quad: [number, number, string][] = [[-0.5, -0.5, '#ffffff'], [0.5, -0.5, '#ffffff'], [0.5, 0.5, '#ffffff'], [-0.5, 0.5, '#ffffff']];
+    const code = generateCodeFromState(
+      {
+        objects: [
+          { ...node('QUADS', quad, { renderingMode: 'VBO', bufferUsage: 'DYNAMIC' }), id: 'gpu', name: 'Gpu' },
+          { ...node('TRIANGLE_STRIP', [...quad, [0, 0.8, '#ffffff']], { renderingMode: 'VBO', useIndexed: true }), id: 'ix', name: 'Ix' },
+          { ...node('QUADS', quad, { renderingMode: 'VERTEX_ARRAY' }), id: 'client', name: 'Client' },
+        ],
+        canvasBackgroundColor: '#000000',
+        callbacks: useVamsStore.getState().callbacks,
+        viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
+        textures: [],
+      },
+      { width: 500, height: 500 },
+    );
+    for (const fn of ['init', 'update_buffers']) {
+      const start = code.indexOf(`void ${fn}()\n{`);
+      const body = code.slice(start, code.indexOf('\n}\n', start));
+      const binds = [...body.matchAll(/glBindBuffer\((GL_\w+), (\w+)\)/g)];
+      const last = (target: string) => binds.filter((b) => b[1] === target).at(-1)?.[2];
+      expect(last('GL_ARRAY_BUFFER'), fn).toBe('0');
+      if (binds.some((b) => b[1] === 'GL_ELEMENT_ARRAY_BUFFER')) expect(last('GL_ELEMENT_ARRAY_BUFFER'), fn).toBe('0');
+    }
+  });
+});
+
 describe('BB-FID-04: A FLAT shape carries one colour per primitive', () => {
   it('fills a five-colour FLAT polygon with its first vertex\'s colour', () => {
     const o = node('POLYGON', [[0, 0.7, '#ff0000'], [-0.7, 0.2, '#00ff00'], [-0.4, -0.6, '#0000ff'], [0.4, -0.6, '#ffffff'], [0.7, 0.2, '#ff00ff']], { shading: 'FLAT' });
