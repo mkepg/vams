@@ -43,7 +43,8 @@ export function generateTextureInitBody(
 
   const lines: string[] = [];
   lines.push('    // --- Texture setup ---');
-  lines.push('    glEnable(GL_TEXTURE_2D);');
+  // Texturing is switched on around each textured shape only. Left on here, every untextured
+  // shape drawn before the first textured one would be painted with the bound image.
   // Texture replaces the fragment color outright instead of modulating it
   // with the per-vertex color. Without this, smooth-shaded vertex colors
   // (e.g. red/green/blue corners on a textured quad) bleed across the

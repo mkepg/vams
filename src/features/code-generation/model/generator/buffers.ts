@@ -1,7 +1,7 @@
 import type { SceneNode, Vertex } from '@/core/types/scene';
 import type { UV } from '@/core/types/textures';
 import { deduplicate, hasTexture } from '@/entities/scene/model/vertex-dedup';
-import { sanitizeName, getGlPrimitive } from './utils';
+import { sanitizeName, getGlPrimitive, rasterStateAfter, rasterStateBefore } from './utils';
 function isPrimitive(o: SceneNode): boolean {
   return o.type !== 'GROUP' && o.type !== 'TEXT';
 }
@@ -106,7 +106,18 @@ export function generateInitBody(allObjects: SceneNode[]): string {
   if (lines.length === 0) {
     return '    // No VBO primitives to initialise\n';
   }
-  return lines.join('\n') + '\n';
+  return lines.join('\n') + '\n' + unbindBuffers(lines);
+}
+
+/**
+ * Unbinds what the lines above left bound. While a buffer is bound, glVertexPointer reads its
+ * pointer as an offset into that buffer, so a client-side array drawn next would draw nothing.
+ */
+function unbindBuffers(lines: string[]): string {
+  let out = '    // Unbind, so client-side arrays read from memory again\n';
+  out += '    glBindBuffer(GL_ARRAY_BUFFER, 0);\n';
+  if (lines.some((l) => l.includes('glBindBuffer(GL_ELEMENT_ARRAY_BUFFER'))) out += '    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);\n';
+  return out;
 }
 export function generateUpdateBuffersBody(allObjects: SceneNode[]): string {
   const lines: string[] = [];
@@ -150,7 +161,7 @@ export function generateUpdateBuffersBody(allObjects: SceneNode[]): string {
     // The function was emitted but had nothing to do. This shouldn't normally
     return '    // No DYNAMIC or STREAM buffers to refresh\n';
   }
-  return lines.join('\n') + '\n';
+  return lines.join('\n') + '\n' + unbindBuffers(lines);
 }
 function transformPrelude(o: SceneNode): string {
   const safe = sanitizeName(o.name);
@@ -173,6 +184,7 @@ export function generateVertexArrayDrawBody(o: SceneNode, recolor = false): stri
   const prim = getGlPrimitive(o.type as Exclude<SceneNode['type'], 'GROUP' | 'TEXT'>);
   let out = transformPrelude(o);
   out += shadingLine(o);
+  out += rasterStateBefore(o);
   out += `\n    // Bind client-side arrays\n`;
   out += `    glEnableClientState(GL_VERTEX_ARRAY);\n`;
   out += recolor
@@ -180,6 +192,7 @@ export function generateVertexArrayDrawBody(o: SceneNode, recolor = false): stri
     : `    glEnableClientState(GL_COLOR_ARRAY);\n`;
   if (textured) {
     out += `    glEnableClientState(GL_TEXTURE_COORD_ARRAY);\n`;
+    out += `    glEnable(GL_TEXTURE_2D);\n`;
     out += `    glBindTexture(GL_TEXTURE_2D, tex_${safe});\n`;
   }
   out += `    glVertexPointer(2, GL_FLOAT, 0, verts_${safe});\n`;
@@ -195,11 +208,13 @@ export function generateVertexArrayDrawBody(o: SceneNode, recolor = false): stri
   }
   if (textured) {
     out += `\n    glDisableClientState(GL_TEXTURE_COORD_ARRAY);\n`;
+    out += `    glDisable(GL_TEXTURE_2D);\n`;
     out += `    glDisableClientState(GL_COLOR_ARRAY);\n`;
   } else {
     out += `\n    glDisableClientState(GL_COLOR_ARRAY);\n`;
   }
   out += `    glDisableClientState(GL_VERTEX_ARRAY);\n`;
+  out += rasterStateAfter(o);
   out += `    glPopMatrix();\n`;
   return out;
 }
@@ -211,6 +226,7 @@ export function generateVBODrawBody(o: SceneNode, recolor = false): string {
   const prim = getGlPrimitive(o.type as Exclude<SceneNode['type'], 'GROUP' | 'TEXT'>);
   let out = transformPrelude(o);
   out += shadingLine(o);
+  out += rasterStateBefore(o);
   out += `\n    // Bind GPU buffers\n`;
   out += `    glEnableClientState(GL_VERTEX_ARRAY);\n`;
   out += recolor
@@ -218,6 +234,7 @@ export function generateVBODrawBody(o: SceneNode, recolor = false): string {
     : `    glEnableClientState(GL_COLOR_ARRAY);\n`;
   if (textured) {
     out += `    glEnableClientState(GL_TEXTURE_COORD_ARRAY);\n`;
+    out += `    glEnable(GL_TEXTURE_2D);\n`;
     out += `    glBindTexture(GL_TEXTURE_2D, tex_${safe});\n`;
   }
   out += `\n    glBindBuffer(GL_ARRAY_BUFFER, vbo_${safe});\n`;
@@ -239,9 +256,11 @@ export function generateVBODrawBody(o: SceneNode, recolor = false): string {
   if (dedup) out += `    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);\n`;
   if (textured) {
     out += `    glDisableClientState(GL_TEXTURE_COORD_ARRAY);\n`;
+    out += `    glDisable(GL_TEXTURE_2D);\n`;
   }
   out += `    glDisableClientState(GL_COLOR_ARRAY);\n`;
   out += `    glDisableClientState(GL_VERTEX_ARRAY);\n`;
+  out += rasterStateAfter(o);
   out += `    glPopMatrix();\n`;
   return out;
 }

@@ -192,6 +192,8 @@ void init()
     glBindBuffer(GL_ARRAY_BUFFER, cbo_QUADS_1);
     glBufferData(GL_ARRAY_BUFFER, sizeof(colors_QUADS_1), colors_QUADS_1, GL_STATIC_DRAW);
 
+    // Unbind, so client-side arrays read from memory again
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 int main(int argc, char** argv)

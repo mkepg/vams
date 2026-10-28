@@ -18,12 +18,18 @@ tests/
 │   │                                affine-matrix engine, used as the
 │   │                                gold standard for ALG-1.
 │   ├── store.ts                  ← Test helpers around useVamsStore.
-│   └── mini-cpp.ts               ← A small interpreter for generated handler
-│                                    bodies, used to check the Run runtime.
+│   ├── mini-cpp.ts               ← A small interpreter for generated handler
+│   │                                bodies, used to check the Run runtime.
+│   └── image-compare.ts          ← PNG reading and writing, and the render
+│                                    fidelity rule (edge pixels may differ,
+│                                    the rest within 2 per channel).
 ├── fixtures/
-│   └── no-callbacks-program.cpp  ← The program generated for a scene with
-│                                    no callbacks, pinned by BB-CB-12.
-│                                    Rewrite it with WRITE_CALLBACK_FIXTURE=1.
+│   ├── no-callbacks-program.cpp  ← The program generated for a scene with
+│   │                                no callbacks, pinned by BB-CB-12.
+│   │                                Rewrite it with WRITE_CALLBACK_FIXTURE=1.
+│   └── fidelity/                 ← The render fidelity battery: scenes.ts,
+│                                    the capture shim and the FreeGLUT
+│                                    reference images VIS-FID compares with.
 ├── black-box/                    ← Maps to Table 12.
 │   ├── primitive-creation.test.ts        (BB-PRIM-*)
 │   ├── transformation-operations.test.ts (BB-XFORM-*)
@@ -74,6 +80,9 @@ tests/
 │   │                                        View menu and Run)
 │   ├── program-window.test.ts            (BB-WINDOW-*: the program's window:
 │   │                                        move, resize, minimise, close)
+│   ├── render-fidelity.test.ts           (BB-FID-*: points and lines in window
+│   │                                        pixels, FLAT colours, and the state
+│   │                                        the code sets in every mode)
 │   ├── share.test.ts                     (BB-SHARE-*: the Share dialog and
 │   │                                        choosing a link)
 │   ├── scene-view.test.ts                (BB-VIEW-*: the read-only scene view
@@ -115,6 +124,7 @@ tests/
 │   ├── bitmap-text.test.ts               (WB-TEXT-*: GLUT's 9×15 glyphs, line
 │   │                                        spacing, glBitmap placement and the
 │   │                                        canvas layout)
+│   ├── image-compare.test.ts             (WB-FID-*: the battery's image rule)
 │   └── british-spelling.test.ts          (WB-SPELL-*: British spelling in every
 │                                            string students read)
 ├── visual/                       ← Not part of `npm test`.
@@ -135,12 +145,17 @@ tests/
 │   ├── pipeline-textures.spec.ts         (VIS-PT-*: the Diagram, Raster vs vector,
 │   │                                        Which Stage?, Quick Gradients and the
 │   │                                        Texture group)
-│   └── share.spec.ts                     (VIS-SHARE-*: the Share dialog at 1280, the phone scene
-│                                        view at 390 and the closing slide's QR code)
+│   ├── share.spec.ts                     (VIS-SHARE-*: the Share dialog at 1280, the phone scene
+│   │                                        view at 390 and the closing slide's QR code)
+│   └── fidelity.spec.ts                  (VIS-FID-*: the canvas against the exported
+│                                            program on the course toolchain)
 ├── algorithm/                    ← Maps to §3.10.3 Algorithm Validation.
 │   ├── algorithm-1-global-matrix.test.ts        (ALG-1-*)
 │   ├── algorithm-2-code-generation.test.ts      (ALG-2-*)
-│   └── algorithm-3-lesson-step.test.ts          (ALG-3-*)
+│   ├── algorithm-3-lesson-step.test.ts          (ALG-3-*)
+│   └── gl-geometry.test.ts                      (ALG-FID-*: points, lines,
+│                                                  stipple and FLAT colours by the
+│                                                  OpenGL 1.5 multisample rules)
 └── reports/                      ← Per-run output; consumed by Chapter 4.
     ├── algorithm-1-results.json
     ├── algorithm-2-results.json
@@ -166,6 +181,22 @@ The screenshot checks compare against baselines kept in
 differs from machine to machine. Create the baselines once on a machine with
 `npx playwright test --update-snapshots`, then run `npm run test:visual`
 after each change. Results are written to `tests/visual/results.local/`.
+
+The render fidelity checks (`VIS-FID-*`) are the exception: their references are
+committed in `tests/fixtures/fidelity/reference/`, because they come from the
+exported programs, not from the browser. They were recorded on the owner's
+development PC (Windows, NVIDIA, 4× multisampling) with the course toolchain
+(MinGW g++ 11.3, FreeGLUT, GLEW). To record them again after a deliberate change
+to what a scene draws:
+
+```bash
+FIDELITY_RECORD=1 VAMS_GLUT_TOOLCHAIN=<path to the toolchain's mingw32 folder> npx playwright test fidelity
+```
+
+Each scene's C++ is exported, built with the capture shim, run, and its first
+frame saved. `stb_image.h` is read from `VAMS_STB_IMAGE`, or from the
+`Application` folder beside `mingw32`. Look at every image that changes before
+committing it.
 
 ## Acceptance bar (per §3.10)
 

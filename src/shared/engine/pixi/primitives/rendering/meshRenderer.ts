@@ -1,128 +1,54 @@
 import * as PIXI from "pixi.js";
 import type { SceneNode } from "@/core/types/scene";
 import { colorToRGB } from "../utils/color-utils";
+import { polygonTriangles, type FillMode, type Rgba, type Triangles } from "@/shared/lib/gl-geometry";
 
 export interface MeshCreationResult {
   mesh: PIXI.Mesh<PIXI.MeshGeometry, PIXI.Shader>;
 }
 
-const VERTEX_COLOR_SHADER: PIXI.Shader = createVertexColorShader();
+/** Draws each vertex in its own colour; the geometry carries positions and colours only. */
+export const VERTEX_COLOR_SHADER: PIXI.Shader = createVertexColorShader();
 
-export function createMesh(o: SceneNode): MeshCreationResult | null {
-  const { positions, colors, indices, topology } = buildMeshData(o);
+const FILL_MODES: ReadonlySet<string> = new Set(['TRIANGLES', 'TRIANGLE_STRIP', 'TRIANGLE_FAN', 'QUADS', 'QUAD_STRIP', 'POLYGON']);
 
-  if (positions.length === 0) {
-    return null;
-  }
+export function toRgba(color: string): Rgba {
+  const [r, g, b] = colorToRGB(color);
+  return [r, g, b, 1];
+}
 
+/** Unindexed triangles as a geometry for VERTEX_COLOR_SHADER. */
+export function vertexColorGeometry(triangles: Triangles): PIXI.MeshGeometry {
+  const count = triangles.positions.length / 2;
   const geometry = new PIXI.MeshGeometry({
-    positions: new Float32Array(positions),
-    uvs: new Float32Array(positions.length).fill(0),
-    indices: new Uint32Array(indices),
-    topology: topology,
+    positions: new Float32Array(triangles.positions),
+    uvs: new Float32Array(count * 2),
+    indices: Uint32Array.from({ length: count }, (_, i) => i),
+    topology: 'triangle-list',
   });
-
-  const colorBuffer = new PIXI.Buffer({
-    data: new Float32Array(colors),
-    usage: PIXI.BufferUsage.VERTEX | PIXI.BufferUsage.COPY_DST,
-  });
-
   // MeshGeometry always adds UVs, but the vertex-colour shader never reads them; left in, PixiJS warns
   // on every draw. Meshes with their own shader are never batched, so nothing else reads them either.
   delete geometry.attributes.aUV;
-
   geometry.addAttribute('aColor', {
-    buffer: colorBuffer,
+    buffer: new PIXI.Buffer({
+      data: new Float32Array(triangles.colors),
+      usage: PIXI.BufferUsage.VERTEX | PIXI.BufferUsage.COPY_DST,
+    }),
     format: 'float32x4',
     stride: 4 * 4,
     offset: 0,
     instance: false,
   });
-
-  const mesh = new PIXI.Mesh({ geometry, shader: VERTEX_COLOR_SHADER });
-  return { mesh };
+  return geometry;
 }
 
-function buildMeshData(o: SceneNode): {
-  positions: number[];
-  colors: number[];
-  indices: number[];
-  topology: 'triangle-list' | 'triangle-strip' | 'line-list' | 'line-strip';
-} {
-  const positions: number[] = [];
-  const colors: number[] = [];
-  const indices: number[] = [];
-  let topology: 'triangle-list' | 'triangle-strip' | 'line-list' | 'line-strip' = 'triangle-list';
-
-  const pushVerts = () => {
-    for (const v of o.vertices) {
-      positions.push(v.x, v.y);
-      const rgb = colorToRGB(v.color);
-      colors.push(rgb[0], rgb[1], rgb[2], 1.0);
-    }
-  };
-
-  const n = o.vertices.length;
-
-  switch (o.type) {
-    case "LINES":
-      topology = 'line-list';
-      pushVerts();
-      for (let i = 0; i + 1 < n; i += 2) {
-        indices.push(i, i + 1);
-      }
-      break;
-    case "LINE_LOOP":
-      topology = 'line-strip';
-      pushVerts();
-      for (let i = 0; i < n; i++) indices.push(i);
-      if (n > 0) indices.push(0); // Connect back to the first vertex
-      break;
-    case "LINE_STRIP":
-      topology = 'line-strip';
-      pushVerts();
-      for (let i = 0; i < n; i++) indices.push(i);
-      break;
-    case "TRIANGLE_STRIP":
-      topology = 'triangle-strip';
-      pushVerts();
-      for (let i = 0; i < n; i++) indices.push(i);
-      break;
-    case "TRIANGLES":
-      pushVerts();
-      for (let i = 0; i + 2 < n; i += 3) {
-        indices.push(i, i + 1, i + 2);
-      }
-      break;
-    case "TRIANGLE_FAN":
-      pushVerts();
-      for (let i = 1; i < n - 1; i++) {
-        indices.push(0, i, i + 1);
-      }
-      break;
-    case "QUADS":
-      pushVerts();
-      for (let i = 0; i + 3 < n; i += 4) {
-        // Correct OpenGL Triangulation for QUADS: (i, i+1, i+3) and (i+1, i+2, i+3)
-        indices.push(i, i + 1, i + 3, i + 1, i + 2, i + 3);
-      }
-      break;
-    case "QUAD_STRIP":
-      pushVerts();
-      for (let i = 0; i + 3 < n; i += 2) {
-        // Correct OpenGL Triangulation for QUAD_STRIP: (i, i+1, i+3) and (i, i+3, i+2)
-        indices.push(i, i + 1, i + 3, i, i + 3, i + 2);
-      }
-      break;
-    case "POLYGON":
-      pushVerts();
-      for (let i = 1; i < n - 1; i++) {
-        indices.push(0, i, i + 1);
-      }
-      break;
-  }
-
-  return { positions, colors, indices, topology };
+/** A filled primitive as a mesh, blended for SMOOTH and one colour per primitive for FLAT. */
+export function createMesh(o: SceneNode): MeshCreationResult | null {
+  if (!FILL_MODES.has(o.type)) return null;
+  const vertices = o.vertices.map((v) => ({ x: v.x, y: v.y, color: toRgba(v.color) }));
+  const triangles = polygonTriangles(o.type as FillMode, vertices, o.shading === 'FLAT' ? 'FLAT' : 'SMOOTH');
+  if (triangles.positions.length === 0) return null;
+  return { mesh: new PIXI.Mesh({ geometry: vertexColorGeometry(triangles), shader: VERTEX_COLOR_SHADER }) };
 }
 
 function createVertexColorShader(): PIXI.Shader {

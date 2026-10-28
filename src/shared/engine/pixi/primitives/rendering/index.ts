@@ -1,3 +1,2 @@
 export * from './drawableFactory';
-export * from './graphicsRenderer';
-export * from './meshRenderer';
+export * from './meshRenderer';export * from './windowGeometry';

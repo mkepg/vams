@@ -1,9 +1,7 @@
 import type { SceneNode, Vertex } from '@/core/types/scene';
-import { sanitizeName, hexToGlColor, hexToGlByteColor, getGlPrimitive } from './utils';
+import { sanitizeName, hexToGlColor, hexToGlByteColor, getGlPrimitive, rasterStateAfter, rasterStateBefore } from './utils';
 import { generateVertexArrayDrawBody, generateVBODrawBody } from './buffers';
 import { effectiveScaleY, rasterLineYs, textLineStep, textLines } from '@/shared/lib/text-raster';
-const isLine = (t: SceneNode['type']): boolean =>
-  t === 'LINES' || t === 'LINE_STRIP' || t === 'LINE_LOOP';
 function emitColor(
   v: Vertex,
   colorMode: 'FLOAT' | 'BYTE' | undefined,
@@ -101,21 +99,7 @@ const generateImmediateDrawBody = (
   } else {
     drawBody += `    // Render\n`;
     drawBody += `    glShadeModel(${object.shading === 'FLAT' ? 'GL_FLAT' : 'GL_SMOOTH'});\n`;
-    if (isLine(object.type)) {
-      const lw = object.lineWidth ?? 1;
-      drawBody += `    glLineWidth(${lw.toFixed(2)}f);\n`;
-      if (object.lineStipple) {
-        const factor = Math.max(1, Math.min(256, Math.floor(object.lineStipple.factor)));
-        const pattern = object.lineStipple.pattern & 0xFFFF;
-        const patternHex = `0x${pattern.toString(16).toUpperCase().padStart(4, '0')}`;
-        drawBody += `    glEnable(GL_LINE_STIPPLE);\n`;
-        drawBody += `    glLineStipple(${factor}, ${patternHex});\n`;
-      }
-    }
-    if (object.type === 'POINTS') {
-      drawBody += `    // Adjust visible point size — default is 1px\n`;
-      drawBody += `    glPointSize(8.0f);\n`;
-    }
+    drawBody += rasterStateBefore(object);
     const hasTexture =
       object.texture &&
       object.uvs &&
@@ -142,13 +126,7 @@ const generateImmediateDrawBody = (
     if (hasTexture) {
       drawBody += `    glDisable(GL_TEXTURE_2D);\n`;
     }
-    if (object.type === 'POINTS') {
-      drawBody += `    glPointSize(1.0f); // Reset\n`;
-    }
-    if (isLine(object.type)) {
-      if (object.lineStipple) drawBody += `    glDisable(GL_LINE_STIPPLE);\n`;
-      drawBody += `    glLineWidth(1.0f);\n`;
-    }
+    drawBody += rasterStateAfter(object);
   }
   drawBody += `    glPopMatrix();\n`;
   return drawBody;

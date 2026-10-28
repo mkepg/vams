@@ -122,6 +122,20 @@ Test IDs use a new `FID` module: `ALG-FID-NN` for the geometry, `BB-FID-NN` for 
 - The roadmap's list of differences from the manuscript ([website overhaul roadmap](2026-10-04-website-overhaul-roadmap.md), "Divergences from the thesis manuscript") gains: the canvas now draws points, lines, stipple and flat shading by OpenGL 1.5's rules, checked against FreeGLUT on the course toolchain.
 - `tests/reports/manual-compile-procedure.md` points to the automated battery for the visual comparison it describes.
 
+## What building it found (2026-10-28)
+
+The battery (20 scenes, `tests/fixtures/fidelity/scenes.ts`) ran against the course toolchain as decision 6 describes. All 20 match. Building it settled these points:
+
+- **Stipple fragments are whole pixel columns.** The reference driver starts counting at the first pixel whose centre lies on the segment, and draws each fragment's full column, even past the segment's exact end. Cutting dashes at the line's exact start left every dash half a pixel off, and at a strip's bend it left a one-sample notch. Both rules are pinned in `ALG-FID-05`.
+- **The generated code had three faults the canvas never had.** "Not changing generated code" was a non-goal, but in each case the canvas was right and the program was wrong, so the code was fixed. Each fix has a `BB-FID` test:
+  - Vertex-array and VBO objects left out `glPointSize`, `glLineWidth` and `glLineStipple`, so they drew 1 px points and plain lines (the solar system's stars).
+  - `init()` called `glEnable(GL_TEXTURE_2D)` for the whole program. Every untextured shape drawn before the first textured one took the bound image's corner texel, so the jeepney street's sky, buildings and store came out green. Texturing is now switched on around each textured shape only.
+  - `init()` and `update_buffers()` left a VBO bound. A vertex-array shape drawn next had its pointer read as a buffer offset and drew nothing on the first frame (the pixel fox's clouds).
+- **One texel tie is allowed.** In the pixel fox scene, 9 pixels of one row sample the cloud tile 0.055 px from a texel boundary, and the driver and the browser round that differently. The scene allows 16 such pixels and says why. No other scene allows any.
+- **Decision 5 had nothing to apply to.** The Line style panel shows the pattern as toggle bits, not a drawn line.
+- **The Graphics renderer is gone.** Fills, points and lines all draw as vertex-colour meshes, so there is one path to keep right.
+- **No editor baseline changed** beyond the visual suite's tolerance, so none was re-recorded.
+
 ## Left to the builder
 
 - How rebuilt geometry reaches PixiJS: a reused `MeshGeometry` with updated buffers, or new meshes.

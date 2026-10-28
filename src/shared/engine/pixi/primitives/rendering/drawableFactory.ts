@@ -6,12 +6,12 @@ import { toNumColor } from "../utils/color-utils";
 import {
   pxToWorld,
   bboxRadii,
-  hasUniformColor,
   createPaddedHitArea,
   getGroupLocalBounds
 } from "../utils/geometry-utils";
-import { drawWithGraphics } from "./graphicsRenderer";
 import { createMesh } from "./meshRenderer";
+import { WINDOW_GEOMETRY_TYPES, WindowGeometryMesh } from "./windowGeometry";
+import { POINT_SIZE } from "@/shared/lib/gl-geometry";
 import { readCssColor } from '@/shared/lib/theme';
 import { textLines } from '@/shared/lib/text-raster';
 import { BitmapTextLayout } from './bitmapText';
@@ -19,7 +19,6 @@ import { BitmapTextLayout } from './bitmapText';
 export interface CreateDrawableOptions {
   groupChildren?: SceneNode[];
   isSelected?: boolean;
-  worldScaleY?: number;
 }
 export function createDrawable(
   o: SceneNode,
@@ -30,19 +29,16 @@ export function createDrawable(
   container.label = o.id;
   container.sortableChildren = true;
   const hitPadding = worldScaleX ? 10 / Math.abs(worldScaleX) : 0.5;
-  const worldScaleY = options?.worldScaleY;
   if (o.type === 'GROUP') {
     return createGroupDrawable(o, worldScaleX, options, container);
   }
   if (o.type === 'TEXT') {
     return createTextDrawable(o, container);
   }
-  // Add `&& !o.texture` so textured objects are forced into the Mesh pipeline
-const shouldUseGraphics = o.type === 'POINTS' || (hasUniformColor(o) && !o.texture) || !!o.lineStipple;
-  if (shouldUseGraphics) {
-    return createGraphicsDrawable(o, worldScaleX, worldScaleY, hitPadding, container);
+  if (WINDOW_GEOMETRY_TYPES.has(o.type)) {
+    return createWindowGeometryDrawable(o, worldScaleX, hitPadding, container);
   }
-  return createMeshDrawable(o, worldScaleX, hitPadding, container);
+  return createMeshDrawable(o, hitPadding, container);
 }
 
 function createGroupDrawable(
@@ -127,34 +123,25 @@ function createTextDrawable(o: SceneNode, container: PIXI.Container): PIXI.Conta
   return container;
 }
 
-function createGraphicsDrawable(
+/** Points and lines: built in window pixels by WindowGeometryMesh, which the renderer places each frame. */
+function createWindowGeometryDrawable(
   o: SceneNode,
   worldScaleX: number | undefined,
-  worldScaleY: number | undefined,
   hitPadding: number,
   container: PIXI.Container
 ): PIXI.Container {
-  const g = new PIXI.Graphics();
-  drawWithGraphics(g, o, worldScaleX, worldScaleY);
-  container.addChild(g);
-  container.position.set(o.transform.translateX, o.transform.translateY);
-  container.rotation = (o.transform.rotate * Math.PI) / 180;
-  container.scale.set(o.transform.scaleX, o.transform.scaleY);
-  container.visible = o.visible;
-  if (!g.hitArea) {
-    const { cx, cy, rx, ry } = bboxRadii(o);
-    container.hitArea = createPaddedHitArea(cx - rx, cy - ry, rx * 2, ry * 2, hitPadding);
-  }
+  container.addChild(new WindowGeometryMesh(o));
+  const pad = o.type === 'POINTS' ? hitPadding + Math.abs(pxToWorld(POINT_SIZE / 2, worldScaleX)) : hitPadding;
+  finalizeContainer(container, o, pad);
   return container;
 }
 
 function createMeshDrawable(
   o: SceneNode,
-  worldScaleX: number | undefined,
   hitPadding: number,
   container: PIXI.Container
 ): PIXI.Container {
-  // Stage 5: textured fillable primitives use a Mesh with per-vertex UVs.
+  // Textured fillable primitives use a Mesh with per-vertex UVs.
   if (
     o.texture &&
     o.uvs &&
@@ -167,14 +154,7 @@ function createMeshDrawable(
   }
 
   const meshResult = createMesh(o);
-  if (!meshResult) {
-    const g = new PIXI.Graphics();
-    drawWithGraphics(g, o, worldScaleX);
-    container.addChild(g);
-    finalizeContainer(container, o, hitPadding);
-    return container;
-  }
-  container.addChild(meshResult.mesh);
+  if (meshResult) container.addChild(meshResult.mesh);
   finalizeContainer(container, o, hitPadding);
   return container;
 }
