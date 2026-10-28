@@ -181,6 +181,7 @@ export function generateVertexArrayDrawBody(o: SceneNode, recolor = false): stri
     : `    glEnableClientState(GL_COLOR_ARRAY);\n`;
   if (textured) {
     out += `    glEnableClientState(GL_TEXTURE_COORD_ARRAY);\n`;
+    out += `    glEnable(GL_TEXTURE_2D);\n`;
     out += `    glBindTexture(GL_TEXTURE_2D, tex_${safe});\n`;
   }
   out += `    glVertexPointer(2, GL_FLOAT, 0, verts_${safe});\n`;
@@ -196,6 +197,7 @@ export function generateVertexArrayDrawBody(o: SceneNode, recolor = false): stri
   }
   if (textured) {
     out += `\n    glDisableClientState(GL_TEXTURE_COORD_ARRAY);\n`;
+    out += `    glDisable(GL_TEXTURE_2D);\n`;
     out += `    glDisableClientState(GL_COLOR_ARRAY);\n`;
   } else {
     out += `\n    glDisableClientState(GL_COLOR_ARRAY);\n`;
@@ -221,6 +223,7 @@ export function generateVBODrawBody(o: SceneNode, recolor = false): string {
     : `    glEnableClientState(GL_COLOR_ARRAY);\n`;
   if (textured) {
     out += `    glEnableClientState(GL_TEXTURE_COORD_ARRAY);\n`;
+    out += `    glEnable(GL_TEXTURE_2D);\n`;
     out += `    glBindTexture(GL_TEXTURE_2D, tex_${safe});\n`;
   }
   out += `\n    glBindBuffer(GL_ARRAY_BUFFER, vbo_${safe});\n`;
@@ -242,6 +245,7 @@ export function generateVBODrawBody(o: SceneNode, recolor = false): string {
   if (dedup) out += `    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);\n`;
   if (textured) {
     out += `    glDisableClientState(GL_TEXTURE_COORD_ARRAY);\n`;
+    out += `    glDisable(GL_TEXTURE_2D);\n`;
   }
   out += `    glDisableClientState(GL_COLOR_ARRAY);\n`;
   out += `    glDisableClientState(GL_VERTEX_ARRAY);\n`;

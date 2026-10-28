@@ -136,6 +136,43 @@ describe('BB-FID-06: Every rendering mode sets the point size, line width and st
   });
 });
 
+describe('BB-FID-07: Texturing is on only while a textured shape draws', () => {
+  const plain = node('QUADS', [[-1, -1, '#336699'], [1, -1, '#336699'], [1, 1, '#336699'], [-1, 1, '#336699']]);
+  const textured = (renderingMode: SceneNode['renderingMode']) => ({
+    ...node('QUADS', [[-0.2, -0.2, '#ffffff'], [0.2, -0.2, '#ffffff'], [0.2, 0.2, '#ffffff'], [-0.2, 0.2, '#ffffff']]),
+    id: 'sign', name: 'Sign', renderingMode,
+    texture: { textureId: 'tex', filter: 'NEAREST' as const, wrap: 'REPEAT' as const },
+    uvs: [{ u: 0, v: 0 }, { u: 1, v: 0 }, { u: 1, v: 1 }, { u: 0, v: 1 }],
+  });
+  const body = (code: string, fn: string) => {
+    const start = code.indexOf(`void ${fn}()\n{`);
+    return code.slice(start, code.indexOf('\n}\n', start));
+  };
+
+  it.each(['IMMEDIATE', 'VERTEX_ARRAY', 'VBO'] as const)('%s', (renderingMode) => {
+    const code = generateCodeFromState(
+      {
+        // The plain sky is drawn first, as a background is.
+        objects: [textured(renderingMode), { ...plain, id: 'sky', name: 'Sky' }],
+        canvasBackgroundColor: '#000000',
+        callbacks: useVamsStore.getState().callbacks,
+        viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
+        textures: [{ id: 'tex', name: 'sign', dataUrl: 'data:image/png;base64,', width: 1, height: 1 }],
+      },
+      { width: 500, height: 500 },
+    );
+    expect(body(code, 'init')).not.toContain('glEnable(GL_TEXTURE_2D)');
+    expect(body(code, 'draw_Sky')).not.toContain('GL_TEXTURE_2D');
+    const sign = body(code, 'draw_Sign');
+    const enable = sign.indexOf('glEnable(GL_TEXTURE_2D)');
+    const draw = Math.max(sign.indexOf('glBegin('), sign.indexOf('glDrawArrays('), sign.indexOf('glDrawElements('));
+    const disable = sign.indexOf('glDisable(GL_TEXTURE_2D)');
+    expect(enable).toBeGreaterThan(-1);
+    expect(enable).toBeLessThan(draw);
+    expect(disable).toBeGreaterThan(draw);
+  });
+});
+
 describe('BB-FID-04: A FLAT shape carries one colour per primitive', () => {
   it('fills a five-colour FLAT polygon with its first vertex\'s colour', () => {
     const o = node('POLYGON', [[0, 0.7, '#ff0000'], [-0.7, 0.2, '#00ff00'], [-0.4, -0.6, '#0000ff'], [0.4, -0.6, '#ffffff'], [0.7, 0.2, '#ff00ff']], { shading: 'FLAT' });
