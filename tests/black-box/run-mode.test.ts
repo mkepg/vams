@@ -11,8 +11,11 @@ import { makeFakeDisplay, registerFakeRenderer, type FakeDisplay } from '../help
 import { addTriangle, getState } from '../helpers/store';
 import RunOverlay, { RUN_EMPTY_REASON, RUN_HINT, RUN_NO_CALLBACK_REASON, RUN_OPEN_CALLBACKS } from '@/features/callbacks/ui/RunOverlay';
 import { renderBridge } from '@/shared/engine/render-bridge';
-import { SelectionOverlay } from '@/shared/engine/selection-overlay';
-import { Container } from 'pixi.js';
+import { SelectionOverlay, setEditorOutlinesHidden } from '@/shared/engine/selection-overlay';
+import { Container, Graphics } from 'pixi.js';
+import { createDrawable } from '@/shared/engine/pixi/primitives';
+import { GROUP_OUTLINE } from '@/shared/engine/pixi/primitives/rendering/drawableFactory';
+import type { SceneNode } from '@/core/types/scene';
 import SceneCodePanel from '@/features/code-generation/ui/SceneCodePanel';
 import EditorShell from '@/pages/editor/ui/EditorShell';
 
@@ -693,5 +696,87 @@ describe('BB-RUN-25: The handler that fired stays open in the code until Run sto
     expect(folded).not.toContain("case 'd':");
     render(null, host);
     host.remove();
+  });
+});
+
+describe('BB-RUN-26: Run leaves no selection outline behind', () => {
+  /** Whether the outline is drawn: the overlay and its border both showing. */
+  const drawn = (overlay: SelectionOverlay) => overlay.visible && overlay.children.every((c) => c.visible);
+
+  function selectedOutline() {
+    const parent = new Container();
+    const overlay = new SelectionOverlay();
+    const target = new Container();
+    target.addChild(new Graphics().rect(0, 0, 1, 1).fill(0xffffff));
+    parent.addChild(overlay);
+    parent.addChild(target);
+    overlay.setTarget(target);
+    return { overlay, target };
+  }
+
+  it('keeps the outline hidden while Run hides it, even when the overlay is shown again', () => {
+    // An edit saved on the click that starts Run reselects the object after Run has hidden the outline.
+    const { overlay, target } = selectedOutline();
+    expect(drawn(overlay)).toBe(true);
+    overlay.setSuppressed(true);
+    overlay.visible = true;
+    expect(drawn(overlay)).toBe(false);
+    overlay.setTarget(target);
+    overlay.update();
+    expect(drawn(overlay)).toBe(false);
+    overlay.setSuppressed(false);
+    expect(drawn(overlay)).toBe(true);
+  });
+
+  it('shows no outline after Run stops when nothing is selected', () => {
+    const { overlay } = selectedOutline();
+    overlay.setSuppressed(true);
+    overlay.setTarget(null);
+    overlay.setSuppressed(false);
+    expect(drawn(overlay)).toBe(false);
+  });
+
+  const node = (id: string, extra: Partial<SceneNode>): SceneNode => ({
+    id, name: id, type: 'TRIANGLES', visible: true, shading: 'SMOOTH', parentId: null, children: [],
+    transform: { translateX: 0, translateY: 0, rotate: 0, scaleX: 1, scaleY: 1 },
+    vertices: [], lineStipple: null,
+    ...extra,
+  });
+  const roof = node('roof', {
+    parentId: 'house',
+    vertices: [{ id: 'a', x: -0.4, y: 0 }, { id: 'b', x: 0.4, y: 0 }, { id: 'c', x: 0, y: 0.4 }].map((v) => ({ ...v, color: '#ff0000' })),
+  });
+  const house = node('house', { type: 'GROUP', children: ['roof'] });
+  const groupOutline = (selected: boolean) =>
+    createDrawable(house, 268, { groupChildren: [roof], isSelected: selected }).getChildByLabel(GROUP_OUTLINE) as Graphics | null;
+
+  it('names the dashed box a selected group draws, and draws none for a group that is not selected', () => {
+    const selected = groupOutline(true)!;
+    expect(selected).toBeInstanceOf(Graphics);
+    expect(selected.getLocalBounds().width).toBeGreaterThan(0);
+    expect(groupOutline(false)?.getLocalBounds().width ?? 0).toBe(0);
+  });
+
+  it("hides a selected group's dashed box and the selection outline together, and shows both again", () => {
+    const { overlay } = selectedOutline();
+    const group = createDrawable(house, 268, { groupChildren: [roof], isSelected: true });
+    const outline = group.getChildByLabel(GROUP_OUTLINE)!;
+    setEditorOutlinesHidden(overlay, group, true);
+    expect(outline.visible).toBe(false);
+    expect(drawn(overlay)).toBe(false);
+    // The group's children stay drawn: only the editor's marks hide.
+    expect(group.children.filter((c) => c !== outline).every((c) => c.visible)).toBe(true);
+    setEditorOutlinesHidden(overlay, group, false);
+    expect(outline.visible).toBe(true);
+    expect(drawn(overlay)).toBe(true);
+  });
+
+  it('hides only the selection outline when the selection is a shape or nothing', () => {
+    const { overlay, target } = selectedOutline();
+    setEditorOutlinesHidden(overlay, target, true);
+    expect(drawn(overlay)).toBe(false);
+    expect(target.children.every((c) => c.visible)).toBe(true);
+    setEditorOutlinesHidden(overlay, undefined, false);
+    expect(drawn(overlay)).toBe(true);
   });
 });

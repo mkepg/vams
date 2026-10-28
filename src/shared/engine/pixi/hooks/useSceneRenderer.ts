@@ -5,7 +5,7 @@ import { useVamsStore } from "@/core/store";
 import { BitmapTextLayout, WindowGeometryMesh, createDrawable, releaseBitmapText } from "@/shared/engine/pixi/primitives";
 import { effectiveScaleY, textLineStep } from "@/shared/lib/text-raster";
 import { renderBridge } from "@/shared/engine/render-bridge";
-import { FollowRing, pickHandleVertex, ringTarget, type SelectionOverlay } from "@/shared/engine/selection-overlay";
+import { FollowRing, pickHandleVertex, ringTarget, setEditorOutlinesHidden, type SelectionOverlay } from "@/shared/engine/selection-overlay";
 import type { SceneNode } from "@/core/types/scene";
 
 interface UseSceneRendererProps {
@@ -156,7 +156,8 @@ export function useSceneRenderer({
     ringRef.current = ring;
     const tickerFn = () => {
       const runHides = renderBridge.editorOverlaysHidden();
-      overlay.setSuppressed(runHides);
+      const selectedId = prevSelectedObjectIdRef.current;
+      setEditorOutlinesHidden(overlay, selectedId ? containersRef.current.get(selectedId) : undefined, runHides);
       if (runHides) {
         if (vertexOverlayRef.current) vertexOverlayRef.current.visible = false;
         return;
@@ -539,16 +540,10 @@ export function useSceneRenderer({
     if (!overlay) return;
     if (selectedObjectId) {
       const target = containersRef.current.get(selectedObjectId);
-      if (target && !target.destroyed) {
-        overlay.setTarget(target);
-        overlay.visible = true;
-      } else {
-        overlay.setTarget(null);
-        overlay.visible = false;
-      }
+      // setTarget shows the outline, unless Run is hiding it.
+      overlay.setTarget(target && !target.destroyed ? target : null);
     } else {
       overlay.setTarget(null);
-      overlay.visible = false;
     }
   }, [selectedObjectId, objects, worldRef, overlayRef, theme]);
 }
