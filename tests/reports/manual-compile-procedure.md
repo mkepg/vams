@@ -14,6 +14,13 @@
 
 ---
 
+> **Automated since 2026-10-28.** The visual comparison in steps 5 to 7 is now
+> automated by the render fidelity battery (`tests/visual/fidelity.spec.ts`,
+> `VIS-FID-*`), which exports each scene, builds it with the course toolchain,
+> captures its first frame and compares it with the canvas. See
+> [tests/README.md](../README.md). The procedure below is kept as the thesis
+> describes it.
+
 ## Toolchain
 
 | Tool      | Version used | Source                                |
