@@ -1,6 +1,7 @@
 import { Container, Graphics } from 'pixi.js';
 import { readCssColor } from '@/shared/lib/theme';
 import { BitmapTextLayout } from '@/shared/engine/pixi/primitives/rendering/bitmapText';
+import { GROUP_OUTLINE } from '@/shared/engine/pixi/primitives/rendering/drawableFactory';
 
 export class SelectionOverlay extends Container {
     private border: Graphics;
@@ -25,10 +26,14 @@ export class SelectionOverlay extends Container {
         }
     }
 
-    /** Run hides the outline while it moves objects; the target is kept for when Run stops. */
+    /**
+     * Run hides the outline while it moves objects; the target is kept for when Run stops. The
+     * border hides too, so the outline stays hidden whatever shows the overlay meanwhile.
+     */
     public setSuppressed(suppressed: boolean) {
         if (this.suppressed === suppressed) return;
         this.suppressed = suppressed;
+        this.border.visible = !suppressed;
         this.visible = !suppressed && this.target !== null;
         if (!suppressed && this.target) this.update();
     }
@@ -88,6 +93,16 @@ export class SelectionOverlay extends Container {
         this.border.rect(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x), Math.abs(b.y - a.y));
         this.border.stroke({ width: lineWidth, color: readCssColor('--accent', 0x4762f5) });
     }
+}
+
+/**
+ * Run hides every outline the editor draws on the scene: the selection outline, and the dashed box
+ * a selected group draws round its children. `selected` is the selected object's container.
+ */
+export function setEditorOutlinesHidden(overlay: SelectionOverlay, selected: Container | undefined, hidden: boolean) {
+    overlay.setSuppressed(hidden);
+    const outline = selected?.getChildByLabel(GROUP_OUTLINE);
+    if (outline) outline.visible = !hidden;
 }
 
 export type RingTarget = { kind: 'vertex'; index: number } | { kind: 'raster'; x: number; y: number } | null;

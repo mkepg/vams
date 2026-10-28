@@ -16,6 +16,9 @@ import { readCssColor } from '@/shared/lib/theme';
 import { textLines } from '@/shared/lib/text-raster';
 import { BitmapTextLayout } from './bitmapText';
 
+/** The label of the dashed box a selected group draws round its children; Run hides it with the other editor outlines. */
+export const GROUP_OUTLINE = 'vams:group-outline';
+
 export interface CreateDrawableOptions {
   groupChildren?: SceneNode[];
   isSelected?: boolean;
@@ -58,6 +61,7 @@ function createGroupDrawable(
   const drawW = bounds.width + (padding * 2);
   const drawH = bounds.height + (padding * 2);
   const groupGraphics = new PIXI.Graphics();
+  groupGraphics.label = GROUP_OUTLINE;
   if (options?.isSelected) {
       groupGraphics.setStrokeStyle({
         width: pxToWorld(1, worldScaleX),

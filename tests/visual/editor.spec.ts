@@ -3,6 +3,7 @@
  * Screenshot regression checks for the editor layout. Not part of `npm test`.
  */
 import { test, expect, type Page } from '@playwright/test';
+import { decodePng } from '../helpers/image-compare';
 
 type Theme = 'light' | 'dark';
 
@@ -388,3 +389,99 @@ for (const theme of THEMES) {
     await expect(page.locator('.canvas-wrapper')).toHaveScreenshot(`bitmap-text-${theme}-1280.png`);
   });
 }
+
+/** The Transforms scene with its idle spin swapped for a key rule, so a running frame is the same every time. */
+async function openStillScene(page: Page) {
+  await open(page, '/app?scene=transforms');
+  await page.evaluate(() => {
+    const saved = JSON.parse(window.localStorage.getItem('vams-storage')!);
+    saved.state.hasSeenWelcome = true;
+    saved.state.callbacks.idle = { handlerName: '', rules: [] };
+    saved.state.callbacks.keyboard = {
+      handlerName: 'onKey',
+      rules: [{ id: 'turn', objectId: 'sun', trigger: { kind: 'keyboard', key: 'r' }, action: { type: 'rotate', degrees: 10 } }],
+    };
+    window.localStorage.setItem('vams-storage', JSON.stringify(saved));
+  });
+  await open(page, '/app');
+  await expect(page.getByRole('treeitem', { name: 'Roof', exact: true })).toBeVisible();
+}
+
+const canvasShot = async (page: Page) => decodePng(await page.locator('.canvas-wrapper canvas').screenshot());
+
+/** Pixels whose largest channel difference is over 2. */
+function differingPixels(a: { data: Uint8Array }, b: { data: Uint8Array }) {
+  let count = 0;
+  for (let i = 0; i < a.data.length; i += 4) {
+    const diff = Math.max(Math.abs(a.data[i] - b.data[i]), Math.abs(a.data[i + 1] - b.data[i + 1]), Math.abs(a.data[i + 2] - b.data[i + 2]));
+    if (diff > 2) count++;
+  }
+  return count;
+}
+
+async function startRun(page: Page) {
+  await page.locator('.run-button').click();
+  await expect(page.locator('.canvas-window__running')).toBeVisible();
+  // A few frames, so anything drawn after Run starts is on screen.
+  await page.waitForTimeout(300);
+}
+
+async function stopRun(page: Page) {
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.canvas-window__running')).toBeHidden();
+  await page.waitForTimeout(200);
+}
+
+/** Clicks the canvas's empty bottom-right corner, which selects nothing. */
+async function selectNothing(page: Page) {
+  const canvas = page.locator('.canvas-wrapper canvas');
+  const box = (await canvas.boundingBox())!;
+  await canvas.click({ position: { x: box.width - 40, y: box.height - 40 } });
+  await expect(page.locator('[role="treeitem"][aria-selected="true"]')).toHaveCount(0);
+}
+
+test('VIS-EDITOR-37: Run draws no selection outline for a selected group, grouped shape or shape', async ({ page }) => {
+  await openStillScene(page);
+  await selectNothing(page);
+  const stopped = await canvasShot(page);
+  await startRun(page);
+  const running = await canvasShot(page);
+  await stopRun(page);
+  for (const name of ['House', 'Roof', 'Sun']) {
+    await page.getByRole('treeitem', { name, exact: true }).locator('.tree-item').first().click();
+    await page.waitForTimeout(200);
+    expect(differingPixels(await canvasShot(page), stopped), `${name}: the outline shows while editing`).toBeGreaterThan(0);
+    await startRun(page);
+    expect(differingPixels(await canvasShot(page), running), `${name}: Run draws only the scene`).toBe(0);
+    await stopRun(page);
+    expect(differingPixels(await canvasShot(page), stopped), `${name}: the outline is back after Run`).toBeGreaterThan(0);
+  }
+});
+
+test('VIS-EDITOR-38: An edit saved by the click that starts Run leaves no outline on the canvas', async ({ page }) => {
+  await openStillScene(page);
+  // A rename saved as focus leaves its field.
+  await page.getByRole('treeitem', { name: 'Roof', exact: true }).locator('.tree-item').first().dblclick();
+  await page.getByRole('textbox', { name: 'Rename Roof' }).fill('Red roof');
+  await startRun(page);
+  await expect(page.getByRole('treeitem', { name: 'Red roof', exact: true })).toBeVisible();
+  const renamed = await canvasShot(page);
+  await stopRun(page);
+  await selectNothing(page);
+  await startRun(page);
+  expect(differingPixels(renamed, await canvasShot(page)), 'after a rename').toBe(0);
+  await stopRun(page);
+
+  // A transform typed into the inspector, saved as focus leaves the field.
+  await page.getByRole('treeitem', { name: 'Sun', exact: true }).locator('.tree-item').first().click();
+  const rotate = page.getByRole('textbox', { name: 'Rotate', exact: true }).or(page.getByRole('spinbutton', { name: 'Rotate', exact: true })).first();
+  await rotate.fill('30');
+  await startRun(page);
+  const turned = await canvasShot(page);
+  await stopRun(page);
+  await expect(rotate).toHaveValue(/^30/);
+  await selectNothing(page);
+  await startRun(page);
+  expect(differingPixels(turned, await canvasShot(page)), 'after a typed rotation').toBe(0);
+  await stopRun(page);
+});
