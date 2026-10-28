@@ -112,6 +112,30 @@ describe('BB-FID-03: A point is POINT_SIZE window pixels square under any object
   });
 });
 
+describe('BB-FID-06: Every rendering mode sets the point size, line width and stipple it draws with', () => {
+  const generate = (o: SceneNode) =>
+    generateCodeFromState(
+      {
+        objects: [o],
+        canvasBackgroundColor: '#000000',
+        callbacks: useVamsStore.getState().callbacks,
+        viewportLimits: { minX: -1, maxX: 1, minY: -1, maxY: 1 },
+        textures: [],
+      },
+      { width: 500, height: 500 },
+    );
+
+  it.each(['IMMEDIATE', 'VERTEX_ARRAY', 'VBO'] as const)('%s', (renderingMode) => {
+    const points = generate(node('POINTS', [[0, 0, '#ffffff'], [0.5, 0, '#ffffff']], { renderingMode }));
+    expect(points).toContain(`glPointSize(${POINT_SIZE}.0f)`);
+    expect(points).toContain('glPointSize(1.0f); // Reset');
+    const line = generate(node('LINE_STRIP', [[0, 0, '#ffffff'], [0.5, 0, '#ffffff']], { renderingMode, lineWidth: 3, lineStipple: { factor: 2, pattern: 0xaaaa } }));
+    expect(line).toContain('glLineWidth(3.00f);');
+    expect(line).toContain('glLineStipple(2, 0xAAAA);');
+    expect(line).toContain('glDisable(GL_LINE_STIPPLE);');
+  });
+});
+
 describe('BB-FID-04: A FLAT shape carries one colour per primitive', () => {
   it('fills a five-colour FLAT polygon with its first vertex\'s colour', () => {
     const o = node('POLYGON', [[0, 0.7, '#ff0000'], [-0.7, 0.2, '#00ff00'], [-0.4, -0.6, '#0000ff'], [0.4, -0.6, '#ffffff'], [0.7, 0.2, '#ff00ff']], { shading: 'FLAT' });

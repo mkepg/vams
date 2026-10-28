@@ -16,7 +16,8 @@ export const hexToGlByteColor = (hex: string): string => {
   return `${r}, ${g}, ${b}`;
 };
 
-import type { PrimitiveType } from "@/core/types/scene";
+import type { PrimitiveType, SceneNode } from "@/core/types/scene";
+import { POINT_SIZE } from "@/shared/lib/gl-geometry";
 export const getGlPrimitive = (type: PrimitiveType): string => {
   const map: Record<PrimitiveType, string> = {
     POINTS:         'GL_POINTS',
@@ -32,3 +33,43 @@ export const getGlPrimitive = (type: PrimitiveType): string => {
   };
   return map[type] ?? 'GL_POINTS';
 };
+
+const isLine = (t: SceneNode['type']): boolean => t === 'LINES' || t === 'LINE_STRIP' || t === 'LINE_LOOP';
+
+/** The point size, line width and stipple a primitive draws with, set before it in every rendering mode. */
+export function rasterStateBefore(o: SceneNode): string {
+  let out = '';
+  if (isLine(o.type)) {
+    out += `    glLineWidth(${(o.lineWidth ?? 1).toFixed(2)}f);
+`;
+    if (o.lineStipple) {
+      const factor = Math.max(1, Math.min(256, Math.floor(o.lineStipple.factor)));
+      const pattern = o.lineStipple.pattern & 0xFFFF;
+      out += `    glEnable(GL_LINE_STIPPLE);
+`;
+      out += `    glLineStipple(${factor}, 0x${pattern.toString(16).toUpperCase().padStart(4, '0')});
+`;
+    }
+  }
+  if (o.type === 'POINTS') {
+    out += `    // Adjust visible point size — default is 1px
+`;
+    out += `    glPointSize(${POINT_SIZE}.0f);
+`;
+  }
+  return out;
+}
+
+/** Puts the state rasterStateBefore set back to OpenGL's defaults. */
+export function rasterStateAfter(o: SceneNode): string {
+  let out = '';
+  if (o.type === 'POINTS') out += `    glPointSize(1.0f); // Reset
+`;
+  if (isLine(o.type)) {
+    if (o.lineStipple) out += `    glDisable(GL_LINE_STIPPLE);
+`;
+    out += `    glLineWidth(1.0f);
+`;
+  }
+  return out;
+}

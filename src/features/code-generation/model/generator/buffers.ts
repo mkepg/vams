@@ -1,7 +1,7 @@
 import type { SceneNode, Vertex } from '@/core/types/scene';
 import type { UV } from '@/core/types/textures';
 import { deduplicate, hasTexture } from '@/entities/scene/model/vertex-dedup';
-import { sanitizeName, getGlPrimitive } from './utils';
+import { sanitizeName, getGlPrimitive, rasterStateAfter, rasterStateBefore } from './utils';
 function isPrimitive(o: SceneNode): boolean {
   return o.type !== 'GROUP' && o.type !== 'TEXT';
 }
@@ -173,6 +173,7 @@ export function generateVertexArrayDrawBody(o: SceneNode, recolor = false): stri
   const prim = getGlPrimitive(o.type as Exclude<SceneNode['type'], 'GROUP' | 'TEXT'>);
   let out = transformPrelude(o);
   out += shadingLine(o);
+  out += rasterStateBefore(o);
   out += `\n    // Bind client-side arrays\n`;
   out += `    glEnableClientState(GL_VERTEX_ARRAY);\n`;
   out += recolor
@@ -200,6 +201,7 @@ export function generateVertexArrayDrawBody(o: SceneNode, recolor = false): stri
     out += `\n    glDisableClientState(GL_COLOR_ARRAY);\n`;
   }
   out += `    glDisableClientState(GL_VERTEX_ARRAY);\n`;
+  out += rasterStateAfter(o);
   out += `    glPopMatrix();\n`;
   return out;
 }
@@ -211,6 +213,7 @@ export function generateVBODrawBody(o: SceneNode, recolor = false): string {
   const prim = getGlPrimitive(o.type as Exclude<SceneNode['type'], 'GROUP' | 'TEXT'>);
   let out = transformPrelude(o);
   out += shadingLine(o);
+  out += rasterStateBefore(o);
   out += `\n    // Bind GPU buffers\n`;
   out += `    glEnableClientState(GL_VERTEX_ARRAY);\n`;
   out += recolor
@@ -242,6 +245,7 @@ export function generateVBODrawBody(o: SceneNode, recolor = false): string {
   }
   out += `    glDisableClientState(GL_COLOR_ARRAY);\n`;
   out += `    glDisableClientState(GL_VERTEX_ARRAY);\n`;
+  out += rasterStateAfter(o);
   out += `    glPopMatrix();\n`;
   return out;
 }
