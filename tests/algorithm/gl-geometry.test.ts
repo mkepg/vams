@@ -126,6 +126,15 @@ describe('ALG-FID-05: The stipple counter carries through a strip and resets for
     expect(pieces(t).slice(2).map((p) => [p.minY, p.maxY])).toEqual([[0, 1], [2, 3], [4, 5]]);
   });
 
+  it('cuts dashes at pixel edges, counting from the first pixel centre on the segment', () => {
+    // Measured on the reference machine: a line from x = 26.8 with (2, 0xAAAA) lights columns 29 and 30 first.
+    const right = lineTriangles('LINES', [v(26.8, 52.5), v(100, 52.5)], 1, 'SMOOTH', { factor: 2, pattern: 0xaaaa });
+    expect([pieces(right)[0].minX, pieces(right)[0].maxX]).toEqual([29, 31]);
+    // Leftwards from 50.3 the first fragment is column 49, so (1, 0xAAAA) lights column 48 first.
+    const left = lineTriangles('LINES', [v(50.3, 0.5), v(40, 0.5)], 1, 'SMOOTH', { factor: 1, pattern: 0xaaaa });
+    expect([pieces(left)[0].minX, pieces(left)[0].maxX]).toEqual([48, 49]);
+  });
+
   it('counts fragments along the major axis, not the length', () => {
     // 40 px across and 10 up: 40 fragments, so 20 dashes of 0x5555.
     const t = lineTriangles('LINES', [v(0, 0), v(40, 10)], 1, 'SMOOTH', { factor: 1, pattern: 0x5555 });

@@ -12,7 +12,7 @@ export {
   createPaddedHitArea,
   getGroupLocalBounds
 } from "./utils/geometry-utils";
-export { drawWithGraphics } from "./rendering/graphicsRenderer";
 export { createMesh } from "./rendering/meshRenderer";
 export type { MeshCreationResult } from "./rendering/meshRenderer";
+export { WindowGeometryMesh, WINDOW_GEOMETRY_TYPES } from "./rendering/windowGeometry";
 export { BitmapTextLayout, releaseBitmapText } from "./rendering/bitmapText";

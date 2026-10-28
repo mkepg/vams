@@ -126,16 +126,12 @@ export function lineTriangles(
     const dx = B.x - A.x;
     const dy = B.y - A.y;
     const len = Math.hypot(dx, dy);
-    // A window fragment for each pixel along the major axis.
-    const fragments = Math.max(Math.abs(dx), Math.abs(dy));
     if (len === 0) continue;
     const nx = (-dy / len) * (width / 2);
     const ny = (dx / len) * (width / 2);
+    const frags = fragmentColumns(A, B);
     const spans: [number, number][] = stipple
-      ? stippleRuns(counter, fragments, stipple.factor, stipple.pattern).map(([s0, s1]) => [
-          (s0 - counter) / fragments,
-          (s1 - counter) / fragments,
-        ])
+      ? stippleRuns(counter, frags.count, stipple.factor, stipple.pattern).map(([s0, s1]) => frags.span(s0 - counter, s1 - counter))
       : [[0, 1]];
     for (const [t0, t1] of spans) {
       const c0 = shade === 'FLAT' ? vertices[seg.provoking].color : lerp(A.color, B.color, t0);
@@ -151,9 +147,30 @@ export function lineTriangles(
       push(out, x1 + nx, y1 + ny, c1);
       push(out, x0 + nx, y0 + ny, c0);
     }
-    counter += fragments;
+    counter += frags.count;
   }
   return out;
+}
+
+/**
+ * A segment's window fragments: one per pixel along the major axis whose centre lies on the
+ * segment, first end included and last end left out. `span` turns fragments `k0` up to `k1` into
+ * the stretch of the segment, 0 to 1, that their pixels cover.
+ */
+function fragmentColumns(A: GeoVertex, B: GeoVertex): { count: number; span: (k0: number, k1: number) => [number, number] } {
+  const xMajor = Math.abs(B.x - A.x) >= Math.abs(B.y - A.y);
+  const m0 = xMajor ? A.x : A.y;
+  const m1 = xMajor ? B.x : B.y;
+  const forward = m1 >= m0;
+  // The first and last pixel whose centre (c + 0.5) is on the segment.
+  const first = forward ? Math.ceil(m0 - 0.5) : Math.floor(m0 - 0.5);
+  const last = forward ? Math.ceil(m1 - 0.5) - 1 : Math.floor(m1 - 0.5) + 1;
+  const count = Math.max(0, forward ? last - first + 1 : first - last + 1);
+  const t = (m: number) => Math.min(1, Math.max(0, (m - m0) / (m1 - m0)));
+  return {
+    count,
+    span: (k0, k1) => (forward ? [t(first + k0), t(first + k1)] : [t(first + 1 - k0), t(first + 1 - k1)]),
+  };
 }
 
 /** The triangles of a filled primitive, each with the vertex that provokes its FLAT colour. */
