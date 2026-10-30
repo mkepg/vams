@@ -1002,3 +1002,24 @@ describe('BB-PANEL-40: Redo does not reopen the form of a rule that undo removed
     unmount(host);
   });
 });
+
+describe('BB-PANEL-41: The Scene count names the objects drawn, and the groups apart', () => {
+  it('leaves groups out of the object count and counts them separately', async () => {
+    useVamsStore.setState({ objects: [], selectedObjectId: null });
+    const tri = addTriangle();
+    const quad = addQuad();
+    useVamsStore.getState().createGroup([tri.id, quad.id]);
+    const host = mount(h(ScenePanel, {}));
+    await settle();
+    expect(host.querySelector('.rail-panel__count')!.textContent).toBe('2 objects · 1 group');
+    useVamsStore.getState().addTextObject('Hello', 0, 0);
+    await settle();
+    expect(host.querySelector('.rail-panel__count')!.textContent).toBe('3 objects · 1 group');
+    const group = useVamsStore.getState().objects.find((o) => o.type === 'GROUP')!;
+    useVamsStore.getState().ungroup(group.id);
+    await settle();
+    expect(host.querySelector('.rail-panel__count')!.textContent).toBe('3 objects');
+    unmount(host);
+    useVamsStore.setState({ objects: [], selectedObjectId: null });
+  });
+});
