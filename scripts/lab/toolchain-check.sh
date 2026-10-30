@@ -3,6 +3,7 @@
 # image it builds the main module, compiles three programs as side modules
 # (with emcc, and with clang and wasm-ld alone as the compile service does),
 # runs each one through vams_run in Node and prints its output and sizes.
+# Every way of compiling a program must give the same bytes as emcc.
 #
 #   sh scripts/lab/toolchain-check.sh                  emsdk image only
 #   sh scripts/lab/toolchain-check.sh --image <tag>    also compile in the
@@ -29,7 +30,8 @@ if [ "${1:-}" != "--inside" ]; then
   if [ -n "$SERVICE_IMAGE" ]; then
     # The compile-service image has clang and wasm-ld but no emcc. It runs as
     # the lab user, compiles in /tmp and sends the side modules back as a tar.
-    docker run --rm --entrypoint sh -v "$HOST_ROOT:/src:ro" -w /src "$SERVICE_IMAGE" -c '
+    TAR="$ROOT/$CHECK/service.tar"
+    if ! docker run --rm --entrypoint sh -v "$HOST_ROOT:/src:ro" -w /src "$SERVICE_IMAGE" -c '
       set -euf
       CC=$(sh lab/runtime/build.sh --side-cc)
       LD=$(sh lab/runtime/build.sh --side-ld)
@@ -41,7 +43,11 @@ if [ "${1:-}" != "--inside" ]; then
         llvm-objcopy /tmp/lab/$p.wasm /tmp/lab/$p.wasm $STRIP
       done
       cd /tmp/lab && tar -cf - '"$(for p in $PROGRAMS; do printf '%s.wasm ' "$p"; done)"'
-    ' | tar -xf - -C "$ROOT/$CHECK/service"
+    ' > "$TAR"; then
+      echo "compiling in $SERVICE_IMAGE failed" >&2
+      exit 1
+    fi
+    tar -xf "$TAR" -C "$ROOT/$CHECK/service"
     docker run --rm -v "$HOST_ROOT:/src" -w /src "$EMSDK_IMAGE" \
       sh scripts/lab/toolchain-check.sh --inside run-service
   fi
@@ -58,7 +64,19 @@ run_all() {
   node "$CHECK/run.mjs" "$CHECK/node/vams_main.mjs" "$@"
 }
 
+same_bytes() {
+  # $1, $2: folders holding the same programs
+  for p in $PROGRAMS; do
+    if ! cmp "$1/$p.wasm" "$2/$p.wasm"; then
+      echo "$p: $2 differs from $1" >&2
+      exit 1
+    fi
+  done
+  echo "== $2 matches $1 byte for byte"
+}
+
 if [ "$2" = "run-service" ]; then
+  same_bytes "$CHECK/emcc" "$CHECK/service"
   run_all "compile-service image" $(for p in $PROGRAMS; do printf '%s ' "$CHECK/service/$p.wasm"; done)
   exit 0
 fi
@@ -133,6 +151,7 @@ for p in $PROGRAMS; do
   "$BIN/llvm-objcopy" "$CHECK/clang/$p.wasm" "$CHECK/clang/$p.wasm" $SIDE_STRIP_FLAGS
 done
 set +f
+same_bytes "$CHECK/emcc" "$CHECK/clang"
 
 cat > "$CHECK/run.mjs" <<'EOF'
 // Runs each side module through vams_run in a fresh main module instance.

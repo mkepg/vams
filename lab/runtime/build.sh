@@ -19,21 +19,25 @@ ENVIRONMENT=${ENVIRONMENT:-worker}
 LAB_INCLUDE=${LAB_INCLUDE:-/lab/include}
 LAB_SYSROOT=${LAB_SYSROOT:-/lab/sysroot}
 
-# A student's program, compiled and linked by emcc into a side module.
-SIDE_FLAGS="-std=c++17 -O1 -fPIC -fwasm-exceptions -sSIDE_MODULE=1 -nostdinc++ -isystem $LAB_INCLUDE -isystem $LAB_SYSROOT/include/c++/v1"
+# What every compile of a student's program shares.
+SIDE_COMMON="-std=c++17 -O1 -fPIC -fwasm-exceptions -nostdinc++ -isystem $LAB_INCLUDE -isystem $LAB_SYSROOT/include/c++/v1"
 
-# The same compile without emcc, as the compile service runs it:
+# A student's program, compiled and linked by emcc into a side module.
+SIDE_FLAGS="$SIDE_COMMON -sSIDE_MODULE=1"
+
+# The same compile without emcc, as the compile service runs it. emcc adds the
+# target, sysroot and LLVM flags itself; toolchain-check.sh checks that both
+# ways give the same bytes.
 #   clang++ $SIDE_CC_FLAGS -c main.cpp -o main.o
 #   wasm-ld $SIDE_LD_FLAGS main.o -o main.wasm
 #   llvm-objcopy main.wasm main.wasm $SIDE_STRIP_FLAGS
 SIDE_LLVM_FLAGS="-mllvm -combiner-global-alias-analysis=false -mllvm -wasm-enable-sjlj -mllvm -wasm-use-legacy-eh -mllvm -disable-lsr"
-SIDE_CC_FLAGS="--target=wasm32-unknown-emscripten --sysroot=$LAB_SYSROOT -fvisibility=default $SIDE_LLVM_FLAGS -DEMSCRIPTEN -Xclang -iwithsysroot/include/fakesdl -Xclang -iwithsysroot/include/compat -std=c++17 -O1 -fPIC -fwasm-exceptions -nostdinc++ -isystem $LAB_INCLUDE -isystem $LAB_SYSROOT/include/c++/v1"
+SIDE_CC_FLAGS="--target=wasm32-unknown-emscripten --sysroot=$LAB_SYSROOT -fvisibility=default $SIDE_LLVM_FLAGS -DEMSCRIPTEN -Xclang -iwithsysroot/include/fakesdl -Xclang -iwithsysroot/include/compat $SIDE_COMMON"
 SIDE_LD_FLAGS="$SIDE_LLVM_FLAGS -mllvm -wasm-enable-eh -mllvm -exception-model=wasm --import-memory --strip-debug --export-dynamic --export=__wasm_call_ctors --export-if-defined=main --export-if-defined=__main_argc_argv --export-if-defined=__wasm_apply_data_relocs --experimental-pic --unresolved-symbols=import-dynamic -shared"
 SIDE_STRIP_FLAGS="--remove-section=.debug* --remove-section=producers --remove-section=name"
 
 # The main module: libc, libc++ and the bridges, shared by every program.
 MAIN_FLAGS="-O2 -fwasm-exceptions -sMAIN_MODULE=1 -sMODULARIZE -sEXPORT_ES6 -sENVIRONMENT=$ENVIRONMENT -sALLOW_MEMORY_GROWTH -sEXPORT_NAME=createVamsMain -sEXPORTED_RUNTIME_METHODS=FS,ccall"
-MAIN_SOURCES="$HERE/vams_main.c"
 
 case "${1:-}" in
   --side-flags) echo "$SIDE_FLAGS"; exit 0 ;;
@@ -46,5 +50,5 @@ esac
 
 mkdir -p "$OUT"
 # shellcheck disable=SC2086
-emcc $MAIN_FLAGS $MAIN_SOURCES -o "$OUT/vams_main.mjs"
+emcc $MAIN_FLAGS "$HERE/vams_main.c" -o "$OUT/vams_main.mjs"
 echo "built $OUT/vams_main.mjs and $OUT/vams_main.wasm"
