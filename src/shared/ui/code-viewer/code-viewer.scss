@@ -17,8 +17,6 @@ $fold-col: 20px;
   flex-direction: column;
   background: var(--paper);
   color: var(--code-ink);
-
-  &.lesson-mode .code-content { user-select: none; }
 }
 
 .code-header {
@@ -133,10 +131,14 @@ $fold-col: 20px;
   min-height: 0;
 }
 
-// A changed line's number turns amber; the fold column beside the numbers holds the ▾.
+// A changed line's number turns amber.
 .code-content .cm-lineNumbers .cm-gutterElement.is-changed { color: var(--value); }
 
-.code-content .code-gutter .cm-gutterElement { width: $fold-col; }
+// Every line starts with the fold column, where an open block's ▾ sits.
+.code-content .cm-editor .cm-line {
+  position: relative;
+  padding-left: $fold-col;
+}
 
 // A fold row's number, in the line-number colour.
 .code-line__num {
@@ -209,10 +211,10 @@ $fold-col: 20px;
   .cm-line.is-fired { animation: none; }
 }
 
-// A fold row reaches back under the line numbers, so its number sits in their column.
+// A fold row reaches back under the line numbers, so its number sits in their column and its ▸ in the fold column.
 .code-fold-row {
   position: relative;
-  margin-left: -($num-col + $fold-col);
+  margin-left: -$num-col;
 }
 
 .code-fold {
@@ -260,8 +262,11 @@ $fold-col: 20px;
 
 // An open block's ▾ sits in the fold column of its first line, where the ▸ was while it was folded.
 .code-fold-toggle {
-  display: block;
-  width: 100%;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: $fold-col;
   padding: 0;
   border: 0;
   background: none;
@@ -282,6 +287,7 @@ $fold-col: 20px;
 // Notes: dim words aligned under the code they describe, no rule or marker.
 .code-note {
   display: block;
+  padding-left: $fold-col;
   margin: -1px 0 3px;
   white-space: pre;
   font-family: $font-ui;

@@ -94,6 +94,7 @@ export function readOnlyCode(): Extension[] {
     EditorView.editable.of(true),
     // A change that comes from the student is dropped; only the program itself replaces the text.
     EditorState.changeFilter.of((tr) => tr.annotation(Transaction.userEvent) === undefined),
-    EditorView.contentAttributes.of({ 'aria-label': 'Generated C++ code', 'aria-readonly': 'true' }),
+    // No on-screen keyboard opens when a phone or tablet taps the code.
+    EditorView.contentAttributes.of({ 'aria-label': 'Generated C++ code', 'aria-readonly': 'true', inputmode: 'none' }),
   ];
 }

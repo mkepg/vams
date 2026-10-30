@@ -120,6 +120,7 @@ const cursorLine = (host: HTMLElement) => {
   const view = viewOf(host);
   return view.state.doc.lineAt(view.state.selection.main.head).number - 1;
 };
+const textOf = (host: HTMLElement, el: Element) => viewOf(host).state.doc.line(lineOf(host, el) + 1).text;
 const putCursor = (host: HTMLElement, line: number) => {
   const view = viewOf(host);
   view.dispatch({ selection: { anchor: view.state.doc.line(line + 1).from } });
@@ -270,7 +271,8 @@ const currentProgram = () => {
     { width: 800, height: 600 },
   );
 };
-const lineTexts = (host: HTMLElement) => [...host.querySelectorAll('.cm-line')].map((el) => el.textContent ?? '');
+/** The drawn lines' text, top to bottom, read from the document so a line's ▾ is not part of it. */
+const lineTexts = (host: HTMLElement) => [...host.querySelectorAll('.cm-line')].map((el) => textOf(host, el));
 const foldLabels = (host: HTMLElement) => [...host.querySelectorAll('.code-fold__label')].map((el) => el.textContent);
 
 describe('BB-CODE-09: With a shape selected, its code is open and the rest of the program folds', () => {
@@ -307,7 +309,7 @@ describe('BB-CODE-11: An edit marks only the value it changed, in Author mode', 
     getState().updateObjectTransform(tri.id, { translateX: 0.4 });
     await settle();
     expect([...host.querySelectorAll('.code-value')].map((el) => el.textContent).join('')).toBe('0.4000f');
-    const changed = host.querySelector('.cm-line.is-changed')!.textContent!;
+    const changed = textOf(host, host.querySelector('.cm-line.is-changed')!);
     expect(changed.startsWith('ObjectState state_Triangle')).toBe(true);
     unmount(host);
   });
@@ -467,7 +469,7 @@ describe('BB-CODE-18: A changed value opens only its own line; the neighbours st
 /** The panel's live regions, leaving out CodeMirror's announcer, which stays empty because nothing here announces. */
 const liveRegions = (host: HTMLElement) => host.querySelectorAll('[aria-live]:not(.cm-announced)');
 const lineEl = (host: HTMLElement, starts: string) =>
-  [...host.querySelectorAll('.cm-line')].find((el) => el.textContent!.trim().startsWith(starts)) as HTMLElement;
+  [...host.querySelectorAll('.cm-line')].find((el) => textOf(host, el).trim().startsWith(starts)) as HTMLElement;
 
 describe('BB-CODE-19: Clicking a line explains it in the strip; Escape closes it', () => {
   it('shows the signature, the sentence and the student\'s values, in a polite live region', async () => {
@@ -701,7 +703,8 @@ describe('BB-CODE-27: The fold toggle never explains a line', () => {
     (host.querySelector('.code-fold[data-block="draw:Square"]') as HTMLButtonElement).click();
     await settle();
     const close = host.querySelector('.code-fold-toggle[data-block="draw:Square"]') as HTMLButtonElement;
-    expect(close.closest('.cm-content, .cm-line')).toBeNull();
+    // The ▾ sits at the start of the line it folds, yet pressing it never explains that line.
+    expect(close.closest('.cm-line')).not.toBeNull();
     key(close, 'Enter');
     key(close, ' ');
     key(close, 'ArrowDown');
@@ -873,11 +876,11 @@ describe('BB-CODE-35: An unfolded block folds back with a ▾ in the column the 
     expect(open.classList.contains('code-fold-toggle')).toBe(true);
     expect(open.textContent).toBe('▾');
     expect(document.activeElement).toBe(open);
-    // The ▾ is in a gutter of its own, right of the line numbers: never over a number, never in the code.
-    expect(open.closest('.cm-gutter')!.classList.contains('code-gutter')).toBe(true);
-    expect(open.closest('.cm-lineNumbers, .cm-content')).toBeNull();
-    const gutters = [...host.querySelectorAll('.cm-gutter')];
-    expect(gutters.findIndex((g) => g.classList.contains('cm-lineNumbers'))).toBeLessThan(gutters.findIndex((g) => g.classList.contains('code-gutter')));
+    // The ▾ opens its block's first line, ahead of the text, and never sits among the line numbers.
+    const line = open.closest('.cm-line')!;
+    expect(textOf(host, line)).toBe('void draw_Square()');
+    expect(line.firstElementChild).toBe(open);
+    expect(open.closest('.cm-gutters')).toBeNull();
     open.click();
     await settle();
     expect(getState().codeFoldsOpened).toEqual([]);
@@ -942,7 +945,7 @@ describe('BB-CODE-37: Folding a block that holds a forced line keeps that line, 
 });
 
 describe('BB-CODE-38: A three-digit line number is never covered by the toggle', () => {
-  it('keeps the ▾ in its own gutter, beside the number, with a fold column on every row', async () => {
+  it('keeps the ▾ in the fold column of its own line, beside the number, with a fold column on every row', async () => {
     const code = Array.from({ length: 120 }, (_, i) => `line_${i};`).join('\n');
     const rows: CodeRow[] = [
       { kind: 'line', line: 99, closes: { block: 'b', label: 'void b()' } },
@@ -955,13 +958,15 @@ describe('BB-CODE-38: A three-digit line number is never covered by the toggle',
     // Lines 100 and 101 are drawn; the fold row carries its own 102.
     expect(numbersShown(host)).toEqual(['100', '101']);
     expect(host.querySelector('.code-fold .code-line__num')!.textContent).toBe('102');
-    expect(toggle.closest('.cm-lineNumbers')).toBeNull();
-    expect(toggle.closest('.code-gutter')).not.toBeNull();
-    expect(toggle.closest('.cm-content')).toBeNull();
+    expect(toggle.closest('.cm-gutters')).toBeNull();
+    expect(lineOf(host, toggle.closest('.cm-line')!)).toBe(99);
     expect(host.querySelector('.code-fold .code-line__fold')).not.toBeNull();
     const css = readFileSync('src/shared/ui/code-viewer/code-viewer.scss', 'utf8');
     expect(css).not.toContain('code-fold-close');
-    expect(css).toMatch(/\.code-gutter \.cm-gutterElement\s*{[^}]*width:\s*\$fold-col/);
+    expect(css).not.toContain('code-gutter');
+    // Every line keeps the fold column at its start, and the ▾ fills that column.
+    expect(css).toMatch(/\.cm-line\s*{[^}]*padding-left:\s*\$fold-col/);
+    expect(css).toMatch(/\.code-fold-toggle\s*{[^}]*left:\s*0;[^}]*width:\s*\$fold-col/);
     unmount(host);
   });
 });
@@ -1159,6 +1164,8 @@ describe('BB-CODE-43: The code panel never takes an edit', () => {
     expect(view.state.doc.toString()).toBe(SMALL);
     expect(lineTexts(host)).toEqual(SMALL.split('\n'));
     expect(contentOf(host).getAttribute('aria-readonly')).toBe('true');
+    // A tap on a phone or tablet opens no on-screen keyboard.
+    expect(contentOf(host).getAttribute('inputmode')).toBe('none');
     unmount(host);
   });
 });
@@ -1202,6 +1209,45 @@ describe('BB-CODE-44: Folding never leaves the cursor in hidden code', () => {
     key(contentOf(host), ' ');
     await settle();
     expect(onExplain).not.toHaveBeenCalled();
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-45: Every control in the code panel is reachable by a screen reader, after the code', () => {
+  it('puts no focusable element under aria-hidden, and the ▾ after the code in the tab order', async () => {
+    const { tri } = mockScene();
+    getState().selectObject(tri.id);
+    getState().toggleCodeFold('draw:Square');
+    const host = mount(h(SceneCodePanel, {}));
+    await settle();
+    lineEl(host, 'glTranslatef(').click();
+    await settle();
+    const focusable = [...host.querySelectorAll('button, input, a[href], [tabindex], [contenteditable="true"]')];
+    expect(focusable.some((el) => el.classList.contains('code-fold-toggle'))).toBe(true);
+    expect(focusable.some((el) => el.classList.contains('code-fold'))).toBe(true);
+    expect(focusable.filter((el) => el.closest('[aria-hidden="true"]'))).toEqual([]);
+    const content = contentOf(host);
+    for (const toggle of host.querySelectorAll('.code-fold-toggle, .code-fold')) expect(content.contains(toggle)).toBe(true);
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-46: A click with the strip open explains the line once', () => {
+  it('leaves a pointer\'s cursor move to the click, and still follows the arrow keys', async () => {
+    const onExplain = vi.fn();
+    const host = mount(h(CodeViewer, { code: SMALL, explainable: new Set([2, 3]), explainedLine: 2, onExplain }));
+    await settle();
+    const view = viewOf(host);
+    // A real click: the pointer moves the cursor, then the click lands on the line.
+    view.dispatch({ selection: { anchor: view.state.doc.line(4).from }, userEvent: 'select.pointer' });
+    lineEl(host, 'glutMainLoop').click();
+    await settle();
+    expect(onExplain.mock.calls).toEqual([[3]]);
+    onExplain.mockClear();
+    putCursor(host, 2);
+    key(contentOf(host), 'ArrowDown');
+    await settle();
+    expect(onExplain.mock.calls).toEqual([[3]]);
     unmount(host);
   });
 });

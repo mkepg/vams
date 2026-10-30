@@ -39,7 +39,7 @@ The code panel keeps every product rule. It stays read-only, and its text is sti
 
 1. **CodeMirror 6.** It was already the Lab's choice for its smaller bundle and better accessibility than Monaco. Packages: `@codemirror/state`, `@codemirror/view`, `@codemirror/language`, `@codemirror/lang-cpp` and `@lezer/highlight`. The Lab adds `@codemirror/commands`, `@codemirror/autocomplete` and `@codemirror/lint` when it needs them.
 2. **The same `CodeViewer` props.** `SceneCodePanel` and `SceneViewApp` do not change. Only the inside of `CodeViewer` moves to CodeMirror. The header (Notes, Find, Copy), the explanation strip and the hint stay as Preact markup outside the editor.
-3. **Folding is drawn from the existing rows.** `visibleRows()` still decides what is open. Each `fold` and `more` row becomes a block widget that replaces its lines and holds the same `<button class="code-fold">`. Each line whose row `closes` a block gets the ▾ button in a gutter of its own, beside the line numbers. CodeMirror's own fold service is not used, so the store keeps owning which folds are open.
+3. **Folding is drawn from the existing rows.** `visibleRows()` still decides what is open. Each `fold` and `more` row becomes a block widget that replaces its lines and holds the same `<button class="code-fold">`. Each line whose row `closes` a block gets the ▾ button as an inline widget at the line's start, drawn in the fold column beside the line numbers; it is not a gutter, because CodeMirror hides its gutters from assistive tech. CodeMirror's own fold service is not used, so the store keeps owning which folds are open.
 4. **Highlighting:**
    - `lang-cpp` parses the code.
    - A highlight style colours comments only.

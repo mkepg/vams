@@ -1,7 +1,5 @@
 import { RangeSet, StateEffect, StateField, type EditorState, type Extension, type Range, type Text } from '@codemirror/state';
-import {
-  Decoration, EditorView, GutterMarker, WidgetType, gutter, gutterLineClass, type DecorationSet,
-} from '@codemirror/view';
+import { Decoration, EditorView, GutterMarker, WidgetType, gutterLineClass, type DecorationSet } from '@codemirror/view';
 import type { CodeMark, CodeNote, CodeRow } from './types';
 
 /** Everything the code view draws besides the text, as the props give it. */
@@ -108,7 +106,11 @@ class NoteWidget extends WidgetType {
   }
 }
 
-class FoldToggle extends GutterMarker {
+/**
+ * The ▾ that folds an open block, at the start of its first line and drawn in the fold column.
+ * It lives in the code rather than a gutter, because the editor hides its gutters from screen readers.
+ */
+class FoldToggle extends WidgetType {
   readonly block: string;
   readonly label: string;
   constructor(block: string, label: string) {
@@ -129,6 +131,9 @@ class FoldToggle extends GutterMarker {
     button.textContent = '▾';
     button.addEventListener('click', () => view.state.field(viewerField).input.onToggleFold(this.block, button));
     return button;
+  }
+  ignoreEvent() {
+    return true;
   }
 }
 
@@ -160,11 +165,14 @@ const linesRange = (doc: Text, start: number, end: number) => ({ from: doc.line(
  * The decorations for one set of props: `blocks` hides folded lines behind their fold row and
  * places the notes, `marks` styles the lines and values that are shown.
  */
-export function buildDecorations(input: ViewerDecorationInput, doc: Text): { blocks: DecorationSet; marks: DecorationSet } {
+export function buildDecorations(
+  input: ViewerDecorationInput,
+  doc: Text,
+  shown: ReadonlySet<number> = shownLines(input.rows),
+): { blocks: DecorationSet; marks: DecorationSet } {
   const blocks: Range<Decoration>[] = [];
   const marks: Range<Decoration>[] = [];
   const count = doc.lines;
-  const shown = shownLines(input.rows);
   const inDoc = (line: number) => line >= 0 && line < count;
 
   // Each fold or "more" row stands in for its lines; lines no row names are not drawn at all.
@@ -198,6 +206,12 @@ export function buildDecorations(input: ViewerDecorationInput, doc: Text): { blo
     }
   }
 
+  for (const row of input.rows) {
+    if (row.kind !== 'line' || !row.closes || !inDoc(row.line)) continue;
+    const toggle = new FoldToggle(row.closes.block, row.closes.label);
+    marks.push(Decoration.widget({ widget: toggle, side: -1 }).range(doc.line(row.line + 1).from));
+  }
+
   // A repeat of the same branch, or a new edit, swaps the class for its twin, so the animation runs again.
   const firedAgain = input.firedSeq !== undefined && input.firedSeq % 2 === 0;
   for (const line of shown) {
@@ -229,17 +243,13 @@ function shownLines(rows: readonly CodeRow[]): Set<number> {
   return new Set(rows.flatMap((r) => (r.kind === 'line' ? [r.line] : [])));
 }
 
-/** The ▾ on the first line of each open block, and the amber line numbers of changed lines. */
-export function buildGutterMarkers(input: ViewerDecorationInput, doc: Text): { toggles: RangeSet<GutterMarker>; numbers: RangeSet<GutterMarker> } {
-  const toggles: Range<GutterMarker>[] = [];
+/** The amber line numbers of the changed lines that are drawn. */
+export function buildNumberClasses(input: ViewerDecorationInput, doc: Text, shown: ReadonlySet<number>): RangeSet<GutterMarker> {
   const numbers: Range<GutterMarker>[] = [];
-  for (const row of input.rows) {
-    if (row.kind !== 'line' || row.line >= doc.lines) continue;
-    const from = doc.line(row.line + 1).from;
-    if (row.closes) toggles.push(new FoldToggle(row.closes.block, row.closes.label).range(from));
-    if (input.changedLines.has(row.line)) numbers.push(changedNumber.range(from));
+  for (const line of input.changedLines) {
+    if (shown.has(line) && line < doc.lines) numbers.push(changedNumber.range(doc.line(line + 1).from));
   }
-  return { toggles: RangeSet.of(toggles, true), numbers: RangeSet.of(numbers, true) };
+  return RangeSet.of(numbers, true);
 }
 
 interface ViewerValue {
@@ -247,12 +257,12 @@ interface ViewerValue {
   shown: ReadonlySet<number>;
   blocks: DecorationSet;
   marks: DecorationSet;
-  toggles: RangeSet<GutterMarker>;
   numbers: RangeSet<GutterMarker>;
 }
 
 function compute(input: ViewerDecorationInput, doc: Text): ViewerValue {
-  return { input, shown: shownLines(input.rows), ...buildDecorations(input, doc), ...buildGutterMarkers(input, doc) };
+  const shown = shownLines(input.rows);
+  return { input, shown, ...buildDecorations(input, doc, shown), numbers: buildNumberClasses(input, doc, shown) };
 }
 
 /** Replaces what the view draws around the text. */
@@ -275,19 +285,10 @@ const viewerField = StateField.define<ViewerValue>({
   ],
 });
 
-/** The current props, as the view last received them. */
-export const viewerInput = (state: EditorState) => state.field(viewerField).input;
-
 /** Whether line `line` (from 0) is drawn, rather than folded away. */
 export const isLineShown = (state: EditorState, line: number) => state.field(viewerField).shown.has(line);
 
-/** The field and the ▾ gutter, which sits beside the line numbers. */
+/** The folds, notes, marks and ▾ toggles the props describe. */
 export function viewerDecorations(): Extension {
-  return [
-    viewerField,
-    gutter({
-      class: 'code-gutter',
-      markers: (view) => view.state.field(viewerField).toggles,
-    }),
-  ];
+  return viewerField;
 }

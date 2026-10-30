@@ -201,7 +201,10 @@ const CodeViewer = memo(function CodeViewer({
           EditorView.domEventHandlers({
             // A click on a line explains it, as the line buttons did.
             click: (event, view) => {
-              const el = (event.target as Element | null)?.closest?.('.cm-line');
+              const target = event.target as Element | null;
+              // The ▾ folds its block; it never explains the line it sits on.
+              if (target?.closest?.('.code-fold-toggle')) return false;
+              const el = target?.closest?.('.cm-line');
               if (!el || !view.state.selection.main.empty) return false;
               const pos = view.posAtDOM(el);
               const line = view.state.doc.lineAt(pos).number - 1;
@@ -210,9 +213,11 @@ const CodeViewer = memo(function CodeViewer({
               return false;
             },
           }),
-          // While the strip is open, the cursor landing on an explainable line explains it.
+          // While the strip is open, the cursor landing on an explainable line explains it. A
+          // pointer's move is left to the click above, so a click explains once.
           EditorView.updateListener.of((update) => {
-            if (!update.selectionSet || !update.transactions.some((tr) => tr.isUserEvent('select'))) return;
+            const byKey = update.transactions.some((tr) => tr.isUserEvent('select') && !tr.isUserEvent('select.pointer'));
+            if (!update.selectionSet || !byKey) return;
             const { explainable: can, explainedLine: shown, onExplain: explain } = live.current;
             if (shown == null) return;
             const line = cursorLine(update.view);
@@ -255,10 +260,13 @@ const CodeViewer = memo(function CodeViewer({
   // The text changes only when the program does; everything drawn around it changes with the props.
   const ariaKey = `${!!strip}:${showHint}`;
   const lastAria = useRef('false:false');
+  // The text the view holds, so an update that keeps the code skips comparing it.
+  const lastText = useRef(text);
   useLayoutEffect(() => {
     const view = viewRef.current;
     if (!view) return;
-    const changes = changeTo(view.state.doc, text);
+    const changes = lastText.current === text ? null : changeTo(view.state.doc, text);
+    lastText.current = text;
     const effects: StateEffect<unknown>[] = [setViewerInput.of(input)];
     if (lastAria.current !== ariaKey) {
       lastAria.current = ariaKey;
