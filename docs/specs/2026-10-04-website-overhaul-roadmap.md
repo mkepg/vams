@@ -122,6 +122,16 @@ Editor leftovers (2026-10-30), from earlier reviews' deferred minors:
 - During a lesson, a group the student opens leads Math and Help until the next step; before, the step's focus always won.
 - Left as they are: glyph widths at fractional display scaling (crisp glyphs there would change their size away from GLUT's window pixels), and the program window's size and pipeline-strip names shortening with an ellipsis on a narrow canvas.
 
+Review of the 2026-10-30 round: a whole-branch review found no critical problems. Five fixes followed. The glossary named `GL_CLAMP` where the code writes `GL_CLAMP_TO_EDGE`. The autosave warning closed for good after one click. Enter in search could open a result other than the one Tab had reached. Ctrl+K opened a hidden search box while the home page was presented. A group's text box ignored the vertical scale of a stretched window. Smaller points left open:
+
+- Search draws dark, in the header's colours, on light pages too.
+- Search's list always reports itself expanded, holds its empty message inside the list, and announces no result count.
+- A glossary term found in search opens at the top of the glossary, not at the term.
+- Help headings on the Guide page sit at the same level as the topic titles.
+- BB-INSP-03's title still names the old order (focus before an opened group).
+- The rice terraces card says N "brings out" the stars where it turns them on and off, and the search button shows Ctrl K on a Mac too.
+- The Teaching page repeats the Learn page's section-anchor rule.
+
 Rehearsal checklist (presentation, Nov 10):
 
 - On the demo machine, open `/` and `/app` once online and wait for "VAMS now works offline". Then turn networking off and run the whole talk.
