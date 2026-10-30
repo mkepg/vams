@@ -151,6 +151,7 @@ describe('BB-LAB-03: Appendix C, GLUT shapes and the projection calls are reject
   it('rejects every Appendix C call, every glutSolid* and glutWire*, glFrustum, gluLookAt and gluPerspective', () => {
     // Appendix C lists glShadeModel only "in lighting context"; the generator emits it for FLAT and SMOOTH.
     const calls = appendix.functions.filter((n) => !generated.has(n));
+    expect(appendix.functions.filter((n) => generated.has(n))).toEqual(['glShadeModel']);
     const expected = [...calls, ...FREEGLUT_STD_SHAPES, 'glFrustum', 'gluLookAt', 'gluPerspective'];
     expect(expected.filter((n) => !rejected.has(n))).toEqual([]);
   });

@@ -22,6 +22,8 @@ tests/
 │   │                                bodies, used to check the Run runtime.
 │   ├── generator-names.ts        ← Every GL and GLUT name the code
 │   │                                generator's source can emit.
+│   ├── lab-http.ts               ← A plain HTTP request for the Lab
+│   │                                compile service's tests.
 │   └── image-compare.ts          ← PNG reading and writing, and the render
 │                                    fidelity rule (edge pixels may differ,
 │                                    the rest within 2 per channel).
@@ -133,8 +135,15 @@ tests/
 │   │                                        spacing, glBitmap placement and the
 │   │                                        canvas layout)
 │   ├── image-compare.test.ts             (WB-FID-*: the battery's image rule)
-│   └── british-spelling.test.ts          (WB-SPELL-*: British spelling in every
-│                                            string students read)
+│   ├── british-spelling.test.ts          (WB-SPELL-*: British spelling in every
+│   │                                        string students read)
+│   └── lab-service.test.ts               (WB-LAB-*: the Lab compile service's
+│                                            diagnostics, flags and HTTP contract)
+├── security/                     ← What a Lab program can reach on the
+│   │                                compile server.
+│   └── lab-includes.test.ts              (SEC-LAB-*: include and directive
+│                                            checks; SEC-LAB-03 runs the built
+│                                            image when LAB_DOCKER=1)
 ├── visual/                       ← Not part of `npm test`.
 │   ├── editor.spec.ts                    (VIS-EDITOR-*: screenshot checks,
 │   │                                        including the rail panels,
