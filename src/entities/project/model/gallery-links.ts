@@ -44,6 +44,22 @@ export const GALLERY_SCENES = [
     run: 'Steer the fox with the arrow keys. Space brings it home. Resize the window and the view keeps its proportions.',
     alt: 'A pixel-art orange fox in a blue sky full of small white clouds.',
   },
+  {
+    slug: 'rice-terraces',
+    title: 'Rice terraces at dusk',
+    summary: 'Terraced paddies under a mountain ridge, each terrace a VBO of quads drawn with glDrawElements, its wall a line strip from vertex arrays.',
+    shows: ['Buffers', 'Primitives'],
+    run: 'Drag across the window to move the sun. N brings out the stars. Space puts the sun back.',
+    alt: 'Four green rice terraces stepping down below a purple ridge, with an orange sun in a dusk sky.',
+  },
+  {
+    slug: 'pinwheels',
+    title: 'Pinwheels in the breeze',
+    summary: 'Three paper pinwheels on a hill. Each is a group at its hub, so one rotation turns its vanes and pin together.',
+    shows: ['Transforms', 'Primitives'],
+    run: 'Idle spins each pinwheel at its own speed and way round. The left and right arrow keys push the big one. Space resets them.',
+    alt: 'Three colourful four-vaned pinwheels on sticks above a green hill, under a pale blue sky with clouds.',
+  },
 ] as const;
 
 export type GallerySlug = (typeof GALLERY_SCENES)[number]['slug'];

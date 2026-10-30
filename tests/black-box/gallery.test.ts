@@ -42,11 +42,11 @@ function program(slug: string): string {
   );
 }
 
-describe('BB-GALLERY-01: The gallery lists five scenes, jeepney street first', () => {
+describe('BB-GALLERY-01: The gallery lists seven scenes, jeepney street first', () => {
   it('has the agreed slugs, titles and sections, distinct from the starter scenes', () => {
-    expect(GALLERY_SCENES.map((s) => s.slug)).toEqual(['jeepney-street', 'solar-system', 'parol', 'clock', 'pixel-fox']);
-    expect(GALLERY_SCENES.map((s) => s.title)).toEqual(['Jeepney street', 'Solar system', 'Parol at night', 'Analogue clock', 'Fox in the clouds']);
-    expect(GALLERY_SCENES.map((s) => getPreset(s.slug)?.section)).toEqual(['Primitives', 'Transforms', 'Primitives', 'Transforms', 'Textures']);
+    expect(GALLERY_SCENES.map((s) => s.slug)).toEqual(['jeepney-street', 'solar-system', 'parol', 'clock', 'pixel-fox', 'rice-terraces', 'pinwheels']);
+    expect(GALLERY_SCENES.map((s) => s.title)).toEqual(['Jeepney street', 'Solar system', 'Parol at night', 'Analogue clock', 'Fox in the clouds', 'Rice terraces at dusk', 'Pinwheels in the breeze']);
+    expect(GALLERY_SCENES.map((s) => getPreset(s.slug)?.section)).toEqual(['Primitives', 'Transforms', 'Primitives', 'Transforms', 'Textures', 'Buffers', 'Transforms']);
     for (const scene of GALLERY_SCENES) {
       expect(scene.shows.length).toBeGreaterThan(0);
       for (const section of scene.shows) expect(SECTIONS).toContain(section);
@@ -114,6 +114,12 @@ describe('BB-GALLERY-04: Gallery scenes generate a whole program and nothing def
     expect(code['pixel-fox']).toContain('glutSpecialFunc(onSpecial)');
     expect(code['pixel-fox']).toContain('glutReshapeFunc(onReshape)');
     expect(code['pixel-fox']).toContain('GL_REPEAT');
+    expect(code['rice-terraces']).toContain('glDrawElements');
+    expect(code['rice-terraces']).toContain('glVertexPointer');
+    expect(code['rice-terraces']).toContain('glutMotionFunc(onDrag)');
+    expect(code['pinwheels']).toContain('glutIdleFunc(');
+    expect(code['pinwheels']).toContain('glutSpecialFunc(onSpecial)');
+    expect(code['pinwheels']).toContain('glPushMatrix');
   });
 });
 
