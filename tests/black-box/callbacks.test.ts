@@ -2,7 +2,7 @@
  * BLACK-BOX TEST SUITE — BB-CB
  * Functional callbacks: the rule model, the store actions and the generated handler code.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { locateHandlerBranch } from '@/features/code-generation/model/locate-branch';
@@ -519,5 +519,30 @@ describe('BB-CB-23: The Do and Object menus match the scene', () => {
     const options = targetOptions(pointer, objects);
     expect(options.map((o) => o.id)).toContain(a.id);
     expect(options.map((o) => o.id)).not.toContain(b.id);
+  });
+});
+
+describe('BB-CB-24: A rule can be edited and removed, and undo brings each change back', () => {
+  it('replaces the action in place, removes the rule, and ignores an unknown id', () => {
+    // Each change is its own undo step: keep them further apart than the history's throttle.
+    let now = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => (now += 10_000));
+    const t = addTriangle();
+    getState().setCallbackHandler('keyboard', 'onKey');
+    getState().addCallbackRule('keyboard', rule(t.id, { id: 'move' }));
+    getState().updateCallbackRule('keyboard', 'move', { action: { type: 'rotate', degrees: 15 } });
+    expect(getState().callbacks.keyboard.rules).toEqual([expect.objectContaining({ id: 'move', action: { type: 'rotate', degrees: 15 } })]);
+    getState().undo();
+    expect(getState().callbacks.keyboard.rules[0].action).toEqual({ type: 'translate', dx: 0.1, dy: 0 });
+    getState().redo();
+    getState().removeCallbackRule('keyboard', 'move');
+    expect(getState().callbacks.keyboard.rules).toEqual([]);
+    getState().undo();
+    expect(getState().callbacks.keyboard.rules.map((r) => r.id)).toEqual(['move']);
+    const past = getState().past.length;
+    getState().removeCallbackRule('keyboard', 'nope');
+    getState().updateCallbackRule('keyboard', 'nope', { action: { type: 'rotate', degrees: 1 } });
+    expect(getState().past.length).toBe(past);
+    clock.mockRestore();
   });
 });

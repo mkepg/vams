@@ -129,7 +129,7 @@ describe('WB-PERSIST-07: toStorePatchFromProject is a Partial<VamsState>', () =>
   it('does not expose history or batch flags (those are runtime-only)', () => {
     const sanitized = sanitizeProjectData({});
     // Apply and verify the past stays untouched.
-    useVamsStore.setState({ past: [{ objects: [], selectedObjectId: null, interactionMode: 'SELECT', selectedVertexId: null, pendingShapeType: null, pendingVertices: [], pendingMinVertices: 1, pendingVertexStride: null, timestamp: 0 }] });
+    useVamsStore.setState({ past: [{ objects: [], selectedObjectId: null, interactionMode: 'SELECT', selectedVertexId: null, pendingShapeType: null, pendingVertices: [], pendingMinVertices: 1, pendingVertexStride: null, callbacks: emptyCallbacks(), uploadedTextures: [], timestamp: 0 }] });
     // Cannot import toStorePatchFromProject from project-io in this scope
     // without re-importing — patch keys are validated by absence of `past`.
     expect(Object.keys(sanitized)).not.toContain('past');

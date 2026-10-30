@@ -15,6 +15,8 @@ import type { LessonStep } from '@/core/types/lesson';
 import { LESSON_REGISTRY, getLessonById } from '@/features/lesson-engine/model/lesson-registry';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { addTriangle, getState } from '../helpers/store';
+import { solvedStepScene } from '../helpers/lesson-scene';
+import { RULE_KINDS } from '@/core/callbacks/callbacks-model';
 
 const FIRST_DEMO_ID = Object.values(LESSON_REGISTRY).find((l) => l.type === 'demo')?.id;
 
@@ -280,5 +282,33 @@ describe('BB-LESSON-11: The glOrtho demo teaches the stretch through a window th
 
   it("closes on ranges that don't match the window's shape", () => {
     expect(lesson.steps[lesson.steps.length - 1].recap!.points).toContain("x and y ranges that don't match the window's shape stretch the picture.");
+  });
+});
+
+describe("BB-LESSON-12: A goal met by a rule fails once the rule's object is gone", () => {
+  it('checks each rule goal again with every object deleted but the rules kept', () => {
+    let ruleGoals = 0;
+    for (const lesson of Object.values(LESSON_REGISTRY)) {
+      lesson.steps.forEach((step, index) => {
+        if (!step.goals?.length || !step.solve) return;
+        solvedStepScene(lesson, index);
+        const solved = useVamsStore.getState();
+        const hasRules = RULE_KINDS.some((k) => solved.callbacks[k].rules.length > 0);
+        if (!hasRules || solved.objects.length === 0) return;
+        // Store actions prune a deleted object's rules; keep them here to test the goal's own guard.
+        const orphaned = { ...solved, objects: [] };
+        step.goals.forEach((goal) => {
+          if (!goal.check(solved)) return;
+          // A goal that fails with the rules emptied (handler names kept) is met by a rule.
+          const noRules = Object.fromEntries(Object.entries(solved.callbacks).map(([k, c]) => [k, 'rules' in c ? { ...c, rules: [] } : c]));
+          const usesRules = !goal.check({ ...solved, callbacks: noRules } as typeof solved);
+          if (!usesRules) return;
+          ruleGoals++;
+          expect(() => goal.check(orphaned), `${lesson.id} step ${index + 1}: ${goal.label}`).not.toThrow();
+          expect(goal.check(orphaned), `${lesson.id} step ${index + 1}: ${goal.label}`).toBe(false);
+        });
+      });
+    }
+    expect(ruleGoals).toBeGreaterThan(0);
   });
 });
