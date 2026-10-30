@@ -2088,3 +2088,24 @@ describe('BB-LCOL-70: Back to a question passed with Next shows the right answer
     }
   });
 });
+
+describe('BB-LCOL-71: A step aimed at the Callbacks panel marks it like any other focused group', () => {
+  afterEach(() => useVamsStore.setState({ appMode: 'Author', lessonFocusPanel: null, revealedGroup: null }));
+  it('marks the panel for callbacks-panel, and for the code strip opening Callbacks, and not for another target', async () => {
+    useVamsStore.setState({ appMode: 'Lesson', lessonFocusPanel: 'callbacks-panel', railPanel: 'callbacks' });
+    const host = mount(h(EditorPanel, null));
+    await settle();
+    const panel = () => host.querySelector('.callbacks-rail-panel')!;
+    expect(panel().classList.contains('is-focus')).toBe(true);
+    useVamsStore.setState({ lessonFocusPanel: 'object-transform' });
+    await settle();
+    expect(panel().classList.contains('is-focus')).toBe(false);
+    useVamsStore.setState({ appMode: 'Author', lessonFocusPanel: null });
+    useVamsStore.getState().revealGroup('callbacks');
+    await settle();
+    expect(panel().classList.contains('is-focus')).toBe(true);
+    const scss = readFileSync('src/widgets/layout/editor-column/editor-column.scss', 'utf8');
+    expect(scss).toMatch(/\.callbacks-rail-panel\.is-focus/);
+    unmount(host);
+  });
+});
