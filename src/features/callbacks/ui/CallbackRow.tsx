@@ -13,14 +13,16 @@ const ICONS: Record<GlutCallbackKind, LucideIcon> = {
 };
 
 export function CallbackRow({ def }: { def: CallbackDef }) {
-  const callbacks = useVamsStore((s) => s.callbacks);
+  // Plain values only, so a rule edit elsewhere never re-renders this row; the name check still
+  // reads every handler name, since a duplicate name makes the later one invalid.
+  const value = useVamsStore((s) => s.callbacks[def.kind].handlerName);
+  const isActive = useVamsStore((s) => isRegistered(s.callbacks[def.kind]));
+  const isInvalid = useVamsStore((s) => isRegistered(s.callbacks[def.kind]) && !isCallbackValid(s.callbacks, def.kind));
+  const resize = useVamsStore((s) => s.callbacks.reshape.resize);
   const setCallbackHandler = useVamsStore((s) => s.setCallbackHandler);
   const clearCallback = useVamsStore((s) => s.clearCallback);
   const setReshapeMode = useVamsStore((s) => s.setReshapeMode);
   const Icon = ICONS[def.kind];
-  const value = callbacks[def.kind].handlerName;
-  const isActive = isRegistered(callbacks[def.kind]);
-  const isInvalid = isActive && !isCallbackValid(callbacks, def.kind);
 
   return (
     <li className={`cb-item ${isActive ? 'active' : ''} ${isInvalid ? 'invalid' : ''}`}>
@@ -57,7 +59,7 @@ export function CallbackRow({ def }: { def: CallbackDef }) {
       {isActive && def.kind === 'reshape' && (
         <SegmentedControl
           label="Resize"
-          value={callbacks.reshape.resize}
+          value={resize}
           options={[{ value: 'keep', label: 'Keep proportions' }, { value: 'stretch', label: 'Stretch' }]}
           onChange={setReshapeMode}
         />
