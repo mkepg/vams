@@ -52,7 +52,8 @@ tests/
 │   ├── learn-page.test.ts                (BB-LPAGE-*: the course catalog,
 │   │                                        progress after hydration, /learn)
 │   ├── crash-recovery.test.ts            (BB-RECOVER-*: lesson reload,
-│   │                                        corrupt saves, recovery screen)
+│   │                                        corrupt saves, recovery screen,
+│   │                                        the notice when autosave fails)
 │   ├── offline-app.test.ts               (BB-PWA-*: service worker,
 │   │                                        manifest, update notice)
 │   ├── controls.test.ts                  (BB-CTRL-*: the shared control

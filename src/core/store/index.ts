@@ -18,19 +18,25 @@ import { createHelpSlice } from '@/core/store/help-slice';
 import { createTourSlice } from '@/core/store/tour-slice';
 import { createSceneIdentitySlice } from '@/entities/project/model/scene-identity-slice';
 import { reportCorruptSave } from '@/core/store/recovery-signal';
+import { reportSaveResult } from '@/core/store/save-health';
 import { isSceneViewLoad } from '@/shared/lib/scene-view-load';
 
 enableMapSet();
 export const STORAGE_KEY = 'vams-storage';
 
-/** A full or blocked localStorage loses the autosave; it never breaks the action that triggered it. */
+/**
+ * A full or blocked localStorage loses the autosave; it never breaks the action that triggered it.
+ * Each write's outcome goes to save-health, so the editor can tell the student.
+ */
 const safeStorage: StateStorage = {
   getItem: (name) => localStorage.getItem(name),
   setItem: (name, value) => {
     try {
       localStorage.setItem(name, value);
+      reportSaveResult(true);
     } catch {
       // Autosave is skipped for this change.
+      reportSaveResult(false);
     }
   },
   removeItem: (name) => {
