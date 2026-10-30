@@ -38,6 +38,7 @@ interface RenderBridgeHandlers {
 
 let handlers: RenderBridgeHandlers | null = null;
 let editorOverlaysHidden = false;
+let runTextPixelsPerUnitY: number | null = null;
 
 export const renderBridge = {
   /** Called by the renderer once Pixi is ready. Returns an unregister fn. */
@@ -91,5 +92,18 @@ export const renderBridge = {
 
   editorOverlaysHidden(): boolean {
     return editorOverlaysHidden;
+  },
+
+  /**
+   * Run: the window pixels per unit along y when the program started, or null outside Run. The
+   * compiled program's text step is a fixed number of units, so its lines keep that step through a
+   * resize; the renderer spaces text from this while it is set.
+   */
+  setRunTextPixelsPerUnitY(value: number | null): void {
+    runTextPixelsPerUnitY = value;
+  },
+
+  runTextPixelsPerUnitY(): number | null {
+    return runTextPixelsPerUnitY;
   },
 };

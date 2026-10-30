@@ -86,6 +86,7 @@ class RunController {
     this.applied = new Map(Object.keys(this.run.objects).map((id) => [id, 'null|true']));
     this.publish({ running: true, lastCall: null, fired: null, lastFired: null, window: { ...canvas }, canvas: { ...canvas } });
     renderBridge.setEditorOverlaysHidden(true);
+    renderBridge.setRunTextPixelsPerUnitY(canvas.height / (state.viewportLimits.maxY - state.viewportLimits.minY));
     window.addEventListener('keydown', this.keyHandler, true);
     this.watchStore();
     // GLUT calls the reshape handler once when the window opens.
@@ -107,6 +108,7 @@ class RunController {
     this.applied.clear();
     renderBridge.resync();
     renderBridge.setEditorOverlaysHidden(false);
+    renderBridge.setRunTextPixelsPerUnitY(null);
     this.publish(STOPPED);
   }
 

@@ -258,7 +258,8 @@ export function useSceneRenderer({
       const { viewportLimits, selectedObjectId: selected } = useVamsStore.getState();
       const width = app.screen.width;
       const height = app.screen.height;
-      const pixelsPerUnitY = height / (viewportLimits.maxY - viewportLimits.minY);
+      // During Run the lines keep the step the program started with, as the compiled code does.
+      const pixelsPerUnitY = renderBridge.runTextPixelsPerUnitY() ?? height / (viewportLimits.maxY - viewportLimits.minY);
       let placed = false;
       containersRef.current.forEach((container) => {
         if (container.destroyed) return;
