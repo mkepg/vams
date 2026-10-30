@@ -12,6 +12,7 @@ import { WindowGeometryMesh } from '@/shared/engine/pixi/primitives/rendering/wi
 import { POINT_SIZE } from '@/shared/lib/gl-geometry';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { useVamsStore } from '@/core/store';
+import { clearContent } from '@/shared/engine/pixi/hooks/useSceneRenderer';
 
 const node = (type: SceneNode['type'], vertices: [number, number, string][], extra: Partial<SceneNode> = {}): SceneNode => ({
   id: 'n', name: 'N', type, visible: true, shading: 'SMOOTH', parentId: null, children: [],
@@ -247,5 +248,20 @@ describe("BB-FID-09: A group's outline takes in its text child's glyphs", () => 
     expect(area.x + area.width - pad).toBeCloseTo(18 / 268, 5);
     expect(area.y + area.height - pad).toBeCloseTo(12 / 268, 5);
     expect(area.y + pad).toBeCloseTo(-4 / 268, 5);
+  });
+});
+
+describe('BB-FID-10: Rebuilding an object frees what it drew and keeps its children', () => {
+  it("destroys the old content, and leaves a child object's container whole", () => {
+    const group = new Container();
+    const outline = new Graphics().rect(0, 0, 1, 1).stroke({ width: 1, color: 0xffffff });
+    const child = new Container();
+    child.addChild(new Graphics().rect(0, 0, 1, 1).fill(0xffffff));
+    group.addChild(outline, child);
+    clearContent(group, new Set([child]));
+    expect(group.children).toHaveLength(0);
+    expect(outline.destroyed).toBe(true);
+    expect(child.destroyed).toBe(false);
+    expect(child.children[0].destroyed).toBe(false);
   });
 });
