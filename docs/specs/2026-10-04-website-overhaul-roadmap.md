@@ -122,15 +122,16 @@ Editor leftovers (2026-10-30), from earlier reviews' deferred minors:
 - During a lesson, a group the student opens leads Math and Help until the next step; before, the step's focus always won.
 - Left as they are: glyph widths at fractional display scaling (crisp glyphs there would change their size away from GLUT's window pixels), and the program window's size and pipeline-strip names shortening with an ellipsis on a narrow canvas.
 
-Review of the 2026-10-30 round: a whole-branch review found no critical problems. Five fixes followed. The glossary named `GL_CLAMP` where the code writes `GL_CLAMP_TO_EDGE`. The autosave warning closed for good after one click. Enter in search could open a result other than the one Tab had reached. Ctrl+K opened a hidden search box while the home page was presented. A group's text box ignored the vertical scale of a stretched window. Smaller points left open:
+Review of the 2026-10-30 round: a whole-branch review found no critical problems. Five fixes followed. The glossary named `GL_CLAMP` where the code writes `GL_CLAMP_TO_EDGE`. The autosave warning closed for good after one click. Enter in search could open a result other than the one Tab had reached. Ctrl+K opened a hidden search box while the home page was presented. A group's text box ignored the vertical scale of a stretched window. The smaller points it left open were fixed the same day:
 
-- Search draws dark, in the header's colours, on light pages too.
-- Search's list always reports itself expanded, holds its empty message inside the list, and announces no result count.
-- A glossary term found in search opens at the top of the glossary, not at the term.
-- Help headings on the Guide page sit at the same level as the topic titles.
-- BB-INSP-03's title still names the old order (focus before an opened group).
-- The rice terraces card says N "brings out" the stars where it turns them on and off, and the search button shows Ctrl K on a Mac too.
-- The Teaching page repeats the Learn page's section-anchor rule.
+- Search opened in the header's dark colours on light pages. It now opens over the page, in the page's colours.
+- Search's list always reported itself expanded and announced no result count. It now reports whether anything matched, and a status line reads out the count or the empty message.
+- A glossary term found in search opened at the top of the glossary. Each term now has its own anchor.
+- Help headings on the Guide page sat at the same level as the topic titles. They now sit one level below.
+- BB-INSP-03's title named the old order. It now reads opened group, then focus.
+- The rice terraces card says N turns the stars on and off, and the search button shows ⌘ K on a Mac.
+- The Teaching page and the Learn page share one section-anchor rule, in the lesson catalogue.
+- The footer gives the wordmark and the project's name the same space in both themes.
 
 Rehearsal checklist (presentation, Nov 10):
 

@@ -832,6 +832,11 @@ const TOPIC_BY_ID: Record<HelpTopicId, HelpTopic> = HELP_TOPICS.reduce(
 /** The topic shown first when Help opens with no explicit target. */
 export const DEFAULT_HELP_TOPIC: HelpTopicId = 'welcome';
 
+/** A glossary term's anchor on the Guide page: "Viewing volume" is `term-viewing-volume`. */
+export function glossaryTermId(term: string): string {
+  return `term-${term.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`;
+}
+
 export function getHelpTopic(id: HelpTopicId): HelpTopic {
   return TOPIC_BY_ID[id];
 }

@@ -132,6 +132,12 @@ export function isCatalogLesson(id: unknown): id is string {
   return typeof id === 'string' && LESSON_CATALOG.some((lesson) => lesson.id === id);
 }
 
+/** A section's anchor on the Learn page. */
+export const sectionAnchor = (section: CurriculumSection): string => section.toLowerCase();
+
+/** The Learn page, scrolled to a section. */
+export const sectionHref = (section: CurriculumSection): string => `/learn#${sectionAnchor(section)}`;
+
 /** The editor link that opens a lesson. */
 export function lessonHref(id: string): string {
   return `/app?lesson=${encodeURIComponent(id)}`;

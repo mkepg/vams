@@ -2,6 +2,7 @@ import type { ComponentChildren } from 'preact';
 import { Info, Lightbulb, AlertTriangle } from 'lucide-react';
 import type { HelpBlock } from '@/features/help/model/types';
 import { SHORTCUT_GROUPS } from '@/features/help/model/shortcuts';
+import { glossaryTermId } from '@/features/help/model/help-content';
 
 /*
  * One Help block as markup. It reads no editor state, so the site's Guide page shows the same
@@ -14,12 +15,16 @@ const CALLOUT_ICON = {
   warning: AlertTriangle,
 } as const;
 
-function ShortcutsTable() {
+type HeadingLevel = 3 | 4;
+
+/** The groups' titles sit at the block-heading level: the table can open a topic with no heading before it. */
+function ShortcutsTable({ level }: { level: HeadingLevel }) {
+  const GroupHeading = level === 3 ? 'h3' : 'h4';
   return (
     <div className="help-shortcuts">
       {SHORTCUT_GROUPS.map((group) => (
         <div key={group.group} className="help-shortcut-group">
-          <h4>{group.group}</h4>
+          <GroupHeading className="help-shortcut-group__title">{group.group}</GroupHeading>
           <dl>
             {group.items.map((item) => (
               <div key={`${group.group}-${item.keys}-${item.label}`} className="help-shortcut-row">
@@ -41,10 +46,21 @@ function ShortcutsTable() {
   );
 }
 
-export function HelpBlockView({ block, startTour }: { block: HelpBlock; startTour: ComponentChildren }) {
+interface HelpBlockViewProps {
+  block: HelpBlock;
+  startTour: ComponentChildren;
+  /** The level of the block's own headings: one below the topic title it sits under. */
+  headingLevel?: HeadingLevel;
+  /** Give each defined term an anchor, so a link can open the glossary at that term. */
+  termAnchors?: boolean;
+}
+
+export function HelpBlockView({ block, startTour, headingLevel = 3, termAnchors = false }: HelpBlockViewProps) {
   switch (block.kind) {
-    case 'heading':
-      return <h3 className="help-block-heading">{block.text}</h3>;
+    case 'heading': {
+      const Heading = headingLevel === 3 ? 'h3' : 'h4';
+      return <Heading className="help-block-heading">{block.text}</Heading>;
+    }
     case 'paragraph':
       return <p className="help-block-paragraph">{block.text}</p>;
     case 'list':
@@ -94,7 +110,7 @@ export function HelpBlockView({ block, startTour }: { block: HelpBlock; startTou
       return (
         <dl className="help-block-definitions">
           {block.items.map((item, i) => (
-            <div key={i} className="def-row">
+            <div key={i} id={termAnchors ? glossaryTermId(item.term) : undefined} className="def-row">
               <dt>{item.term}</dt>
               <dd>{item.description}</dd>
             </div>
@@ -112,7 +128,7 @@ export function HelpBlockView({ block, startTour }: { block: HelpBlock; startTou
       );
     }
     case 'shortcuts':
-      return <ShortcutsTable />;
+      return <ShortcutsTable level={headingLevel} />;
     case 'start-tour':
       return <>{startTour}</>;
   }

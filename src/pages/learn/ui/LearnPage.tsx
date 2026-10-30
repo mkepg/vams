@@ -1,10 +1,10 @@
 import { Check } from 'lucide-react';
 import SiteHeader from '@/widgets/site-header';
 import SiteFooter from '@/widgets/site-footer';
-import { COURSE, LESSON_CATALOG, catalogFor } from '@/features/lesson-engine/model/catalog';
+import { COURSE, LESSON_CATALOG, catalogFor, sectionAnchor } from '@/features/lesson-engine/model/catalog';
 import { useLessonProgress } from '@/features/lesson-engine/model/progress';
 import { doneCount, lessonStatus, nextUp } from '../model/learn-progress';
-import { LEARN_COPY, sectionAnchor } from '../model/copy';
+import { LEARN_COPY } from '../model/copy';
 import LearnSection from './LearnSection';
 import LessonRow from './LessonRow';
 import './learn.scss';

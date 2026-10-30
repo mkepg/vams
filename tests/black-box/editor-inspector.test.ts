@@ -71,7 +71,7 @@ describe('BB-INSP-02: Each place belongs to a curriculum section', () => {
   });
 });
 
-describe('BB-INSP-03: The context section follows focus, then the opened group, then the section', () => {
+describe('BB-INSP-03: The context section follows the opened group, then focus, then the section', () => {
   it('prefers a group opened by hand, then a lesson focus, then activeSection; a stage picked by hand wins until cleared', () => {
     const base = { appMode: 'Author' as const, lessonFocusPanel: null, selectedObjectId: null, lastOpenedGroup: null, activeSection: 'Pipeline' as const, journeyStageOverride: null };
     expect(contextSection(base)).toBe('Pipeline');

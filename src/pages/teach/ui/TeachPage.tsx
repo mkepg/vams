@@ -1,6 +1,6 @@
 import SiteHeader from '@/widgets/site-header';
 import SiteFooter from '@/widgets/site-footer';
-import { COURSE, catalogFor } from '@/features/lesson-engine/model/catalog';
+import { COURSE, catalogFor, sectionHref } from '@/features/lesson-engine/model/catalog';
 import { GALLERY_SCENES, galleryHref } from '@/entities/project/model/gallery-links';
 import { PRESET_LINKS, presetHref } from '@/entities/project/model/preset-links';
 import { TEACH_COPY } from '../model/copy';
@@ -40,7 +40,7 @@ export default function TeachPage() {
                     <span>{course.teaches}</span>
                     {calls.map((call) => <code key={call}>{call}</code>)}
                   </p>
-                  <a className="teach-course__link" href={`/learn#${section.toLowerCase()}`}>{course.open}</a>
+                  <a className="teach-course__link" href={sectionHref(section)}>{course.open}</a>
                 </li>
               );
             })}
