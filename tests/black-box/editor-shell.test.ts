@@ -1185,3 +1185,24 @@ describe('BB-SHELL-45: While a linked scene opens, the panel, canvas and code ar
     }
   });
 });
+
+describe('BB-SHELL-46: During Run the top bar and the Math panel take no input', () => {
+  it('makes both halves of the top bar and the Math journey inert, and frees them on Stop', async () => {
+    const { default: TopBar } = await import('@/widgets/layout/top-bar/TopBar');
+    useVamsStore.setState({ codePane: 'math', codeHidden: false });
+    const host = mount(h('div', {}, h(TopBar, {}), h(CodeMathColumn, {})));
+    try {
+      await settle();
+      const inert = () => ['.top-bar__left', '.top-bar__actions', '.journey'].map((sel) => host.querySelector(sel)!.hasAttribute('inert'));
+      expect(inert()).toEqual([false, false, false]);
+      const stop = startRun();
+      await settle();
+      expect(inert()).toEqual([true, true, true]);
+      stop();
+      await settle();
+      expect(inert()).toEqual([false, false, false]);
+    } finally {
+      unmount(host);
+    }
+  });
+});
