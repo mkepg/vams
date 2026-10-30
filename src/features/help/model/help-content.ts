@@ -788,7 +788,7 @@ export const HELP_TOPICS: HelpTopic[] = [
           { term: 'Bitmap font', description: 'A font stored as fixed pixel patterns. VAMS uses GLUT’s 9 × 15 font, drawn one character at a time with glutBitmapCharacter.' },
           { term: 'Texture object', description: 'A named image the GPU keeps, made with glGenTextures, filled with glTexImage2D and chosen with glBindTexture.' },
           { term: 'Texture filter', description: 'How a texture is sampled when its texels and the screen’s pixels don’t line up: GL_NEAREST picks one texel, GL_LINEAR blends four.' },
-          { term: 'Wrap mode', description: 'What a UV outside 0 to 1 samples: GL_REPEAT tiles the image, GL_CLAMP holds its edge.' },
+          { term: 'Wrap mode', description: 'What a UV outside 0 to 1 samples: GL_REPEAT tiles the image, GL_CLAMP_TO_EDGE holds its edge.' },
           { term: 'Client state', description: 'Switches such as GL_VERTEX_ARRAY and GL_COLOR_ARRAY, turned on with glEnableClientState, that tell glDrawArrays which arrays to read.' },
           { term: 'Buffer mapping', description: 'glMapBuffer hands your program a pointer into a VBO’s memory so you can write it directly; glUnmapBuffer gives it back.' },
         ],

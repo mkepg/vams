@@ -97,6 +97,10 @@ describe('BB-GUIDE-03: The glossary covers the course with one entry per term', 
     for (const term of ['Viewport', 'Viewing volume', 'Matrix mode', 'Texture filter', 'Wrap mode', 'Double buffering', 'Reshape callback']) {
       expect(terms).toContain(term);
     }
+    // The wrap modes are the ones the generated code writes; GL_CLAMP on its own is a different mode.
+    const wrap = glossary && glossary.kind === 'definitions' ? glossary.items.find((i) => i.term === 'Wrap mode')!.description : '';
+    expect(wrap).toContain('GL_CLAMP_TO_EDGE');
+    expect(wrap).not.toMatch(/GL_CLAMP(?!_TO_EDGE)/);
   });
 });
 
