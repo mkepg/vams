@@ -21,6 +21,8 @@ export const GROUP_OUTLINE = 'vams:group-outline';
 
 export interface CreateDrawableOptions {
   groupChildren?: SceneNode[];
+  /** Window pixels per world unit down the window; differs from worldScaleX once the window is stretched. */
+  worldScaleY?: number;
   isSelected?: boolean;
 }
 export function createDrawable(
@@ -55,7 +57,10 @@ function createGroupDrawable(
   container.scale.set(o.transform.scaleX, o.transform.scaleY);
   container.visible = o.visible;
   // Window pixels per group unit, so a text child's glyphs count towards the outline.
-  const pixelsPerUnit = worldScaleX ? Math.abs(worldScaleX * o.transform.scaleX) : undefined;
+  const scaleY = options?.worldScaleY ?? worldScaleX;
+  const pixelsPerUnit = worldScaleX && scaleY
+    ? { x: Math.abs(worldScaleX * o.transform.scaleX), y: Math.abs(scaleY * o.transform.scaleY) }
+    : undefined;
   const bounds = getGroupLocalBounds(options?.groupChildren || [], pixelsPerUnit);
   const padding = pxToWorld(4, worldScaleX);
   const drawX = bounds.minX - padding;
