@@ -249,8 +249,8 @@ class RunController {
         renderBridge.setAppearance(id, { color, visible: o.visible });
       }
     }
-    const window = this.snapshot.window;
-    if (window) renderBridge.setView(run.view, { x: 0, y: 0, width: window.width, height: window.height });
+    const size = this.snapshot.window;
+    if (size) renderBridge.setView(run.view, { x: 0, y: 0, width: size.width, height: size.height });
   }
 
   private armFlashClear(): void {
