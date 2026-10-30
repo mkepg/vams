@@ -285,7 +285,7 @@ export default function TexturesMathContent() {
 
   return (
     <div className="textures-math">
-      <Section title="Texture Bindings">
+      <Section title="Texture bindings">
         <TextureBindings
           texName={tex?.name ?? '(missing)'}
           texSize={tex ? `${tex.width}×${tex.height}` : '—'}
@@ -294,7 +294,7 @@ export default function TexturesMathContent() {
         />
       </Section>
 
-      <Section title="UV Table">
+      <Section title="UV table">
         <p className="explanation">
           Each vertex carries a <code>(u, v)</code> pair pointing into normalised
           texture space. <code>(0, 0)</code> is bottom-left; <code>(1, 1)</code> is top-right.
@@ -337,7 +337,7 @@ colour = (1−α)(1−β) · T[i,j]
         <SamplingDiagram filter={filter} />
       </Section>
 
-      <Section title="Wrap Mode">
+      <Section title="Wrap mode">
         <p className="explanation">
           When <code>(u, v)</code> drifts outside <code>[0, 1]</code>, the wrap mode decides
           which texel to read.
@@ -352,7 +352,7 @@ v' = clamp(v, 0, 1)   (stretch the edge)`}</pre>
         )}
       </Section>
 
-      <Section title="Across the Triangle">
+      <Section title="Across the triangle">
         <p className="explanation">
           Inside a triangle the per-vertex UVs are interpolated by barycentric
           weights <code>(λ₀, λ₁, λ₂)</code> summing to 1:

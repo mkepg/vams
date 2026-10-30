@@ -47,7 +47,7 @@ export default function OrthoEditorPanel() {
   return (
     <CollapsibleSection
       panelId="ortho-editor"
-      title="Viewing Volume"
+      title="Viewing volume"
       icon={<ScanLine size={14} />}
       hint="glOrtho"
       defaultOpen={true}

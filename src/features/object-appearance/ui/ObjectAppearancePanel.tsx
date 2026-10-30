@@ -133,7 +133,7 @@ export default function ObjectAppearancePanel() {
   const glCall = objColorMode === 'BYTE' ? 'glColor3ub' : 'glColor3f';
 
   return (
-    <CollapsibleSection panelId="appearance-panel" title="Colour & Shading" icon={<Palette size={14} />} defaultOpen={true}>
+    <CollapsibleSection panelId="appearance-panel" title="Colour & shading" icon={<Palette size={14} />} defaultOpen={true}>
       <div className="color-section">
 
         {/* Emission Mode Toggle */}

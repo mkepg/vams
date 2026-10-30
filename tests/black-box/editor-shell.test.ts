@@ -1165,3 +1165,23 @@ describe('BB-SHELL-44: A shape without a texture hands its shader only the attri
     expect(Object.keys(result.mesh.geometry.attributes).sort()).toEqual(['aColor', 'aPosition']);
   });
 });
+
+describe('BB-SHELL-45: While a linked scene opens, the panel, canvas and code are hidden and the editor is busy', () => {
+  it('marks the grid busy and hides the three regions only while opening', async () => {
+    const { default: EditorShell } = await import('@/pages/editor/ui/EditorShell');
+    const parts = { topBar: h('header', {}, 'top'), rail: h('div', {}), panel: h('div', {}), canvas: h('div', {}), codeMath: h('div', {}) };
+    const host = mount(h(EditorShell, { ...parts, opening: true }));
+    try {
+      const editor = host.querySelector('.editor')!;
+      expect(editor.classList.contains('is-opening')).toBe(true);
+      expect(editor.getAttribute('aria-busy')).toBe('true');
+      render(h(EditorShell, { ...parts, opening: false }), host);
+      expect(editor.classList.contains('is-opening')).toBe(false);
+      expect(editor.hasAttribute('aria-busy')).toBe(false);
+      const scss = readSource('src/pages/editor/ui/editor-app.scss', 'utf8').replace(/\r\n/g, '\n');
+      expect(scss).toMatch(/&\.is-opening &__panel,\n\s*&\.is-opening &__stage,\n\s*&\.is-opening &__code \{ visibility: hidden; \}/);
+    } finally {
+      unmount(host);
+    }
+  });
+});

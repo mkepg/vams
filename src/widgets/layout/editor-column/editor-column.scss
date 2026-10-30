@@ -110,6 +110,12 @@
   }
 }
 
+// A lesson step aimed at Callbacks marks the panel as the inspector marks a focused group.
+.callbacks-rail-panel.is-focus {
+  .rail-panel__title { color: var(--accent-text); }
+  .rail-panel__body { box-shadow: inset 2px 0 0 var(--accent); }
+}
+
 .scene-panel {
   &__list { flex: none; }
 

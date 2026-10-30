@@ -132,6 +132,7 @@ tests/
 │   │                                        including the rail panels,
 │   │                                        the lesson bar, the tour and Run, VIS-EDITOR-14 to 28, bitmap text VIS-EDITOR-36,
 │   │                                        no selection outline left during Run VIS-EDITOR-37 and 38,
+│   │                                        the canvas header on a narrow canvas VIS-EDITOR-39,
 │   │                                        run with `npm run test:visual`;
 │   │                                        per-machine baselines that are
 │   │                                        not committed)

@@ -769,7 +769,7 @@ export const PRIMITIVES_LESSONS: Record<string, Lesson> = {
         focusPanel: 'line-style-panel',
         goals: [{ label: 'Dotted', check: (state) => firstOfType(state, 'LINE_LOOP')?.lineStipple?.pattern === 0x5555 }],
         task: 'Make the outline dotted',
-        hints: ['Select the outline. Line Style is in Appearance.', 'Switch on Line stipple, then pick Dotted.'],
+        hints: ['Select the outline. Line style is in Appearance.', 'Switch on Line stipple, then pick Dotted.'],
         solve: (state) => {
           const o = firstOfType(state, 'LINE_LOOP');
           if (o) state.updateLineStipple(o.id, { factor: 1, pattern: 0x5555 });

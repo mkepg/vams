@@ -34,7 +34,7 @@ const startLearning = () => {
 
 export default function EditorApp() {
   useKeyboardShortcuts();
-  useEditorLink();
+  const opening = useEditorLink();
   useCorruptSaveNotice();
   useRecordLessonOnLeave();
   useSceneAutosave();
@@ -52,6 +52,7 @@ export default function EditorApp() {
 
   return (
     <EditorShell
+      opening={opening}
       topBar={<TopBar />}
       rail={<Rail />}
       panel={<EditorPanel />}

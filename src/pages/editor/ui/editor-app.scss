@@ -58,6 +58,12 @@
   }
 
   &.is-panel-hidden { --editor-panel-width: 0px; }
+
+  // While a link opens its scene, the saved scene it replaces never shows.
+  &.is-opening &__panel,
+  &.is-opening &__stage,
+  &.is-opening &__code { visibility: hidden; }
+
   &.is-panel-hidden .editor__panel { display: none; }
 
   // Below 1100 px the code column is narrower; the open panel keeps its track beside the canvas.

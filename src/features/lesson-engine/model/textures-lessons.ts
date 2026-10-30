@@ -196,7 +196,7 @@ export const TEXTURES_LESSONS: Record<string, Lesson> = {
         action: () => setUVs('Card', box(0, 0.5, 0, 0.5)),
       },
       {
-        narration: "Math's Coloured stage lists each corner's (u, v) in its UV Table, and shows how a texel is picked from them.",
+        narration: "Math's Coloured stage lists each corner's (u, v) in its UV table, and shows how a texel is picked from them.",
         pane: 'math',
         mathStage: 'coloured',
         action: select('Card'),
@@ -456,7 +456,7 @@ export const TEXTURES_LESSONS: Record<string, Lesson> = {
         },
       },
       {
-        narration: "Math's Coloured stage, under Across the Triangle: u(p) = λ₀·u₀ + λ₁·u₁ + λ₂·u₂, the same weights that blend colours in Primitives.",
+        narration: "Math's Coloured stage, under Across the triangle: u(p) = λ₀·u₀ + λ₁·u₁ + λ₂·u₂, the same weights that blend colours in Primitives.",
         pane: 'math',
         mathStage: 'coloured',
         action: select('Tri'),

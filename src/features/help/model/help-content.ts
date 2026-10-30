@@ -59,7 +59,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'workspace-tour',
     category: 'workspace',
-    title: 'Workspace Tour',
+    title: 'Workspace tour',
     summary: 'The rail and its panels on the left, the canvas in the centre, code and math on the right.',
     keywords: ['layout', 'panels', 'rail', 'regions', 'tour', 'top bar', 'add', 'scene', 'settings', 'callbacks', 'inspector', 'hide', 'code', 'math', 'learn', 'lesson bar', 'file menu', 'view settings', 'view menu', 'window', 'run', 'share', 'rename'],
     blocks: [
@@ -146,7 +146,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'canvas-basics',
     category: 'workspace',
-    title: 'Working with the Canvas',
+    title: 'Working with the canvas',
     summary: 'Selecting objects, placing vertices, snapping, and the coordinate system.',
     keywords: ['canvas', 'select', 'vertex', 'snap', 'grid', 'coordinates', 'viewport', 'ndc'],
     blocks: [
@@ -158,7 +158,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { kind: 'heading', text: 'Selecting objects' },
       {
         kind: 'paragraph',
-        text: 'Click an object to select it; click empty space to deselect. The selected object is highlighted and the inspector on the left shows its groups. You can also select from the Scene Hierarchy list.',
+        text: 'Click an object to select it; click empty space to deselect. The selected object is highlighted and the inspector on the left shows its groups. You can also select it from the list in the Scene panel.',
       },
       { kind: 'heading', text: 'Placing vertices' },
       {
@@ -187,7 +187,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'modes',
     category: 'getting-started',
-    title: 'Author Mode vs Lessons',
+    title: 'Author mode vs lessons',
     summary: 'The difference between free building and guided, narrated lessons.',
     keywords: ['lesson', 'author', 'mode', 'guided', 'exercise', 'demo', 'narration'],
     blocks: [
@@ -488,7 +488,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'scene-hierarchy',
     category: 'panels',
-    title: 'Scene Hierarchy & Grouping',
+    title: 'Scene hierarchy & grouping',
     summary: 'Organise, rename, group, reorder, and show or hide your objects.',
     keywords: ['hierarchy', 'scene', 'list', 'group', 'ungroup', 'rename', 'duplicate', 'delete', 'visibility', 'reorder', 'drag', 'parent', 'child', 'tree'],
     blocks: [
@@ -524,7 +524,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'callbacks',
     category: 'panels',
-    title: 'GLUT Callbacks',
+    title: 'GLUT callbacks',
     summary: 'Give keyboard, mouse, idle and other handlers rules, see their code, and run them.',
     keywords: ['callback', 'glut', 'keyboard', 'mouse', 'idle', 'reshape', 'motion', 'event', 'handler', 'input',
       'glutkeyboardfunc', 'glutidlefunc', 'special', 'arrow', 'run', 'rule', 'glutspecialfunc'],
@@ -571,7 +571,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'code-panel',
     category: 'panels',
-    title: 'The Code Panel',
+    title: 'The code panel',
     summary: 'The generated OpenGL C++, folded to the object you are working on, with any line explained on request.',
     keywords: ['code', 'generated', 'c++', 'opengl', 'copy', 'fold', 'notes', 'explain', 'display', 'init'],
     blocks: [
@@ -620,7 +620,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'math-panel',
     category: 'panels',
-    title: 'The Math Panel',
+    title: 'The math panel',
     summary: 'One vertex of your shape, followed with your numbers from where you typed it to the pixel it lands on.',
     keywords: ['math', 'journey', 'vertex', 'matrix', 'ndc', 'pixel', 'barycentric', 'memory', 'interpolation'],
     blocks: [
@@ -661,7 +661,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'saving-loading',
     category: 'panels',
-    title: 'Saving & Loading',
+    title: 'Saving & loading',
     summary: 'Save your scene to a project file and load it back later.',
     keywords: ['save', 'load', 'project', 'file', 'json', 'import', 'export', 'reset', 'autosave'],
     blocks: [
@@ -698,7 +698,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'sharing',
     category: 'workspace',
-    title: 'Sharing a Scene',
+    title: 'Sharing a scene',
     summary: 'Send your scene as a link or a QR code; on a phone it opens as a view.',
     keywords: ['share', 'link', 'qr', 'phone', 'send', 'classmate', 'instructor'],
     blocks: [
@@ -727,7 +727,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'shortcuts',
     category: 'reference',
-    title: 'Keyboard Shortcuts',
+    title: 'Keyboard shortcuts',
     summary: 'Every keyboard shortcut, grouped by where it applies.',
     keywords: ['keyboard', 'shortcut', 'keys', 'hotkey', 'undo', 'redo', 'delete', 'duplicate', 'rename'],
     blocks: [

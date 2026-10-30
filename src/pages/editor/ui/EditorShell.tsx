@@ -17,10 +17,12 @@ export interface EditorShellProps {
   codeMath: ComponentChildren;
   /** Dialogs and other overlays rendered after the grid. */
   overlays?: ComponentChildren;
+  /** A linked scene is still replacing the saved one: hide the panel, canvas and code until it is in. */
+  opening?: boolean;
 }
 
 /** The editor grid: rail, panel, canvas and code. Below 1100 px the panel is a drawer beside the canvas, which narrows to make room. */
-export default function EditorShell({ topBar, rail, panel, canvas, lessonBar, codeMath, overlays }: EditorShellProps) {
+export default function EditorShell({ topBar, rail, panel, canvas, lessonBar, codeMath, overlays, opening = false }: EditorShellProps) {
   const narrow = useNarrowLayout();
   const railPanel = useVamsStore((s) => s.railPanel);
   const railHidden = useVamsStore((s) => s.railHidden);
@@ -78,9 +80,10 @@ export default function EditorShell({ topBar, rail, panel, canvas, lessonBar, co
     narrow ? 'editor--narrow' : '',
     railHidden ? 'is-panel-hidden' : '',
     codeHidden ? 'is-code-hidden' : '',
+    opening ? 'is-opening' : '',
   ].filter(Boolean).join(' ');
   return (
-    <div className={classes}>
+    <div className={classes} aria-busy={opening || undefined}>
       {topBar}
       <div className="editor__rail" inert={running || undefined}>{rail}</div>
       <aside

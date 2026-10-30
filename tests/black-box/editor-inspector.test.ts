@@ -219,7 +219,7 @@ describe('BB-INSP-09: The Background setting shows the background colour even wi
       await settle();
       expect(host.querySelector('.rail-panel__title')!.textContent).toBe('Settings');
       const background = host.querySelector('[data-group="background"]')!;
-      expect(background.querySelector('[data-panel-id="appearance-panel"] .vpanel__title')!.textContent).toBe('Scene Colour');
+      expect(background.querySelector('[data-panel-id="appearance-panel"] .vpanel__title')!.textContent).toBe('Scene colour');
       expect(background.textContent).not.toContain('Fill');
     } finally {
       unmountEl(host);

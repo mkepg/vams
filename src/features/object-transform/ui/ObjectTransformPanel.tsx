@@ -288,7 +288,7 @@ export default function ObjectTransformPanel() {
   }, [selectedObject]);
   if (!selectedObject) {
     return (
-      <CollapsibleSection panelId="object-transform" title="Object Transform" icon={<Move size={14} />} defaultOpen={true}>
+      <CollapsibleSection panelId="object-transform" title="Object transform" icon={<Move size={14} />} defaultOpen={true}>
         <EmptySelectionState message="Select an object in the scene to translate, rotate, or scale it." />
       </CollapsibleSection>
     );
@@ -302,7 +302,7 @@ export default function ObjectTransformPanel() {
     transform.scaleY === 1;
   const resetAll = () => commit(DEFAULT_TRANSFORM);
   return (
-    <CollapsibleSection panelId="object-transform" title="Object Transform" icon={<Move size={14} />} defaultOpen={true}>
+    <CollapsibleSection panelId="object-transform" title="Object transform" icon={<Move size={14} />} defaultOpen={true}>
       <div className="transform-panel">
         {/* Scale pad + Rotate dial side-by-side */}
         <div className="gizmo-row">

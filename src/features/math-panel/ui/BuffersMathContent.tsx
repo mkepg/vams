@@ -647,7 +647,7 @@ function MappingSection({
   if (!matches && drivenStep === null) return null;
 
   return (
-    <Section title="Mapping the Buffer" isFocused={isFocused}>
+    <Section title="Mapping the buffer" isFocused={isFocused}>
       <p className="explanation">
         <code>glMapBuffer</code> hands you a pointer into GPU memory.
         {drivenStep === null && ' Step through to watch where the pointer lands and which cells get rewritten.'}
@@ -705,19 +705,19 @@ export default function BuffersMathContent() {
       {/* Current Output Code */}
       <CurrentDrawCall obj={selected} mode={mode} />
 
-      <Section title="Memory Footprint">
+      <Section title="Memory footprint">
         <MemoryFootprint obj={selected} />
       </Section>
 
       {selected.vertices.length >= 2 && (
-        <Section title="Array vs Indexed">
+        <Section title="Array vs indexed">
           <MemoryComparison obj={selected} />
         </Section>
       )}
 
       {/* Immediate mode sends each vertex by glVertex2f, so the code declares no arrays. */}
       {mode !== 'IMMEDIATE' && (
-        <Section title="Layout: Separate Arrays">
+        <Section title="Layout: separate arrays">
           <p className="explanation">
             In Vertex Array and VBO modes your program keeps one array per attribute. Positions,
             colours and UVs each have their own array, and glVertexPointer, glColorPointer and
@@ -730,9 +730,9 @@ export default function BuffersMathContent() {
       )}
 
       <Section title={
-        mode === 'IMMEDIATE'    ? 'CPU → GPU Traffic — Immediate'    :
-        mode === 'VERTEX_ARRAY' ? 'CPU → GPU Traffic — Vertex Array' :
-                                  `CPU → GPU Traffic — VBO · ${usage}`
+        mode === 'IMMEDIATE'    ? 'CPU → GPU traffic — immediate'    :
+        mode === 'VERTEX_ARRAY' ? 'CPU → GPU traffic — vertex array' :
+                                  `CPU → GPU traffic — VBO · ${usage}`
       }>
         <BufferFlow profile={profile} />
       </Section>
