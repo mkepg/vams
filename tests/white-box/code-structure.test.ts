@@ -635,3 +635,23 @@ describe('WB-CODE-33: Inline draws nest, so a group or text inside a group owns 
     for (const [moved, owner] of moves) expect(owner).toBe(moved);
   });
 });
+
+describe("WB-CODE-34: A group's inline child sits one level in and leaves the rest of the group to the group", () => {
+  it('owns the calls after an inline text child, and indents the child deeper than the group', () => {
+    const tri = addTriangle(0.4, 0, 0.2);
+    getState().addTextObject('Hi', 0, 0);
+    const text = getState().objects[0];
+    getState().createGroup([tri.id, text.id]);
+    const o = outlineCode(program());
+    const drawBlock = o.blocks.find((b) => b.kind === 'draw')!;
+    const inDraw = o.lines.slice(drawBlock.start, drawBlock.end + 1);
+    const indent = (t: string) => t.length - t.trimStart().length;
+    const groupOpen = inDraw.find((l) => l.text.trim() === 'glTranslatef(state_Group_1.x, state_Group_1.y, 0.0f);')!;
+    const textRaster = inDraw.find((l) => l.text.includes('glRasterPos2f'))!;
+    expect(textRaster.object).toBe('TEXT_1');
+    expect(indent(textRaster.text)).toBe(indent(groupOpen.text) + 4);
+    expect(inDraw.find((l) => l.text.trim() === 'draw_TRIANGLES_1();')!.object).toBe('Group_1');
+    const pops = inDraw.filter((l) => l.text.trim() === 'glPopMatrix();');
+    expect(pops[pops.length - 1].object).toBe('Group_1');
+  });
+});

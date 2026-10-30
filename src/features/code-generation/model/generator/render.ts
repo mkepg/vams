@@ -60,10 +60,11 @@ const generateImmediateDrawBody = (
     [...children].reverse().forEach(child => {
       const childName = sanitizeName(child.name);
       const guarded = effects.visibilityIds.has(child.id);
-      // Text and groups have no draw_ function of their own: their block goes inline, as in draw().
+      // Text and groups have no draw_ function of their own: their block goes inline, as in draw(),
+      // one level in, so it reads as nested and ends at its own glPopMatrix.
       if (child.type === 'GROUP' || child.type === 'TEXT') {
-        const block = generateImmediateDrawBody(child, allObjects, effects, pixelsPerUnitY);
-        drawBody += guarded ? `    if (state_${childName}.visible) {\n${indentBlock(block)}    }\n` : block;
+        const block = indentBlock(generateImmediateDrawBody(child, allObjects, effects, pixelsPerUnitY));
+        drawBody += guarded ? `    if (state_${childName}.visible) {\n${block}    }\n` : block;
         return;
       }
       drawBody += guarded
