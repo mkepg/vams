@@ -5,7 +5,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, it, expect, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
-import CodeViewer, { lineSegments } from '@/shared/ui/code-viewer/CodeViewer';
+import { EditorView, type BlockInfo } from '@codemirror/view';
+import CodeViewer from '@/shared/ui/code-viewer/CodeViewer';
 import type { CodeRow } from '@/shared/ui/code-viewer/types';
 import { REVEAL_PADDING, revealTop, scrollBehavior } from '@/shared/ui/code-viewer/reveal-scroll';
 import { tokenizeLine } from '@/shared/ui/code-viewer/tokenize';
@@ -107,6 +108,26 @@ function typeInto(input: HTMLInputElement, value: string) {
   input.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
+/** The code's editor view, for what the markup cannot say: which line an element is, and the cursor. */
+const viewOf = (host: HTMLElement) => EditorView.findFromDOM(host.querySelector('[data-testid="code-view"] .cm-editor') as HTMLElement)!;
+const contentOf = (host: HTMLElement) => host.querySelector('[data-testid="code-view"] .cm-content') as HTMLElement;
+/** The line an element of the code shows, counted from 0. */
+const lineOf = (host: HTMLElement, el: Element) => {
+  const view = viewOf(host);
+  return view.state.doc.lineAt(view.posAtDOM(el)).number - 1;
+};
+const cursorLine = (host: HTMLElement) => {
+  const view = viewOf(host);
+  return view.state.doc.lineAt(view.state.selection.main.head).number - 1;
+};
+const putCursor = (host: HTMLElement, line: number) => {
+  const view = viewOf(host);
+  view.dispatch({ selection: { anchor: view.state.doc.line(line + 1).from } });
+};
+/** The line numbers drawn beside the code, top to bottom. */
+const numbersShown = (host: HTMLElement) =>
+  [...host.querySelectorAll<HTMLElement>('.cm-lineNumbers .cm-gutterElement')].filter((el) => el.style.visibility !== 'hidden').map((el) => el.textContent);
+
 const SMALL = ['int main(int argc, char** argv)', '{', '    glutInit(&argc, argv);', '    glutMainLoop();', '}'].join('\n');
 
 describe('BB-CODE-03: A folded block shows its name, its real line number and its summary', () => {
@@ -128,7 +149,7 @@ describe('BB-CODE-03: A folded block shows its name, its real line number and it
       line === 0 ? { kind: 'line', line, closes: { block: 'main', label: 'int main()' } } : { kind: 'line', line });
     render(h(CodeViewer, { code: SMALL, rows: open, onToggleFold }), host);
     await settle();
-    expect(host.querySelectorAll('.code-line')).toHaveLength(5);
+    expect(host.querySelectorAll('.cm-line')).toHaveLength(5);
     const close = host.querySelector(".code-fold-toggle") as HTMLButtonElement;
     expect(close.getAttribute('aria-label')).toBe('Fold int main()');
     close.click();
@@ -145,14 +166,17 @@ describe('BB-CODE-04: A changed value is marked by itself, and its fade restarts
     const host = mount(h(CodeViewer, { code, marks, marksKey: 1 }));
     await settle();
     expect([...host.querySelectorAll('.code-value')].map((el) => el.textContent).join('')).toBe('0.4000f');
-    expect(host.querySelector('.code-line')!.classList.contains('is-changed')).toBe(true);
+    expect(host.querySelector('.cm-line')!.classList.contains('is-changed')).toBe(true);
+    expect(host.querySelector('.cm-lineNumbers .cm-gutterElement.is-changed')!.textContent).toBe('1');
     const before = host.querySelector('.code-value');
     render(h(CodeViewer, { code, marks, marksKey: 2 }), host);
     await settle();
     expect(host.querySelector('.code-value')).not.toBe(before);
-    expect(lineSegments('glEnd();', [{ start: 2, end: 5, cls: 'x' }]).map((s) => [s.text, s.cls])).toEqual([
-      ['gl', 'tk-glfn'], ['End', 'tk-glfn x'], ['(', 'tk-punct'], [')', 'tk-punct'], [';', 'tk-punct'],
-    ]);
+    // A mark can cover part of a GL name; the name keeps its colour on both sides of the mark's edge.
+    render(h(CodeViewer, { code: 'glEnd();', marks: [{ line: 0, start: 2, end: 5 }], marksKey: 3 }), host);
+    await settle();
+    expect([...host.querySelectorAll('.code-value')].map((el) => el.textContent).join('')).toBe('End');
+    expect([...host.querySelectorAll('.tk-glfn')].map((el) => el.textContent).join('')).toBe('glEnd');
     unmount(host);
   });
 });
@@ -170,7 +194,7 @@ describe('BB-CODE-05: Find outlines matches and steps through them', () => {
     await settle();
     expect(host.querySelector('.code-search__count')!.textContent).toBe('1/2');
     expect(host.querySelectorAll('.code-find')).toHaveLength(2);
-    expect(host.querySelector('.code-find.is-current')!.closest('.code-line')!.getAttribute('data-line')).toBe('2');
+    expect(lineOf(host, host.querySelector('.code-find.is-current')!.closest('.cm-line')!)).toBe(2);
     expect(onFindLine).toHaveBeenLastCalledWith(2);
     key(input, 'Enter');
     await settle();
@@ -206,7 +230,7 @@ describe('BB-CODE-07: Run\'s fired branch has its own mark', () => {
   it('marks the fired lines and no others', async () => {
     const host = mount(h(CodeViewer, { code: SMALL, firedLines: [2, 3] }));
     await settle();
-    expect([...host.querySelectorAll('.code-line.is-fired')].map((el) => el.getAttribute('data-line'))).toEqual(['2', '3']);
+    expect([...host.querySelectorAll('.cm-line.is-fired')].map((el) => lineOf(host, el))).toEqual([2, 3]);
     unmount(host);
   });
 });
@@ -246,7 +270,7 @@ const currentProgram = () => {
     { width: 800, height: 600 },
   );
 };
-const lineTexts = (host: HTMLElement) => [...host.querySelectorAll('.code-line .code-line__text')].map((el) => el.textContent ?? '');
+const lineTexts = (host: HTMLElement) => [...host.querySelectorAll('.cm-line')].map((el) => el.textContent ?? '');
 const foldLabels = (host: HTMLElement) => [...host.querySelectorAll('.code-fold__label')].map((el) => el.textContent);
 
 describe('BB-CODE-09: With a shape selected, its code is open and the rest of the program folds', () => {
@@ -283,7 +307,7 @@ describe('BB-CODE-11: An edit marks only the value it changed, in Author mode', 
     getState().updateObjectTransform(tri.id, { translateX: 0.4 });
     await settle();
     expect([...host.querySelectorAll('.code-value')].map((el) => el.textContent).join('')).toBe('0.4000f');
-    const changed = host.querySelector('.code-line.is-changed .code-line__text')!.textContent!;
+    const changed = host.querySelector('.cm-line.is-changed')!.textContent!;
     expect(changed.startsWith('ObjectState state_Triangle')).toBe(true);
     unmount(host);
   });
@@ -416,7 +440,7 @@ describe('BB-CODE-17: Run scrolls the fired branch into view', () => {
       const host = mount(h(SceneCodePanel, { flashBranch: { handlerName: 'onKey', trigger: { kind: 'keyboard', key: 'd' }, seq: 1 } }));
       await settle();
       await new Promise((r) => requestAnimationFrame(() => r(null)));
-      expect(host.querySelector('.code-line.is-fired')).not.toBeNull();
+      expect(host.querySelector('.cm-line.is-fired')).not.toBeNull();
       expect(scrollTo).toHaveBeenCalled();
       unmount(host);
     } finally {
@@ -440,8 +464,10 @@ describe('BB-CODE-18: A changed value opens only its own line; the neighbours st
   });
 });
 
+/** The panel's live regions, leaving out CodeMirror's announcer, which stays empty because nothing here announces. */
+const liveRegions = (host: HTMLElement) => host.querySelectorAll('[aria-live]:not(.cm-announced)');
 const lineEl = (host: HTMLElement, starts: string) =>
-  [...host.querySelectorAll('.code-line')].find((el) => el.querySelector('.code-line__text')!.textContent!.trim().startsWith(starts)) as HTMLElement;
+  [...host.querySelectorAll('.cm-line')].find((el) => el.textContent!.trim().startsWith(starts)) as HTMLElement;
 
 describe('BB-CODE-19: Clicking a line explains it in the strip; Escape closes it', () => {
   it('shows the signature, the sentence and the student\'s values, in a polite live region', async () => {
@@ -452,16 +478,17 @@ describe('BB-CODE-19: Clicking a line explains it in the strip; Escape closes it
     await settle();
     expect(host.querySelector('.code-hint')!.textContent).toBe('Click any line to see what it does.');
     const translate = lineEl(host, 'glTranslatef(');
-    expect(translate.getAttribute('role')).toBe('button');
+    expect(translate.classList.contains('is-explainable')).toBe(true);
+    const line = lineOf(host, translate);
     translate.click();
     await settle();
-    expect(getState().explainedLine).toBe(Number(translate.getAttribute('data-line')));
-    expect(translate.classList.contains('is-explained')).toBe(true);
+    expect(getState().explainedLine).toBe(line);
+    expect(lineEl(host, 'glTranslatef(').classList.contains('is-explained')).toBe(true);
     const strip = host.querySelector('section.code-strip')!;
     const live = host.querySelector('.code-live[aria-live="polite"]')!;
     expect(live.contains(strip)).toBe(true);
     expect(live.textContent).toContain('glTranslatef(x, y, z)');
-    expect(host.querySelectorAll('[aria-live]')).toHaveLength(1);
+    expect(liveRegions(host)).toHaveLength(1);
     expect(strip.querySelector('.code-strip__sig')!.textContent).toBe('glTranslatef(x, y, z)');
     expect([...strip.querySelectorAll('.code-strip__values tbody tr')].map((tr) => tr.textContent)).toEqual([
       expect.stringContaining('state_Triangle.x'), expect.stringContaining('state_Triangle.y'),
@@ -469,9 +496,9 @@ describe('BB-CODE-19: Clicking a line explains it in the strip; Escape closes it
     expect(strip.textContent).toContain('0.40');
     expect(strip.textContent).toContain('Translate X');
     expect(host.querySelector('.code-hint')).toBeNull();
-    key(translate, 'Escape');
+    key(contentOf(host), 'Escape');
     await settle();
-    expect(host.querySelectorAll('[aria-live]')).toHaveLength(1);
+    expect(liveRegions(host)).toHaveLength(1);
     expect(host.querySelector('.code-live')!.childElementCount).toBe(0);
     expect(getState().explainedLine).toBeNull();
     expect(host.querySelector('section.code-strip')).toBeNull();
@@ -479,28 +506,46 @@ describe('BB-CODE-19: Clicking a line explains it in the strip; Escape closes it
   });
 });
 
-describe('BB-CODE-20: The arrow keys move between explainable lines', () => {
-  it('skips braces, blanks and comments, and explains the new line while the strip is open', async () => {
+describe('BB-CODE-20: The arrow keys move the cursor line by line, and the open strip follows it', () => {
+  it('explains each explainable line the cursor lands on, and keeps the last one over blanks and comments', async () => {
     const { tri } = mockScene();
     getState().selectObject(tri.id);
     const host = mount(h(SceneCodePanel, {}));
     await settle();
-    const translate = lineEl(host, 'glTranslatef(');
-    translate.click();
+    const at = (starts: string) => lineOf(host, lineEl(host, starts));
+    const translate = at('glTranslatef(');
+    lineEl(host, 'glTranslatef(').click();
     await settle();
-    key(translate, 'ArrowDown');
-    await settle();
-    expect(document.activeElement).toBe(lineEl(host, 'glRotatef('));
-    expect(getState().explainedLine).toBe(Number(lineEl(host, 'glRotatef(').getAttribute('data-line')));
-    key(lineEl(host, 'glRotatef('), 'ArrowDown');
-    key(lineEl(host, 'glScalef('), 'ArrowDown');
-    await settle();
-    expect(document.activeElement).toBe(lineEl(host, 'glShadeModel('));
-    key(lineEl(host, 'glShadeModel('), 'ArrowUp');
-    await settle();
-    expect(document.activeElement).toBe(lineEl(host, 'glScalef('));
-    const brace = [...host.querySelectorAll('.code-line')].find((el) => el.textContent!.trim().endsWith('{')) as HTMLElement;
-    expect(brace.getAttribute('role')).toBeNull();
+    const content = contentOf(host);
+    content.focus();
+    expect(document.activeElement).toBe(content);
+    expect(cursorLine(host)).toBe(translate);
+    const press = async (k: string) => {
+      key(content, k);
+      await settle();
+    };
+    await press('ArrowDown');
+    expect(cursorLine(host)).toBe(at('glRotatef('));
+    expect(getState().explainedLine).toBe(at('glRotatef('));
+    await press('ArrowDown');
+    expect(getState().explainedLine).toBe(at('glScalef('));
+    // A blank line, then the comment above the render calls: the strip stays on glScalef.
+    const scale = at('glScalef(');
+    await press('ArrowDown');
+    expect(cursorLine(host)).toBe(scale + 1);
+    expect(lineTexts(host).find((_, i, all) => all[i - 1]?.trim().startsWith('glScalef('))!.trim()).toBe('');
+    expect(getState().explainedLine).toBe(scale);
+    await press('ArrowDown');
+    expect(cursorLine(host)).toBe(scale + 2);
+    expect(getState().explainedLine).toBe(scale);
+    await press('ArrowDown');
+    expect(cursorLine(host)).toBe(at('glShadeModel('));
+    expect(getState().explainedLine).toBe(at('glShadeModel('));
+    await press('ArrowUp');
+    expect(cursorLine(host)).toBe(at('glShadeModel(') - 1);
+    expect(getState().explainedLine).toBe(at('glShadeModel('));
+    const brace = [...host.querySelectorAll('.cm-line')].find((el) => el.textContent!.trim().endsWith('{')) as HTMLElement;
+    expect(brace.classList.contains('is-explainable')).toBe(false);
     unmount(host);
   });
 });
@@ -575,60 +620,74 @@ describe('BB-CODE-23: Explaining a folded line opens its fold; a new selection c
   });
 });
 
-describe('BB-CODE-24: One explainable line is in the tab order, and aria-expanded follows the explained line', () => {
-  it('moves the single tab stop to the explained line', async () => {
+describe('BB-CODE-24: The code is one tab stop, and it names the strip while the strip is open', () => {
+  it('leaves no line focusable by itself, and sets aria-controls on the code only while a line is explained', async () => {
     const { tri } = mockScene();
     getState().selectObject(tri.id);
     const host = mount(h(SceneCodePanel, {}));
     await settle();
-    const stops = () => [...host.querySelectorAll('.code-line.is-explainable')].filter((el) => (el as HTMLElement).tabIndex === 0);
-    const first = host.querySelector('.code-line.is-explainable') as HTMLElement;
-    expect(stops()).toEqual([first]);
-    const translate = lineEl(host, 'glTranslatef(');
-    translate.click();
+    const content = contentOf(host);
+    expect(content.getAttribute('contenteditable')).toBe('true');
+    expect(content.getAttribute('aria-label')).toBe('Generated C++ code');
+    expect(content.getAttribute('aria-readonly')).toBe('true');
+    expect(content.getAttribute('aria-describedby')).toBe(host.querySelector('.code-hint')!.id);
+    expect(host.querySelectorAll('.cm-line[tabindex], .cm-line[role], .cm-line[aria-expanded]')).toHaveLength(0);
+    expect(content.hasAttribute('aria-controls')).toBe(false);
+    lineEl(host, 'glTranslatef(').click();
     await settle();
-    expect(stops()).toEqual([translate]);
-    const expanded = [...host.querySelectorAll('.code-line.is-explainable')].filter((el) => el.getAttribute('aria-expanded') === 'true');
-    expect(expanded).toEqual([translate]);
-    expect(host.querySelectorAll('.code-line[aria-controls]')).toHaveLength(1);
-    expect(translate.getAttribute('aria-controls')).toBe(host.querySelector('section.code-strip')!.id);
+    expect(host.querySelectorAll('[aria-controls]')).toHaveLength(1);
+    expect(content.getAttribute('aria-controls')).toBe(host.querySelector('section.code-strip')!.id);
+    expect(content.hasAttribute('aria-describedby')).toBe(false);
+    key(content, 'Escape');
+    await settle();
+    expect(content.hasAttribute('aria-controls')).toBe(false);
     unmount(host);
   });
 });
 
-describe('BB-CODE-25: Enter and Space each open the strip', () => {
-  it('explains the focused line from either key', async () => {
+describe('BB-CODE-25: Enter and Space each explain the cursor\'s line', () => {
+  it('explains the line under the cursor from either key, and nothing on a line that has no explanation', async () => {
     const { tri } = mockScene();
     getState().selectObject(tri.id);
     const host = mount(h(SceneCodePanel, {}));
     await settle();
-    const translate = lineEl(host, 'glTranslatef(');
-    key(translate, 'Enter');
+    const content = contentOf(host);
+    const translate = lineOf(host, lineEl(host, 'glTranslatef('));
+    putCursor(host, translate);
+    expect(key(content, 'Enter').defaultPrevented).toBe(true);
     await settle();
-    expect(getState().explainedLine).toBe(Number(translate.getAttribute('data-line')));
+    expect(getState().explainedLine).toBe(translate);
     getState().setExplainedLine(null);
     await settle();
-    key(translate, ' ');
+    key(content, ' ');
     await settle();
-    expect(getState().explainedLine).toBe(Number(translate.getAttribute('data-line')));
+    expect(getState().explainedLine).toBe(translate);
+    getState().setExplainedLine(null);
+    await settle();
+    putCursor(host, lineOf(host, [...host.querySelectorAll('.cm-line')].find((el) => el.textContent!.trim() === '{')!));
+    key(content, 'Enter');
+    await settle();
+    expect(getState().explainedLine).toBeNull();
     unmount(host);
   });
 });
 
-describe('BB-CODE-26: The close button closes the strip and focus returns to the line', () => {
+describe('BB-CODE-26: The close button closes the strip and focus returns to the code, on the line', () => {
   it('closes from the cross', async () => {
     const { tri } = mockScene();
     getState().selectObject(tri.id);
     const host = mount(h(SceneCodePanel, {}));
     await settle();
-    const translate = lineEl(host, 'glTranslatef(');
-    translate.click();
+    const translate = lineOf(host, lineEl(host, 'glTranslatef('));
+    lineEl(host, 'glTranslatef(').click();
     await settle();
+    putCursor(host, 0);
     (host.querySelector('[aria-label="Close explanation"]') as HTMLButtonElement).click();
     await settle();
     await new Promise((r) => requestAnimationFrame(() => r(null)));
     expect(host.querySelector('section.code-strip')).toBeNull();
-    expect(document.activeElement).toBe(translate);
+    expect(document.activeElement).toBe(contentOf(host));
+    expect(cursorLine(host)).toBe(translate);
     unmount(host);
   });
 });
@@ -642,7 +701,7 @@ describe('BB-CODE-27: The fold toggle never explains a line', () => {
     (host.querySelector('.code-fold[data-block="draw:Square"]') as HTMLButtonElement).click();
     await settle();
     const close = host.querySelector('.code-fold-toggle[data-block="draw:Square"]') as HTMLButtonElement;
-    expect(close.closest('.code-line')).toBeNull();
+    expect(close.closest('.cm-content, .cm-line')).toBeNull();
     key(close, 'Enter');
     key(close, ' ');
     key(close, 'ArrowDown');
@@ -814,12 +873,11 @@ describe('BB-CODE-35: An unfolded block folds back with a ▾ in the column the 
     expect(open.classList.contains('code-fold-toggle')).toBe(true);
     expect(open.textContent).toBe('▾');
     expect(document.activeElement).toBe(open);
-    // The ▾ is in the gutter that overlays the line's fold column, never over its number.
-    const row = open.closest('.code-row')!;
-    const line = row.querySelector('.code-line')!;
-    expect([...line.children].map((c) => c.className)).toEqual(['code-line__num', 'code-line__fold', 'code-line__text']);
-    expect(open.closest('.code-gutter')!.parentElement).toBe(row);
-    expect(line.contains(open)).toBe(false);
+    // The ▾ is in a gutter of its own, right of the line numbers: never over a number, never in the code.
+    expect(open.closest('.cm-gutter')!.classList.contains('code-gutter')).toBe(true);
+    expect(open.closest('.cm-lineNumbers, .cm-content')).toBeNull();
+    const gutters = [...host.querySelectorAll('.cm-gutter')];
+    expect(gutters.findIndex((g) => g.classList.contains('cm-lineNumbers'))).toBeLessThan(gutters.findIndex((g) => g.classList.contains('code-gutter')));
     open.click();
     await settle();
     expect(getState().codeFoldsOpened).toEqual([]);
@@ -894,16 +952,16 @@ describe('BB-CODE-38: A three-digit line number is never covered by the toggle',
     const host = mount(h(CodeViewer, { code, rows }));
     await settle();
     const toggle = host.querySelector('.code-fold-toggle') as HTMLButtonElement;
-    const row = toggle.closest('.code-row')!;
-    expect(row.querySelector('.code-line__num')!.textContent).toBe('100');
-    expect(toggle.closest('.code-line__num')).toBeNull();
+    // Lines 100 and 101 are drawn; the fold row carries its own 102.
+    expect(numbersShown(host)).toEqual(['100', '101']);
+    expect(host.querySelector('.code-fold .code-line__num')!.textContent).toBe('102');
+    expect(toggle.closest('.cm-lineNumbers')).toBeNull();
     expect(toggle.closest('.code-gutter')).not.toBeNull();
-    expect(toggle.closest('.code-line')).toBeNull();
-    for (const r of host.querySelectorAll('.code-line')) expect(r.querySelector('.code-line__fold')).not.toBeNull();
+    expect(toggle.closest('.cm-content')).toBeNull();
     expect(host.querySelector('.code-fold .code-line__fold')).not.toBeNull();
     const css = readFileSync('src/shared/ui/code-viewer/code-viewer.scss', 'utf8');
     expect(css).not.toContain('code-fold-close');
-    expect(css).toMatch(/\.code-gutter\s*{[^}]*left:\s*\$num-col/);
+    expect(css).toMatch(/\.code-gutter \.cm-gutterElement\s*{[^}]*width:\s*\$fold-col/);
     unmount(host);
   });
 });
@@ -948,39 +1006,39 @@ describe('BB-CODE-40: A long scroll jumps, so a flash is still lit when its line
 });
 
 describe('BB-CODE-41: Choosing an object scrolls the code to its draw function', () => {
-  /** Lays the code out as 20 px rows in a 200 px window, so happy-dom can tell what is on screen. */
-  function layOut() {
-    const original = Element.prototype.getBoundingClientRect;
-    Element.prototype.getBoundingClientRect = function (this: Element) {
-      const scroller = this.closest('.code-content') as HTMLElement | null;
-      if (this.classList.contains('code-content')) return { top: 0, bottom: 200, height: 200, left: 0, right: 300, width: 300, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
-      if (!scroller) return original.call(this);
-      const rows = [...scroller.querySelectorAll('[data-line], .code-fold-row')];
-      const top = rows.indexOf(this) * 20 - scroller.scrollTop;
-      return { top, bottom: top + 20, height: 20, left: 0, right: 300, width: 300, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
+  /**
+   * Lays the code out as 20 px rows in a 200 px window, so happy-dom can tell what is on screen.
+   * Each drawn line and each fold row is one row, in the order the view shows them.
+   */
+  function layOut(host: HTMLElement) {
+    const view = viewOf(host);
+    const rows = () => [...view.contentDOM.querySelectorAll('.cm-line, .code-fold-row')];
+    view.lineBlockAt = (pos: number) => {
+      const { node } = view.domAtPos(pos);
+      const el = (node.nodeType === 1 ? (node as Element) : node.parentElement!).closest('.cm-line, .code-fold-row');
+      const top = rows().indexOf(el!) * 20;
+      return { top, height: 20, bottom: top + 20 } as BlockInfo;
     };
-    return () => { Element.prototype.getBoundingClientRect = original; };
+    let top = 0;
+    Object.defineProperty(view.scrollDOM, 'scrollTop', { configurable: true, get: () => top, set: (v: number) => { top = v; } });
+    Object.defineProperty(view.scrollDOM, 'clientHeight', { configurable: true, get: () => 200 });
   }
   const frame = () => new Promise((r) => requestAnimationFrame(() => r(null)));
-  /** happy-dom keeps scrollTop at 0 without layout; give the code window one it can set. */
-  function scrollable(host: HTMLElement) {
-    const scroller = host.querySelector('.code-content') as HTMLElement;
-    let top = 0;
-    Object.defineProperty(scroller, 'scrollTop', { configurable: true, get: () => top, set: (v: number) => { top = v; } });
-    return scroller;
-  }
-  const ROWS = '.code-content [data-line], .code-content .code-fold-row';
+  const scrollable = (host: HTMLElement) => viewOf(host).scrollDOM;
+  /** Where a row's top sits in the scroller: its place in the rows, below the code's top padding. */
+  const rowTop = (host: HTMLElement, el: Element) =>
+    [...contentOf(host).querySelectorAll('.cm-line, .code-fold-row')].indexOf(el) * 20 + viewOf(host).documentPadding.top;
 
   it('brings an off-screen draw_ function to the top, and leaves one already on screen alone', async () => {
     const { tri } = mockScene();
     getState().selectObject(null);
-    const restore = layOut();
     const scrollTo = vi.fn();
     const original = HTMLElement.prototype.scrollTo;
     HTMLElement.prototype.scrollTo = scrollTo as unknown as typeof original;
     try {
       const host = mount(h(SceneCodePanel, {}));
       await settle();
+      layOut(host);
       const scroller = scrollable(host);
       // The student has scrolled far down, past every draw_ function.
       scroller.scrollTop = 4000;
@@ -988,12 +1046,11 @@ describe('BB-CODE-41: Choosing an object scrolls the code to its draw function',
       await settle();
       await frame();
       expect(scrollTo).toHaveBeenCalledTimes(1);
-      const signature = [...host.querySelectorAll('[data-line]')].find((el) => el.textContent?.includes('void draw_Triangle()'))!;
-      const rows = [...host.querySelectorAll(ROWS)];
-      expect(scrollTo.mock.calls[0][0].top).toBe(rows.indexOf(signature) * 20 - REVEAL_PADDING);
+      const signature = [...host.querySelectorAll('.cm-line')].find((el) => el.textContent?.includes('void draw_Triangle()'))!;
+      expect(scrollTo.mock.calls[0][0].top).toBe(rowTop(host, signature) - REVEAL_PADDING);
       // Once the code shows draw_Triangle(), choosing Triangle again moves nothing.
       scrollTo.mockClear();
-      scroller.scrollTop = rows.indexOf(signature) * 20;
+      scroller.scrollTop = rowTop(host, signature);
       getState().selectObject(null);
       await settle();
       getState().selectObject(tri.id);
@@ -1003,32 +1060,28 @@ describe('BB-CODE-41: Choosing an object scrolls the code to its draw function',
       unmount(host);
     } finally {
       HTMLElement.prototype.scrollTo = original;
-      restore();
     }
   });
 
   /** Mounts the panel with scrollTo spied on and the code laid out; `run` gets the host and the spy. */
   async function withPanel(run: (host: HTMLElement, scrollTo: ReturnType<typeof vi.fn>) => Promise<void>) {
-    const restore = layOut();
     const scrollTo = vi.fn();
     const original = HTMLElement.prototype.scrollTo;
     HTMLElement.prototype.scrollTo = scrollTo as unknown as typeof original;
     const host = mount(h(SceneCodePanel, {}));
     try {
       await settle();
+      layOut(host);
       await frame();
       await run(host, scrollTo);
     } finally {
       unmount(host);
       HTMLElement.prototype.scrollTo = original;
-      restore();
     }
   }
   /** Where the follow puts the first line containing `text`. */
-  const followTop = (host: HTMLElement, text: string) => {
-    const rows = [...host.querySelectorAll(ROWS)];
-    return rows.findIndex((el) => el.textContent?.includes(text)) * 20 - REVEAL_PADDING;
-  };
+  const followTop = (host: HTMLElement, text: string) =>
+    rowTop(host, [...host.querySelectorAll('.cm-line')].find((el) => el.textContent?.includes(text))!) - REVEAL_PADDING;
 
   it('stays put when an edit, not a new selection, changes the code', async () => {
     const { tri } = mockScene();
@@ -1089,5 +1142,66 @@ describe('BB-CODE-42: The editor colours GL calls exactly where the tokenizer do
     }
     expect(covered('glBegin(GL_TRIANGLES); // glEnd')).toEqual(['glBegin']);
     expect(covered('    glutSwapBuffers();')).toEqual(['glutSwapBuffers']);
+  });
+});
+
+describe('BB-CODE-43: The code panel never takes an edit', () => {
+  it('drops a typed change, a deletion and a paste, and keeps the program as generated', async () => {
+    const host = mount(h(CodeViewer, { code: SMALL }));
+    await settle();
+    const view = viewOf(host);
+    view.dispatch({ changes: { from: 0, insert: 'x' }, userEvent: 'input.type' });
+    view.dispatch({ changes: { from: 0, to: 3 }, userEvent: 'delete.backward' });
+    const paste = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(paste, 'clipboardData', { value: { getData: () => 'glEnd();' } });
+    contentOf(host).dispatchEvent(paste);
+    await settle();
+    expect(view.state.doc.toString()).toBe(SMALL);
+    expect(lineTexts(host)).toEqual(SMALL.split('\n'));
+    expect(contentOf(host).getAttribute('aria-readonly')).toBe('true');
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-44: Folding never leaves the cursor in hidden code', () => {
+  // A comment above main(), so a line stays drawn when main() folds.
+  const CODE = ['// The window', ...SMALL.split('\n')].join('\n');
+  const open: CodeRow[] = [0, 1, 2, 3, 4, 5].map((line) =>
+    line === 1 ? { kind: 'line', line, closes: { block: 'main', label: 'int main()' } } : { kind: 'line', line });
+  const folded: CodeRow[] = [{ kind: 'line', line: 0 }, { kind: 'fold', block: 'main', label: 'int main()', summary: 's', start: 1, end: 5 }];
+  const explainable = new Set([3, 4]);
+
+  it('opens a fold from its button without moving the cursor', async () => {
+    const onToggleFold = vi.fn();
+    const host = mount(h(CodeViewer, { code: CODE, rows: folded, onToggleFold, explainable }));
+    await settle();
+    const before = viewOf(host).state.selection.main.head;
+    (host.querySelector('.code-fold') as HTMLButtonElement).click();
+    await settle();
+    expect(onToggleFold).toHaveBeenCalledWith('main');
+    expect(viewOf(host).state.selection.main.head).toBe(before);
+    render(h(CodeViewer, { code: CODE, rows: open, onToggleFold, explainable }), host);
+    await settle();
+    expect(viewOf(host).state.selection.main.head).toBe(before);
+    expect(cursorLine(host)).toBe(0);
+    unmount(host);
+  });
+
+  it('moves a cursor out of a block that folds, and Enter explains nothing hidden', async () => {
+    const onExplain = vi.fn();
+    const host = mount(h(CodeViewer, { code: CODE, rows: open, explainable, onExplain }));
+    await settle();
+    putCursor(host, 3);
+    render(h(CodeViewer, { code: CODE, rows: folded, explainable, onExplain }), host);
+    await settle();
+    expect(cursorLine(host)).toBeLessThanOrEqual(1);
+    key(contentOf(host), 'Enter');
+    // Even a cursor put straight into the folded lines explains nothing.
+    putCursor(host, 4);
+    key(contentOf(host), 'Enter');
+    key(contentOf(host), ' ');
+    await settle();
+    expect(onExplain).not.toHaveBeenCalled();
+    unmount(host);
   });
 });

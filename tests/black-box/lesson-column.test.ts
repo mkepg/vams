@@ -1511,7 +1511,7 @@ describe('BB-LCOL-53: The recap lists its points and the calls, and a call opens
       expect(s.codePane).toBe('code');
       expect(s.codeHidden).toBe(false);
       expect(s.explainedLine).not.toBeNull();
-      const line = code.querySelector(`.code-line[data-line="${s.explainedLine}"] .code-line__text`)!;
+      const line = code.querySelector('.cm-line.is-explained')!;
       expect(line.textContent).toContain('glRotatef(');
 
       const finish = buttonNamed(bar, 'Finish')!;

@@ -68,6 +68,21 @@ beforeEach(() => {
   });
 });
 
+// happy-dom lays nothing out, so every box is 0 × 0 and CodeMirror would draw only the few lines
+// it guesses are on screen. Its boxes report a window-sized area instead, and it draws every line.
+const realRect = Element.prototype.getBoundingClientRect;
+Element.prototype.getBoundingClientRect = function (this: Element) {
+  const rect = realRect.call(this);
+  if (rect.height > 0 || !this.matches('.cm-editor, .cm-scroller, .cm-content')) return rect;
+  return { top: 0, bottom: 600, height: 600, left: 0, right: 800, width: 800, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
+};
+
+// happy-dom fires selectionchange at once, inside the update CodeMirror is making, which
+// CodeMirror refuses; and its selection never settles to what CodeMirror wrote. The tests move the
+// cursor through the view's state, so the document's selectionchange is dropped.
+const realDispatch = document.dispatchEvent.bind(document);
+document.dispatchEvent = (event: Event) => event.type === 'selectionchange' || realDispatch(event);
+
 // Restore real randomUUID on exit, just in case.
 process.on('exit', () => {
   if (globalThis.crypto && realRandomUUID) {

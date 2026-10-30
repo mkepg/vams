@@ -75,8 +75,9 @@ export function vamsEditorTheme(): Extension {
       border: 'none',
       color: 'var(--line-number)',
     },
+    // 30px of number, then 14px of room before the code.
     '.cm-lineNumbers .cm-gutterElement': {
-      minWidth: '30px',
+      minWidth: '44px',
       padding: '0 14px 0 0',
       textAlign: 'right',
     },
