@@ -72,16 +72,20 @@ describe('BB-INSP-02: Each place belongs to a curriculum section', () => {
 });
 
 describe('BB-INSP-03: The context section follows focus, then the opened group, then the section', () => {
-  it('prefers a lesson focus, then the last opened group, then activeSection; a stage picked by hand wins until cleared', () => {
+  it('prefers a group opened by hand, then a lesson focus, then activeSection; a stage picked by hand wins until cleared', () => {
     const base = { appMode: 'Author' as const, lessonFocusPanel: null, selectedObjectId: null, lastOpenedGroup: null, activeSection: 'Pipeline' as const, journeyStageOverride: null };
     expect(contextSection(base)).toBe('Pipeline');
     expect(contextSection({ ...base, lastOpenedGroup: 'texture' })).toBe('Textures');
-    expect(contextSection({ ...base, appMode: 'Lesson', lessonFocusPanel: 'buffers-panel', selectedObjectId: 'x', lastOpenedGroup: 'texture' })).toBe('Buffers');
+    expect(contextSection({ ...base, appMode: 'Lesson', lessonFocusPanel: 'buffers-panel', selectedObjectId: 'x' })).toBe('Buffers');
+    expect(contextSection({ ...base, appMode: 'Lesson', lessonFocusPanel: 'buffers-panel', selectedObjectId: 'x', lastOpenedGroup: 'texture' })).toBe('Textures');
     expect(journeyStageFor({ ...base, lastOpenedGroup: 'texture', journeyStageOverride: 'transformed' })).toBe('transformed');
   });
 
-  it('ignores a group opened before the lesson: a lesson step without focus shows the current section', () => {
-    const lesson = { appMode: 'Lesson' as const, lessonFocusPanel: null, selectedObjectId: null, lastOpenedGroup: 'texture' as const, activeSection: 'Transforms' as const, journeyStageOverride: null };
+  it('ignores a group opened before the lesson or the step: a lesson step without focus shows the current section', () => {
+    useVamsStore.setState({ lastOpenedGroup: 'texture' });
+    useVamsStore.getState().setLessonFocusPanel(null);
+    expect(useVamsStore.getState().lastOpenedGroup).toBeNull();
+    const lesson = { appMode: 'Lesson' as const, lessonFocusPanel: null, selectedObjectId: null, lastOpenedGroup: null, activeSection: 'Transforms' as const, journeyStageOverride: null };
     expect(contextSection(lesson)).toBe('Transforms');
     expect(journeyStageFor(lesson)).toBe('transformed');
     // A focus id with no place in the editor counts as no focus.
