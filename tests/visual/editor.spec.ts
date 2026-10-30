@@ -169,11 +169,26 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(page.locator('.canvas-window__running')).toBeVisible();
     await page.keyboard.press('ArrowRight');
     await expect(page.locator('.canvas-window__status')).toContainText('GLUT_KEY_RIGHT');
-    await expect(page).toHaveScreenshot(`run-${theme}-1280.png`, { animations: 'disabled' });
+    await codeSettled(page);
+    // The cursor readouts follow wherever the pointer last was, which no capture should depend on.
+    await expect(page).toHaveScreenshot(`run-${theme}-1280.png`, {
+      animations: 'disabled',
+      mask: [page.locator('.canvas-header__cursor'), page.locator('.ndc-readout')],
+    });
   });
 }
 
 const THEMES = ['light', 'dark'] as const;
+
+/** Waits until the code panel has stopped scrolling to the call that fired: the same position over two frames. */
+async function codeSettled(page: Page) {
+  const position = () => page.locator('.code-content').first().evaluate(async (el) => {
+    const before = el.scrollTop;
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    return before === el.scrollTop;
+  });
+  await expect.poll(position).toBe(true);
+}
 
 /** Opens an empty editor and closes the first-visit welcome card. */
 async function openEmpty(page: Page, theme: Theme) {
