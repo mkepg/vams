@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { STORAGE_KEY, useVamsStore } from '@/core/store';
 import { peekCorruptSave, takeCorruptSave } from '@/core/store/recovery-signal';
+import { saveFailing, subscribeSaveHealth } from '@/core/store/save-health';
 import { buildProjectFile, createDefaultProjectFilename, downloadJSON } from '@/entities/project/model/project-io';
 import { backupCorruptSave, backupCurrentScene, downloadText, useMyScenesDialog } from '@/features/scene-library';
 
@@ -70,4 +71,25 @@ export function useCorruptSaveNotice(): void {
     const raw = takeCorruptSave();
     if (raw) void keepCorruptSave(raw);
   }, []);
+}
+
+export const SAVE_FAILING_TOAST = 'save-failing';
+export const SAVE_FAILING_MESSAGE = "This browser isn't saving your changes. Save a project file to keep your work.";
+
+const saveProjectFile = () => downloadJSON(createDefaultProjectFilename(), buildProjectFile(useVamsStore.getState()));
+
+/** While autosave writes fail, keep a warning up that offers the project file; it goes once a write succeeds. */
+export function useSaveFailureNotice(saveFile: () => void = saveProjectFile): void {
+  useEffect(() => {
+    const show = (failing: boolean) => {
+      if (!failing) return void toast.dismiss(SAVE_FAILING_TOAST);
+      toast.warning(SAVE_FAILING_MESSAGE, {
+        id: SAVE_FAILING_TOAST,
+        action: { label: 'Save project file', onClick: saveFile },
+        duration: Infinity,
+      });
+    };
+    if (saveFailing()) show(true);
+    return subscribeSaveHealth(show);
+  }, [saveFile]);
 }

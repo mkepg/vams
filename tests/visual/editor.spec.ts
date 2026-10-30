@@ -510,3 +510,47 @@ for (const width of [1100, 960]) {
     });
   }
 }
+
+test('VIS-EDITOR-40: A Set colour from Run survives a window resize and then a theme change', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  // No stored theme, so the editor follows the system scheme and the change below reaches the canvas.
+  await page.addInitScript((css) => {
+    window.localStorage.removeItem('vams-theme');
+    window.localStorage.setItem('vams-storage', JSON.stringify({ state: { hasSeenWelcome: true }, version: 11 }));
+    const inject = () => {
+      const style = document.createElement('style');
+      style.textContent = css;
+      (document.head ?? document.documentElement).appendChild(style);
+    };
+    if (document.documentElement) inject();
+    else document.addEventListener('DOMContentLoaded', inject, { once: true });
+  }, HIDE_TIMED_NOTICES);
+  await page.goto('/app?scene=parol');
+  await page.waitForSelector('.canvas-window');
+  await page.getByRole('button', { name: /^Run/ }).first().click();
+  await expect(page.locator('.canvas-window__running')).toBeVisible();
+  await page.keyboard.press('1');
+  await expect(page.locator('.canvas-window__status')).toContainText("onKey('1'");
+  const win = page.locator('.canvas-window');
+  /** Pixels of the star's red (#ff5a5f), which neither its yellow nor its orange outline reach. */
+  const redPixels = async () => {
+    const img = decodePng(await win.screenshot());
+    let count = 0;
+    for (let i = 0; i < img.data.length; i += 4) {
+      const [r, g, b] = [img.data[i], img.data[i + 1], img.data[i + 2]];
+      if (r > 220 && g < 110 && b > 70) count++;
+    }
+    return count;
+  };
+  await expect.poll(redPixels).toBeGreaterThan(500);
+  const box = (await win.boundingBox())!;
+  await page.mouse.move(box.x + box.width - 3, box.y + box.height - 3);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 80, box.y + box.height - 60, { steps: 5 });
+  await page.mouse.up();
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).toBe('light');
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  expect(await redPixels()).toBeGreaterThan(300);
+});

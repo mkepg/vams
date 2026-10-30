@@ -64,12 +64,13 @@ export const createLessonSlice: StateCreator<VamsState, [], [], LessonSlice> = (
   })),
   setSuccessState: (success) => set({ isSuccess: success }),
   // A step's control lives in one rail panel: show that panel, and open it if it was hidden.
+  // A new step also forgets the group and stage the student opened during the last one.
   setLessonFocusPanel: (panelId) => set((state) => {
     const place = resolveFocus(panelId, state.selectedObjectId !== null);
     const panel = place ? railPanelFor(place) : null;
     return panel
-      ? { lessonFocusPanel: panelId, journeyStageOverride: null, railPanel: panel, railHidden: false }
-      : { lessonFocusPanel: panelId, journeyStageOverride: null };
+      ? { lessonFocusPanel: panelId, journeyStageOverride: null, lastOpenedGroup: null, railPanel: panel, railHidden: false }
+      : { lessonFocusPanel: panelId, journeyStageOverride: null, lastOpenedGroup: null };
   }),
   setQuizPipelineStage: (stage) => set({ quizPipelineStage: stage }),
   setDmaDriverStep: (index) => set({ dmaDriverStep: index }),

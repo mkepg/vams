@@ -8,7 +8,9 @@ import { useVamsStore, STORAGE_KEY } from '@/core/store';
 import { peekCorruptSave, reportCorruptSave, takeCorruptSave } from '@/core/store/recovery-signal';
 import { createMemoryLibrary, setSceneLibraryForTests } from '@/entities/project/model/scene-library';
 import { EditorErrorBoundary, RecoveryScreen, isChunkLoadError, type RecoveryActions } from '@/features/crash-recovery';
-import { downloadWork, keepCorruptSave, startFresh } from '@/pages/editor/model/recovery';
+import { downloadWork, keepCorruptSave, startFresh, SAVE_FAILING_MESSAGE, useSaveFailureNotice } from '@/pages/editor/model/recovery';
+import { saveFailing } from '@/core/store/save-health';
+import { toast } from 'sonner';
 import { addQuad, addTriangle } from '../helpers/store';
 import type { VamsProjectFile } from '@/entities/project/model/project-io';
 
@@ -246,5 +248,37 @@ describe('BB-RECOVER-12: Download my work can still offer an unreadable save', (
     expect(blobs).toHaveLength(1);
     expect(peekCorruptSave()).toBe('{"state":');
     takeCorruptSave();
+  });
+});
+
+describe('BB-RECOVER-13: A browser that stops saving says so, and offers the project file', () => {
+  it('warns once while writes fail, and takes the warning down when one succeeds', async () => {
+    const warning = track(vi.spyOn(toast, 'warning').mockImplementation(() => 'id'));
+    const dismiss = track(vi.spyOn(toast, 'dismiss').mockImplementation(() => 'id'));
+    const saveFile = vi.fn();
+    const host = document.createElement('div');
+    function Probe() {
+      useSaveFailureNotice(saveFile);
+      return null;
+    }
+    render(h(Probe, null), host);
+    await settle();
+    const full = track(vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      throw new DOMException('full', 'QuotaExceededError');
+    }));
+    addTriangle();
+    addQuad();
+    expect(saveFailing()).toBe(true);
+    expect(warning).toHaveBeenCalledTimes(1);
+    expect(warning.mock.calls[0][0]).toBe(SAVE_FAILING_MESSAGE);
+    const options = warning.mock.calls[0][1] as { action: { label: string; onClick: () => void } };
+    expect(options.action.label).toBe('Save project file');
+    options.action.onClick();
+    expect(saveFile).toHaveBeenCalled();
+    full.mockRestore();
+    addTriangle();
+    expect(saveFailing()).toBe(false);
+    expect(dismiss).toHaveBeenCalled();
+    render(null, host);
   });
 });

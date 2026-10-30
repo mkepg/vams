@@ -1,5 +1,7 @@
 import * as PIXI from "pixi.js";
 import type { SceneNode, Vertex } from "@/core/types/scene";
+import { GLYPH_ADVANCE, GLYPH_DESCENT, GLYPH_HEIGHT } from "@/shared/lib/glut-bitmap-9x15";
+import { TEXT_LINE_PIXELS, textLines } from "@/shared/lib/text-raster";
 
 export function pxToWorld(px: number, worldScaleX?: number): number {
   return worldScaleX ? px / worldScaleX : 0.02;
@@ -57,8 +59,25 @@ export function createPaddedHitArea(
   );
 }
 
+/**
+ * The box bitmap text's glyphs cover around its raster origin, in units where one unit is
+ * `pixelsPerUnit` window pixels: rightwards from the origin, from the first line's ascent down to
+ * the last line's descent. Glyphs keep their pixel size whatever the object's transform.
+ */
+export function textGlyphBox(text: string, pixelsPerUnit: number): { left: number; right: number; bottom: number; top: number } {
+  const lines = textLines(text);
+  const widest = Math.max(0, ...lines.map((line) => line.length)) * GLYPH_ADVANCE;
+  const below = GLYPH_DESCENT + (lines.length - 1) * TEXT_LINE_PIXELS;
+  return { left: 0, right: widest / pixelsPerUnit, bottom: -below / pixelsPerUnit, top: (GLYPH_HEIGHT - GLYPH_DESCENT) / pixelsPerUnit };
+}
+
+/**
+ * The children's box in the group's coordinates. With `pixelsPerUnit` (window pixels per group
+ * unit), a text child counts its glyphs, not just its origin.
+ */
 export function getGroupLocalBounds(
-  children: SceneNode[]
+  children: SceneNode[],
+  pixelsPerUnit?: number
 ): { minX: number; minY: number; maxX: number; maxY: number; width: number; height: number } {
   if (!children || children.length === 0) {
     return { minX: -0.5, minY: -0.5, maxX: 0.5, maxY: 0.5, width: 1, height: 1 };
@@ -73,6 +92,15 @@ export function getGroupLocalBounds(
     const cScaleY = child.transform.scaleY ?? 1;
     const cX = child.transform.translateX;
     const cY = child.transform.translateY;
+    if (child.type === 'TEXT' && pixelsPerUnit && pixelsPerUnit > 0) {
+      // The glyphs sit upright at the raster origin, so only the child's position moves them.
+      const box = textGlyphBox(child.textContent ?? '', pixelsPerUnit);
+      minX = Math.min(minX, cX + box.left);
+      maxX = Math.max(maxX, cX + box.right);
+      minY = Math.min(minY, cY + box.bottom);
+      maxY = Math.max(maxY, cY + box.top);
+      return;
+    }
     const vertices = child.vertices.length > 0
       ? child.vertices
       : [{x: -0.5, y: -0.5}, {x: 0.5, y: -0.5}, {x: 0.5, y: 0.5}, {x: -0.5, y: 0.5}] as Vertex[];

@@ -5,14 +5,14 @@ import { resolveFocus, sectionForPlace } from './focus-map';
 export type ContextState = Pick<VamsState, 'appMode' | 'lessonFocusPanel' | 'selectedObjectId' | 'lastOpenedGroup' | 'activeSection'>;
 
 /**
- * The section the student is working in right now. In a lesson: the step's focus, else the
- * lesson's section. Outside one: the last opened group, else the course section.
+ * The section the student is working in right now: a group they opened by hand (in a lesson, during
+ * this step), else the step's focus, else the lesson's or course section.
  */
 export function contextSection(s: ContextState): CurriculumSection {
+  if (s.lastOpenedGroup) return GROUP_SECTION[s.lastOpenedGroup];
   if (s.appMode === 'Lesson') {
     const place = resolveFocus(s.lessonFocusPanel, s.selectedObjectId !== null);
     return place ? sectionForPlace(place) : s.activeSection;
   }
-  if (s.lastOpenedGroup) return GROUP_SECTION[s.lastOpenedGroup];
   return s.activeSection;
 }

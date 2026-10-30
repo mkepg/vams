@@ -23,7 +23,7 @@ import { useVamsStore } from '@/core/store';
 import { getActiveTheme, subscribeTheme, toEditorTheme, type SiteTheme } from '@/shared/lib/theme';
 import { useKeyboardShortcuts } from '@/shared/hooks/useKeyboardShortcuts';
 import { useEditorLink } from '../model/useEditorLink';
-import { useCorruptSaveNotice } from '../model/recovery';
+import { useCorruptSaveNotice, useSaveFailureNotice } from '../model/recovery';
 import EditorShell from './EditorShell';
 
 /** The tour's "Start learning": the first lesson in course order the student has neither completed nor skipped. */
@@ -36,6 +36,7 @@ export default function EditorApp() {
   useKeyboardShortcuts();
   const opening = useEditorLink();
   useCorruptSaveNotice();
+  useSaveFailureNotice();
   useRecordLessonOnLeave();
   useSceneAutosave();
   const lessonTitle = useVamsStore((s) => (s.activeLessonId ? (getLessonById(s.activeLessonId)?.title ?? null) : null));

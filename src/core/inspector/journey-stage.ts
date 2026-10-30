@@ -63,14 +63,16 @@ export type JourneyContext = Pick<
 
 /**
  * The stage the math journey opens. A stage the student opened by hand wins until the next lesson
- * step or opened group. Otherwise, in a lesson: the step's focus, else the section. Outside one:
- * the last opened group, else the section.
+ * step or opened group, then a group they opened by hand (in a lesson, during this step). Otherwise,
+ * in a lesson: the step's focus, else the section. Outside one: the section.
  */
 export function journeyStageFor(s: JourneyContext): JourneyStageId {
   if (s.journeyStageOverride) return s.journeyStageOverride;
+  const opened = s.lastOpenedGroup ? GROUP_STAGE[s.lastOpenedGroup] : null;
+  if (opened) return opened;
   if (s.appMode === 'Lesson') {
     const place = resolveFocus(s.lessonFocusPanel, s.selectedObjectId !== null);
     return (place ? stageForPlace(place) : null) ?? stageForSection(s.activeSection);
   }
-  return (s.lastOpenedGroup ? GROUP_STAGE[s.lastOpenedGroup] : null) ?? stageForSection(s.activeSection);
+  return stageForSection(s.activeSection);
 }

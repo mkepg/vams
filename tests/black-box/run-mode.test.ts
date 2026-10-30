@@ -780,3 +780,17 @@ describe('BB-RUN-26: Run leaves no selection outline behind', () => {
     expect(drawn(overlay)).toBe(true);
   });
 });
+
+describe('BB-RUN-27: Text keeps the line step the program started with through a resize', () => {
+  it('holds the starting pixels per unit while Run lasts, and lets go on Stop', () => {
+    const { resize } = setup({ width: 800, height: 600 });
+    expect(renderBridge.runTextPixelsPerUnitY()).toBeNull();
+    runController.start({ loop: false });
+    expect(renderBridge.runTextPixelsPerUnitY()).toBe(300);
+    resize({ width: 400, height: 300 });
+    runController.stepFrame();
+    expect(renderBridge.runTextPixelsPerUnitY()).toBe(300);
+    runController.stop();
+    expect(renderBridge.runTextPixelsPerUnitY()).toBeNull();
+  });
+});
