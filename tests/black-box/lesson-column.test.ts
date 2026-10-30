@@ -206,7 +206,7 @@ describe('BB-LCOL-09: Object Transform and Create Text carry the ids lessons use
   it('renders data-panel-id and the Object Transform title', () => {
     let host = mount(h(ObjectTransformPanel, {}));
     expect(host.querySelector('[data-panel-id="object-transform"]')).not.toBeNull();
-    expect(host.querySelector('.vpanel__title')!.textContent).toBe('Object Transform');
+    expect(host.querySelector('.vpanel__title')!.textContent).toBe('Object transform');
     unmount(host);
     host = mount(h(TextNodePanel, {}));
     expect(host.querySelector('[data-panel-id="text-node-panel"]')).not.toBeNull();

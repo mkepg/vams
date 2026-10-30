@@ -1,7 +1,7 @@
 import type { ShortcutGroup } from './types';
 
 /**
- * Canonical list of keyboard shortcuts, rendered by the "Keyboard Shortcuts"
+ * Canonical list of keyboard shortcuts, rendered by the "Keyboard shortcuts"
  * help topic. This documents the behavior currently implemented in
  * [useKeyboardShortcuts](src/shared/hooks/useKeyboardShortcuts.ts) and
  * [useCanvasInteraction](src/features/scene-interaction/model/useCanvasInteraction.ts).

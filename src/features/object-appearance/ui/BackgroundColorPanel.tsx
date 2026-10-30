@@ -9,8 +9,8 @@ export default function BackgroundColorPanel() {
   const canvasBackgroundColor = useVamsStore((s) => s.canvasBackgroundColor);
   const setCanvasBackgroundColor = useVamsStore((s) => s.setCanvasBackgroundColor);
   return (
-    <CollapsibleSection panelId="appearance-panel" title="Scene Colour" icon={<Palette size={14} />} defaultOpen={true}>
-      <div className="canvas-color-control" title="Change Canvas Background">
+    <CollapsibleSection panelId="appearance-panel" title="Scene colour" icon={<Palette size={14} />} defaultOpen={true}>
+      <div className="canvas-color-control" title="Change canvas background">
         <ColorField
           label="Background"
           glCall="glClearColor"

@@ -501,7 +501,7 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
         codeChangeFocus: ['glDrawElements'],
       },
       {
-        narration: "Array vs Indexed in Math's Stored stage compares the memory: four stored corners and six small indices take less than six full corners.",
+        narration: "Array vs indexed in Math's Stored stage compares the memory: four stored corners and six small indices take less than six full corners.",
         pane: 'math',
         mathStage: 'stored',
       },

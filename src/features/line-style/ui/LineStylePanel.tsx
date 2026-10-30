@@ -107,7 +107,7 @@ export default function LineStylePanel() {
     : '0xFFFF';
 
   return (
-    <CollapsibleSection panelId="line-style-panel" title="Line Style" icon={<Minus size={14} />} defaultOpen={true} hint="glLineStipple">
+    <CollapsibleSection panelId="line-style-panel" title="Line style" icon={<Minus size={14} />} defaultOpen={true} hint="glLineStipple">
       <div className="line-style-panel">
 
         {/* ----------------------------- Width ----------------------------- */}

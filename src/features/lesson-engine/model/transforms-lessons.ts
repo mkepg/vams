@@ -442,7 +442,7 @@ export const TRANSFORMS_LESSONS: Record<string, Lesson> = {
         action: () => { addNamed('TRIANGLES', ARROW, 'Arrow', '#facc15'); },
       },
       {
-        narration: 'glOrtho(left, right, bottom, top, −1, 1) names the rectangle of the world the window shows. Now it is −1 to 1 both ways: the same numbers you set in Viewing Volume.',
+        narration: 'glOrtho(left, right, bottom, top, −1, 1) names the rectangle of the world the window shows. Now it is −1 to 1 both ways: the same numbers you set in Viewing volume.',
         focusPanel: 'ortho-editor',
       },
       {
@@ -784,7 +784,7 @@ export const TRANSFORMS_LESSONS: Record<string, Lesson> = {
     section: 'Transforms',
     steps: [
       {
-        narration: 'Open Viewing Volume and show the world from −2 to 2 on both axes.',
+        narration: 'Open Viewing volume and show the world from −2 to 2 on both axes.',
         focusPanel: 'ortho-editor',
         action: () => { addNamed('TRIANGLES', ARROW, 'Arrow', '#facc15'); },
         goals: [
@@ -797,7 +797,7 @@ export const TRANSFORMS_LESSONS: Record<string, Lesson> = {
           },
         ],
         task: 'Set the volume to −2 to 2',
-        hints: ['Viewing Volume is in Settings.', 'Left −2, Right 2, Bottom −2, Top 2.'],
+        hints: ['Viewing volume is in Settings.', 'Left −2, Right 2, Bottom −2, Top 2.'],
         solve: (state) => state.setViewportLimits({ minX: -2, maxX: 2, minY: -2, maxY: 2 }),
       },
       {

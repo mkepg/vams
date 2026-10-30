@@ -285,7 +285,7 @@ export function StagePictures({ stage, node, deeper, deeperId, world, ndc }: Pic
           )}
           {deeper && (
             <div id={deeperId}>
-            <TransformsSection title="Selected Matrix (4×4)">
+            <TransformsSection title="Selected matrix (4×4)">
               <p className="explanation">
                 Composed in conventional <strong>T · R · S</strong> order, then multiplied with
                 every vertex during rendering.
@@ -304,7 +304,7 @@ export function StagePictures({ stage, node, deeper, deeperId, world, ndc }: Pic
           {world && stage.point && <OrthoFormula world={world} limits={volume} ndc={stage.point} widened={stage.volume?.widened ?? false} />}
           {(deeper || !node) && (
             <div id={deeperId}>
-            <TransformsSection title="glOrtho — Viewing Volume">
+            <TransformsSection title="glOrtho — viewing volume">
               <p className="explanation">
                 <code>glOrtho</code> defines the rectangle of world space that maps to the visible
                 window. Anything outside is clipped.
@@ -324,7 +324,7 @@ export function StagePictures({ stage, node, deeper, deeperId, world, ndc }: Pic
             <VertexTable vertices={shape.vertices} />
           </PrimitivesSection>
           {isLine(shape.type) && shape.lineStipple && (
-            <PrimitivesSection title="Stipple Pattern">
+            <PrimitivesSection title="Stipple pattern">
               <StippleBits pattern={shape.lineStipple.pattern} factor={shape.lineStipple.factor} />
             </PrimitivesSection>
           )}
@@ -359,7 +359,7 @@ export function StagePictures({ stage, node, deeper, deeperId, world, ndc }: Pic
             <ColorConversion hex={node.vertices[source]?.color ?? '#ffffff'} />
           </PrimitivesSection>
           {node.type !== 'POINTS' && multi && (
-            <PrimitivesSection title="Barycentric Interpolation">
+            <PrimitivesSection title="Barycentric interpolation">
               <BarycentricMixer vertices={node.vertices} />
             </PrimitivesSection>
           )}

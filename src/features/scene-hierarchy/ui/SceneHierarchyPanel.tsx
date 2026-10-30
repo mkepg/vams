@@ -402,7 +402,7 @@ export default function SceneHierarchyPanel() {
                   iconOnly
                   className="delete"
                   label={`Delete ${name} and its children`}
-                  title="Delete Group & Children"
+                  title="Delete group & children"
                   icon={<FolderX size={14} />}
                   onClick={() => deleteWithUndo(obj.id, true)}
                 />
@@ -439,7 +439,7 @@ export default function SceneHierarchyPanel() {
     );
   };
   return (
-    <CollapsibleSection panelId="scene-hierarchy" title="Scene Hierarchy" titleHidden icon={<Layers size={14} />} defaultOpen={true}>
+    <CollapsibleSection panelId="scene-hierarchy" title="Scene hierarchy" titleHidden icon={<Layers size={14} />} defaultOpen={true}>
       <div className="scene-toolbar" role="toolbar" aria-label="Scene">
         <Button
           variant="quiet"
