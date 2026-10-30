@@ -439,6 +439,7 @@ export function useSceneRenderer({
           }
           const newContent = createDrawable(drawn, worldScaleX, {
             groupChildren,
+            worldScaleY,
             isSelected,
           });
           while (newContent.children.length > 0) {
@@ -453,6 +454,7 @@ export function useSceneRenderer({
           }
           container = createDrawable(drawn, worldScaleX, {
             groupChildren,
+            worldScaleY,
             isSelected,
           });
         }

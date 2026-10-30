@@ -59,16 +59,22 @@ export function createPaddedHitArea(
   );
 }
 
+/** Window pixels per unit along each axis; they differ once the student stretches the window. */
+export interface PixelsPerUnit {
+  x: number;
+  y: number;
+}
+
 /**
- * The box bitmap text's glyphs cover around its raster origin, in units where one unit is
- * `pixelsPerUnit` window pixels: rightwards from the origin, from the first line's ascent down to
- * the last line's descent. Glyphs keep their pixel size whatever the object's transform.
+ * The box bitmap text's glyphs cover around its raster origin, in units: rightwards from the
+ * origin, from the first line's ascent down to the last line's descent. Glyphs keep their pixel
+ * size whatever the object's transform.
  */
-export function textGlyphBox(text: string, pixelsPerUnit: number): { left: number; right: number; bottom: number; top: number } {
+export function textGlyphBox(text: string, perUnit: PixelsPerUnit): { left: number; right: number; bottom: number; top: number } {
   const lines = textLines(text);
   const widest = Math.max(0, ...lines.map((line) => line.length)) * GLYPH_ADVANCE;
   const below = GLYPH_DESCENT + (lines.length - 1) * TEXT_LINE_PIXELS;
-  return { left: 0, right: widest / pixelsPerUnit, bottom: -below / pixelsPerUnit, top: (GLYPH_HEIGHT - GLYPH_DESCENT) / pixelsPerUnit };
+  return { left: 0, right: widest / perUnit.x, bottom: -below / perUnit.y, top: (GLYPH_HEIGHT - GLYPH_DESCENT) / perUnit.y };
 }
 
 /**
@@ -77,7 +83,7 @@ export function textGlyphBox(text: string, pixelsPerUnit: number): { left: numbe
  */
 export function getGroupLocalBounds(
   children: SceneNode[],
-  pixelsPerUnit?: number
+  pixelsPerUnit?: PixelsPerUnit
 ): { minX: number; minY: number; maxX: number; maxY: number; width: number; height: number } {
   if (!children || children.length === 0) {
     return { minX: -0.5, minY: -0.5, maxX: 0.5, maxY: 0.5, width: 1, height: 1 };
@@ -92,7 +98,7 @@ export function getGroupLocalBounds(
     const cScaleY = child.transform.scaleY ?? 1;
     const cX = child.transform.translateX;
     const cY = child.transform.translateY;
-    if (child.type === 'TEXT' && pixelsPerUnit && pixelsPerUnit > 0) {
+    if (child.type === 'TEXT' && pixelsPerUnit && pixelsPerUnit.x > 0 && pixelsPerUnit.y > 0) {
       // The glyphs sit upright at the raster origin, so only the child's position moves them.
       const box = textGlyphBox(child.textContent ?? '', pixelsPerUnit);
       minX = Math.min(minX, cX + box.left);

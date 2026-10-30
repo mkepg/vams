@@ -249,6 +249,18 @@ describe("BB-FID-09: A group's outline takes in its text child's glyphs", () => 
     expect(area.y + area.height - pad).toBeCloseTo(12 / 268, 5);
     expect(area.y + pad).toBeCloseTo(-4 / 268, 5);
   });
+
+  it('measures the glyphs\' height with the y scale when the window is stretched', () => {
+    const group = node('GROUP', [], { id: 'g', name: 'G', vertices: [] });
+    const text = node('TEXT', [[0, 0, '#ffffff']], { id: 't', name: 'T', parentId: 'g', textContent: 'Hi' });
+    // 268 window pixels per unit across, 134 down: the window is twice as wide as the volume's shape.
+    const container = createDrawable(group, 268, { groupChildren: [text], isSelected: true, worldScaleY: -134 });
+    const area = container.hitArea as { x: number; y: number; width: number; height: number };
+    const pad = 4 / 268;
+    expect(area.x + area.width - pad).toBeCloseTo(18 / 268, 5);
+    expect(area.y + area.height - pad).toBeCloseTo(12 / 134, 5);
+    expect(area.y + pad).toBeCloseTo(-4 / 134, 5);
+  });
 });
 
 describe('BB-FID-10: Rebuilding an object frees what it drew and keeps its children', () => {
