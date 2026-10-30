@@ -17,6 +17,8 @@ export default function SiteFooter({ actions }: { actions?: ComponentChildren })
       <p className="site-footer__links">
         <a href="/learn">Learn</a>
         <a href="/gallery">Gallery</a>
+        <a href="/guide">Guide</a>
+        <a href="/teach">Teaching</a>
         <a href="/about">About</a>
         <a href={REPO_URL} rel="noopener">Source on GitHub</a>
         <span>MIT License</span>

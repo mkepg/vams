@@ -49,6 +49,8 @@ tests/
 │   ├── about-page.test.ts                (BB-ABOUT-*: The /about page: copy,
 │   │                                        citation tabs, prerendered page,
 │   │                                        import boundary)
+│   ├── guide-pages.test.ts               (BB-GUIDE-*: /guide, /teach and the
+│   │                                        header's Ctrl+K search)
 │   ├── learn-page.test.ts                (BB-LPAGE-*: the course catalog,
 │   │                                        progress after hydration, /learn)
 │   ├── crash-recovery.test.ts            (BB-RECOVER-*: lesson reload,
@@ -139,6 +141,8 @@ tests/
 │   │                                        per-machine baselines that are
 │   │                                        not committed)
 │   ├── learn.spec.ts                     (VIS-LEARN-*: the /learn course map)
+│   ├── guide.spec.ts                     (VIS-GUIDE-*: /guide, /teach, search
+│   │                                        and the header on phones)
 │   ├── about.spec.ts                     (VIS-ABOUT-*: the /about page at
 │   │                                        1280 and 390, citation tabs)
 │   ├── gallery.spec.ts                   (VIS-GALLERY-*: the /gallery page at

@@ -1,0 +1,233 @@
+@use '../../../shared/styles/tokens' as *;
+
+/* The guide: an introduction, then the contents beside one long reading column. */
+.guide {
+  padding: var(--space-7) var(--site-gutter) var(--space-8);
+
+  &__intro { max-width: 760px; }
+  &__title {
+    margin: 0 0 var(--space-3);
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: var(--text-2xl);
+    line-height: var(--lh-2xl);
+    letter-spacing: -0.01em;
+  }
+  &__lede {
+    margin: 0 0 var(--space-3);
+    max-width: 62ch;
+    font-size: var(--text-lg);
+    line-height: 1.55;
+    color: var(--ink-muted);
+  }
+  &__teach {
+    margin: 0;
+    font-size: var(--text-md);
+    color: var(--ink-muted);
+    a { color: var(--accent-text); font-weight: 600; }
+  }
+  &__layout {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: var(--space-7);
+    margin-top: var(--space-7);
+    align-items: start;
+  }
+  &__topics { min-width: 0; max-width: 72ch; }
+}
+
+.guide-contents {
+  position: sticky;
+  top: 76px;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  padding-right: var(--space-2);
+  @include scrollbar;
+
+  &__title {
+    margin: 0 0 var(--space-3);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--ink-faint);
+  }
+  &__group + &__group { margin-top: var(--space-4); }
+  &__label {
+    margin: 0 0 var(--space-1);
+    font-size: var(--text-base);
+    font-weight: 700;
+    color: var(--ink);
+  }
+  ul { margin: 0; padding: 0; list-style: none; }
+  a {
+    display: block;
+    padding: 3px 0 3px var(--space-3);
+    border-left: 1px solid var(--rule);
+    font-size: var(--text-base);
+    line-height: 1.4;
+    color: var(--ink-muted);
+    text-decoration: none;
+    &:hover { color: var(--ink); border-left-color: var(--accent); }
+  }
+}
+
+.guide-group {
+  & + & { margin-top: var(--space-8); }
+  &__title {
+    margin: 0 0 var(--space-5);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--rule);
+    font-size: var(--text-xl);
+    line-height: var(--lh-xl);
+    font-weight: 600;
+  }
+}
+
+.guide-topic {
+  /* The sticky header covers the top of a topic reached from a link. */
+  scroll-margin-top: 76px;
+  & + & { margin-top: var(--space-7); }
+
+  &__title {
+    margin: 0 0 var(--space-1);
+    font-size: var(--text-lg);
+    line-height: var(--lh-lg);
+    font-weight: 700;
+  }
+  &__summary {
+    margin: 0 0 var(--space-4);
+    font-size: var(--text-md);
+    color: var(--ink-muted);
+  }
+  &__related {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-3);
+    margin: var(--space-4) 0 0;
+    font-size: var(--text-base);
+    span { font-weight: 700; color: var(--ink-faint); }
+    a { color: var(--accent-text); }
+  }
+}
+
+/* The Help blocks, at reading size. */
+.guide-topic__body {
+  font-size: var(--text-md);
+  line-height: 1.65;
+
+  .help-block-heading {
+    margin: var(--space-5) 0 var(--space-2);
+    font-size: var(--text-md);
+    font-weight: 700;
+  }
+  .help-block-paragraph { margin: 0 0 var(--space-3); }
+  .help-block-list {
+    margin: 0 0 var(--space-3);
+    padding-left: 1.4em;
+    li + li { margin-top: var(--space-1); }
+  }
+  .help-block-code {
+    margin: 0 0 var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    overflow-x: auto;
+    background: var(--field-bg);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-m);
+    @include scrollbar;
+    code { font-family: var(--font-mono); font-size: var(--text-sm); white-space: pre; }
+  }
+  .help-block-table-wrap {
+    margin: 0 0 var(--space-4);
+    overflow-x: auto;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-m);
+    @include scrollbar;
+  }
+  .help-block-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-base);
+    th, td {
+      padding: var(--space-2) var(--space-3);
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--hairline);
+    }
+    th { background: var(--paper-sunken); white-space: nowrap; }
+    td:first-child { font-family: var(--font-mono); font-size: var(--text-sm); }
+    tr:last-child td { border-bottom: 0; }
+  }
+  .help-block-definitions {
+    margin: 0 0 var(--space-4);
+    .def-row {
+      display: grid;
+      grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr);
+      gap: var(--space-4);
+      padding: var(--space-2) 0;
+      border-bottom: 1px solid var(--hairline);
+    }
+    dt { font-weight: 700; }
+    dd { margin: 0; color: var(--ink-muted); }
+  }
+  .help-block-callout {
+    display: flex;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    border-left: 3px solid var(--accent);
+    background: var(--accent-tint);
+    border-radius: var(--radius-m);
+    p { margin: 0; }
+    .callout-icon { flex: none; margin-top: 4px; color: var(--accent-text); }
+  }
+  .help-shortcuts {
+    display: grid;
+    gap: var(--space-4);
+    margin-bottom: var(--space-4);
+    h4 { margin: 0 0 var(--space-2); font-size: var(--text-base); color: var(--ink-faint); }
+    dl { margin: 0; }
+  }
+  .help-shortcut-row {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-1) 0;
+    border-bottom: 1px solid var(--hairline);
+    dt { display: flex; align-items: center; gap: 2px; flex: none; }
+    dd { margin: 0; text-align: right; color: var(--ink-muted); }
+    kbd {
+      padding: 1px 6px;
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+      background: var(--field-bg);
+      border: 1px solid var(--hairline);
+      border-bottom-width: 2px;
+      border-radius: var(--radius-s);
+    }
+    .plus { margin: 0 2px; color: var(--ink-faint); }
+  }
+}
+
+.guide-tour {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--paper-sunken);
+  border-radius: var(--radius-m);
+  a { color: var(--accent-text); font-weight: 600; }
+}
+
+/* Narrow screens: the contents sit above the topics as a plain list. */
+@media (max-width: 900px) {
+  .guide__layout { grid-template-columns: minmax(0, 1fr); gap: var(--space-6); }
+  .guide-contents {
+    position: static;
+    max-height: none;
+    padding: var(--space-4);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-m);
+  }
+}
+
+@media (max-width: 560px) {
+  .guide-topic__body .help-block-definitions .def-row { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}
