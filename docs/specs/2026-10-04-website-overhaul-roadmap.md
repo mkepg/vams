@@ -43,7 +43,7 @@ The product rules in `AGENTS.md` and [docs/product-plan.md](../product-plan.md) 
 
 | # | Item | Status |
 | --- | --- | --- |
-| 1 | **SP1 Site shell:** routing and prerendering, design tokens, editor reskin, logo, SEO extras, accessibility baseline, custom domain | Code complete, merged to `main` locally on 2026-10-04 ([spec](2026-10-04-site-shell-design.md), [plan](../plans/2026-10-04-site-shell.md)). Not yet deployed. Custom domain pending (owner to buy) |
+| 1 | **SP1 Site shell:** routing and prerendering, design tokens, editor reskin, logo, SEO extras, accessibility baseline, custom domain | Complete (2026-10-04): [spec](2026-10-04-site-shell-design.md), [plan](../plans/2026-10-04-site-shell.md). Live on Cloudflare Pages since 2026-10-12. Custom domain pending (owner to buy) |
 | 2 | **SP2 Landing page and stage mode** | Complete (2026-10-04): [spec](2026-10-04-landing-stage-design.md), [plan](../plans/2026-10-04-landing-stage.md) |
 | 3 | **SP3 Demo readiness:** lesson and scene links, My scenes library with backups, crash recovery screen, offline installable app | Complete (2026-10-06): [spec](2026-10-06-demo-readiness-design.md), [plan](../plans/2026-10-06-demo-readiness.md) |
 | 4 | **SP5 Editor layout redesign:** a shared control set, then the top bar, left rail, canvas overlays, right sidebar, lesson bar and dialogs. Includes the lesson-narration and `focusPanel` updates the new layout forces. Due by Oct 28 | Complete (2026-10-06): [spec](2026-10-06-editor-redesign-design.md), [plan](../plans/2026-10-06-editor-redesign.md) |
@@ -54,20 +54,21 @@ The product rules in `AGENTS.md` and [docs/product-plan.md](../product-plan.md) 
 ### Should
 
 8. Shareable scene links and QR code. Complete (2026-10-17) with the editor chrome and sharing project
-9. Example gallery of curated scenes. Complete (2026-10-23): [spec](2026-10-23-example-gallery-design.md). A `/gallery` page of five finished scenes that run, led by the jeepney street, each opening in the editor from its scene link
-10. `/learn` page (replaces the SP4 Learn hub): the course map outside the editor, reusing the Learn drawer's course data and progress. By Nov 2. The Guide page follows it. Complete (2026-10-10): [spec](2026-10-10-learn-page-design.md), [plan](../plans/2026-10-10-learn-page.md)
+9. Example gallery of curated scenes. Complete (2026-10-23): [spec](2026-10-23-example-gallery-design.md). A `/gallery` page of finished scenes that run, led by the jeepney street, each opening in the editor from its scene link. Two more scenes joined on 2026-10-30, rice terraces at dusk (Buffers) and pinwheels in the breeze (Transforms), for seven
+10. `/learn` page (replaces the SP4 Learn hub): the course map outside the editor, reusing the Learn drawer's course data and progress. By Nov 2. Complete (2026-10-10): [spec](2026-10-10-learn-page-design.md), [plan](../plans/2026-10-10-learn-page.md)
 11. Polish the demo lesson(s)
 12. Screenshot regression checks, a safety net for SP5. Done with SP5 (`npm run test:visual`)
-13. Functional callbacks: keyboard, mouse, motion, reshape and idle behaviours defined in the GUI, with generated handler bodies and a canvas Run mode that never writes scene state. Needs its own spec and a product plan amendment, since the plan specifies empty stubs. Touches the editor. Complete (2026-10-12): [spec](2026-10-12-functional-callbacks-design.md), [plan](../plans/2026-10-12-functional-callbacks.md)
+13. Functional callbacks: keyboard, mouse, motion, reshape and idle behaviours defined in the GUI, with generated handler bodies and a canvas Run mode that never writes scene state. It came with its own spec and a product plan amendment, since the plan specified empty stubs. Complete (2026-10-12): [spec](2026-10-12-functional-callbacks-design.md), [plan](../plans/2026-10-12-functional-callbacks.md)
 - **Editor rail redesign:** a labelled rail of four panels (Add, Scene, Settings, Callbacks) in place of the long left column, the lesson as a bar under the canvas, one Code / Math pane, the two Run fixes most likely to show on stage, and the first-visit tour (item 15). Due by Oct 28. Complete (2026-10-15): [spec](2026-10-14-editor-rail-design.md), [plan](../plans/2026-10-14-editor-rail.md)
 
 ### Could
 
-14. Glossary
+14. Glossary. Complete (2026-10-30): the Help glossary grew to 39 terms and is part of the Guide page
 15. First-visit editor tour (by Oct 28). Complete (2026-10-15) with the editor rail redesign
 16. "Explain this line" for generated code (by Oct 28). Complete (2026-10-16) with the code and math rework
-17. Ctrl+K search
-18. Instructor page
+17. Ctrl+K search. Complete (2026-10-30): a search box in the site header (Ctrl+K, or the Command key and K on a Mac) that finds pages, lessons, scenes, Guide topics and glossary terms. It is on the site pages; the editor keeps its own Help search
+18. Instructor page. Complete (2026-10-30): `/teach`, with how the course lines up, the links to hand out, running a lab and a one-hour session plan
+- **Guide page.** Complete (2026-10-30): `/guide` shows every Help topic outside the editor, with its contents beside it, from the same data the editor's Help reads
 
 ### Next projects (planned 2026-10-14)
 
@@ -110,7 +111,18 @@ The site is hosted on Cloudflare Pages at <https://vams.pages.dev/> since 2026-1
 
 Dry run (2026-10-24): the whole talk ran against the production build at 1920, 1366 and 1280 px wide in both themes, with no layout or console problems. Four rough spots were fixed ([spec](2026-10-24-stage-dry-run-design.md)): names cut short in the scene list, the code not following a new selection, Run's branch arriving after its flash, and the slide's out-of-date test count. Stepping past the last slide now opens the jeepney street.
 
-Rehearsal checklist (Nov 3):
+Editor leftovers (2026-10-30), from earlier reviews' deferred minors:
+
+- A program window the student placed gets its size back when a narrower stage widens again.
+- Buffers rows hover in a neutral tint, so a row under the pointer never looks chosen; their notes wrap rather than cut off.
+- Generated code indents a group's inline children one level in, and the code outline gives the group the lines after them.
+- A group's outline takes in its text child's glyphs.
+- During Run, text keeps the line step the program started with through a resize, as the compiled program does.
+- The editor warns when the browser stops saving and offers the project file (BB-RECOVER-13).
+- During a lesson, a group the student opens leads Math and Help until the next step; before, the step's focus always won.
+- Left as they are: glyph widths at fractional display scaling (crisp glyphs there would change their size away from GLUT's window pixels), and the program window's size and pipeline-strip names shortening with an ellipsis on a narrow canvas.
+
+Rehearsal checklist (presentation, Nov 10):
 
 - On the demo machine, open `/` and `/app` once online and wait for "VAMS now works offline". Then turn networking off and run the whole talk.
 - Open each "Start from" link on slide 07 once, and the jeepney street, which stepping past slide 07 opens.
@@ -134,7 +146,7 @@ Run mode:
 6. Fixed 2026-10-23 ([Run and Callbacks leftovers](2026-10-23-run-callbacks-leftovers-design.md)): A second mouse button pressed while one is held never reaches the Mouse handler (Pointer Events report only the first down and the last up).
 7. Fixed 2026-10-23 ([Run and Callbacks leftovers](2026-10-23-run-callbacks-leftovers-design.md)): When Run stops because the store changed, focus moves to the Run button even if it was elsewhere.
 8. No longer reproducible (2026-10-23): the File menu closes on any outside press and on Tab. A File menu open when Run starts stays open, inert, until Stop.
-9. A theme change after a window resize during Run can clear Run's colour overrides. The top bar is inert during Run, so this is hard to reach.
+9. Fixed 2026-10-30: A theme change after a window resize during Run can clear Run's colour overrides. The top bar is inert during Run, so this is hard to reach. The renderer now keeps Run's colour and visibility for each object and puts them back after any rebuild (VIS-EDITOR-40).
 10. Fixed 2026-10-22 (Run in the program window): the separate Run window and its handle are gone; the program window's own resize grip handles `pointercancel` and has `touch-action: none`.
 11. Fixed 2026-10-22 (Run in the program window): Run no longer draws its own handle or readout. The program window is the running program: the scene stays in place, the window's own edges resize it and fire Reshape, and its title bar shows that it runs and the last call.
 12. Fixed 2026-10-15 (editor rail redesign): "Try it" keeps the tooltip "Add a callback to run" when a Pipeline illustration is the reason it is disabled.
@@ -158,21 +170,21 @@ Lessons:
 Tests:
 
 23. Fixed 2026-10-23 ([Run and Callbacks leftovers](2026-10-23-run-callbacks-leftovers-design.md)): BB-CB-12 rewrites `tests/fixtures/no-callbacks-program.cpp` when the file is missing, so deleting the fixture makes the no-callbacks guarantee pass vacuously. Write it only behind an environment flag.
-24. Missing tests: editing and removing a rule in the store; the v7 → v8 upgrade through a real rehydrate (only the pure function is tested); text, vertex-array and group-child recolour and visibility paths; Set colour excluding groups and Done returning focus; lesson checks on rules whose object was deleted; top-bar and Math panel inertness and flash-over-lesson precedence during Run; the real renderer's `setAppearance`, `setView` and `resync`.
-25. WB-PERSIST-07's undo-history fixture predates the `callbacks` field.
-26. WB-CB-1 cannot tell show from hide, and its values never exercise rounding. Pointer-mapping parity is checked against hand-worked numbers, and the test C++ interpreter skips every `gl*` call.
-27. The Run visual baselines include the Math panel's cursor readout and do not wait for the code panel to finish scrolling.
+24. Fixed 2026-10-30, except where noted: Missing tests: editing and removing a rule in the store; the v7 → v8 upgrade through a real rehydrate (only the pure function is tested); text, vertex-array and group-child recolour and visibility paths; Set colour excluding groups and Done returning focus; lesson checks on rules whose object was deleted; top-bar and Math panel inertness and flash-over-lesson precedence during Run; the real renderer's `setAppearance`, `setView` and `resync`. Added: rule edit and removal (BB-CB-24), a version 7 save through a real rehydrate (BB-PERSIST-11), the recolour and visibility paths (BB-CB-25), rule goals whose object was deleted (BB-LESSON-12), and top-bar and Math panel inertness during Run (BB-SHELL-46). The real renderer is covered in the browser (VIS-EDITOR-40); the flash-over-lesson precedence and Done returning focus still have no test of their own.
+25. Fixed 2026-10-30: WB-PERSIST-07's undo-history fixture predates the `callbacks` field.
+26. Fixed 2026-10-30 in part: WB-CB-1 cannot tell show from hide, and its values never exercise rounding. It now starts from a hidden object as well as a shown one, with values past the printed precision. Pointer-mapping parity is checked against hand-worked numbers, and the test C++ interpreter skips every `gl*` call.
+27. Fixed 2026-10-30: The Run visual baselines include the Math panel's cursor readout and do not wait for the code panel to finish scrolling.
 
 Code tidiness:
 
-28. The recolour line is repeated four times in `buffers.ts` and `render.ts`.
+28. Fixed 2026-10-30: The recolour line is repeated four times in `buffers.ts` and `render.ts`. One helper, `runColorLine`, writes it.
 29. Fixed 2026-10-13: the animator's `baseX_`-style reserved prefixes went with the Animation section.
-30. Replaced drawables are never destroyed (an older leak the Run code repeats), and the renderer's register effect disables `exhaustive-deps`.
-31. `CallbackRow` subscribes to the whole `callbacks` object, which it needs for duplicate-name checks.
-32. `keepProportionsView` returns Infinity at width 0, as the C++ does; the window cannot go below 200px.
-33. The call readout embeds the key unescaped; only a–z, 0–9 and space reach it.
-34. `const window` shadows the global inside two run-controller methods, and some new imports sit above existing ones.
-35. The product plan mixes list punctuation, and roadmap item 13 still says it needs its own spec beside Complete.
+30. Replaced drawables are never destroyed (an older leak the Run code repeats), and the renderer's register effect disables `exhaustive-deps`. Fixed 2026-10-30 (BB-FID-10).
+31. Fixed 2026-10-30: `CallbackRow` subscribes to the whole `callbacks` object, which it needs for duplicate-name checks. It now reads only the values it shows.
+32. `keepProportionsView` returns Infinity at width 0, as the C++ does; the window cannot go below 200px. Left as is (2026-10-30): guarding only the runtime would part it from the generated code for a size the editor never reaches.
+33. The call readout embeds the key unescaped; only a–z, 0–9 and space reach it. Left as is (2026-10-30).
+34. `const window` shadows the global inside two run-controller methods, and some new imports sit above existing ones. Fixed 2026-10-30: no local `window` is left. Lint does not enforce import order, so it was left.
+35. Fixed 2026-10-30: The product plan mixes list punctuation, and roadmap item 13 still says it needs its own spec beside Complete.
 
 ### Animation section removed (2026-10-13)
 
@@ -194,7 +206,7 @@ The thesis manuscript is final and describes the evaluated build. The overhauled
 5. Ch. 4 reports Algorithm 3 latency "across the eighty-nine measurable steps in the lesson library". Any change to the lesson library changes that count in regenerated reports.
 6. The Ch. 4 learning-effectiveness results were measured against the evaluated lessons, and do not cover polished or new lessons.
 7. Ch. 6 Rec. 12 recommends expanding the lesson library. Curriculum work delivers part of it early.
-8. SP5 renames one panel title, "Position, Rotation, & Scale" to "Object Transform", to match the lesson narration, and wires two `focusPanel` targets (`object-transform`, `text-node-panel`) that never matched a panel. The narration that names screen positions stays true in the new layout.
+8. SP5 renames one panel title, "Position, Rotation, & Scale" to "Object Transform" (written "Object transform" since the sentence-case pass of 2026-10-30), to match the lesson narration, and wires two `focusPanel` targets (`object-transform`, `text-node-panel`) that never matched a panel. The narration that names screen positions stays true in the new layout.
 9. §3.4.2 describes saving only as project-file download and upload. The editor now also keeps a My scenes library and automatic backups in the browser, opens lessons and prepared scenes from links, and shows a recovery screen after a crash (SP3).
 10. §3.4.2's five layout regions and its top-bar actions. The lesson bar sits under the canvas, the left column is a rail of four panels (Add, Scene, Settings, Callbacks) that shows one at a time, the code and math column shows code or math with a switch, and the file actions move into a File menu in the top bar (SP5, editor rail redesign).
 11. The manuscript describes a tools rail whose panels change with the selected curriculum section, with the Pipeline section's canvas modes as section tools. The editor is now the same in every section: a rail of four panels whose Scene panel holds the scene list and the selected object's pipeline-ordered inspector. Sections become the course map in a Learn drawer, and the Pipeline views appear in the lesson bar during Pipeline lessons (editor refinement, editor rail redesign).
@@ -209,8 +221,9 @@ The thesis manuscript is final and describes the evaluated build. The overhauled
 19. The evaluated canvas filled the space it was given, so its shape followed the layout. The program window now opens, refits and maximises to the viewing volume's shape, so a square draws square; the student's own resize still stretches it, as GLUT does.
 20. In the evaluated build the panel drawer below 1100 px covered the left of the canvas. It now takes its place beside the canvas, which narrows to make room.
 21. The evaluated canvas drew text in a smooth display font, centred on its position, that scaled and rotated with the object, while the generated code drew GLUT's 9×15 bitmap font. The canvas now draws those same bitmap glyphs in window pixels from the raster position, as the compiled program does. The generated code starts the first line at the text's position, with the lines 17 window pixels apart, where it used to centre them 0.07 units apart. A group holding text or another group now draws it inline; before, it called a `draw_` function the program never declared.
-22. The manuscript's prepared content is the lesson library. The site now also has a gallery of five finished scenes with callbacks, which open in the editor like any prepared scene (example gallery).
+22. The manuscript's prepared content is the lesson library. The site now also has a gallery of seven finished scenes with callbacks, which open in the editor like any prepared scene (example gallery).
 23. The evaluated canvas drew points, lines and stipple as vector strokes, ignored FLAT shading, and scaled line widths and point sizes with the object. It now draws them by OpenGL 1.5's multisample rules in window pixels, and a battery of 20 scenes checks it against the exported programs built with the course toolchain (render fidelity). The battery also found three faults in the generated code, now fixed: buffer modes left out the point size, line width and stipple; `init()` switched texturing on for the whole program, so shapes drawn before the first textured one took its colour; and buffer setup left a buffer bound, so a vertex-array shape drawn next drew nothing on the first frame.
+24. The manuscript's help is the in-app Help Centre. The same topics are now also a `/guide` page on the site, with a longer glossary, beside a `/teach` page for instructors and a site-wide search (Ctrl+K).
 
 The following manuscript descriptions may also be crossed by later sub-projects. When one is, it is added to the list above:
 - The default canvas background `#000000`. Changing it changes generated code and the replay baseline.
