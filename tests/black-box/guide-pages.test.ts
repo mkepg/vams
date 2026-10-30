@@ -256,6 +256,8 @@ describe("BB-GUIDE-09: Search opens over the page in the page's colours, and tel
     const list = document.getElementById('site-search-results')!;
     expect(list.querySelector('.site-search__empty')).toBeNull();
     expect(status.textContent).toBe(SEARCH_COPY.empty('zzzzqqq'));
+    // The empty message is shown to everyone; the count is for screen readers only.
+    expect(status.className).toBe('site-search__empty');
     render(null, header);
     header.remove();
     expect(SEARCH_COPY.count(1)).toBe('1 result');
@@ -280,6 +282,9 @@ describe('BB-GUIDE-10: A glossary term found in search opens at that term', () =
       const target = host.querySelector(`#${glossaryTermId(term.title)}`);
       expect(target, term.title).not.toBeNull();
       expect(target!.textContent).toContain(term.title);
+      // One anchor per term, in the glossary: a section topic may define the same term again.
+      expect(host.querySelectorAll(`#${glossaryTermId(term.title)}`).length, term.title).toBe(1);
+      expect(target!.closest('article')!.id, term.title).toBe('glossary');
     }
     expect(glossaryTermId('Viewing volume')).toBe('term-viewing-volume');
     expect(glossaryTermId('GL_LINE_STRIP')).toBe('term-gl-line-strip');
@@ -293,8 +298,13 @@ describe("BB-GUIDE-11: Guide headings nest, and the teaching page links sections
     for (const article of host.querySelectorAll('article.guide-topic')) {
       const title = article.querySelector('.guide-topic__title')!;
       const level = Number(title.tagName.slice(1));
+      // Below the title, and never more than one level deeper than the heading before it.
+      let deepest = level;
       for (const heading of article.querySelectorAll('.guide-topic__body :is(h1, h2, h3, h4, h5, h6)')) {
-        expect(Number(heading.tagName.slice(1)), heading.textContent ?? '').toBeGreaterThan(level);
+        const n = Number(heading.tagName.slice(1));
+        expect(n, `${article.id}: ${heading.textContent}`).toBeGreaterThan(level);
+        expect(n, `${article.id}: ${heading.textContent}`).toBeLessThanOrEqual(deepest + 1);
+        deepest = Math.max(deepest, n);
       }
     }
   });

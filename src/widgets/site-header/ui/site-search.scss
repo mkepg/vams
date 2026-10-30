@@ -97,7 +97,7 @@
   }
   &__results:empty { display: none; }
   &__empty { margin: 0; padding: var(--space-4) var(--space-5); color: var(--ink-muted); }
-  /* Read out by screen readers; the list already shows the count to everyone else. */
+  /* Read out by screen readers; sighted visitors see the results themselves. */
   &__count {
     position: absolute;
     width: 1px;

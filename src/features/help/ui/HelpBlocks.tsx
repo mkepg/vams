@@ -17,8 +17,9 @@ const CALLOUT_ICON = {
 
 type HeadingLevel = 3 | 4;
 
+/** The groups' titles sit at the block-heading level: the table can open a topic with no heading before it. */
 function ShortcutsTable({ level }: { level: HeadingLevel }) {
-  const GroupHeading = level === 3 ? 'h4' : 'h5';
+  const GroupHeading = level === 3 ? 'h3' : 'h4';
   return (
     <div className="help-shortcuts">
       {SHORTCUT_GROUPS.map((group) => (
