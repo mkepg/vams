@@ -199,3 +199,24 @@ describe('WB-WINDOW-08: The fitted window is never narrower than its bar, nor sh
     }
   });
 });
+
+describe('WB-WINDOW-09: A placed window gets its size back when a narrower stage widens again', () => {
+  const s = () => useProgramWindow.getState();
+  beforeEach(() => {
+    s().reset();
+    s().setStage(stage);
+    s().resizeTo({ x: 40, y: 40, width: 800, height: 400 });
+  });
+  it('shrinks to a narrow stage, then returns to the placed rect', () => {
+    s().setStage({ width: 600, height: 600 });
+    expect(s().rect!.width).toBe(600);
+    s().setStage(stage);
+    expect(s().rect).toEqual({ x: 40, y: 40, width: 800, height: 400 });
+  });
+  it('keeps the placed size through a move made on the narrow stage', () => {
+    s().setStage({ width: 600, height: 600 });
+    s().moveTo(20, 60);
+    s().setStage(stage);
+    expect(s().rect).toEqual({ x: 20, y: 60, width: 800, height: 400 });
+  });
+});

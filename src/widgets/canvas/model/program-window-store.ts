@@ -12,6 +12,8 @@ interface ProgramWindowState {
   stage: Size | null;
   /** True once the student has moved or resized the window; until then it stays fitted to the viewing volume. */
   placedByUser: boolean;
+  /** Where the student last put the window. A smaller stage clamps `rect` from it, so the window gets its size back when the stage grows again. */
+  placed: Rect | null;
   /** The viewing volume's width over height; the window's body takes this shape. */
   aspect: number;
   setStage: (stage: Size) => void;
@@ -33,6 +35,7 @@ const initial = {
   rect: null,
   stage: null,
   placedByUser: false,
+  placed: null,
   aspect: 1,
 };
 
@@ -42,8 +45,8 @@ export const useProgramWindow = create<ProgramWindowState>((set, get) => ({
   setStage: (stage) => {
     // A read with a zero side means the stage is not laid out right now; keep what we have.
     if (stage.width <= 0 || stage.height <= 0) return;
-    const { rect, placedByUser, aspect } = get();
-    set({ stage, rect: rect && placedByUser ? clampRect(rect, stage) : fittedRect(stage, STAGE_MARGIN, aspect) });
+    const { placed, placedByUser, aspect } = get();
+    set({ stage, rect: placed && placedByUser ? clampRect(placed, stage) : fittedRect(stage, STAGE_MARGIN, aspect) });
   },
   setAspect: (aspect) => {
     const { stage, placedByUser } = get();
@@ -51,24 +54,26 @@ export const useProgramWindow = create<ProgramWindowState>((set, get) => ({
     set({ aspect, rect: fittedRect(stage, STAGE_MARGIN, aspect) });
   },
   moveTo: (x, y) => {
-    const { rect, stage } = get();
+    const { rect, placed, stage } = get();
     if (!rect || !stage) return;
-    const next = clampRect({ ...rect, x, y }, stage);
+    // A move keeps the size the student chose, even while a narrower stage shows the window smaller.
+    const base = placed ?? rect;
+    const next = clampRect({ ...base, x, y }, stage);
     if (sameRect(next, rect)) return;
-    set({ rect: next, placedByUser: true });
+    set({ rect: next, placed: { ...base, x: next.x, y: next.y }, placedByUser: true });
   },
   resizeTo: (next) => {
     const { rect, stage } = get();
     if (!stage) return;
     const clamped = clampRect(next, stage);
     if (rect && sameRect(clamped, rect)) return;
-    set({ rect: clamped, placedByUser: true });
+    set({ rect: clamped, placed: clamped, placedByUser: true });
   },
   minimise: () => set({ mode: 'minimised' }),
   toggleMaximise: () => set((s) => {
     if (s.mode === 'maximised') {
       const refit = s.stage ? { rect: fittedRect(s.stage, STAGE_MARGIN, s.aspect) } : {};
-      return { mode: 'floating', shownAs: 'floating', placedByUser: false, ...refit };
+      return { mode: 'floating', shownAs: 'floating', placedByUser: false, placed: null, ...refit };
     }
     if (s.mode === 'floating') return { mode: 'maximised', shownAs: 'maximised' };
     return s;
