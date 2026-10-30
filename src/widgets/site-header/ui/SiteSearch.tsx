@@ -28,7 +28,8 @@ export default function SiteSearch() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!isSearchShortcut(event)) return;
+      // Stage mode hides the header, and its own keys run the talk.
+      if (!isSearchShortcut(event) || document.documentElement.classList.contains('stage')) return;
       event.preventDefault();
       setOpen(true);
     };
@@ -95,6 +96,8 @@ export default function SiteSearch() {
               id={optionId(i)}
               role="option"
               aria-selected={i === active}
+              // Focus stays in the box, so Enter always opens the highlighted result.
+              tabIndex={-1}
               href={entry.href}
               className={`site-search__option${i === active ? ' is-active' : ''}`}
               onMouseMove={() => setActive(i)}

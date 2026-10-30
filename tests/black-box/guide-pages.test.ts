@@ -202,3 +202,27 @@ describe('BB-GUIDE-07: Ctrl+K opens search, and the keyboard alone reaches a res
     expect(SEARCH_COPY.empty('x')).toBe('Nothing matches “x”.');
   });
 });
+
+describe('BB-GUIDE-08: Search keeps focus in its box, and stays shut while the home page is presented', () => {
+  it('takes results out of the Tab order, and ignores Ctrl+K in stage mode', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    render(h(SiteSearch, {}), host);
+    const tick = async () => {
+      for (let i = 0; i < 3; i++) await new Promise((r) => setTimeout(r, 0));
+    };
+    await tick();
+    document.documentElement.classList.add('stage');
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true, cancelable: true }));
+    await tick();
+    expect(host.querySelector('[role="dialog"]')).toBeNull();
+    document.documentElement.classList.remove('stage');
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true, cancelable: true }));
+    await tick();
+    const options = [...host.querySelectorAll('[role="option"]')];
+    expect(options.length).toBeGreaterThan(0);
+    for (const option of options) expect(option.getAttribute('tabindex')).toBe('-1');
+    render(null, host);
+    host.remove();
+  });
+});
