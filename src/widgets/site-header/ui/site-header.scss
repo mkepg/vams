@@ -125,19 +125,20 @@
   .site-header__cta { padding: 0 var(--space-3); }
 }
 
-/* Small phones: the switcher's segments close up. */
+/* Small phones: the switcher's segments close up, and the theme follows the phone's own setting. */
 @media (max-width: 400px) {
   .site-header__pages { padding: 2px; gap: 0; }
-  .site-header__link { padding: 0 4px; }
+  .site-header__link { padding: 0 3px; }
+  .site-header__theme { display: none; }
 }
 
-/* The smallest phones: a smaller wordmark and button. */
-@media (max-width: 359px) {
+/* The smallest phones (a 360 px phone included): a smaller wordmark and button. */
+@media (max-width: 379px) {
   .site-header { gap: 4px; }
   .site-header__home { font-size: 0.6rem; }
   .site-header__actions { gap: 4px; }
   .site-header__cta { padding: 0 var(--space-2); }
-  .site-header__link { padding: 0 3px; font-size: var(--text-sm); }
+  .site-header__link { padding: 0 2px; font-size: var(--text-sm); }
 }
 
 @media (prefers-reduced-motion: reduce) {

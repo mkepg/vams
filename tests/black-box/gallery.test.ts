@@ -149,7 +149,7 @@ describe('BB-GALLERY-07: /gallery is a finished, linked, prerendered page', () =
     expect(meta.path).toBe('/gallery');
     expect(meta.indexable).toBe(true);
     expect(meta.title).toBe('Gallery — VAMS');
-    expect(NAV_LINKS.map((l) => l.href)).toEqual(['/', '/learn', '/gallery', '/about']);
+    expect(NAV_LINKS.map((l) => l.href)).toEqual(['/', '/learn', '/gallery', '/guide', '/about']);
     expect(buildSitemap('https://example.test')).toContain('<loc>https://example.test/gallery/</loc>');
     expect(readFileSync('vite.config.ts', 'utf8')).toMatch(/additionalPrerenderRoutes:\s*\[[^\]]*'\/gallery'/);
 

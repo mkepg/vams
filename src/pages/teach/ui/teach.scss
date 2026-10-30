@@ -1,0 +1,152 @@
+@use '../../../shared/styles/tokens' as *;
+
+/* For instructors: an introduction, then one band per question a teacher brings. */
+.teach {
+  padding: var(--space-7) var(--site-gutter) var(--space-8);
+
+  &__intro { max-width: 760px; }
+  &__title {
+    margin: 0 0 var(--space-3);
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: var(--text-2xl);
+    line-height: var(--lh-2xl);
+    letter-spacing: -0.01em;
+  }
+  &__lede {
+    margin: 0;
+    max-width: 62ch;
+    font-size: var(--text-lg);
+    line-height: 1.55;
+    color: var(--ink-muted);
+  }
+}
+
+.teach-band {
+  max-width: 880px;
+  margin-top: var(--space-8);
+  font-size: var(--text-md);
+  line-height: 1.65;
+
+  &__title {
+    margin: 0 0 var(--space-3);
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--rule);
+    font-size: var(--text-xl);
+    line-height: var(--lh-xl);
+    font-weight: 600;
+  }
+  &__intro { margin: 0 0 var(--space-5); max-width: 68ch; color: var(--ink-muted); }
+  &__sub { margin: var(--space-6) 0 var(--space-3); font-size: var(--text-md); font-weight: 700; }
+  code { font-family: var(--font-mono); font-size: var(--text-sm); }
+}
+
+.teach-course {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  &__row {
+    display: grid;
+    grid-template-columns: minmax(9rem, 12rem) minmax(0, 1fr) auto;
+    grid-template-areas: 'head summary link' 'head calls link';
+    gap: var(--space-1) var(--space-5);
+    align-items: baseline;
+    padding: var(--space-4);
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-m);
+  }
+  &__head {
+    grid-area: head;
+    h3 { margin: 0; font-size: var(--text-lg); line-height: var(--lh-lg); }
+  }
+  &__count { margin: 0; font-size: var(--text-base); color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  &__summary { grid-area: summary; margin: 0; }
+  &__calls {
+    grid-area: calls;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-2);
+    margin: 0;
+    span { font-size: var(--text-base); font-weight: 700; color: var(--ink-faint); }
+    code { color: var(--accent-text); }
+  }
+  &__link {
+    grid-area: link;
+    font-size: var(--text-base);
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--accent-text);
+  }
+}
+
+.teach-links {
+  margin: 0;
+  &__row {
+    display: grid;
+    grid-template-columns: minmax(9rem, 12rem) minmax(0, 1fr);
+    gap: var(--space-5);
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+  dt { font-weight: 700; }
+  dd { margin: 0; p { margin: 0; } }
+  &__example {
+    display: inline-block;
+    margin-top: var(--space-2);
+    padding: 2px var(--space-2);
+    background: var(--field-bg);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-s);
+  }
+}
+
+.teach-scenes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  li { display: flex; flex-direction: column; }
+  a { font-weight: 600; color: var(--accent-text); }
+  code { color: var(--ink-faint); overflow-wrap: anywhere; }
+}
+
+.teach-list {
+  margin: 0;
+  padding-left: 1.4em;
+  li { max-width: 72ch; }
+  li + li { margin-top: var(--space-2); }
+  &--links a { font-weight: 600; color: var(--accent-text); }
+}
+
+.teach-plan {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  li {
+    display: grid;
+    grid-template-columns: 5rem minmax(0, 1fr);
+    gap: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    border-left: 3px solid var(--accent);
+    background: var(--paper-raised);
+  }
+  &__time { font-family: var(--font-mono); font-size: var(--text-base); font-weight: 600; color: var(--accent-text); }
+}
+
+@media (max-width: 760px) {
+  .teach-course__row {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'head' 'summary' 'calls' 'link';
+  }
+  .teach-links__row { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); }
+  .teach-plan li { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); }
+}
