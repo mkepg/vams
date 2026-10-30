@@ -8,6 +8,9 @@ import { renderBridge } from "@/shared/engine/render-bridge";
 import { FollowRing, pickHandleVertex, ringTarget, setEditorOutlinesHidden, type SelectionOverlay } from "@/shared/engine/selection-overlay";
 import type { SceneNode } from "@/core/types/scene";
 
+/** The node drawn in one flat colour, as a Run rule's Set colour draws it. */
+const recoloured = (node: SceneNode, color: string): SceneNode => ({ ...node, vertices: node.vertices.map((v) => ({ ...v, color })) });
+
 interface UseSceneRendererProps {
   pixiReady: boolean;
   appRef: React.MutableRefObject<PIXI.Application | null>;
@@ -53,6 +56,8 @@ export function useSceneRenderer({
     journeyVertexRef.current = journeyVertex;
   }, [showsMath, journeyVertex]);
   const overriddenRef = useRef<Set<string>>(new Set());
+  /** Run's last colour and visibility for each object, put back after a rebuild (a theme change, say) until Run resyncs. */
+  const runAppearanceRef = useRef<Map<string, { color: string | null; visible: boolean }>>(new Map());
   const objects = useVamsStore((s) => s.objects);
   const selectedObjectId = useVamsStore((s) => s.selectedObjectId);
   // Selection outlines read --accent; redraw them when the theme changes.
@@ -95,13 +100,14 @@ export function useSceneRenderer({
       app,
       getDisplayObject: (id) => containersRef.current.get(id),
       setAppearance: (id, { color, visible }) => {
+        runAppearanceRef.current.set(id, { color, visible });
         const container = containersRef.current.get(id);
         if (!container || container.destroyed) return;
         container.visible = visible;
         const obj = useVamsStore.getState().objects.find((o) => o.id === id);
         if (!obj || obj.type === 'GROUP') return;
         if (color) {
-          rebuildContent(container, { ...obj, vertices: obj.vertices.map((v) => ({ ...v, color })) });
+          rebuildContent(container, recoloured(obj, color));
           overriddenRef.current.add(id);
         } else if (overriddenRef.current.has(id)) {
           rebuildContent(container, obj);
@@ -135,6 +141,7 @@ export function useSceneRenderer({
           if (overriddenRef.current.has(obj.id)) rebuildContent(container, obj);
         });
         overriddenRef.current.clear();
+        runAppearanceRef.current.clear();
       },
     });
     return unregister;
@@ -407,6 +414,9 @@ export function useSceneRenderer({
       ) {
         needsRebuild = true;
       }
+      // Run's colour outlives a rebuild (a theme change, say) until Run resyncs.
+      const run = runAppearanceRef.current.get(obj.id);
+      const drawn = run?.color && obj.type !== 'GROUP' ? recoloured(obj, run.color) : obj;
       if (needsRebuild) {
         if (container) {
           releaseBitmapText(container);
@@ -415,7 +425,7 @@ export function useSceneRenderer({
           if (obj.type === "GROUP") {
             groupChildren = objects.filter((c) => c.parentId === obj.id);
           }
-          const newContent = createDrawable(obj, worldScaleX, {
+          const newContent = createDrawable(drawn, worldScaleX, {
             groupChildren,
             isSelected,
           });
@@ -429,7 +439,7 @@ export function useSceneRenderer({
           if (obj.type === "GROUP") {
             groupChildren = objects.filter((c) => c.parentId === obj.id);
           }
-          container = createDrawable(obj, worldScaleX, {
+          container = createDrawable(drawn, worldScaleX, {
             groupChildren,
             isSelected,
           });
@@ -441,6 +451,7 @@ export function useSceneRenderer({
       container!.rotation = (t.rotate * Math.PI) / 180;
       container!.scale.set(t.scaleX, t.scaleY);
       container!.visible = obj.visible;
+      if (run) container!.visible = run.visible;
       container!.zIndex = objects.length - index;
       container!.label = obj.id;
       container!.sortableChildren = true;
