@@ -1,7 +1,8 @@
 /**
  * VISUAL TEST SUITE — VIS-LB
  * Screenshot checks for the lesson bar's goals, hints and Skip, on the goals sample lesson
- * (built in only when VITE_LESSON_SAMPLES=1). Not part of `npm test`.
+ * (built in only when VITE_LESSON_SAMPLES=1), and a layout check on the longest fill-in line in
+ * Write the Texture Calls. Not part of `npm test`.
  */
 import { test, expect } from '@playwright/test';
 import { openLesson } from './helpers/open-lesson';
@@ -116,5 +117,35 @@ for (const theme of THEMES) {
     await expect(page.getByLabel('Blank 2 of 2')).toBeFocused();
     await expect(page.locator('.lesson-bar__next')).toBeEnabled();
     await expect(page.locator('.lesson-bar')).toHaveScreenshot(`lb-code-focus-${theme}-1280.png`);
+  });
+}
+
+for (const width of [1280, 960]) {
+  test(`VIS-LB-10: a long fill-in line scrolls inside the bar and leaves Next clickable, ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 720 });
+    await openLesson(page, 'textures-exercise-6', 'light');
+    // Step on to the glTexImage2D line. Clicks are dispatched so an earlier step's layout cannot stall the walk.
+    for (let i = 0; i < 12 && !(await page.locator('.lesson-code', { hasText: 'glTexImage2D' }).count()); i++) {
+      const next = page.locator('.lesson-bar__next');
+      if (await next.isEnabled()) await next.dispatchEvent('click');
+      else {
+        await page.getByRole('button', { name: 'Stuck?' }).dispatchEvent('click');
+        await page.getByRole('button', { name: 'Skip this step' }).dispatchEvent('click');
+      }
+      await page.waitForTimeout(150);
+    }
+    await expect(page.locator('.lesson-code')).toContainText('glTexImage2D');
+    await page.getByLabel('Blank 1 of 2').fill('GL_RGBA');
+    await page.getByLabel('Blank 2 of 2').fill('GL_UNSIGNED_BYTE');
+    await page.getByLabel('Blank 2 of 2').blur();
+    await expect(page.locator('.lesson-bar__next')).toBeEnabled();
+
+    const area = (await page.locator('.editor__canvas').boundingBox())!;
+    const bar = (await page.locator('.lesson-bar').boundingBox())!;
+    expect(bar.x + bar.width).toBeLessThanOrEqual(area.x + area.width + 0.5);
+    const well = page.locator('.lesson-code');
+    expect(await well.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+    // A trial click fails if anything covers Next.
+    await page.locator('.lesson-bar__next').click({ trial: true, timeout: 2000 });
   });
 }

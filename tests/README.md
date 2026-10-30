@@ -141,7 +141,8 @@ tests/
 │   ├── gallery.spec.ts                   (VIS-GALLERY-*: the /gallery page at
 │   │                                        1280 and 390, a card opening its scene)
 │   ├── lesson-blocks.spec.ts             (VIS-LB-*: goals, recap, predict and
-│   │                                        fill-in steps in both themes)
+│   │                                        fill-in steps in both themes; a long
+│   │                                        fill-in line keeps Next clickable)
 │   ├── code-math.spec.ts                 (VIS-CM-*: the code panel and the math journey in the approved mocks' scene)
 │   ├── pipeline-textures.spec.ts         (VIS-PT-*: the Diagram, Raster vs vector,
 │   │                                        Which Stage?, Quick Gradients and the
