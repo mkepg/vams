@@ -85,7 +85,14 @@ export function useSaveFailureNotice(saveFile: () => void = saveProjectFile): vo
       if (!failing) return void toast.dismiss(SAVE_FAILING_TOAST);
       toast.warning(SAVE_FAILING_MESSAGE, {
         id: SAVE_FAILING_TOAST,
-        action: { label: 'Save project file', onClick: saveFile },
+        action: {
+          label: 'Save project file',
+          // Saving the file once does not mend the browser's storage, so the warning stays up.
+          onClick: (event) => {
+            event.preventDefault();
+            saveFile();
+          },
+        },
         duration: Infinity,
       });
     };

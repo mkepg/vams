@@ -273,8 +273,11 @@ describe('BB-RECOVER-13: A browser that stops saving says so, and offers the pro
     expect(warning.mock.calls[0][0]).toBe(SAVE_FAILING_MESSAGE);
     const options = warning.mock.calls[0][1] as { action: { label: string; onClick: () => void } };
     expect(options.action.label).toBe('Save project file');
-    options.action.onClick();
+    // The toast library closes a toast after its action unless the click is prevented.
+    const click = { preventDefault: vi.fn() };
+    (options.action.onClick as (event: unknown) => void)(click);
     expect(saveFile).toHaveBeenCalled();
+    expect(click.preventDefault).toHaveBeenCalled();
     full.mockRestore();
     addTriangle();
     expect(saveFailing()).toBe(false);
