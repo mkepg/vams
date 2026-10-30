@@ -485,3 +485,28 @@ test('VIS-EDITOR-38: An edit saved by the click that starts Run leaves no outlin
   expect(differingPixels(turned, await canvasShot(page)), 'after a typed rotation').toBe(0);
   await stopRun(page);
 });
+
+for (const width of [1100, 960]) {
+  for (const path of ['/app?scene=jeepney-street', '/app?lesson=pipeline-demo-1']) {
+    test(`VIS-EDITOR-39: the canvas header fits its row and never cuts the volume to a stub, ${path}, ${width}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 720 });
+      await open(page, path);
+      await page.waitForTimeout(800);
+      const header = page.locator('.canvas-header');
+      const fit = await header.evaluate((el) => {
+        const volume = el.querySelector<HTMLElement>('.canvas-header__volume');
+        const box = el.getBoundingClientRect();
+        const outside = [...el.children].filter((c) => {
+          const r = c.getBoundingClientRect();
+          return r.width > 0 && (r.left < box.left - 0.5 || r.right > box.right + 0.5);
+        });
+        return {
+          overflow: el.scrollWidth - el.clientWidth,
+          stub: !!volume && volume.offsetWidth > 0 && volume.scrollWidth > volume.clientWidth,
+          outside: outside.map((c) => c.className),
+        };
+      });
+      expect(fit).toEqual({ overflow: 0, stub: false, outside: [] });
+    });
+  }
+}
