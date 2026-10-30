@@ -423,3 +423,45 @@ describe('BB-LINK-22: Damaged or oversized links fail with a message and never t
     errors.mockRestore();
   });
 });
+
+describe('BB-LINK-23: The editor stays covered until a scene link has replaced the saved scene', () => {
+  afterEach(() => {
+    setSceneLibraryForTests(null);
+    window.history.replaceState(null, '', '/');
+  });
+  function mount() {
+    const seen: boolean[] = [];
+    function Probe() {
+      seen.push(useEditorLink());
+      return null;
+    }
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    render(h(Probe, null), host);
+    return { seen, unmount: () => { render(null, host); host.remove(); } };
+  }
+  it('reports opening from the first render and clears once the scene is in', async () => {
+    memoryLibrary();
+    addTriangle();
+    window.history.replaceState(null, '', '/app?scene=transforms');
+    const { seen, unmount } = mount();
+    expect(seen[0]).toBe(true);
+    await settle();
+    expect(useVamsStore.getState().objects[0].name).toBe('House');
+    expect(seen[seen.length - 1]).toBe(false);
+    unmount();
+  });
+  it('never covers the editor without a link, or for an invalid one', async () => {
+    memoryLibrary();
+    window.history.replaceState(null, '', '/app');
+    const plain = mount();
+    await settle();
+    expect(plain.seen.every((v) => v === false)).toBe(true);
+    plain.unmount();
+    window.history.replaceState(null, '', '/app?scene=nope');
+    const invalid = mount();
+    await settle();
+    expect(invalid.seen[invalid.seen.length - 1]).toBe(false);
+    invalid.unmount();
+  });
+});
