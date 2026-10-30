@@ -20,6 +20,8 @@ tests/
 │   ├── store.ts                  ← Test helpers around useVamsStore.
 │   ├── mini-cpp.ts               ← A small interpreter for generated handler
 │   │                                bodies, used to check the Run runtime.
+│   ├── generator-names.ts        ← Every GL and GLUT name the code
+│   │                                generator's source can emit.
 │   └── image-compare.ts          ← PNG reading and writing, and the render
 │                                    fidelity rule (edge pixels may differ,
 │                                    the rest within 2 per channel).
@@ -98,9 +100,12 @@ tests/
 │   ├── texture-controls.test.ts          (BB-TEX-*: the samples, Quick
 │   │                                        Gradients, UV presets and the
 │   │                                        Texture group)
-│   └── lesson-rules.test.ts              (BB-LRULE-*: generator-name coverage,
-│                                            wording, hints, recaps, code blanks
-│                                            and capstones across the lessons)
+│   ├── lesson-rules.test.ts              (BB-LRULE-*: generator-name coverage,
+│   │                                        wording, hints, recaps, code blanks
+│   │                                        and capstones across the lessons)
+│   └── lab-api.test.ts                   (BB-LAB-*: the Lab's 2D set, as the
+│                                            bundled headers in lab/include
+│                                            declare and reject it)
 ├── white-box/                    ← Maps to Table 13.
 │   ├── state-management.test.ts          (WB-STATE-*)
 │   ├── matrix-engine.test.ts             (WB-MATRIX-*)
