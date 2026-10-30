@@ -236,3 +236,16 @@ describe('BB-FID-05: Points and lines are built again only when they move in the
     expect(Math.min(...p.filter((_, i) => i % 2 === 0))).toBeCloseTo(268 - POINT_SIZE / 2, 3);
   });
 });
+
+describe("BB-FID-09: A group's outline takes in its text child's glyphs", () => {
+  it('reaches as far right as two 9 px glyphs and up to the ascent', () => {
+    const group = node('GROUP', [], { id: 'g', name: 'G', vertices: [] });
+    const text = node('TEXT', [[0, 0, '#ffffff']], { id: 't', name: 'T', parentId: 'g', textContent: 'Hi' });
+    const container = createDrawable(group, 268, { groupChildren: [text], isSelected: true });
+    const area = container.hitArea as { x: number; y: number; width: number; height: number };
+    const pad = 4 / 268;
+    expect(area.x + area.width - pad).toBeCloseTo(18 / 268, 5);
+    expect(area.y + area.height - pad).toBeCloseTo(12 / 268, 5);
+    expect(area.y + pad).toBeCloseTo(-4 / 268, 5);
+  });
+});

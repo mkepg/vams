@@ -54,7 +54,9 @@ function createGroupDrawable(
   container.rotation = (o.transform.rotate * Math.PI) / 180;
   container.scale.set(o.transform.scaleX, o.transform.scaleY);
   container.visible = o.visible;
-  const bounds = getGroupLocalBounds(options?.groupChildren || []);
+  // Window pixels per group unit, so a text child's glyphs count towards the outline.
+  const pixelsPerUnit = worldScaleX ? Math.abs(worldScaleX * o.transform.scaleX) : undefined;
+  const bounds = getGroupLocalBounds(options?.groupChildren || [], pixelsPerUnit);
   const padding = pxToWorld(4, worldScaleX);
   const drawX = bounds.minX - padding;
   const drawY = bounds.minY - padding;
