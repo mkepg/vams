@@ -2,7 +2,7 @@
  * BLACK-BOX TEST SUITE — BB-CB
  * Functional callbacks: the rule model, the store actions and the generated handler code.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { locateHandlerBranch } from '@/features/code-generation/model/locate-branch';
@@ -519,5 +519,56 @@ describe('BB-CB-23: The Do and Object menus match the scene', () => {
     const options = targetOptions(pointer, objects);
     expect(options.map((o) => o.id)).toContain(a.id);
     expect(options.map((o) => o.id)).not.toContain(b.id);
+  });
+});
+
+describe('BB-CB-24: A rule can be edited and removed, and undo brings each change back', () => {
+  it('replaces the action in place, removes the rule, and ignores an unknown id', () => {
+    // Each change is its own undo step: keep them further apart than the history's throttle.
+    let now = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => (now += 10_000));
+    const t = addTriangle();
+    getState().setCallbackHandler('keyboard', 'onKey');
+    getState().addCallbackRule('keyboard', rule(t.id, { id: 'move' }));
+    getState().updateCallbackRule('keyboard', 'move', { action: { type: 'rotate', degrees: 15 } });
+    expect(getState().callbacks.keyboard.rules).toEqual([expect.objectContaining({ id: 'move', action: { type: 'rotate', degrees: 15 } })]);
+    getState().undo();
+    expect(getState().callbacks.keyboard.rules[0].action).toEqual({ type: 'translate', dx: 0.1, dy: 0 });
+    getState().redo();
+    getState().removeCallbackRule('keyboard', 'move');
+    expect(getState().callbacks.keyboard.rules).toEqual([]);
+    getState().undo();
+    expect(getState().callbacks.keyboard.rules.map((r) => r.id)).toEqual(['move']);
+    const past = getState().past.length;
+    getState().removeCallbackRule('keyboard', 'nope');
+    getState().updateCallbackRule('keyboard', 'nope', { action: { type: 'rotate', degrees: 1 } });
+    expect(getState().past.length).toBe(past);
+    clock.mockRestore();
+  });
+});
+
+describe("BB-CB-25: Text, vertex arrays and a group's children take Set colour and Show/hide too", () => {
+  it("guards the text colour, the vertex-array colour array, and a grouped child's draw call", () => {
+    getState().addTextObject('Hi', 0, 0);
+    getState().updateObjectName(getState().objects[0].id, 'Label');
+    const label = getState().objects[0];
+    const va = addQuad(0.5, 0.5, 0.1);
+    getState().updateObjectName(va.id, 'Arr');
+    getState().updateRenderingMode(va.id, 'VERTEX_ARRAY');
+    const a = addTriangle(-0.5, 0, 0.1);
+    getState().updateObjectName(a.id, 'Kid');
+    const b = addTriangle(-0.3, 0, 0.1);
+    getState().createGroup([a.id, b.id]);
+    getState().setCallbackHandler('keyboard', 'onKey');
+    add('keyboard', { id: 'c1', objectId: label.id, trigger: { kind: 'keyboard', key: 'c' }, action: { type: 'setColor', color: '#ff0000' } });
+    add('keyboard', { id: 'c2', objectId: va.id, trigger: { kind: 'keyboard', key: 'c' }, action: { type: 'setColor', color: '#00ff00' } });
+    add('keyboard', { id: 'v1', objectId: label.id, trigger: { kind: 'keyboard', key: 'h' }, action: { type: 'visibility', mode: 'hide' } });
+    add('keyboard', { id: 'v2', objectId: a.id, trigger: { kind: 'keyboard', key: 'h' }, action: { type: 'visibility', mode: 'show' } });
+    const code = gen();
+    expect(code).toMatch(/ {8}if \(!state_Label\.useColor\) glColor3f\(/);
+    expect(code).toContain('        if (state_Label.useColor) glColor3f(state_Label.r, state_Label.g, state_Label.b);\n');
+    expect(code).toContain('    if (state_Arr.useColor) glColor3f(state_Arr.r, state_Arr.g, state_Arr.b);\n    else glEnableClientState(GL_COLOR_ARRAY);');
+    expect(code).toContain('    if (state_Label.visible) {\n');
+    expect(code).toContain('    if (state_Kid.visible) draw_Kid();');
   });
 });

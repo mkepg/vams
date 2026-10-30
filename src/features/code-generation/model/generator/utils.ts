@@ -73,3 +73,7 @@ export function rasterStateAfter(o: SceneNode): string {
   }
   return out;
 }
+
+/** The line a Set colour rule adds to an object's drawing: its flat colour, while the rule has switched it on. */
+export const runColorLine = (safeName: string): string =>
+  `if (state_${safeName}.useColor) glColor3f(state_${safeName}.r, state_${safeName}.g, state_${safeName}.b);`;

@@ -8,6 +8,29 @@ import { renderBridge } from "@/shared/engine/render-bridge";
 import { FollowRing, pickHandleVertex, ringTarget, setEditorOutlinesHidden, type SelectionOverlay } from "@/shared/engine/selection-overlay";
 import type { SceneNode } from "@/core/types/scene";
 
+/**
+ * Empties an object's container before new content goes in, and frees the content it drew. A
+ * group's container also holds its children's containers (`objectContainers`); those move, never die.
+ */
+export function clearContent(container: Container, objectContainers: ReadonlySet<Container> = new Set()) {
+  releaseBitmapText(container);
+  for (const child of container.removeChildren()) {
+    if (objectContainers.has(child as Container)) continue;
+    if (child instanceof Mesh && child.geometry) child.geometry.destroy();
+    child.destroy({ children: true });
+  }
+}
+
+/** Draws `node` afresh into its container, at the world's current scale. */
+function rebuildContent(container: Container, node: SceneNode, world: Container | null) {
+  if (!world || container.destroyed) return;
+  clearContent(container);
+  const content = createDrawable(node, world.scale.x);
+  while (content.children.length > 0) container.addChild(content.children[0]);
+  container.hitArea = content.hitArea;
+  content.destroy();
+}
+
 /** The node drawn in one flat colour, as a Run rule's Set colour draws it. */
 const recoloured = (node: SceneNode, color: string): SceneNode => ({ ...node, vertices: node.vertices.map((v) => ({ ...v, color })) });
 
@@ -80,16 +103,6 @@ export function useSceneRenderer({
   useEffect(() => {
     objectsRef.current = objects;
   }, [objects]);
-  const rebuildContent = (container: Container, node: SceneNode) => {
-    const world = worldRef.current;
-    if (!world || container.destroyed) return;
-    releaseBitmapText(container);
-    container.removeChildren();
-    const content = createDrawable(node, world.scale.x);
-    while (content.children.length > 0) container.addChild(content.children[0]);
-    container.hitArea = content.hitArea;
-    content.destroy();
-  };
   // Expose a window into the live renderer for Run.
   // Containers are keyed by scene-object id; `resync` re-applies the stored
   // transforms so the scene state stays the single source of truth.
@@ -107,10 +120,10 @@ export function useSceneRenderer({
         const obj = useVamsStore.getState().objects.find((o) => o.id === id);
         if (!obj || obj.type === 'GROUP') return;
         if (color) {
-          rebuildContent(container, recoloured(obj, color));
+          rebuildContent(container, recoloured(obj, color), worldRef.current);
           overriddenRef.current.add(id);
         } else if (overriddenRef.current.has(id)) {
-          rebuildContent(container, obj);
+          rebuildContent(container, obj, worldRef.current);
           overriddenRef.current.delete(id);
         }
       },
@@ -138,14 +151,13 @@ export function useSceneRenderer({
           container.rotation = (t.rotate * Math.PI) / 180;
           container.scale.set(t.scaleX, t.scaleY);
           container.visible = obj.visible;
-          if (overriddenRef.current.has(obj.id)) rebuildContent(container, obj);
+          if (overriddenRef.current.has(obj.id)) rebuildContent(container, obj, worldRef.current);
         });
         overriddenRef.current.clear();
         runAppearanceRef.current.clear();
       },
     });
     return unregister;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pixiReady, appRef, worldRef, applyViewportTransform]);
   useEffect(() => {
     const app = appRef.current;
@@ -381,6 +393,7 @@ export function useSceneRenderer({
     const worldScaleChanged =
       prevWorldScaleRef.current.x !== worldScaleX ||
       prevWorldScaleRef.current.y !== worldScaleY;
+    const objectContainers = new Set(containersRef.current.values());
     objects.forEach((obj, index) => {
       nextObjectsMap.set(obj.id, obj);
       let container = containersRef.current.get(obj.id);
@@ -419,8 +432,7 @@ export function useSceneRenderer({
       const drawn = run?.color && obj.type !== 'GROUP' ? recoloured(obj, run.color) : obj;
       if (needsRebuild) {
         if (container) {
-          releaseBitmapText(container);
-          container.removeChildren();
+          clearContent(container, objectContainers);
           let groupChildren: SceneNode[] | undefined;
           if (obj.type === "GROUP") {
             groupChildren = objects.filter((c) => c.parentId === obj.id);

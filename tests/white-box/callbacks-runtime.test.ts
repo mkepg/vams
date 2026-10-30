@@ -23,14 +23,20 @@ describe('WB-CB-1: Each action changes the state as its C++ line does', () => {
     { type: 'moveToPointer' }, { type: 'reset' }, { type: 'setColor', color: '#ff8000' },
     { type: 'visibility', mode: 'show' }, { type: 'visibility', mode: 'hide' }, { type: 'visibility', mode: 'toggle' },
   ];
-  it.each(actions)('$type', (action) => {
+  // Values past the printed precision, so the runtime has to round as the C++ literal does; and a
+  // hidden start, so Show is told apart from Hide.
+  const unrounded: RuleAction[] = [
+    { type: 'translate', dx: 0.123456, dy: -0.987654 }, { type: 'rotate', degrees: 12.3456 }, { type: 'scale', sx: 1.23456, sy: 0.98765 },
+  ];
+  const starts: [string, RunObjectState][] = [['shown', base], ['hidden', { ...base, visible: false }]];
+  it.each(starts.flatMap(([name, start]) => [...actions, ...unrounded].map((action) => ({ name, start, action }))))('$action.type from $name', ({ start, action }) => {
     const cpp = new MiniCpp();
-    cpp.vars.set('state_T', { ...base });
+    cpp.vars.set('state_T', { ...start });
     cpp.vars.set('initial_T', { ...initial });
     cpp.vars.set('wx', 0.4);
     cpp.vars.set('wy', 0.6);
     cpp.run(actionLines(action, 'T', ''));
-    const runtime = applyAction({ ...base }, action, initial, { x: 0.4, y: 0.6 });
+    const runtime = applyAction({ ...start }, action, initial, { x: 0.4, y: 0.6 });
     const expected = cpp.vars.get('state_T') as Record<string, number | boolean>;
     for (const field of Object.keys(base) as (keyof RunObjectState)[]) {
       if (typeof expected[field] === 'number') expect(runtime[field]).toBeCloseTo(expected[field] as number, 6);

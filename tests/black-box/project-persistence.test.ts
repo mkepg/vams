@@ -194,3 +194,20 @@ describe('BB-PERSIST-10: A background colour that is not a hex colour loads as b
     localStorage.removeItem(STORAGE_KEY);
   });
 });
+
+describe('BB-PERSIST-11: A version 7 save in the browser opens through the real rehydrate', () => {
+  it('keeps the handler names and gives each callback its rules', async () => {
+    const saved = {
+      state: { objects: [], callbacks: { keyboard: 'onKey', mouse: '', reshape: 'onResize', motion: '', idle: 'tick' } },
+      version: 7,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+    await useVamsStore.persist.rehydrate();
+    const { callbacks } = useVamsStore.getState();
+    expect(callbacks.keyboard).toEqual({ handlerName: 'onKey', rules: [] });
+    expect(callbacks.special).toEqual({ handlerName: '', rules: [] });
+    expect(callbacks.reshape).toEqual({ handlerName: 'onResize', resize: 'stretch' });
+    expect(callbacks.idle).toEqual({ handlerName: 'tick', rules: [] });
+    localStorage.removeItem(STORAGE_KEY);
+  });
+});

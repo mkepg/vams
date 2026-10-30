@@ -72,11 +72,11 @@ export class WindowGeometryMesh extends Mesh<MeshGeometry, Shader> {
     }
     this.visible = true;
     const toLocal = m.clone().invert();
-    const window = this.source.points.map((p, i): GeoVertex => {
+    const inWindow = this.source.points.map((p, i): GeoVertex => {
       const at = m.apply(p);
       return { x: at.x, y: at.y, color: this.source.colors[i] };
     });
-    const built = build(this.source, window);
+    const built = build(this.source, inWindow);
     for (let i = 0; i < built.positions.length; i += 2) {
       const local = toLocal.apply({ x: built.positions[i], y: built.positions[i + 1] });
       built.positions[i] = local.x;
@@ -89,9 +89,9 @@ export class WindowGeometryMesh extends Mesh<MeshGeometry, Shader> {
   }
 }
 
-function build(source: Source, window: GeoVertex[]): Triangles {
-  if (source.type === 'POINTS') return pointTriangles(window, POINT_SIZE);
-  return lineTriangles(source.type as LineMode, window, source.width, source.shade, source.stipple);
+function build(source: Source, inWindow: GeoVertex[]): Triangles {
+  if (source.type === 'POINTS') return pointTriangles(inWindow, POINT_SIZE);
+  return lineTriangles(source.type as LineMode, inWindow, source.width, source.shade, source.stipple);
 }
 
 /** One triangle with no area and no colour, so an empty mesh is still a valid one. */
