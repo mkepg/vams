@@ -546,3 +546,29 @@ describe('BB-CB-24: A rule can be edited and removed, and undo brings each chang
     clock.mockRestore();
   });
 });
+
+describe("BB-CB-25: Text, vertex arrays and a group's children take Set colour and Show/hide too", () => {
+  it("guards the text colour, the vertex-array colour array, and a grouped child's draw call", () => {
+    getState().addTextObject('Hi', 0, 0);
+    getState().updateObjectName(getState().objects[0].id, 'Label');
+    const label = getState().objects[0];
+    const va = addQuad(0.5, 0.5, 0.1);
+    getState().updateObjectName(va.id, 'Arr');
+    getState().updateRenderingMode(va.id, 'VERTEX_ARRAY');
+    const a = addTriangle(-0.5, 0, 0.1);
+    getState().updateObjectName(a.id, 'Kid');
+    const b = addTriangle(-0.3, 0, 0.1);
+    getState().createGroup([a.id, b.id]);
+    getState().setCallbackHandler('keyboard', 'onKey');
+    add('keyboard', { id: 'c1', objectId: label.id, trigger: { kind: 'keyboard', key: 'c' }, action: { type: 'setColor', color: '#ff0000' } });
+    add('keyboard', { id: 'c2', objectId: va.id, trigger: { kind: 'keyboard', key: 'c' }, action: { type: 'setColor', color: '#00ff00' } });
+    add('keyboard', { id: 'v1', objectId: label.id, trigger: { kind: 'keyboard', key: 'h' }, action: { type: 'visibility', mode: 'hide' } });
+    add('keyboard', { id: 'v2', objectId: a.id, trigger: { kind: 'keyboard', key: 'h' }, action: { type: 'visibility', mode: 'show' } });
+    const code = gen();
+    expect(code).toMatch(/ {8}if \(!state_Label\.useColor\) glColor3f\(/);
+    expect(code).toContain('        if (state_Label.useColor) glColor3f(state_Label.r, state_Label.g, state_Label.b);\n');
+    expect(code).toContain('    if (state_Arr.useColor) glColor3f(state_Arr.r, state_Arr.g, state_Arr.b);\n    else glEnableClientState(GL_COLOR_ARRAY);');
+    expect(code).toContain('    if (state_Label.visible) {\n');
+    expect(code).toContain('    if (state_Kid.visible) draw_Kid();');
+  });
+});

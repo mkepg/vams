@@ -1,5 +1,5 @@
 import type { SceneNode, Vertex } from '@/core/types/scene';
-import { sanitizeName, hexToGlColor, hexToGlByteColor, getGlPrimitive, rasterStateAfter, rasterStateBefore } from './utils';
+import { sanitizeName, runColorLine, hexToGlColor, hexToGlByteColor, getGlPrimitive, rasterStateAfter, rasterStateBefore } from './utils';
 import { generateVertexArrayDrawBody, generateVBODrawBody } from './buffers';
 import { effectiveScaleY, rasterLineYs, textLineStep, textLines } from '@/shared/lib/text-raster';
 function emitColor(
@@ -82,7 +82,7 @@ const generateImmediateDrawBody = (
     drawBody += useByte
       ? `    ${guardText}glColor3ub(${hexToGlByteColor(colorHex)});\n`
       : `    ${guardText}glColor3f(${hexToGlColor(colorHex)});\n`;
-    if (recolor) drawBody += `    if (${S}.useColor) glColor3f(${S}.r, ${S}.g, ${S}.b);\n`;
+    if (recolor) drawBody += `    ${runColorLine(safeName)}\n`;
     // Bitmap fonts only render printable glyphs; textLines strips the rest.
     const lines = textLines(textContent);
     // Lines start TEXT_LINE_PIXELS apart in the window, whatever the text's scale.
@@ -112,7 +112,7 @@ const generateImmediateDrawBody = (
     }
 
     drawBody += `\n`;
-    if (recolor) drawBody += `    if (${S}.useColor) glColor3f(${S}.r, ${S}.g, ${S}.b);\n`;
+    if (recolor) drawBody += `    ${runColorLine(safeName)}\n`;
     drawBody += `    glBegin(${getGlPrimitive(object.type)});\n`;
     object.vertices.forEach((v, i) => {
       drawBody += emitColor(v, object.colorMode, '        ', recolor ? S : null);

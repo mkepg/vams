@@ -1,7 +1,7 @@
 import type { SceneNode, Vertex } from '@/core/types/scene';
 import type { UV } from '@/core/types/textures';
 import { deduplicate, hasTexture } from '@/entities/scene/model/vertex-dedup';
-import { sanitizeName, getGlPrimitive, rasterStateAfter, rasterStateBefore } from './utils';
+import { sanitizeName, getGlPrimitive, rasterStateAfter, rasterStateBefore, runColorLine } from './utils';
 function isPrimitive(o: SceneNode): boolean {
   return o.type !== 'GROUP' && o.type !== 'TEXT';
 }
@@ -188,7 +188,7 @@ export function generateVertexArrayDrawBody(o: SceneNode, recolor = false): stri
   out += `\n    // Bind client-side arrays\n`;
   out += `    glEnableClientState(GL_VERTEX_ARRAY);\n`;
   out += recolor
-    ? `    if (state_${safe}.useColor) glColor3f(state_${safe}.r, state_${safe}.g, state_${safe}.b);\n    else glEnableClientState(GL_COLOR_ARRAY);\n`
+    ? `    ${runColorLine(safe)}\n    else glEnableClientState(GL_COLOR_ARRAY);\n`
     : `    glEnableClientState(GL_COLOR_ARRAY);\n`;
   if (textured) {
     out += `    glEnableClientState(GL_TEXTURE_COORD_ARRAY);\n`;
@@ -230,7 +230,7 @@ export function generateVBODrawBody(o: SceneNode, recolor = false): string {
   out += `\n    // Bind GPU buffers\n`;
   out += `    glEnableClientState(GL_VERTEX_ARRAY);\n`;
   out += recolor
-    ? `    if (state_${safe}.useColor) glColor3f(state_${safe}.r, state_${safe}.g, state_${safe}.b);\n    else glEnableClientState(GL_COLOR_ARRAY);\n`
+    ? `    ${runColorLine(safe)}\n    else glEnableClientState(GL_COLOR_ARRAY);\n`
     : `    glEnableClientState(GL_COLOR_ARRAY);\n`;
   if (textured) {
     out += `    glEnableClientState(GL_TEXTURE_COORD_ARRAY);\n`;
