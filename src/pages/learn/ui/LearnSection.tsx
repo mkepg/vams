@@ -1,7 +1,7 @@
-import { catalogFor, type CourseSection, type LessonEntry } from '@/features/lesson-engine/model/catalog';
+import { catalogFor, sectionAnchor, type CourseSection, type LessonEntry } from '@/features/lesson-engine/model/catalog';
 import type { LessonProgress } from '@/features/lesson-engine/model/progress';
 import { doneCount, lessonStatus } from '../model/learn-progress';
-import { LEARN_COPY, sectionAnchor } from '../model/copy';
+import { LEARN_COPY } from '../model/copy';
 import LessonRow from './LessonRow';
 
 /** One course section: what it teaches on the left, its lessons on the right. */

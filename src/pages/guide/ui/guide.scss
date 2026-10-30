@@ -160,6 +160,8 @@
   .help-block-definitions {
     margin: 0 0 var(--space-4);
     .def-row {
+      /* A term reached from search sits below the sticky header. */
+      scroll-margin-top: 76px;
       display: grid;
       grid-template-columns: minmax(10rem, 14rem) minmax(0, 1fr);
       gap: var(--space-4);
@@ -184,7 +186,7 @@
     display: grid;
     gap: var(--space-4);
     margin-bottom: var(--space-4);
-    h4 { margin: 0 0 var(--space-2); font-size: var(--text-base); color: var(--ink-faint); }
+    .help-shortcut-group__title { margin: 0 0 var(--space-2); font-size: var(--text-base); color: var(--ink-faint); }
     dl { margin: 0; }
   }
   .help-shortcut-row {

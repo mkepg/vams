@@ -49,7 +49,7 @@ export const GALLERY_SCENES = [
     title: 'Rice terraces at dusk',
     summary: 'Terraced paddies under a mountain ridge, each terrace a VBO of quads drawn with glDrawElements, its wall a line strip from vertex arrays.',
     shows: ['Buffers', 'Primitives'],
-    run: 'Drag across the window to move the sun. N brings out the stars. Space puts the sun back.',
+    run: 'Drag across the window to move the sun. N turns the stars on and off. Space puts the sun back.',
     alt: 'Four green rice terraces stepping down below a purple ridge, with an orange sun in a dusk sky.',
   },
   {

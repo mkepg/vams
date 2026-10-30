@@ -12,12 +12,16 @@
 
   p { margin: 0; }
   strong { color: var(--ink); font-family: var(--font-display); font-size: 1rem; font-weight: 600; }
-  &__brand { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--space-2); color: var(--ink); }
+  &__brand { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--space-4); color: var(--ink); }
   &__links { justify-self: end; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
   &__brand .vams-logo { font-size: 0.8rem; }
   &__actions { grid-column: 1 / -1; }
   a { color: var(--ink); text-underline-offset: 3px; }
 }
+
+/* With no plate, the italic lean and the cyan depth draw past the wordmark's box on the right.
+   The margin takes up that overhang, so the name sits as far from the mark as the plate's edge. */
+:root[data-theme='dark'] .site-footer__brand .vams-logo { margin-right: 0.35em; }
 
 @media (max-width: 640px) {
   .site-footer {

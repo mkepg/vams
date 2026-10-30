@@ -25,7 +25,7 @@ function Topic({ topic }: { topic: HelpTopic }) {
       <p className="guide-topic__summary">{topic.summary}</p>
       <div className="guide-topic__body">
         {topic.blocks.map((block, i) => (
-          <HelpBlockView key={i} block={block} startTour={TOUR} />
+          <HelpBlockView key={i} block={block} startTour={TOUR} headingLevel={4} termAnchors />
         ))}
       </div>
       {topic.related && topic.related.length > 0 && (

@@ -1,5 +1,5 @@
 import { LESSON_CATALOG, lessonHref } from '@/features/lesson-engine/model/catalog';
-import { HELP_TOPICS } from '@/features/help/model/help-content';
+import { HELP_TOPICS, glossaryTermId } from '@/features/help/model/help-content';
 import { GALLERY_SCENES, galleryHref } from '@/entities/project/model/gallery-links';
 import { PRESET_LINKS, presetHref } from '@/entities/project/model/preset-links';
 
@@ -37,7 +37,7 @@ function glossaryEntries(): SearchEntry[] {
   const topic = HELP_TOPICS.find((t) => t.id === 'glossary');
   return (topic?.blocks ?? []).flatMap((block) =>
     block.kind === 'definitions'
-      ? block.items.map((item) => ({ kind: 'term' as const, title: item.term, detail: item.description, href: '/guide#glossary', keywords: '' }))
+      ? block.items.map((item) => ({ kind: 'term' as const, title: item.term, detail: item.description, href: `/guide#${glossaryTermId(item.term)}`, keywords: '' }))
       : [],
   );
 }

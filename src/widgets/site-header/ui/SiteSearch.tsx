@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'preact/compat';
 import { Search } from 'lucide-react';
 import { Dialog } from '@/shared/ui/controls';
 import { KIND_LABEL, searchSite } from '../model/search-index';
@@ -9,12 +10,16 @@ export const SEARCH_COPY = {
   title: 'Search VAMS',
   placeholder: 'Lessons, scenes, guide topics, OpenGL terms',
   empty: (query: string) => `Nothing matches “${query}”.`,
+  count: (n: number) => `${n} ${n === 1 ? 'result' : 'results'}`,
   hint: 'Enter opens it. Arrow keys move.',
 } as const;
 
 /** Whether a key press asks for search: Ctrl+K, or ⌘K on a Mac. */
 export const isSearchShortcut = (event: KeyboardEvent) =>
   (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'k';
+
+/** The shortcut as the visitor's keyboard writes it: ⌘ on a Mac, iPad or iPhone, Ctrl elsewhere. */
+export const shortcutLabel = (platform: string) => (/mac|iphone|ipad|ipod/i.test(platform) ? '⌘ K' : 'Ctrl K');
 
 const optionId = (i: number) => `site-search-option-${i}`;
 
@@ -25,6 +30,8 @@ export default function SiteSearch() {
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const results = useMemo(() => searchSite(query), [query]);
+  // The prerendered page says Ctrl K; on a Mac, hydration swaps in ⌘.
+  const [keyLabel] = useState(() => (typeof window === 'undefined' ? 'Ctrl K' : shortcutLabel(navigator.platform)));
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -64,59 +71,65 @@ export default function SiteSearch() {
       <button type="button" className="site-search__open" onClick={() => setOpen(true)} aria-keyshortcuts="Control+K Meta+K">
         <Search size={16} aria-hidden="true" />
         <span className="site-search__open-label">{SEARCH_COPY.open}</span>
-        <kbd className="site-search__open-key" aria-hidden="true">Ctrl K</kbd>
+        <kbd className="site-search__open-key" aria-hidden="true">{keyLabel}</kbd>
       </button>
-      <Dialog open={open} onClose={close} labelledBy="site-search-title" initialFocusRef={inputRef} className="site-search" onKeyDown={onKeyDown}>
-        <h2 id="site-search-title" className="site-search__title">{SEARCH_COPY.title}</h2>
-        <div className="site-search__field">
-          <Search size={18} aria-hidden="true" />
-          <input
-            ref={inputRef}
-            type="search"
-            role="combobox"
-            aria-expanded="true"
-            aria-controls="site-search-results"
-            aria-activedescendant={results[active] ? optionId(active) : undefined}
-            aria-autocomplete="list"
-            aria-labelledby="site-search-title"
-            placeholder={SEARCH_COPY.placeholder}
-            spellcheck={false}
-            autoComplete="off"
-            value={query}
-            onInput={(event) => {
-              setQuery(event.currentTarget.value);
-              setActive(0);
-            }}
-          />
-        </div>
-        <div id="site-search-results" role="listbox" aria-label={SEARCH_COPY.title} className="site-search__results">
-          {results.map((entry, i) => (
-            <a
-              key={entry.href + entry.title}
-              id={optionId(i)}
-              role="option"
-              aria-selected={i === active}
-              // Focus stays in the box, so Enter always opens the highlighted result.
-              tabIndex={-1}
-              href={entry.href}
-              className={`site-search__option${i === active ? ' is-active' : ''}`}
-              onMouseMove={() => setActive(i)}
-              onClick={(event) => {
-                event.preventDefault();
-                go(entry.href);
+      {/* The box opens over the page, not inside the header, so it takes the page's colours. */}
+      {open && createPortal(
+        <Dialog open onClose={close} labelledBy="site-search-title" initialFocusRef={inputRef} className="site-search" onKeyDown={onKeyDown}>
+          <h2 id="site-search-title" className="site-search__title">{SEARCH_COPY.title}</h2>
+          <div className="site-search__field">
+            <Search size={18} aria-hidden="true" />
+            <input
+              ref={inputRef}
+              type="search"
+              role="combobox"
+              aria-expanded={results.length > 0}
+              aria-controls="site-search-results"
+              aria-activedescendant={results[active] ? optionId(active) : undefined}
+              aria-autocomplete="list"
+              aria-labelledby="site-search-title"
+              placeholder={SEARCH_COPY.placeholder}
+              spellcheck={false}
+              autoComplete="off"
+              value={query}
+              onInput={(event) => {
+                setQuery(event.currentTarget.value);
+                setActive(0);
               }}
-            >
-              <span className="site-search__kind">{KIND_LABEL[entry.kind]}</span>
-              <span className="site-search__text">
-                <span className="site-search__name">{entry.title}</span>
-                <span className="site-search__detail">{entry.detail}</span>
-              </span>
-            </a>
-          ))}
-          {results.length === 0 && <p className="site-search__empty">{SEARCH_COPY.empty(query.trim())}</p>}
-        </div>
-        <p className="site-search__hint">{SEARCH_COPY.hint}</p>
-      </Dialog>
+            />
+          </div>
+          <div id="site-search-results" role="listbox" aria-label={SEARCH_COPY.title} className="site-search__results">
+            {results.map((entry, i) => (
+              <a
+                key={entry.href + entry.title}
+                id={optionId(i)}
+                role="option"
+                aria-selected={i === active}
+                // Focus stays in the box, so Enter always opens the highlighted result.
+                tabIndex={-1}
+                href={entry.href}
+                className={`site-search__option${i === active ? ' is-active' : ''}`}
+                onMouseMove={() => setActive(i)}
+                onClick={(event) => {
+                  event.preventDefault();
+                  go(entry.href);
+                }}
+              >
+                <span className="site-search__kind">{KIND_LABEL[entry.kind]}</span>
+                <span className="site-search__text">
+                  <span className="site-search__name">{entry.title}</span>
+                  <span className="site-search__detail">{entry.detail}</span>
+                </span>
+              </a>
+            ))}
+          </div>
+          <p role="status" className={results.length === 0 ? 'site-search__empty' : 'site-search__count'}>
+            {results.length === 0 ? SEARCH_COPY.empty(query.trim()) : SEARCH_COPY.count(results.length)}
+          </p>
+          <p className="site-search__hint">{SEARCH_COPY.hint}</p>
+        </Dialog>,
+        document.body,
+      )}
     </>
   );
 }

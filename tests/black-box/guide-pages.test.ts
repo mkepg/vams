@@ -10,15 +10,15 @@ import { findRouteMeta } from '@/app/routes/route-meta';
 import { buildSitemap } from '@/app/seo/sitemap';
 import { prerender } from '@/app/prerender';
 import { NAV_LINKS } from '@/widgets/site-header/model/nav';
-import { HELP_TOPICS, getHelpTopic } from '@/features/help/model/help-content';
-import { COURSE, catalogFor, isCatalogLesson } from '@/features/lesson-engine/model/catalog';
+import { HELP_TOPICS, getHelpTopic, glossaryTermId } from '@/features/help/model/help-content';
+import { COURSE, catalogFor, isCatalogLesson, sectionHref } from '@/features/lesson-engine/model/catalog';
 import { GALLERY_SCENES } from '@/entities/project/model/gallery-links';
 import { PRESET_LINKS } from '@/entities/project/model/preset-links';
 import GuidePage from '@/pages/guide';
 import TeachPage from '@/pages/teach';
 import { TEACH_COPY } from '@/pages/teach/model/copy';
 import { searchEntries, searchSite } from '@/widgets/site-header/model/search-index';
-import SiteSearch, { SEARCH_COPY } from '@/widgets/site-header/ui/SiteSearch';
+import SiteSearch, { SEARCH_COPY, shortcutLabel } from '@/widgets/site-header/ui/SiteSearch';
 
 const SITE = 'https://example.test';
 
@@ -156,6 +156,9 @@ describe('BB-GUIDE-06: Search ranks by title and needs every word to match', () 
   it('points every entry at a lesson, scene, page or guide anchor that exists', () => {
     const slugs = new Set<string>([...GALLERY_SCENES.map((s) => s.slug), ...PRESET_LINKS.map((p) => p.slug)]);
     const topics = new Set<string>(HELP_TOPICS.map((t) => t.id));
+    // Glossary terms open at their own anchor (BB-GUIDE-10 checks each one is on the page).
+    const glossary = getHelpTopic('glossary').blocks.flatMap((b) => (b.kind === 'definitions' ? b.items : []));
+    for (const item of glossary) topics.add(glossaryTermId(item.term));
     const pages = new Set(['/', '/app', '/learn', '/gallery', '/guide', '/teach', '/about']);
     for (const entry of searchEntries()) {
       const url = new URL(entry.href, SITE);
@@ -177,24 +180,24 @@ describe('BB-GUIDE-07: Ctrl+K opens search, and the keyboard alone reaches a res
     for (let i = 0; i < 3; i++) await new Promise((r) => setTimeout(r, 0));
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
     for (let i = 0; i < 3; i++) await new Promise((r) => setTimeout(r, 0));
-    const input = host.querySelector<HTMLInputElement>('input[role="combobox"]')!;
+    const input = document.querySelector<HTMLInputElement>('input[role="combobox"]')!;
     expect(input).not.toBeNull();
     expect(document.activeElement).toBe(input);
     input.value = 'triangle';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await new Promise((r) => setTimeout(r, 0));
-    const options = [...host.querySelectorAll('[role="option"]')];
+    const options = [...document.querySelectorAll('[role="option"]')];
     expect(options.length).toBeGreaterThan(1);
     expect(options[0].getAttribute('aria-selected')).toBe('true');
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     await new Promise((r) => setTimeout(r, 0));
-    const second = host.querySelectorAll('[role="option"]')[1];
+    const second = document.querySelectorAll('[role="option"]')[1];
     expect(second.getAttribute('aria-selected')).toBe('true');
     expect(input.getAttribute('aria-activedescendant')).toBe(second.id);
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     expect(assign).toHaveBeenCalledWith(second.getAttribute('href'));
     await new Promise((r) => setTimeout(r, 0));
-    expect(host.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
     input.value = '';
     render(null, host);
     host.remove();
@@ -215,14 +218,91 @@ describe('BB-GUIDE-08: Search keeps focus in its box, and stays shut while the h
     document.documentElement.classList.add('stage');
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true, cancelable: true }));
     await tick();
-    expect(host.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
     document.documentElement.classList.remove('stage');
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true, cancelable: true }));
     await tick();
-    const options = [...host.querySelectorAll('[role="option"]')];
+    const options = [...document.querySelectorAll('[role="option"]')];
     expect(options.length).toBeGreaterThan(0);
     for (const option of options) expect(option.getAttribute('tabindex')).toBe('-1');
     render(null, host);
     host.remove();
+  });
+});
+
+describe("BB-GUIDE-09: Search opens over the page in the page's colours, and tells a screen reader what it found", () => {
+  it('renders outside the header, reports results honestly and counts them', async () => {
+    const header = document.createElement('header');
+    document.body.appendChild(header);
+    render(h(SiteSearch, {}), header);
+    const tick = async () => {
+      for (let i = 0; i < 3; i++) await new Promise((r) => setTimeout(r, 0));
+    };
+    await tick();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true, cancelable: true }));
+    await tick();
+    const dialog = document.querySelector('[role="dialog"]')!;
+    expect(dialog).not.toBeNull();
+    // The header sets dark colours on everything inside it; the box must not inherit them.
+    expect(header.contains(dialog)).toBe(false);
+    const input = document.querySelector<HTMLInputElement>('input[role="combobox"]')!;
+    const status = document.querySelector('[role="status"]')!;
+    expect(input.getAttribute('aria-expanded')).toBe('true');
+    expect(status.textContent).toMatch(/^\d+ results?$/);
+    input.value = 'zzzzqqq';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await tick();
+    expect(input.getAttribute('aria-expanded')).toBe('false');
+    const list = document.getElementById('site-search-results')!;
+    expect(list.querySelector('.site-search__empty')).toBeNull();
+    expect(status.textContent).toBe(SEARCH_COPY.empty('zzzzqqq'));
+    render(null, header);
+    header.remove();
+    expect(SEARCH_COPY.count(1)).toBe('1 result');
+    expect(SEARCH_COPY.count(3)).toBe('3 results');
+  });
+
+  it('shows the Mac key on a Mac and Ctrl elsewhere', () => {
+    expect(shortcutLabel('MacIntel')).toBe('⌘ K');
+    expect(shortcutLabel('iPad')).toBe('⌘ K');
+    expect(shortcutLabel('Win32')).toBe('Ctrl K');
+    expect(shortcutLabel('Linux x86_64')).toBe('Ctrl K');
+  });
+});
+
+describe('BB-GUIDE-10: A glossary term found in search opens at that term', () => {
+  it('links each term to its own anchor, and the guide has every one', () => {
+    const terms = searchEntries().filter((e) => e.kind === 'term');
+    expect(terms.length).toBeGreaterThan(30);
+    const host = mount(GuidePage);
+    for (const term of terms) {
+      expect(term.href).toBe(`/guide#${glossaryTermId(term.title)}`);
+      const target = host.querySelector(`#${glossaryTermId(term.title)}`);
+      expect(target, term.title).not.toBeNull();
+      expect(target!.textContent).toContain(term.title);
+    }
+    expect(glossaryTermId('Viewing volume')).toBe('term-viewing-volume');
+    expect(glossaryTermId('GL_LINE_STRIP')).toBe('term-gl-line-strip');
+    expect(new Set(terms.map((t) => t.href)).size).toBe(terms.length);
+  });
+});
+
+describe("BB-GUIDE-11: Guide headings nest, and the teaching page links sections by the Learn page's rule", () => {
+  it("puts a topic's own headings below its title", () => {
+    const host = mount(GuidePage);
+    for (const article of host.querySelectorAll('article.guide-topic')) {
+      const title = article.querySelector('.guide-topic__title')!;
+      const level = Number(title.tagName.slice(1));
+      for (const heading of article.querySelectorAll('.guide-topic__body :is(h1, h2, h3, h4, h5, h6)')) {
+        expect(Number(heading.tagName.slice(1)), heading.textContent ?? '').toBeGreaterThan(level);
+      }
+    }
+  });
+
+  it('links each course section to its anchor on the Learn page', () => {
+    const host = mount(TeachPage);
+    const links = [...host.querySelectorAll<HTMLAnchorElement>('.teach-course__link')].map((a) => a.getAttribute('href'));
+    expect(links).toEqual(COURSE.map((c) => sectionHref(c.section)));
+    expect(sectionHref('Primitives')).toBe('/learn#primitives');
   });
 });

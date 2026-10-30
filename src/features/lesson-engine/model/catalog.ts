@@ -133,6 +133,12 @@ export function isCatalogLesson(id: unknown): id is string {
 }
 
 /** The editor link that opens a lesson. */
+/** A section's anchor on the Learn page. */
+export const sectionAnchor = (section: CurriculumSection): string => section.toLowerCase();
+
+/** The Learn page, scrolled to a section. */
+export const sectionHref = (section: CurriculumSection): string => `/learn#${sectionAnchor(section)}`;
+
 export function lessonHref(id: string): string {
   return `/app?lesson=${encodeURIComponent(id)}`;
 }
