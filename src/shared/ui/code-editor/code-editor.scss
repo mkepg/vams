@@ -1,0 +1,7 @@
+@use '../../styles/tokens' as *;
+
+// The parts of the editor's look that need the shared mixins; the rest is in vamsEditorTheme().
+.cm-editor .cm-scroller { @include scrollbar; }
+
+.cm-editor .cm-content ::selection,
+.cm-editor .cm-content::selection { background: var(--accent-tint); }

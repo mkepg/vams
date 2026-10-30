@@ -8,6 +8,8 @@ import { h, render, type VNode } from 'preact';
 import CodeViewer, { lineSegments } from '@/shared/ui/code-viewer/CodeViewer';
 import type { CodeRow } from '@/shared/ui/code-viewer/types';
 import { REVEAL_PADDING, revealTop, scrollBehavior } from '@/shared/ui/code-viewer/reveal-scroll';
+import { tokenizeLine } from '@/shared/ui/code-viewer/tokenize';
+import { glNameRanges } from '@/shared/ui/code-editor';
 import { useVamsStore } from '@/core/store';
 import SceneCodePanel from '@/features/code-generation/ui/SceneCodePanel';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
@@ -1073,5 +1075,19 @@ describe('BB-CODE-41: Choosing an object scrolls the code to its draw function',
       expect(scrollTo).toHaveBeenCalledTimes(1);
       expect(scrollTo.mock.calls[0][0].top).toBe(followTop(host, `// ${group.name}`));
     });
+  });
+});
+
+describe('BB-CODE-42: The editor colours GL calls exactly where the tokenizer does', () => {
+  it('marks the same GL and GLUT names on every line of a generated program, and none in a comment', () => {
+    mockScene();
+    const covered = (line: string) => glNameRanges(line).map((r) => line.slice(r.from, r.to));
+    const program = currentProgram().split('\n');
+    expect(program.length).toBeGreaterThan(50);
+    for (const line of program) {
+      expect(covered(line), line).toEqual(tokenizeLine(line).filter((t) => t.k === 'glfn').map((t) => t.t));
+    }
+    expect(covered('glBegin(GL_TRIANGLES); // glEnd')).toEqual(['glBegin']);
+    expect(covered('    glutSwapBuffers();')).toEqual(['glutSwapBuffers']);
   });
 });
