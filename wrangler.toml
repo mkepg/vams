@@ -7,3 +7,12 @@ compatibility_date = "2026-10-12"
 [[kv_namespaces]]
 binding = "SHARES"
 id = "7d85439fec8247699fb6cbef54207f94"
+
+[[kv_namespaces]]
+binding = "LAB_RUNTIME"
+id = "03554bbf6ea4458bba35732e7e1f43db"
+
+[vars]
+# Filled in when the compile service is deployed. While empty, /api/compile answers offline.
+# The secret LAB_COMPILE_SECRET is set with `wrangler pages secret put`, never in this file.
+LAB_COMPILE_URL = ""
