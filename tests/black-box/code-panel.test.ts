@@ -879,7 +879,10 @@ describe('BB-CODE-35: An unfolded block folds back with a ▾ in the column the 
     // The ▾ opens its block's first line, ahead of the text, and never sits among the line numbers.
     const line = open.closest('.cm-line')!;
     expect(textOf(host, line)).toBe('void draw_Square()');
-    expect(line.firstElementChild).toBe(open);
+    // Nothing comes before the ▾ but the empty image a browser may get beside an inline widget for its cursor.
+    const ahead = [...line.childNodes].slice(0, [...line.childNodes].indexOf(open));
+    expect(line.contains(open)).toBe(true);
+    expect(ahead.every((n) => n instanceof Element && n.matches('img.cm-widgetBuffer'))).toBe(true);
     expect(open.closest('.cm-gutters')).toBeNull();
     open.click();
     await settle();
@@ -964,9 +967,15 @@ describe('BB-CODE-38: A three-digit line number is never covered by the toggle',
     const css = readFileSync('src/shared/ui/code-viewer/code-viewer.scss', 'utf8');
     expect(css).not.toContain('code-fold-close');
     expect(css).not.toContain('code-gutter');
-    // Every line keeps the fold column at its start, and the ▾ fills that column.
-    expect(css).toMatch(/\.cm-line\s*{[^}]*padding-left:\s*\$fold-col/);
-    expect(css).toMatch(/\.code-fold-toggle\s*{[^}]*left:\s*0;[^}]*width:\s*\$fold-col/);
+    // Every line reaches back under its number and keeps the fold column after it, and the ▾ fills that column.
+    expect(css).toMatch(/\.cm-line\s*{[^}]*margin-left:\s*calc\(-1 \* #\{\$num-col\}\);[^}]*padding-left:\s*calc\(#\{\$num-col\} \+ #\{\$fold-col\}\)/);
+    expect(css).toMatch(/\.code-fold-toggle\s*{[^}]*left:\s*\$num-col;[^}]*width:\s*\$fold-col/);
+    // The number column has one width, set in the editor's theme, which the lines and fold rows read.
+    expect(css).toMatch(/\$num-col:\s*var\(--code-number-col\);/);
+    expect(css).toMatch(/\.code-fold-row\s*{[^}]*margin-left:\s*calc\(-1 \* #\{\$num-col\}\)/);
+    const theme = readFileSync('src/shared/ui/code-editor/extensions.ts', 'utf8');
+    expect(theme).toMatch(/'--code-number-col': '44px'/);
+    expect(theme).toMatch(/minWidth: 'var\(--code-number-col\)'/);
     unmount(host);
   });
 });
@@ -1116,6 +1125,24 @@ describe('BB-CODE-41: Choosing an object scrolls the code to its draw function',
       await frame();
       await settle();
       expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ top: followTop(host, 'void draw_Triangle()') }));
+    });
+  });
+
+  it('judges what is on screen by the code the student saw, before folds above them changed', async () => {
+    const { tri, square } = mockScene();
+    getState().selectObject(tri.id);
+    await withPanel(async (host, scrollTo) => {
+      // The window ends just above Square's fold row, so the student cannot see Square.
+      const squareRow = host.querySelector('.code-fold[data-block="draw:Square"]')!.closest('.code-fold-row')!;
+      scrollable(host).scrollTop = rowTop(host, squareRow) - 200;
+      scrollTo.mockClear();
+      // Choosing Square folds Triangle's function above the window. The lines below it move up, and
+      // Square's would land in the window before the editor puts the code back under the student.
+      getState().selectObject(square.id);
+      await settle();
+      await frame();
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      expect(scrollTo.mock.calls[0][0].top).toBe(followTop(host, 'void draw_Square()'));
     });
   });
 

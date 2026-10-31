@@ -65,6 +65,21 @@ function lineBox(view: EditorView, line: number) {
   return { top: view.documentPadding.top + block.top, height: block.height };
 }
 
+/**
+ * Whether any of `lines` is on screen as the view is laid out now. A folded line counts by the
+ * fold row that stands in for it; a line drawn nowhere does not count.
+ */
+function anyOnScreen(view: EditorView, lines: readonly number[]) {
+  const scroller = view.scrollDOM;
+  const viewTop = scroller.scrollTop;
+  const viewBottom = viewTop + scroller.clientHeight;
+  return lines.some((line) => {
+    if (line >= view.state.doc.lines) return false;
+    const box = lineBox(view, line);
+    return box.height > 0 && box.top + box.height > viewTop && box.top < viewBottom;
+  });
+}
+
 /** The smallest change that turns `doc` into `next`, so the view keeps its scroll and cursor. */
 function changeTo(doc: Text, next: string): ChangeSpec | null {
   const prev = doc.toString();
@@ -93,11 +108,13 @@ function moveLine(view: EditorView, dir: 1 | -1, extend: boolean) {
   return true;
 }
 
-/** A cursor left in lines that just folded away moves to the nearest drawn line above them. */
-function keepCursorShown(view: EditorView) {
-  const { state } = view;
-  const line = cursorLine(view);
-  if (isLineShown(state, line)) return;
+/**
+ * Where a cursor left in lines that just folded away goes: the nearest drawn line above them.
+ * Null when the cursor's line is drawn.
+ */
+function shownHead(state: EditorState): number | null {
+  const line = state.doc.lineAt(state.selection.main.head).number - 1;
+  if (isLineShown(state, line)) return null;
   let n = line;
   while (n >= 0 && !isLineShown(state, n)) n--;
   let head: number;
@@ -107,7 +124,7 @@ function keepCursorShown(view: EditorView) {
     while (n < state.doc.lines && !isLineShown(state, n)) n++;
     head = n < state.doc.lines ? state.doc.line(n + 1).from : 0;
   }
-  view.dispatch({ selection: { anchor: head } });
+  return head;
 }
 
 const CodeViewer = memo(function CodeViewer({
@@ -257,6 +274,20 @@ const CodeViewer = memo(function CodeViewer({
     onToggleFold: toggleFold,
   }), [rowList, marks, marksKey, matches, currentMatch, firedLines, firedSeq, explainable, explainedLine, notes, notesOn, baseId, toggleFold]);
 
+  // Whether the student could see the new selection's lines, or the fold rows standing in for them,
+  // before the selection redraws the code. It is read here, ahead of the update below, because
+  // folds that open or close above the student's place move the code, and the editor puts it back
+  // under them only in a later frame. Null until the view has drawn the props once.
+  const followKey = follow?.key ?? null;
+  const drawn = useRef(false);
+  const followSeen = useRef<boolean | null>(null);
+  useLayoutEffect(() => {
+    const view = viewRef.current;
+    followSeen.current = view && follow && drawn.current ? anyOnScreen(view, follow.lines) : null;
+    // Only a new selection asks; the lines are the latest the props give.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followKey]);
+
   // The text changes only when the program does; everything drawn around it changes with the props.
   const ariaKey = `${!!strip}:${showHint}`;
   const lastAria = useRef('false:false');
@@ -272,8 +303,13 @@ const CodeViewer = memo(function CodeViewer({
       lastAria.current = ariaKey;
       effects.push(ariaRef.current.reconfigure(ariaFor(!!strip, showHint)));
     }
-    view.dispatch({ ...(changes ? { changes } : {}), effects });
-    keepCursorShown(view);
+    const spec = { ...(changes ? { changes } : {}), effects };
+    // The cursor's move rides in the same transaction. A second one straight after would make the
+    // editor take its scroll anchor from the new layout, and folds that open or close above the
+    // student's place would then shift the code under them.
+    const head = shownHead(view.state.update(spec).state);
+    view.dispatch(head === null ? spec : { ...spec, selection: { anchor: head } });
+    drawn.current = true;
     // ariaFor reads only ids that never change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, input, ariaKey]);
@@ -346,7 +382,6 @@ const CodeViewer = memo(function CodeViewer({
 
   // A new selection brings its lines to the top when none of them is on screen. Only the key
   // starts this, so an edit that moves the lines leaves the student where they are.
-  const followKey = follow?.key ?? null;
   const followRef = useRef(follow);
   // Mirror the latest lines before the effect below reads them; it runs only when the key changes.
   useLayoutEffect(() => {
@@ -354,20 +389,16 @@ const CodeViewer = memo(function CodeViewer({
   });
   useEffect(() => {
     const target = followRef.current;
-    if (!target || target.hold || !viewRef.current || revealPending.current) return;
+    const seen = followSeen.current;
+    if (!target || target.hold || !viewRef.current || revealPending.current || seen) return;
     const raf = requestAnimationFrame(() => {
       const view = viewRef.current;
       if (!view) return;
       const shown = target.lines.filter((line) => line < view.state.doc.lines && isLineShown(view.state, line));
       if (shown.length === 0) return;
+      // On the first draw there is no earlier layout to ask, so the drawn lines answer.
+      if (seen === null && anyOnScreen(view, shown)) return;
       const scroller = view.scrollDOM;
-      const viewTop = scroller.scrollTop;
-      const viewBottom = viewTop + scroller.clientHeight;
-      const onScreen = shown.some((line) => {
-        const box = lineBox(view, line);
-        return box.top + box.height > viewTop && box.top < viewBottom;
-      });
-      if (onScreen) return;
       const top = Math.max(0, lineBox(view, shown[0]).top - REVEAL_PADDING);
       scroller.scrollTo({ top, left: 0, behavior: scrollBehavior(scroller.scrollTop, top, scroller.clientHeight, prefersReducedMotion()) });
     });

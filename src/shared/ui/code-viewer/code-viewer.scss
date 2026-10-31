@@ -1,7 +1,7 @@
 @use '../../styles/tokens' as *;
 
-// The line-number column (30px plus its 14px margin), then the fold column between it and the code.
-$num-col: 44px;
+// The line-number column, as the editor's theme sizes it, then the fold column between it and the code.
+$num-col: var(--code-number-col);
 $fold-col: 20px;
 
 // A changed value fades from amber on its wash back to plain ink.
@@ -134,16 +134,22 @@ $fold-col: 20px;
 // A changed line's number turns amber.
 .code-content .cm-lineNumbers .cm-gutterElement.is-changed { color: var(--value); }
 
-// Every line starts with the fold column, where an open block's ▾ sits.
+// Every line reaches back under its number, as the old rows did, so its background and Run's bar
+// span the whole row and a click on the number lands on the line. Then comes the fold column,
+// where an open block's ▾ sits, and then the code.
 .code-content .cm-editor .cm-line {
   position: relative;
-  padding-left: $fold-col;
+  margin-left: calc(-1 * #{$num-col});
+  padding-left: calc(#{$num-col} + #{$fold-col});
 }
+
+// The numbers are drawn over the lines and let clicks through to them.
+.code-content .cm-gutters { pointer-events: none; }
 
 // A fold row's number, in the line-number colour.
 .code-line__num {
   display: inline-block;
-  width: 30px;
+  width: calc(#{$num-col} - 14px);
   margin-right: 14px;
   text-align: right;
   color: var(--line-number);
@@ -214,7 +220,7 @@ $fold-col: 20px;
 // A fold row reaches back under the line numbers, so its number sits in their column and its ▸ in the fold column.
 .code-fold-row {
   position: relative;
-  margin-left: -$num-col;
+  margin-left: calc(-1 * #{$num-col});
 }
 
 .code-fold {
@@ -265,7 +271,7 @@ $fold-col: 20px;
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 0;
+  left: $num-col;
   width: $fold-col;
   padding: 0;
   border: 0;
@@ -284,11 +290,14 @@ $fold-col: 20px;
 // The panel's only full-line background: the line being explained.
 .cm-line.is-explained { background: var(--paper-raised); }
 
-// Notes: dim words aligned under the code they describe, no rule or marker.
+// Notes: dim words aligned under the code they describe, no rule or marker. The note sits 1px up
+// and keeps 3px below it. Its room is padding, not margin, because the editor measures each
+// note's box to place the line numbers after it.
 .code-note {
   display: block;
-  padding-left: $fold-col;
-  margin: -1px 0 3px;
+  position: relative;
+  top: -1px;
+  padding: 0 0 2px $fold-col;
   white-space: pre;
   font-family: $font-ui;
   font-size: var(--text-xs);

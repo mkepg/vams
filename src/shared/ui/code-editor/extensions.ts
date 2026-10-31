@@ -54,6 +54,8 @@ export function glNameDecorations(): Extension {
 export function vamsEditorTheme(): Extension {
   return EditorView.theme({
     '&': {
+      // The line-number column's width. Anything drawn beside the numbers reads it from here.
+      '--code-number-col': '44px',
       height: '100%',
       color: 'var(--code-ink)',
       backgroundColor: 'transparent',
@@ -75,9 +77,9 @@ export function vamsEditorTheme(): Extension {
       border: 'none',
       color: 'var(--line-number)',
     },
-    // 30px of number, then 14px of room before the code.
+    // The number, then 14px of room before the code.
     '.cm-lineNumbers .cm-gutterElement': {
-      minWidth: '44px',
+      minWidth: 'var(--code-number-col)',
       padding: '0 14px 0 0',
       textAlign: 'right',
     },
