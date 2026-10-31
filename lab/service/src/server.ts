@@ -24,6 +24,9 @@ export const MAX_SOURCE_BYTES = 200 * 1024;
 export const CONCURRENCY = 2;
 /** The X-Lab-Diagnostics header's largest value. */
 export const DIAGNOSTICS_HEADER_BYTES = 8 * 1024;
+/** How long a client may take to send its headers, and its whole request. */
+export const HEADERS_TIMEOUT_MS = 10_000;
+export const REQUEST_TIMEOUT_MS = 30_000;
 
 export type Admission =
   | { ok: true }
@@ -79,18 +82,29 @@ const toBase64Url = (s: string) => Buffer.from(s, 'utf8').toString('base64url');
 export function encodeDiagnostics(diagnostics: Diagnostic[], max = DIAGNOSTICS_HEADER_BYTES): string {
   const full = toBase64Url(JSON.stringify(diagnostics));
   if (full.length <= max) return full;
-  for (let keep = diagnostics.length - 1; keep >= 0; keep--) {
+
+  const noteFor = (keep: number): Diagnostic => {
     const left = diagnostics.length - keep;
-    const kept = diagnostics.slice(0, keep);
-    const note: Diagnostic = {
+    return {
       file: MAIN_FILE,
-      line: kept.at(-1)?.line ?? 1,
+      line: diagnostics[keep - 1]?.line ?? 1,
       col: 1,
       severity: 'note',
       message: `${left} more message${left === 1 ? ' was' : 's were'} left out.`,
     };
-    const value = toBase64Url(JSON.stringify([...kept, note]));
-    if (value.length <= max) return value;
+  };
+  const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value), 'utf8');
+  // base64url has no padding: 4 characters for every 3 bytes, rounded up.
+  const encoded = (n: number) => Math.ceil((n * 4) / 3);
+
+  // before[k] is the size of the first k diagnostics as JSON, with the commas after them.
+  const before = [0];
+  for (const d of diagnostics) before.push(before[before.length - 1] + bytes(d) + 1);
+  for (let keep = diagnostics.length - 1; keep >= 0; keep--) {
+    // "[", the kept diagnostics and their commas, the note, "]".
+    if (encoded(before[keep] + bytes(noteFor(keep)) + 2) <= max) {
+      return toBase64Url(JSON.stringify([...diagnostics.slice(0, keep), noteFor(keep)]));
+    }
   }
   return toBase64Url('[]');
 }
@@ -111,6 +125,7 @@ function readBody(req: IncomingMessage, max: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
+    let ended = false;
     req.on('data', (chunk: Buffer) => {
       size += chunk.length;
       if (size > max) {
@@ -120,8 +135,15 @@ function readBody(req: IncomingMessage, max: number): Promise<string> {
       }
       chunks.push(chunk);
     });
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    req.on('end', () => {
+      ended = true;
+      resolve(Buffer.concat(chunks).toString('utf8'));
+    });
     req.on('error', reject);
+    req.on('aborted', () => reject(new Error('The client went away.')));
+    req.on('close', () => {
+      if (!ended) reject(new Error('The client went away.'));
+    });
   });
 }
 
@@ -169,13 +191,19 @@ export function createService(options: ServiceOptions): Server {
       return sendJson(res, 429, { limit: admission.limit });
     }
 
+    // A client that goes away stops its compile, so the slot frees at once.
+    const abort = new AbortController();
+    res.on('close', () => {
+      if (!res.writableFinished) abort.abort();
+    });
     const release = await slots.acquire();
-    let result: CompileResult;
+    let result: CompileResult | null = null;
     try {
-      result = await compile(source, limits);
+      if (!abort.signal.aborted) result = await compile(source, { ...limits, signal: abort.signal });
     } finally {
       release();
     }
+    if (!result || abort.signal.aborted) return;
     if (!result.ok) return sendJson(res, 422, { diagnostics: result.diagnostics });
 
     const gz = gzipSync(result.module);
@@ -189,12 +217,15 @@ export function createService(options: ServiceOptions): Server {
     res.end(gz);
   };
 
-  return createServer((req, res) => {
+  const server = createServer((req, res) => {
     handle(req, res).catch(() => {
       if (!res.headersSent) sendJson(res, 500, { error: 'internal' });
       else res.destroy();
     });
   });
+  server.headersTimeout = HEADERS_TIMEOUT_MS;
+  server.requestTimeout = REQUEST_TIMEOUT_MS;
+  return server;
 }
 
 function main(): void {

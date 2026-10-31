@@ -14,8 +14,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import type { AddressInfo } from 'node:net';
-import type { Server } from 'node:http';
-import { rewriteDiagnostics, scrubPaths, type Diagnostic } from '../../lab/service/src/diagnostics.ts';
+import { request as httpRequest, type Server } from 'node:http';
+import { includeTrace, rewriteDiagnostics, scrubPaths, type Diagnostic } from '../../lab/service/src/diagnostics.ts';
 import { sideFlags, traceIsInside } from '../../lab/service/src/compile.ts';
 import {
   createService,
@@ -192,6 +192,17 @@ describe('WB-LAB-02: Notes inside the bundled headers are dropped, and no messag
     expect(traceIsInside(['/lab/include/../../etc/passwd'], paths)).toBe(false);
     expect(traceIsInside(['/lab/includes/x.h'], paths)).toBe(false);
   });
+
+  it('reads every line of the header list as a path, and refuses any that is not absolute', () => {
+    const paths = { include: '/lab/include', sysroot: '/lab/sysroot', llvmBin: '/opt/llvm/bin' };
+    const trace = includeTrace('. /lab/include/GL/gl.h\n.. GL/glu.h\n... ./main.cpp\nmain.cpp:1:1: error: x\n');
+    expect(trace).toEqual(['/lab/include/GL/gl.h', 'GL/glu.h', './main.cpp']);
+    expect(traceIsInside(trace.slice(0, 1), paths)).toBe(true);
+    expect(traceIsInside(['GL/glu.h'], paths)).toBe(false);
+    expect(traceIsInside(['./main.cpp'], paths)).toBe(false);
+    expect(traceIsInside(['lab/include/GL/gl.h'], paths)).toBe(false);
+    expect(rewriteDiagnostics('.. GL/glu.h\n').length).toBe(0);
+  });
 });
 
 /** Expands the variable assignments in a POSIX sh script, the way sh would for these simple forms. */
@@ -296,6 +307,67 @@ describe('WB-LAB-14: POST /compile follows the HTTP contract, two compiles at a 
     expect(back.slice(0, -1)).toEqual(many.slice(0, back.length - 1));
     expect(note.message).toBe(`${many.length - (back.length - 1)} more messages were left out.`);
     expect(encodeDiagnostics(many.slice(0, 2))).toBe(Buffer.from(JSON.stringify(many.slice(0, 2))).toString('base64url'));
+  });
+
+  it('keeps as many diagnostics as fit, in time linear in their number', () => {
+    const make = (n: number): Diagnostic[] =>
+      Array.from({ length: n }, (_, i) => ({
+        file: 'main.cpp', line: i + 1, col: 1, severity: 'warning', message: `unused variable 'ñ_${i}'`.repeat(1 + (i % 3)),
+      }));
+    // Fits exactly: the largest prefix whose encoding, with the note, is within 8 KB.
+    const some = make(400);
+    const value = encodeDiagnostics(some);
+    const back = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as Diagnostic[];
+    const kept = back.length - 1;
+    const encoded = (k: number) => {
+      const left = some.length - k;
+      const note = { file: 'main.cpp', line: some[k - 1]?.line ?? 1, col: 1, severity: 'note', message: `${left} more message${left === 1 ? ' was' : 's were'} left out.` };
+      return Buffer.from(JSON.stringify([...some.slice(0, k), note])).toString('base64url');
+    };
+    expect(value).toBe(encoded(kept));
+    expect(value.length).toBeLessThanOrEqual(DIAGNOSTICS_HEADER_BYTES);
+    expect(encoded(kept + 1).length).toBeGreaterThan(DIAGNOSTICS_HEADER_BYTES);
+
+    const started = performance.now();
+    const big = encodeDiagnostics(make(5000));
+    expect(performance.now() - started).toBeLessThan(500);
+    expect(big.length).toBeLessThanOrEqual(DIAGNOSTICS_HEADER_BYTES);
+  });
+
+  it('sets explicit limits for reading a request', () => {
+    const s = createService({ secret: SECRET });
+    expect(s.headersTimeout).toBe(10_000);
+    expect(s.requestTimeout).toBe(30_000);
+  });
+
+  it('stops a compile whose client has gone, so its slot frees at once', async () => {
+    let started = 0;
+    const stopped: boolean[] = [];
+    const url = await start({
+      concurrency: 1,
+      compile: async (_source, opts) => {
+        started++;
+        if (started === 1) {
+          // The first compile runs until it is told to stop.
+          await new Promise<void>((go) => opts.signal?.addEventListener('abort', () => go()));
+          stopped.push(opts.signal?.aborted ?? false);
+          return { ok: false, diagnostics: [], ms: 1 };
+        }
+        return okResult();
+      },
+    });
+    const gone = httpRequest(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Lab-Secret': SECRET, 'X-Lab-Client-IP': '203.0.113.7' },
+    });
+    gone.on('error', () => {});
+    gone.end(JSON.stringify(request));
+    await expect.poll(() => started).toBe(1);
+    gone.destroy();
+    await expect.poll(() => stopped).toEqual([true]);
+    const next = await post(url, request);
+    expect(next.status).toBe(200);
+    expect(started).toBe(2);
   });
 
   it('answers a compile error with 422 and the diagnostics', async () => {

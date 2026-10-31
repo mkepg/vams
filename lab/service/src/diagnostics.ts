@@ -27,7 +27,8 @@ const LOCATED = /^(.+?):(\d+):(\d+): (fatal error|error|warning|note): (.*)$/;
 const UNLOCATED = /^(?:(?:clang(?:\+\+)?|wasm-ld|llvm-objcopy)(?:-\d+)?: )?(fatal error|error|warning): (.*)$/;
 const INCLUDED_FROM = /^In file included from (.+?):(\d+):$/;
 const ALSO_INCLUDED_FROM = /^\s+from (.+?):(\d+):$/;
-const TRACE = /^\.+ (\/.*)$/;
+/** A line of clang's -H list, whatever path it names. */
+const TRACE = /^\.+ (.*)$/;
 
 const UNAVAILABLE = /^'([A-Za-z_]\w*)' is unavailable: (\1 isn't part of VAMS Lab's OpenGL\..*)$/;
 const UNDECLARED = /^use of undeclared identifier '([A-Za-z_]\w*)'(?:; did you mean .*)?$/;

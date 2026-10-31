@@ -47,8 +47,13 @@ export const STANDARD_HEADERS = [
   'wchar.h', 'wctype.h',
 ] as const;
 
-/** The one header a program may include in quotes, as the course's programs do. */
+/** The header the course's programs include in quotes. Other bundled headers in quotes are written in <>. */
 export const QUOTED_HEADER = 'stb_image.h';
+
+/** MSVC pragmas a lab PC's MinGW ignores. The service blanks them, as if they were not there. */
+const IGNORED_PRAGMAS = new Set(['comment', 'warning']);
+
+const BUNDLED = new Set<string>(BUNDLED_HEADERS);
 
 /** Directives clang may see. Any other is refused, #line, #import and #embed among them. */
 const DIRECTIVES = new Set([
@@ -138,9 +143,18 @@ class Reader {
   }
 }
 
-function scan(src: string): { includes: { start: number; chars: number[]; name: string }[] } {
+interface Include {
+  /** Positions of the header name's characters. */
+  chars: number[];
+  name: string;
+  /** Positions of the quotes, for a bundled header written in quotes. */
+  quotes?: [number, number];
+}
+
+function scan(src: string): { includes: Include[]; blanks: [number, number][] } {
   const r = new Reader(src);
-  const includes: { start: number; chars: number[]; name: string }[] = [];
+  const includes: Include[] = [];
+  const blanks: [number, number][] = [];
   let p = 0;
   let lineStart = true;
   if (src.charCodeAt(0) === 0xfeff) p = 1;
@@ -238,6 +252,22 @@ function scan(src: string): { includes: { start: number; chars: number[]; name: 
     return end < 0 ? null : end + delim.length + 2;
   };
 
+  /** Reads a directive's tokens to its end: the next newline outside a comment. */
+  const directiveEnd = (q: number): number => {
+    for (;;) {
+      q = r.at(q);
+      if (q >= src.length || r.newline(q)) return q;
+      const cm = comment(q);
+      if (cm) {
+        q = cm.end;
+      } else if (src[q] === '"' || src[q] === "'") {
+        q = quoted(q, src[q]);
+      } else {
+        q++;
+      }
+    }
+  };
+
   /** Reads to the end of the logical line, as clang does for #error and #warning. */
   const toLineEnd = (q: number): number => {
     for (;;) {
@@ -259,6 +289,11 @@ function scan(src: string): { includes: { start: number; chars: number[]; name: 
     if (name === 'pragma') {
       const arg = ident(skipInLine(q));
       const rest = arg ? skipInLine(arg.end) : q;
+      if (arg && IGNORED_PRAGMAS.has(arg.name) && src[rest] === '(') {
+        const end = directiveEnd(rest);
+        blanks.push([hash, end]);
+        return end;
+      }
       if (!arg || arg.name !== 'once' || !(rest >= src.length || r.newline(rest))) {
         throw new Refusal(hash, 'Only #pragma once is available in VAMS Lab.');
       }
@@ -292,15 +327,17 @@ function scan(src: string): { includes: { start: number; chars: number[]; name: 
     const known = HEADERS.get(name.toLowerCase());
     if (open === '"') {
       if (known === QUOTED_HEADER) {
-        includes.push({ start: q, chars, name: known });
+        includes.push({ chars, name: known });
+      } else if (known && BUNDLED.has(known)) {
+        includes.push({ chars, name: known, quotes: [q, e] });
       } else if (known) {
         throw new Refusal(q, `Write #include <${known}> in VAMS Lab.`);
       } else {
-        throw new Refusal(q, `"${short(name)}" isn't one of VAMS Lab's headers. The one header in quotes is "${QUOTED_HEADER}".`);
+        throw new Refusal(q, `"${short(name)}" isn't one of VAMS Lab's headers.`);
       }
     } else {
       if (!known) throw new Refusal(q, `<${short(name)}> isn't one of VAMS Lab's headers.`);
-      includes.push({ start: q, chars, name: known });
+      includes.push({ chars, name: known });
     }
     return e + 1;
   };
@@ -375,7 +412,7 @@ function scan(src: string): { includes: { start: number; chars: number[]; name: 
     if (c.charCodeAt(0) > 127) throw new Refusal(p, 'This character can be used only in a string or a comment.');
     p++;
   }
-  return { includes };
+  return { includes, blanks };
 }
 
 function short(name: string): string {
@@ -400,17 +437,28 @@ export function position(src: string, offset: number): { line: number; col: numb
 
 /**
  * Checks every include and directive in a student's file. When the file
- * passes, `source` is the same text with each header name in the spelling
- * lab/include uses, so <Windows.h> finds windows.h as it does on Windows.
+ * passes, `source` is what clang compiles: the same text, with the same lines
+ * and columns, where
+ * - each header name has the spelling lab/include uses, so <Windows.h> finds
+ *   windows.h as it does on Windows;
+ * - a bundled header in quotes, such as "GL/glut.h", is written in <>;
+ * - #pragma comment(...) and #pragma warning(...) are spaces.
  */
 export function checkIncludes(source: string): IncludeCheck {
   try {
-    const { includes } = scan(source);
+    const { includes, blanks } = scan(source);
     const out = source.split('');
     for (const inc of includes) {
       inc.chars.forEach((at, i) => {
         out[at] = inc.name[i] ?? out[at];
       });
+      if (inc.quotes) {
+        out[inc.quotes[0]] = '<';
+        out[inc.quotes[1]] = '>';
+      }
+    }
+    for (const [start, end] of blanks) {
+      for (let i = start; i < end; i++) if (out[i] !== '\n' && out[i] !== '\r') out[i] = ' ';
     }
     return { ok: true, source: out.join('') };
   } catch (e) {

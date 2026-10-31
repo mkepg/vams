@@ -17,6 +17,7 @@ import { randomBytes } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { gunzipSync } from 'node:zlib';
+import { request } from 'node:http';
 import { BUNDLED_HEADERS, checkIncludes, STANDARD_HEADERS } from '../../lab/service/src/includes.ts';
 import { labRequest } from '../helpers/lab-http';
 
@@ -59,13 +60,40 @@ describe('SEC-LAB-01: Only the bundled and standard headers can be included, by 
   });
 
   it.each([
-    ['#include "myheader.h"', '"myheader.h" isn\'t one of VAMS Lab\'s headers. The one header in quotes is "stb_image.h".'],
-    ['#include "main.cpp"', '"main.cpp" isn\'t one of VAMS Lab\'s headers. The one header in quotes is "stb_image.h".'],
-    ['#include "GL/glut.h"', 'Write #include <GL/glut.h> in VAMS Lab.'],
+    ['#include "myheader.h"', '"myheader.h" isn\'t one of VAMS Lab\'s headers.'],
+    ['#include "main.cpp"', '"main.cpp" isn\'t one of VAMS Lab\'s headers.'],
+    ['#include "GL/glutt.h"', '"GL/glutt.h" isn\'t one of VAMS Lab\'s headers.'],
     ['#include "iostream"', 'Write #include <iostream> in VAMS Lab.'],
   ])('refuses the quoted include %s', (line, message) => {
     const r = refused(line);
     expect(r).toEqual({ ok: false, line: 1, col: 10, message });
+  });
+
+  it('accepts a quoted bundled header and writes it in <>, as a lab PC finds it either way', () => {
+    const source = [
+      '#include "GL/glew.h"',
+      '#include "GL/glut.h"',
+      '  #include "GL/gl.h" // core',
+      '#include "GL/freeglut.h"',
+      '#include "Windows.h"',
+      '#include "conio.h"',
+      '#include "stb_image.h"',
+      'int x;',
+    ].join('\n');
+    const r = checkIncludes(source);
+    expect(r).toEqual({
+      ok: true,
+      source: [
+        '#include <GL/glew.h>',
+        '#include <GL/glut.h>',
+        '  #include <GL/gl.h> // core',
+        '#include <GL/freeglut.h>',
+        '#include <windows.h>',
+        '#include <conio.h>',
+        '#include "stb_image.h"',
+        'int x;',
+      ].join('\n'),
+    });
   });
 
   it.each([
@@ -138,8 +166,8 @@ describe('SEC-LAB-01: Only the bundled and standard headers can be included, by 
 
   it('writes every refusal without the banned wording', () => {
     const messages = [
-      '#include "/etc/passwd"', '#include "x.h"', '#include "GL/glut.h"', '#include <x.h>', '#include X',
-      '#include_next <x.h>', '#embed "x"', '#pragma GCC poison x', '#if __has_include(<x.h>)\n#endif', '#line 1',
+      '#include "/etc/passwd"', '#include "x.h"', '#include "iostream"', '#include <x.h>', '#include X',
+      '#include_next <x.h>', '#embed "x"', '#pragma GCC poison x', '#if __has_include(<x.h>)\n#endif', '#line 1', '#pragma comment',
       '# 1 "x"', 'int \\u0061;', '\0', '#include <x.h',
     ].map((s) => refused(s).message);
     for (const m of messages) expect(m).not.toMatch(LANGUAGE_DISCIPLINE);
@@ -187,12 +215,14 @@ describe('SEC-LAB-02: Includes built from macros, file probes and pragmas are re
 
   it.each([
     ['#pragma GCC dependency "/etc/passwd"'],
-    ['#pragma comment(lib, "opengl32.lib")'],
     ['#pragma clang system_header'],
     ['#pragma once extra'],
     ['#pragma'],
     ['  #  pragma   message("hi")'],
-  ])('refuses %s, which is not #pragma once', (line) => {
+    ['#pragma comment'],
+    ['#pragma warning disable'],
+    ['#pragma comments(lib, "x.lib")'],
+  ])('refuses %s, which is not #pragma once, comment(...) or warning(...)', (line) => {
     const r = refused(`\n${line}\n`);
     expect(r.line).toBe(2);
     expect(r.message).toBe('Only #pragma once is available in VAMS Lab.');
@@ -200,6 +230,32 @@ describe('SEC-LAB-02: Includes built from macros, file probes and pragmas are re
 
   it('allows #pragma once, with spaces and a comment', () => {
     expect(checkIncludes('#pragma once\n  #  pragma  once // header guard\n#pragma /* c */ once\n').ok).toBe(true);
+  });
+
+  it.each([
+    ['', '#pragma comment(lib, "opengl32.lib")', '\nint x;'],
+    ['', '#pragma warning(disable: 4996)', '\nint x;'],
+    ['  ', '#  pragma  warning ( push )', ''],
+    ['', '%:pragma comment(lib, "glu32.lib")', '\n'],
+    ['/* Windows */ ', '#pragma comment(lib, "glew32.lib")', '\nint x;'],
+    ['int a;\n', '#pragma comment(lib, \\\n  "freeglut.lib")', '\nint x;'],
+    ['', '#pragma comment(lib, \\  \r\n  "freeglut.lib")', '\r\nint x;'],
+    ['', '#pragma comment(lib, /* a\n b */ "x.lib") // done', '\nint x;'],
+  ])('blanks the MSVC directive in %j%j, keeping its lines and columns', (before, directive, after) => {
+    const blanked = directive.replace(/[^\r\n]/g, ' ');
+    expect(checkIncludes(before + directive + after)).toEqual({ ok: true, source: before + blanked + after });
+  });
+
+  it('still checks the line after a blanked #pragma comment', () => {
+    expect(at('#pragma comment(lib, "opengl32.lib")\n#include "/etc/passwd"')).toEqual([2, 10]);
+    expect(at('#pragma warning(disable: 4996)\n__has_include(<x>)')).toEqual([2, 1]);
+  });
+
+  it.each([
+    ['_Pragma("comment(lib, \\"x.lib\\")")', '_Pragma'],
+    ['__pragma(warning(disable: 4996))', '__pragma'],
+  ])('refuses the pragma operator in %s', (source, name) => {
+    expect(refused(source).message).toBe(`${name} isn't available in VAMS Lab.`);
   });
 
   it.each([
@@ -346,6 +402,28 @@ describe.skipIf(!DOCKER)('SEC-LAB-03: Against the built image, probes are refuse
     expect(took).toBeLessThan(15_000);
   }, 30_000);
 
+  it('kills the compile when its client disconnects, and serves the next one', async () => {
+    const clangs = () =>
+      Number(docker('exec', container, 'sh', '-c', 'for p in /proc/[0-9]*; do tr "\\0" " " < $p/cmdline 2>/dev/null; echo; done | grep -c "^/opt/llvm/bin/clang" || true'));
+    const source = 'constexpr long spin(long k) { long s = 0; for (long i = 0; i < 300000; i++) s += (i ^ k) & 7; return s; }\n' +
+      'template <int N> struct Spin { static constexpr long value = spin(N) + Spin<N - 1>::value; };\n' +
+      'template <> struct Spin<0> { static constexpr long value = 0; };\nlong total = Spin<1000>::value;\n';
+    const gone = request(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Lab-Secret': secret, 'X-Lab-Client-IP': '203.0.113.7' },
+    });
+    gone.on('error', () => {});
+    gone.end(JSON.stringify({ source, visitor: 'sec-lab-03' }));
+    await expect.poll(clangs, { timeout: 5_000, interval: 100 }).toBe(1);
+    gone.destroy();
+    const left = Date.now();
+    await expect.poll(clangs, { timeout: 3_000, interval: 100 }).toBe(0);
+    expect(Date.now() - left).toBeLessThan(3_000);
+    await expect.poll(() => docker('exec', container, 'sh', '-c', 'ls -A /tmp'), { timeout: 3_000, interval: 100 }).toBe('');
+    const next = await post('int main() { return 0; }\n');
+    expect(next.status).toBe(200);
+  }, 30_000);
+
   it('caps the messages of a 2 MB template blow-up', async () => {
     const nest = (n: number): string => (n === 0 ? '0' : `twice(${nest(n - 1)})`);
     const source = [
@@ -375,6 +453,22 @@ describe.skipIf(!DOCKER)('SEC-LAB-03: Against the built image, probes are refuse
     expect(ok.status).toBe(200);
     expect([...ok.bytes.subarray(0, 4)]).toEqual([0, 0x61, 0x73, 0x6d]);
     expect(ok.headers['content-type']).toBe('application/wasm');
+
+    // A lab PC's spellings: a bundled header in quotes, and MSVC pragmas MinGW ignores.
+    const windows = await post([
+      '#include "GL/glut.h"',
+      '#include "Windows.h"',
+      '#pragma comment(lib, "opengl32.lib")',
+      '#pragma warning(disable: \\',
+      '  4996)',
+      'void display() { glClear(GL_COLOR_BUFFER_BIT); Sleep(1); glFlush(); }',
+      'int main(int argc, char **argv) { glutInit(&argc, argv); glutCreateWindow("t"); glutDisplayFunc(display); glutMainLoop(); }',
+      'int oops = undeclared_name;',
+    ].join('\n'));
+    expect(windows.status).toBe(422);
+    expect(windows.json.diagnostics).toEqual([
+      { file: 'main.cpp', line: 8, col: 12, severity: 'error', message: "use of undeclared identifier 'undeclared_name'" },
+    ]);
 
     const bad = await post([...program.slice(0, 3), 'void reshape() {', '  glEnable(GL_DEPTH_TEST);', '  gluPerspective(45, 1, 0.1, 10);', '}'].join('\n'));
     expect(bad.status).toBe(422);

@@ -18,6 +18,8 @@ import { includeTrace, MAIN_FILE, rewriteDiagnostics, type Diagnostic } from './
 export interface CompileOptions {
   timeoutMs: number;
   outCapBytes: number;
+  /** Aborted when nobody waits for the result any more, as when the client has gone. */
+  signal?: AbortSignal;
 }
 
 export type CompileResult =
@@ -84,6 +86,7 @@ export function traceIsInside(trace: string[], paths = LAB_PATHS): boolean {
     (r) => posix.normalize(r).replace(/\/?$/, '/'),
   );
   return trace.every((p) => {
+    if (!posix.isAbsolute(p)) return false;
     const n = posix.normalize(p);
     return roots.some((r) => n.startsWith(r));
   });
@@ -95,6 +98,7 @@ interface Run {
   trace: string[];
   timedOut: boolean;
   capped: boolean;
+  aborted: boolean;
 }
 
 /** Output a run may still write before it is cut off: the budget is shared by every step of a compile. */
@@ -103,7 +107,7 @@ interface Budget {
   bytesLeft: number;
 }
 
-function run(tool: string, args: string[], cwd: string, budget: Budget): Promise<Run> {
+function run(tool: string, args: string[], cwd: string, budget: Budget, signal?: AbortSignal): Promise<Run> {
   return new Promise((resolve, reject) => {
     const child = spawn(
       '/bin/sh',
@@ -115,6 +119,7 @@ function run(tool: string, args: string[], cwd: string, budget: Budget): Promise
     const trace: string[] = [];
     let timedOut = false;
     let capped = false;
+    let aborted = false;
     let traceBytes = 0;
 
     const stop = () => {
@@ -128,6 +133,16 @@ function run(tool: string, args: string[], cwd: string, budget: Budget): Promise
       timedOut = true;
       stop();
     }, Math.max(0, budget.deadline - Date.now()));
+    const onAbort = () => {
+      aborted = true;
+      stop();
+    };
+    if (signal?.aborted) onAbort();
+    else signal?.addEventListener('abort', onAbort, { once: true });
+    const settle = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
+    };
 
     const take = (chunk: string) => {
       if (capped) return;
@@ -160,23 +175,26 @@ function run(tool: string, args: string[], cwd: string, budget: Budget): Promise
     child.stdout.on('data', take);
     child.stderr.on('data', take);
     child.on('error', (e) => {
-      clearTimeout(timer);
+      settle();
       reject(e);
     });
     child.on('close', (code) => {
-      clearTimeout(timer);
+      settle();
+      // Whatever the tool started in its group goes with it.
+      stop();
       if (capped && pending) {
         // Keep the start of the line that passed the cap, so its place in main.cpp still shows.
         kept += `${pending.slice(0, 2000)}…\n`;
       } else if (pending && !includeTrace(pending).length) {
         kept += pending;
       }
-      resolve({ code, output: kept, trace, timedOut, capped });
+      resolve({ code, output: kept, trace, timedOut, capped, aborted });
     });
   });
 }
 
 function stopped(r: Run, opts: CompileOptions): Diagnostic | null {
+  if (r.aborted) return fail(1, 1, 'The compile was stopped.');
   if (r.timedOut) {
     const s = opts.timeoutMs / 1000;
     return fail(1, 1, `The compile took longer than ${s} second${s === 1 ? '' : 's'}, so it was stopped.`);
@@ -195,6 +213,9 @@ export async function compile(source: string, opts: CompileOptions): Promise<Com
   const checked = checkIncludes(source);
   if (!checked.ok) return { ok: false, diagnostics: [fail(checked.line, checked.col, checked.message)], ms: ms() };
 
+  const gone = (): CompileResult => ({ ok: false, diagnostics: [fail(1, 1, 'The compile was stopped.')], ms: ms() });
+  if (opts.signal?.aborted) return gone();
+
   const dir = await mkdtemp(join(tmpdir(), 'vams-'));
   try {
     await writeFile(join(dir, MAIN_FILE), checked.source);
@@ -202,7 +223,7 @@ export async function compile(source: string, opts: CompileOptions): Promise<Com
     const budget: Budget = { deadline: Date.now() + opts.timeoutMs, bytesLeft: opts.outCapBytes };
     const bin = (name: string) => posix.join(LAB_PATHS.llvmBin, name);
 
-    const cc = await run(bin('clang++'), [...flags.cc, ...REPORT_FLAGS, '-c', MAIN_FILE, '-o', 'main.o'], dir, budget);
+    const cc = await run(bin('clang++'), [...flags.cc, ...REPORT_FLAGS, '-c', MAIN_FILE, '-o', 'main.o'], dir, budget, opts.signal);
     if (!traceIsInside(cc.trace)) {
       return { ok: false, diagnostics: [fail(1, 1, 'This program reaches a file outside VAMS Lab\'s headers.')], ms: ms() };
     }
@@ -220,7 +241,7 @@ export async function compile(source: string, opts: CompileOptions): Promise<Com
       ['wasm-ld', [...flags.ld, 'main.o', '-o', 'main.wasm']],
       ['llvm-objcopy', ['main.wasm', 'main.wasm', ...flags.strip]],
     ] as const) {
-      const step = await run(bin(tool), [...args], dir, budget);
+      const step = await run(bin(tool), [...args], dir, budget, opts.signal);
       const found = rewriteDiagnostics(step.output);
       const halt = stopped(step, opts);
       if (halt) return { ok: false, diagnostics: [...diagnostics, ...found, halt], ms: ms() };
