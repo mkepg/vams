@@ -18,5 +18,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["lab/service/src"]
+  "include": ["lab/service/src", "lab/billing-guard"]
 }
