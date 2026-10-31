@@ -37,6 +37,6 @@ export async function onRequestPost({
     const value = upstream.headers.get(name);
     if (value !== null) headers.set(name, value);
   }
-  // The service gzips the wasm itself; encodeBody keeps the runtime from encoding it a second time.
-  return new Response(upstream.body, { status: upstream.status, headers, encodeBody: 'manual' } as ResponseInit);
+  // The service gzips the wasm itself; the body and its Content-Encoding go to the browser exactly as sent.
+  return new Response(upstream.body, { status: upstream.status, headers });
 }
