@@ -24,6 +24,9 @@ tests/
 │   │                                generator's source can emit.
 │   ├── lab-http.ts               ← A plain HTTP request for the Lab
 │   │                                compile service's tests.
+│   ├── fake-firestore.ts         ← Firestore's REST API and the metadata
+│   │                                token as a fake fetch, for the Lab's
+│   │                                limits.
 │   └── image-compare.ts          ← PNG reading and writing, and the render
 │                                    fidelity rule (edge pixels may differ,
 │                                    the rest within 2 per channel).
@@ -137,8 +140,11 @@ tests/
 │   ├── image-compare.test.ts             (WB-FID-*: the battery's image rule)
 │   ├── british-spelling.test.ts          (WB-SPELL-*: British spelling in every
 │   │                                        string students read)
-│   └── lab-service.test.ts               (WB-LAB-*: the Lab compile service's
-│                                            diagnostics, flags and HTTP contract)
+│   ├── lab-service.test.ts               (WB-LAB-*: the Lab compile service's
+│   │                                        diagnostics, flags and HTTP contract)
+│   └── lab-limits.test.ts                (WB-LAB-03 to 09: the compile service's
+│                                            rate limits, daily ceiling and
+│                                            monthly counter)
 ├── security/                     ← What a Lab program can reach on the
 │   │                                compile server.
 │   └── lab-includes.test.ts              (SEC-LAB-*: include and directive

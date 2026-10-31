@@ -21,9 +21,9 @@ import {
   createService,
   DIAGNOSTICS_HEADER_BYTES,
   encodeDiagnostics,
-  type Gate,
   type ServiceOptions,
 } from '../../lab/service/src/server.ts';
+import type { Reservation, UsageStore } from '../../lab/service/src/usage.ts';
 import type { CompileResult } from '../../lab/service/src/compile.ts';
 import { labRequest } from '../helpers/lab-http';
 
@@ -380,19 +380,87 @@ describe('WB-LAB-14: POST /compile follows the HTTP contract, two compiles at a 
   });
 
   it.each([
-    [{ ok: false, resting: 'month' } as const, 503, { resting: 'month' }],
-    [{ ok: false, resting: 'day' } as const, 503, { resting: 'day' }],
-    [{ ok: false, limit: 'visitor' } as const, 429, { limit: 'visitor' }],
-    [{ ok: false, limit: 'ip' } as const, 429, { limit: 'ip' }],
-  ])('answers %o with %i', async (admission, status, body) => {
+    [{ ok: false, reason: 'month' } as const, 503, { resting: 'month' }],
+    [{ ok: false, reason: 'day' } as const, 503, { resting: 'day' }],
+    [{ ok: false, reason: 'visitor' } as const, 429, { limit: 'visitor' }],
+    [{ ok: false, reason: 'ip' } as const, 429, { limit: 'ip' }],
+  ])('answers %o with %i', async (reservation, status, body) => {
     let compiled = 0;
+    let settled = 0;
     const seen: { visitor: string; ip: string }[] = [];
-    const gate: Gate = async (r) => (seen.push(r), admission);
-    const url = await start({ gate, compile: async () => (compiled++, okResult()) });
+    const usage: UsageStore = {
+      reserve: async ({ visitor, ip }) => (seen.push({ visitor, ip }), reservation),
+      settle: async () => void settled++,
+    };
+    const url = await start({ usage, compile: async () => (compiled++, okResult()) });
     const res = await post(url, request);
     expect(res.status).toBe(status);
     expect(JSON.parse(res.text)).toEqual(body);
     expect(seen).toEqual([{ visitor: 'v-123', ip: '203.0.113.7' }]);
+    expect(compiled).toBe(0);
+    expect(settled).toBe(0);
+  });
+
+  it("reserves before compiling, and settles after with the response's bytes and the compile's ms", async () => {
+    const events: string[] = [];
+    const settles: { bytes: number; ms: number }[] = [];
+    const usage: UsageStore = {
+      reserve: async ({ now }) => (events.push(`reserve ${now instanceof Date}`), { ok: true }),
+      settle: async ({ bytes, ms, now }) => {
+        events.push(`settle ${now instanceof Date}`);
+        settles.push({ bytes, ms });
+      },
+    };
+    const error: Diagnostic = { file: 'main.cpp', line: 2, col: 1, severity: 'error', message: "expected ';'" };
+    let fail = false;
+    const url = await start({
+      usage,
+      compile: async () => (events.push('compile'), fail ? { ok: false, diagnostics: [error], ms: 7 } : okResult()),
+    });
+    const ok = await post(url, request);
+    expect(events).toEqual(['reserve true', 'compile', 'settle true']);
+    const sent = ok.body.length + String(ok.headers['x-lab-diagnostics']).length;
+    expect(settles[0]).toEqual({ bytes: sent, ms: 5 });
+
+    fail = true;
+    const failed = await post(url, request);
+    expect(failed.status).toBe(422);
+    expect(settles[1]).toEqual({ bytes: failed.body.length, ms: 7 });
+  });
+
+  it('answers 500 and compiles nothing when the usage store fails', async () => {
+    let compiled = 0;
+    const usage: UsageStore = {
+      reserve: async () => {
+        throw new Error('Firestore is unreachable.');
+      },
+      settle: async () => {},
+    };
+    const url = await start({ usage, compile: async () => (compiled++, okResult()) });
+    expect((await post(url, request)).status).toBe(500);
+    expect(compiled).toBe(0);
+  });
+
+  it('compiles nothing for a client that leaves while its compile is being reserved', async () => {
+    let compiled = 0;
+    let reserving = 0;
+    let admit: (r: Reservation) => void = () => {};
+    const usage: UsageStore = {
+      reserve: () => (reserving++, new Promise<Reservation>((go) => (admit = go))),
+      settle: async () => {},
+    };
+    const url = await start({ usage, compile: async () => (compiled++, okResult()) });
+    const gone = httpRequest(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Lab-Secret': SECRET, 'X-Lab-Client-IP': '203.0.113.7' },
+    });
+    gone.on('error', () => {});
+    gone.end(JSON.stringify(request));
+    await expect.poll(() => reserving).toBe(1);
+    gone.destroy();
+    await new Promise((r) => setTimeout(r, 50));
+    admit({ ok: true });
+    await new Promise((r) => setTimeout(r, 50));
     expect(compiled).toBe(0);
   });
 

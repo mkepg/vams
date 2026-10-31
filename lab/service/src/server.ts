@@ -8,7 +8,10 @@
  *   429 { limit: 'visitor' | 'ip' }                              over a rate limit
  *   401                                                          no secret, or the wrong one
  *
+ * Every compile is reserved with the usage store first and settled after it.
  * Run with Node 24: node src/server.ts. LAB_SECRET is required; PORT defaults to 8080.
+ * With GOOGLE_CLOUD_PROJECT set the service counts in that project's Firestore,
+ * and without it in memory.
  */
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
@@ -16,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { compile as compileSource, COMPILE_LIMITS, type CompileOptions, type CompileResult } from './compile.ts';
 import { MAIN_FILE, type Diagnostic } from './diagnostics.ts';
+import { firestoreStore, memoryStore, type UsageStore } from './usage.ts';
 
 /** The Pages Function caps a source at 200 KB; the body may add JSON escaping and the visitor id. */
 export const MAX_BODY_BYTES = 512 * 1024;
@@ -28,17 +32,10 @@ export const DIAGNOSTICS_HEADER_BYTES = 8 * 1024;
 export const HEADERS_TIMEOUT_MS = 10_000;
 export const REQUEST_TIMEOUT_MS = 30_000;
 
-export type Admission =
-  | { ok: true }
-  | { ok: false; resting: 'month' | 'day' }
-  | { ok: false; limit: 'visitor' | 'ip' };
-
-/** Decides whether a compile may run. The monthly counter and the rate limits plug in here. */
-export type Gate = (request: { visitor: string; ip: string }) => Promise<Admission>;
-
 export interface ServiceOptions {
   secret: string;
-  gate?: Gate;
+  /** Where compiles are counted; a fresh memory store when left out. */
+  usage?: UsageStore;
   compile?: (source: string, opts: CompileOptions) => Promise<CompileResult>;
   limits?: CompileOptions;
   concurrency?: number;
@@ -155,7 +152,7 @@ const header = (req: IncomingMessage, name: string): string | undefined => {
 const VISITOR = /^[A-Za-z0-9_-]{1,64}$/;
 
 export function createService(options: ServiceOptions): Server {
-  const gate: Gate = options.gate ?? (async () => ({ ok: true }));
+  const usage = options.usage ?? memoryStore();
   const compile = options.compile ?? compileSource;
   const limits = options.limits ?? COMPILE_LIMITS;
   const slots = new Semaphore(options.concurrency ?? CONCURRENCY);
@@ -185,17 +182,19 @@ export function createService(options: ServiceOptions): Server {
     }
     if (Buffer.byteLength(source, 'utf8') > MAX_SOURCE_BYTES) return sendJson(res, 413, { error: 'too-large' });
 
-    const admission = await gate({ visitor, ip });
-    if (!admission.ok) {
-      if ('resting' in admission) return sendJson(res, 503, { resting: admission.resting });
-      return sendJson(res, 429, { limit: admission.limit });
-    }
-
-    // A client that goes away stops its compile, so the slot frees at once.
+    // A client that goes away stops its compile, so the slot frees at once. This
+    // listens before the reserve, so a client that leaves during it is caught too.
     const abort = new AbortController();
     res.on('close', () => {
       if (!res.writableFinished) abort.abort();
     });
+    const reservation = await usage.reserve({ visitor, ip, now: new Date() });
+    if (!reservation.ok) {
+      const { reason } = reservation;
+      if (reason === 'month' || reason === 'day') return sendJson(res, 503, { resting: reason });
+      return sendJson(res, 429, { limit: reason });
+    }
+
     const release = await slots.acquire();
     let result: CompileResult | null = null;
     try {
@@ -203,18 +202,36 @@ export function createService(options: ServiceOptions): Server {
     } finally {
       release();
     }
-    if (!result || abort.signal.aborted) return;
-    if (!result.ok) return sendJson(res, 422, { diagnostics: result.diagnostics });
+    if (!result) return;
 
-    const gz = gzipSync(result.module);
-    res.writeHead(200, {
-      'Content-Type': 'application/wasm',
-      'Content-Encoding': 'gzip',
-      'Content-Length': gz.length,
-      'Cache-Control': 'no-store',
-      'X-Lab-Diagnostics': encodeDiagnostics(result.diagnostics),
+    // The month counts what the response sends: the body, and the diagnostics header.
+    let send: () => void;
+    let bytes: number;
+    if (result.ok) {
+      const gz = gzipSync(result.module);
+      const diagnostics = encodeDiagnostics(result.diagnostics);
+      bytes = gz.length + diagnostics.length;
+      send = () => {
+        res.writeHead(200, {
+          'Content-Type': 'application/wasm',
+          'Content-Encoding': 'gzip',
+          'Content-Length': gz.length,
+          'Cache-Control': 'no-store',
+          'X-Lab-Diagnostics': diagnostics,
+        });
+        res.end(gz);
+      };
+    } else {
+      const body = { diagnostics: result.diagnostics };
+      bytes = Buffer.byteLength(JSON.stringify(body));
+      send = () => sendJson(res, 422, body);
+    }
+    if (abort.signal.aborted) bytes = 0;
+    // Settled before the response ends, while Cloud Run still gives the request CPU.
+    await usage.settle({ bytes, ms: result.ms, now: new Date() }).catch((e: unknown) => {
+      console.error('settle failed:', e instanceof Error ? e.message : e);
     });
-    res.end(gz);
+    if (!abort.signal.aborted) send();
   };
 
   const server = createServer((req, res) => {
@@ -235,7 +252,10 @@ function main(): void {
     process.exit(1);
   }
   const port = Number(process.env.PORT ?? 8080);
-  createService({ secret }).listen(port, () => console.log(`compile service on :${port}`));
+  const project = process.env.GOOGLE_CLOUD_PROJECT ?? '';
+  const usage = project ? firestoreStore(project) : memoryStore();
+  const counted = project ? `in Firestore (${project})` : 'in memory';
+  createService({ secret, usage }).listen(port, () => console.log(`compile service on :${port}, counting ${counted}`));
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main();
