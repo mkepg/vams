@@ -23,22 +23,21 @@ export interface Deps {
 /** True once the budget has been reached. */
 export const shouldDisable = (m: BudgetMessage): boolean => m.costAmount >= m.budgetAmount;
 
-/** Set once this instance has turned billing off, so a repeat sends nothing. */
-let disabled = false;
-export const resetGuard = () => {
-  disabled = false;
-};
-
-/** Reads the budget message from a CloudEvent, or from the older background-function shape. */
-function decode(event: unknown): BudgetMessage | null {
+/**
+ * Reads the budget message from a CloudEvent, or from the older background-function
+ * shape, and says whether the budget has been reached. A message with no budget
+ * amount counts as reached when its alert threshold is 1 or more. Null means the
+ * message could not be read.
+ */
+function reached(event: unknown): boolean | null {
   const data = (event as { data?: unknown } | null)?.data;
   const encoded = typeof data === 'string' ? data : (data as { message?: { data?: unknown } } | undefined)?.message?.data;
   if (typeof encoded !== 'string') return null;
   try {
     const m = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
-    return typeof m?.costAmount === 'number' && typeof m?.budgetAmount === 'number'
-      ? { costAmount: m.costAmount, budgetAmount: m.budgetAmount }
-      : null;
+    if (typeof m?.costAmount === 'number' && typeof m?.budgetAmount === 'number') return shouldDisable(m);
+    if (typeof m?.alertThresholdExceeded === 'number') return m.alertThresholdExceeded >= 1;
+    return null;
   } catch {
     return null;
   }
@@ -47,12 +46,12 @@ function decode(event: unknown): BudgetMessage | null {
 export async function onBudget(event: unknown, deps: Deps = {}): Promise<void> {
   const doFetch = deps.fetch ?? fetch;
   const env = deps.env ?? process.env;
-  const message = decode(event);
-  if (!message) {
+  const over = reached(event);
+  if (over === null) {
     console.error('Budget notification ignored: the message could not be read.');
     return;
   }
-  if (!shouldDisable(message) || disabled) return;
+  if (!over) return;
 
   const call = (url: string, init: RequestInit = {}) =>
     doFetch(url, { ...init, signal: AbortSignal.timeout(CALL_TIMEOUT_MS) });
@@ -74,10 +73,8 @@ export async function onBudget(event: unknown, deps: Deps = {}): Promise<void> {
 
   const info = await call(url, { headers: auth });
   if (!info.ok) throw new Error(`Billing lookup failed: ${info.status}`);
-  if (((await info.json()) as { billingEnabled?: boolean }).billingEnabled === false) {
-    disabled = true;
-    return;
-  }
+  // Billing already off: a message delivered again sends nothing.
+  if (((await info.json()) as { billingEnabled?: boolean }).billingEnabled === false) return;
 
   const put = await call(url, {
     method: 'PUT',
@@ -85,6 +82,5 @@ export async function onBudget(event: unknown, deps: Deps = {}): Promise<void> {
     body: JSON.stringify({ billingAccountName: '' }),
   });
   if (!put.ok) throw new Error(`Turning billing off failed: ${put.status}`);
-  disabled = true;
   console.log(`Billing turned off for ${project}.`);
 }

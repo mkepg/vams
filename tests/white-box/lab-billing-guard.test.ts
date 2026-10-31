@@ -8,8 +8,8 @@
  *  - The request goes to the project's billingInfo with an empty account name
  *  - It is sent once, even when the message is delivered again
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { onBudget, resetGuard, shouldDisable } from '../../lab/billing-guard/index.ts';
+import { describe, expect, it, vi } from 'vitest';
+import { onBudget, shouldDisable } from '../../lab/billing-guard/index.ts';
 
 const b64 = (o: unknown) => Buffer.from(typeof o === 'string' ? o : JSON.stringify(o)).toString('base64');
 const cloudEvent = (m: unknown) => ({ data: { message: { data: b64(m) } } });
@@ -20,6 +20,7 @@ type Call = { url: string; method: string; body?: string; headers: Record<string
 
 /** A fake fetch that answers the metadata server and the Billing API. */
 function fakeGoogle(billingEnabled = true) {
+  const state = { billingEnabled };
   const calls: Call[] = [];
   const fetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
     const u = String(url);
@@ -32,15 +33,16 @@ function fakeGoogle(billingEnabled = true) {
     calls.push(call);
     if (u.includes('/service-accounts/default/token')) return Response.json({ access_token: 'tok' });
     if (u.endsWith('/project/project-id')) return new Response('vams-lab-test');
-    if (call.method === 'PUT') return Response.json({ billingEnabled: false });
-    return Response.json({ billingEnabled });
+    if (call.method === 'PUT') {
+      state.billingEnabled = false;
+      return Response.json({ billingEnabled: false });
+    }
+    return Response.json({ billingEnabled: state.billingEnabled });
   });
-  return { fetch: fetch as unknown as typeof globalThis.fetch, calls };
+  return { fetch: fetch as unknown as typeof globalThis.fetch, calls, state };
 }
 const puts = (calls: Call[]) => calls.filter((c) => c.method === 'PUT');
 const env = { GOOGLE_CLOUD_PROJECT: 'vams-lab-test' };
-
-beforeEach(() => resetGuard());
 
 describe('WB-LAB-10: A budget at 0.99 of its limit leaves billing on, and 1.00 turns it off', () => {
   it('decides on cost against budget', () => {
@@ -61,10 +63,22 @@ describe('WB-LAB-10: A budget at 0.99 of its limit leaves billing on, and 1.00 t
     expect(puts(g.calls)).toHaveLength(1);
   });
 
+  it('turns billing off for a message with no budget amount that reports a threshold of 1 or more', async () => {
+    const g = fakeGoogle();
+    await onBudget(cloudEvent({ alertThresholdExceeded: 1.0 }), { fetch: g.fetch, env });
+    expect(puts(g.calls)).toHaveLength(1);
+  });
+
+  it('leaves billing on for a message with no budget amount and a threshold below 1', async () => {
+    const g = fakeGoogle();
+    await onBudget(cloudEvent({ costAmount: 90, alertThresholdExceeded: 0.9 }), { fetch: g.fetch, env });
+    expect(puts(g.calls)).toHaveLength(0);
+  });
+
   it('logs a malformed message and returns without turning billing off', async () => {
     const warn = vi.spyOn(console, 'error').mockImplementation(() => {});
     const g = fakeGoogle();
-    for (const e of [cloudEvent('not json'), cloudEvent({ costAmount: 'x' }), { data: {} }, {}, legacyEvent('{')]) {
+    for (const e of [cloudEvent('not json'), cloudEvent({ costAmount: 'x' }), cloudEvent({ costAmount: 5 }), { data: {} }, {}, legacyEvent('{')]) {
       await expect(onBudget(e, { fetch: g.fetch, env })).resolves.toBeUndefined();
     }
     expect(g.calls).toHaveLength(0);
@@ -102,13 +116,35 @@ describe('WB-LAB-11: The request names the project, empties the account, and is 
     expect(puts(g.calls)).toHaveLength(0);
   });
 
-  it('sends once when the message is delivered again to a warm instance', async () => {
+  it('sends once when the message is delivered again, because the lookup shows billing off', async () => {
     const g = fakeGoogle();
     await onBudget(cloudEvent(OVER), { fetch: g.fetch, env });
-    const before = g.calls.length;
     await onBudget(cloudEvent(OVER), { fetch: g.fetch, env });
-    expect(g.calls.length).toBe(before);
     expect(puts(g.calls)).toHaveLength(1);
+  });
+
+  it('turns billing off again when it was switched back on and the budget is still reached', async () => {
+    const g = fakeGoogle();
+    await onBudget(cloudEvent(OVER), { fetch: g.fetch, env });
+    g.state.billingEnabled = true;
+    await onBudget(cloudEvent(OVER), { fetch: g.fetch, env });
+    expect(puts(g.calls)).toHaveLength(2);
+  });
+
+  it('throws when the billing lookup fails', async () => {
+    const base = fakeGoogle();
+    const fetch = (async (url: string | URL, init?: RequestInit) =>
+      !init?.method && String(url).includes('billingInfo') ? new Response('no', { status: 503 }) : base.fetch(url, init)) as typeof globalThis.fetch;
+    await expect(onBudget(cloudEvent(OVER), { fetch, env })).rejects.toThrow();
+    expect(puts(base.calls)).toHaveLength(0);
+  });
+
+  it('throws when the token request fails', async () => {
+    const base = fakeGoogle();
+    const fetch = (async (url: string | URL, init?: RequestInit) =>
+      String(url).includes('/service-accounts/default/token') ? new Response('no', { status: 403 }) : base.fetch(url, init)) as typeof globalThis.fetch;
+    await expect(onBudget(cloudEvent(OVER), { fetch, env })).rejects.toThrow();
+    expect(puts(base.calls)).toHaveLength(0);
   });
 
   it('throws when the PUT fails, so the message is delivered again, and then retries', async () => {
