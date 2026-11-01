@@ -57,6 +57,23 @@ describe('WB-LAB-10: A budget at 0.99 of its limit leaves billing on, and 1.00 t
     expect(puts(g.calls)).toHaveLength(0);
   });
 
+  it('logs one line naming the budget when it leaves billing on, and asks Google nothing', async () => {
+    const lines: string[] = [];
+    const log = vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => void lines.push(a.join(' ')));
+    const g = fakeGoogle();
+    try {
+      await onBudget(cloudEvent({ budgetDisplayName: 'vams-lab', costAmount: 0.5, budgetAmount: 1 }), { fetch: g.fetch, env });
+      await onBudget(cloudEvent({ costAmount: 90, alertThresholdExceeded: 0.9 }), { fetch: g.fetch, env });
+    } finally {
+      log.mockRestore();
+    }
+    expect(lines).toEqual([
+      'Budget vams-lab not reached (0.5 of 1): billing stays on.',
+      'Budget notification not reached (90 of an unknown budget): billing stays on.',
+    ]);
+    expect(g.calls).toHaveLength(0);
+  });
+
   it('sends the request at 1.00', async () => {
     const g = fakeGoogle();
     await onBudget(cloudEvent(OVER), { fetch: g.fetch, env });

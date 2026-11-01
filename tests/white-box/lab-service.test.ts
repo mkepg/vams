@@ -464,6 +464,9 @@ describe('WB-LAB-14: POST /compile follows the HTTP contract, two compiles at a 
     let compiled = 0;
     const usage: UsageStore = { reserve: async () => (reserved++, { ok: true }), settle: async () => {} };
     const url = new URL(await start({ usage, compile: async () => (compiled++, okResult()) }));
+    // Each request must reach the service, or the test would pass with nothing tried.
+    let arrived = 0;
+    server!.on('request', () => arrived++);
     const body = JSON.stringify(request);
     const CRLF = String.fromCharCode(13, 10);
     for (let i = 0; i < 5; i++) {
@@ -487,6 +490,7 @@ describe('WB-LAB-14: POST /compile follows the HTTP contract, two compiles at a 
         });
       });
     }
+    expect(arrived).toBe(5);
     expect(reserved).toBe(0);
     expect(compiled).toBe(0);
     expect((await post(url.href, request)).status).toBe(200);

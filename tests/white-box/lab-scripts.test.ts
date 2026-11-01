@@ -5,8 +5,8 @@
  *
  * Test focus:
  *  - The runtime version is the emsdk version and a hash of the files, whatever their order
- *  - The live checks pass against a local service with a stand-in Firestore, fail when they
- *    should, and put the month's counter back even when a check fails
+ *  - The live checks pass against a local service with stand-ins for Firestore, Pub/Sub and
+ *    Logging, fail when they should, and put the month's counter back even when a check fails
  *  - Results land in the Live checks table of docs/lab-operations.md
  *  - setup-gcp.sh holds the limits, region and wiring the plan fixes, and the guard's deploy
  *    copy loads as plain JavaScript and switches billing off
@@ -23,8 +23,9 @@ import { checkIncludes } from '../../lab/service/src/includes.ts';
 import type { CompileResult } from '../../lab/service/src/compile.ts';
 import { ALLOWANCE, monthKey, STOP_AT } from '../../lab/service/src/limits.ts';
 import { outputFiles, plannedKeys, runtimeVersion, versionModule } from '../../scripts/lab/publish-runtime.mjs';
-import { CHECKS, context, recordResults, runChecks, SPIN } from '../../scripts/lab/load-test.mjs';
-import { guardPackage, serviceLimits, SERVICE_LIMITS, withCompileUrl, writeGuard } from '../../scripts/lab/setup-helpers.mjs';
+import { CHECKS, context, lowerEgress, recordResults, runChecks, SPIN } from '../../scripts/lab/load-test.mjs';
+import { guardPackage, serviceLimits, SERVICE_LIMITS, writeGuard } from '../../scripts/lab/setup-helpers.mjs';
+import { onBudget } from '../../lab/billing-guard/index.ts';
 import { fakeFirestore } from '../helpers/fake-firestore';
 
 const ROOT = process.cwd();
@@ -106,8 +107,48 @@ describe('WB-LAB-16: The live checks pass against a local service, fail when the
   const quiet = () => {};
   const monthDoc = (fake: ReturnType<typeof fakeFirestore>) => fake.name(`usage/${monthKey(new Date())}`);
 
-  it('passes every check, and leaves the month below 80%', async () => {
+  /**
+   * Firestore, plus Pub/Sub and Logging as the deployed guard sees them: a message published to
+   * the budget topic runs the guard's source, and what it logs is what entries:list returns.
+   */
+  function fakeGoogle(guard: 'deployed' | 'silent' = 'deployed') {
     const fake = fakeFirestore(PROJECT);
+    const published: { budgetDisplayName: string; costAmount: number; budgetAmount: number }[] = [];
+    const logs: string[] = [];
+    const answer = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    const fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url === `https://pubsub.googleapis.com/v1/projects/${PROJECT}/topics/budget:publish`) {
+        const { messages } = JSON.parse(String(init!.body));
+        published.push(JSON.parse(Buffer.from(messages[0].data, 'base64').toString('utf8')));
+        if (guard === 'deployed') {
+          const log = console.log;
+          console.log = (...a: unknown[]) => void logs.push(`${a.join(' ')}\n`);
+          try {
+            await onBudget({ data: { message: { data: messages[0].data } } }, {
+              fetch: (async () => {
+                throw new Error('the guard asked Google something');
+              }) as typeof globalThis.fetch,
+              env: { GOOGLE_CLOUD_PROJECT: PROJECT },
+            });
+          } finally {
+            console.log = log;
+          }
+        }
+        return answer({ messageIds: ['1'] });
+      }
+      if (url === 'https://logging.googleapis.com/v2/entries:list') {
+        const { filter } = JSON.parse(String(init!.body));
+        const name = /textPayload:"([^"]+)"/.exec(filter)![1];
+        return answer({ entries: logs.filter((l) => l.includes(name)).map((textPayload) => ({ textPayload })) });
+      }
+      return fake.fetch(input, init);
+    }) as typeof globalThis.fetch;
+    return { fake, fetch, published, logs };
+  }
+
+  it('passes every check, and leaves the month below 80%', async () => {
+    const { fake, fetch, published } = fakeGoogle();
     fake.docs.set(monthDoc(fake), { egressBytes: { integerValue: '12345' } });
     const url = await start(firestoreStore(PROJECT, { fetch: fake.fetch }));
     const lines: string[] = [];
@@ -115,8 +156,9 @@ describe('WB-LAB-16: The live checks pass against a local service, fail when the
       url,
       secret: SECRET,
       project: PROJECT,
-      fetch: fake.fetch,
+      fetch,
       token: () => 'fake-token',
+      logPollMs: 10,
       timeLimitMs: 50,
       slackMs: 2_000,
       log: (line: string) => lines.push(line),
@@ -132,6 +174,9 @@ describe('WB-LAB-16: The live checks pass against a local service, fail when the
     const egress = Number(fake.docs.get(monthDoc(fake))!.egressBytes!.integerValue);
     expect(egress).toBeGreaterThan(12345);
     expect(egress).toBeLessThan(12345 + 100_000);
+    // SEC-LAB-10 sent one message, below the budget, in Cloud Billing's shape.
+    expect(published).toHaveLength(1);
+    expect(published[0]).toMatchObject({ costAmount: 0.5, budgetAmount: 1, alertThresholdExceeded: 0.5, currencyCode: 'USD' });
   }, 30_000);
 
   it('raises the counter to 80% of the egress allowance for SEC-LAB-07', async () => {
@@ -163,15 +208,65 @@ describe('WB-LAB-16: The live checks pass against a local service, fail when the
     expect(fake.docs.get(monthDoc(fake))!.egressBytes).toEqual({ integerValue: '777' });
   });
 
+  it('names a failed restore, how high the counter was left and the command that lowers it', async () => {
+    const fake = fakeFirestore(PROJECT);
+    let commits = 0;
+    const fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      if (String(input).endsWith(':commit') && ++commits === 2) return new Response('unavailable', { status: 503 });
+      return fake.fetch(input, init);
+    }) as typeof globalThis.fetch;
+    const url = await start(firestoreStore(PROJECT, { fetch: fake.fetch }));
+    const ctx = context({ url, secret: SECRET, project: PROJECT, fetch, token: () => 'fake-token', log: quiet });
+    const [r] = await runChecks(ctx, ['SEC-LAB-07']);
+    const delta = Math.ceil(STOP_AT * ALLOWANCE.egressBytes);
+    expect(r.pass).toBe(false);
+    expect(r.detail).toMatch(/^RESTORE FAILED \(firestore\.googleapis\.com answered 503: unavailable\)/);
+    expect(r.detail).toContain(`egressBytes is still ${delta} bytes high, so the Lab rests until it is lowered.`);
+    expect(r.detail).toContain(`load-test.mjs --project ${PROJECT} --lower-egress ${delta}`);
+
+    // The command it names puts the counter back.
+    await lowerEgress(context({ project: PROJECT, fetch: fake.fetch, token: () => 'fake-token' }), delta);
+    expect(fake.docs.get(monthDoc(fake))!.egressBytes).toEqual({ integerValue: '0' });
+  });
+
+  it('lowers nothing when the raise itself failed', async () => {
+    const fake = fakeFirestore(PROJECT);
+    fake.docs.set(monthDoc(fake), { egressBytes: { integerValue: '777' } });
+    const commits: unknown[] = [];
+    const fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      if (String(input).endsWith(':commit')) {
+        commits.push(JSON.parse(String(init!.body)));
+        return new Response('denied', { status: 403 });
+      }
+      return fake.fetch(input, init);
+    }) as typeof globalThis.fetch;
+    const ctx = context({ url: 'http://127.0.0.1:9', secret: SECRET, project: PROJECT, fetch, token: () => 'fake-token', log: quiet });
+    const [r] = await runChecks(ctx, ['SEC-LAB-07']);
+    expect(r.pass).toBe(false);
+    expect(r.detail).toMatch(/^threw: firestore\.googleapis\.com answered 403/);
+    expect(commits).toHaveLength(1);
+    expect(fake.docs.get(monthDoc(fake))!.egressBytes).toEqual({ integerValue: '777' });
+  });
+
+  it('fails SEC-LAB-10 when the deployed guard logs nothing for the message in time', async () => {
+    const { fetch, published } = fakeGoogle('silent');
+    const ctx = context({ project: PROJECT, fetch, token: () => 'fake-token', log: quiet, logWaitMs: 50, logPollMs: 10 });
+    const [r] = await runChecks(ctx, ['SEC-LAB-10']);
+    expect(published).toHaveLength(1);
+    expect(r.pass).toBe(false);
+    expect(r.detail).toMatch(/^pre-check passed; published to budget, but the guard logged no "Budget vams-lab live check [0-9a-f]+ not reached \(0\.5 of 1\): billing stays on\." within 0\.05 s$/);
+  });
+
   it('fails the checks a wrongly set up service fails, and skips what it has no settings for', async () => {
     // A service holding another secret refuses everything: SEC-LAB-04 still passes, the compiles fail.
     const url = await start(memoryStore(), 'another-secret');
     const lines: string[] = [];
     const ctx = context({ url, secret: SECRET, log: (l: string) => lines.push(l), classSize: 3 });
-    const results = await runChecks(ctx, ['SEC-LAB-04', 'SEC-LAB-05', 'SEC-LAB-09', 'SEC-LAB-07']);
-    expect(results.map((r: { pass: boolean }) => r.pass)).toEqual([true, false, false, false]);
+    const results = await runChecks(ctx, ['SEC-LAB-04', 'SEC-LAB-05', 'SEC-LAB-09', 'SEC-LAB-07', 'SEC-LAB-10']);
+    expect(results.map((r: { pass: boolean }) => r.pass)).toEqual([true, false, false, false, false]);
     expect(lines[1]).toMatch(/^FAIL SEC-LAB-05 .*probe 1: 401/);
     expect(lines[3]).toBe('FAIL SEC-LAB-07 At 80% of the month the next compile is 503 resting: skipped: needs project');
+    expect(lines[4]).toBe('FAIL SEC-LAB-10 The deployed guard reads a budget message from the budget topic: skipped: needs project');
   });
 });
 
@@ -275,16 +370,13 @@ describe('WB-LAB-18: setup-gcp.sh sets the planned limits and wiring, and the gu
     expect(sent.filter((c) => c.method === 'PUT').map((c) => c.url)).toEqual(['https://cloudbilling.googleapis.com/v1/projects/p/billingInfo']);
   });
 
-  it('sets LAB_COMPILE_URL in wrangler.toml and changes nothing else', () => {
+  it('keeps the service URL out of the repository: a Pages secret, not a wrangler.toml var', () => {
     const toml = readFileSync(join(ROOT, 'wrangler.toml'), 'utf8');
-    const url = 'https://lab-compile-abc123-uc.a.run.app';
-    const out = withCompileUrl(toml, url);
-    expect(out).toContain(`LAB_COMPILE_URL = "${url}"`);
-    const differing = out.split('\n').filter((l, i) => l !== toml.split('\n')[i]);
-    expect(differing).toHaveLength(1);
-    expect(withCompileUrl(out, url)).toBe(out);
-    expect(() => withCompileUrl(toml, 'http://lab-compile.example')).toThrow(/not a service URL/);
-    expect(() => withCompileUrl(toml, 'https://x.run.app"\nEVIL = "1')).toThrow(/not a service URL/);
+    expect(toml).not.toMatch(/^\s*LAB_COMPILE_URL\s*=/m);
+    expect(toml).not.toMatch(/^\[vars\]/m);
+    expect(joined).toContain('npx wrangler pages secret put LAB_COMPILE_URL --project-name vams');
+    expect(joined).toMatch(/printf '%s' "\$URL" \| npx wrangler pages secret put LAB_COMPILE_URL/);
+    expect(script).not.toMatch(/git add|Commit it/);
   });
 
   it('reads the limits back from gcloud run services describe', () => {
@@ -297,5 +389,37 @@ describe('WB-LAB-18: setup-gcp.sh sets the planned limits and wiring, and the gu
       },
     };
     expect(serviceLimits(described)).toEqual(SERVICE_LIMITS);
+    // CPU allocated outside requests is billed by the instance, which the free allowance doesn't cover.
+    described.spec.template.metadata.annotations['run.googleapis.com/cpu-throttling'] = 'false';
+    expect(serviceLimits(described).cpuThrottling).toBe('false');
+    expect(SERVICE_LIMITS.cpuThrottling).toBe('true');
+  });
+
+  it('puts the budget and its guard in place before anything that can be reached or charged', () => {
+    const at = (needle: string) => {
+      const i = joined.indexOf(needle);
+      expect(i, needle).toBeGreaterThan(-1);
+      return i;
+    };
+    const guarded = at('functions deploy "$GUARD"');
+    expect(at('billing projects link')).toBeLessThan(at('g services enable'));
+    expect(at('g services enable')).toBeLessThan(at('pubsub topics create'));
+    expect(at('billing budgets create')).toBeLessThan(guarded);
+    expect(at('--role=roles/run.invoker')).toBeGreaterThan(guarded);
+    for (const later of ['docker build', 'run deploy "$SERVICE"', 'check-service', "-w '%{http_code}'"]) {
+      expect(at(later), later).toBeGreaterThan(at('--role=roles/run.invoker'));
+    }
+  });
+
+  it('builds the image for Cloud Run and keeps CPU billed per request', () => {
+    expect(joined).toMatch(/docker build --platform linux\/amd64 /);
+    const deploy = joined.split('\n').find((l) => l.includes('run deploy "$SERVICE"'))!;
+    expect(deploy).toContain('--cpu-throttling');
+    expect(deploy).not.toContain('--no-cpu-throttling');
+  });
+
+  it('prints no billing account or service URL for the repository', () => {
+    const summary = script.slice(script.indexOf('say "Done'));
+    expect(summary).not.toMatch(/BILLING_ACCOUNT|\$URL/);
   });
 });

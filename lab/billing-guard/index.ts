@@ -27,16 +27,22 @@ export const shouldDisable = (m: BudgetMessage): boolean => m.costAmount >= m.bu
  * Reads the budget message from a CloudEvent, or from the older background-function
  * shape, and says whether the budget has been reached. A message with no budget
  * amount counts as reached when its alert threshold is 1 or more. Null means the
- * message could not be read.
+ * message could not be read. `below` is the line logged when billing stays on.
  */
-function reached(event: unknown): boolean | null {
+function reached(event: unknown): { over: boolean; below: string } | null {
   const data = (event as { data?: unknown } | null)?.data;
   const encoded = typeof data === 'string' ? data : (data as { message?: { data?: unknown } } | undefined)?.message?.data;
   if (typeof encoded !== 'string') return null;
   try {
     const m = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
-    if (typeof m?.costAmount === 'number' && typeof m?.budgetAmount === 'number') return shouldDisable(m);
-    if (typeof m?.alertThresholdExceeded === 'number') return m.alertThresholdExceeded >= 1;
+    const name = typeof m?.budgetDisplayName === 'string' && m.budgetDisplayName ? m.budgetDisplayName : 'notification';
+    const below = (cost: unknown, budget: string) => `Budget ${name} not reached (${cost} of ${budget}): billing stays on.`;
+    if (typeof m?.costAmount === 'number' && typeof m?.budgetAmount === 'number') {
+      return { over: shouldDisable(m), below: below(m.costAmount, String(m.budgetAmount)) };
+    }
+    if (typeof m?.alertThresholdExceeded === 'number') {
+      return { over: m.alertThresholdExceeded >= 1, below: below(m.costAmount ?? 'an unknown cost', 'an unknown budget') };
+    }
     return null;
   } catch {
     return null;
@@ -46,12 +52,15 @@ function reached(event: unknown): boolean | null {
 export async function onBudget(event: unknown, deps: Deps = {}): Promise<void> {
   const doFetch = deps.fetch ?? fetch;
   const env = deps.env ?? process.env;
-  const over = reached(event);
-  if (over === null) {
+  const read = reached(event);
+  if (read === null) {
     console.error('Budget notification ignored: the message could not be read.');
     return;
   }
-  if (!over) return;
+  if (!read.over) {
+    console.log(read.below);
+    return;
+  }
 
   const call = (url: string, init: RequestInit = {}) =>
     doFetch(url, { ...init, signal: AbortSignal.timeout(CALL_TIMEOUT_MS) });

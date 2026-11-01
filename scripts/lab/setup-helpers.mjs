@@ -1,7 +1,6 @@
 // Small steps of scripts/lab/setup-gcp.sh that are easier in Node.
 //
 //   node scripts/lab/setup-helpers.mjs guard <folder>      write the billing guard's deploy source
-//   node scripts/lab/setup-helpers.mjs compile-url <url>   set LAB_COMPILE_URL in wrangler.toml
 //   node scripts/lab/setup-helpers.mjs check-service       read `gcloud run services describe --format=json`
 //                                                          on stdin and check the service's limits
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -28,16 +27,19 @@ export function writeGuard(folder) {
   writeFileSync(join(folder, 'package.json'), `${JSON.stringify(guardPackage(), null, 2)}\n`);
 }
 
-/** wrangler.toml with LAB_COMPILE_URL set to `url`, keeping the file's line endings. */
-export function withCompileUrl(toml, url) {
-  if (!/^https:\/\/[A-Za-z0-9.-]+$/.test(url)) throw new Error(`not a service URL: ${url}`);
-  const line = /^LAB_COMPILE_URL = "[^"\r\n]*"(\r?)$/m;
-  if (!line.test(toml)) throw new Error('wrangler.toml has no LAB_COMPILE_URL line');
-  return toml.replace(line, `LAB_COMPILE_URL = "${url}"$1`);
-}
-
-/** The limits the compile service must run with. */
-export const SERVICE_LIMITS = { maxInstances: '3', minInstances: '0', concurrency: 2, cpu: '2', memory: '2Gi', timeout: 30 };
+/**
+ * The limits the compile service must run with. CPU is throttled outside requests, so it is
+ * billed per request, which is what the always-free allowance covers.
+ */
+export const SERVICE_LIMITS = {
+  maxInstances: '3',
+  minInstances: '0',
+  concurrency: 2,
+  cpu: '2',
+  memory: '2Gi',
+  timeout: 30,
+  cpuThrottling: 'true',
+};
 
 /** The limits a deployed service has, from `gcloud run services describe --format=json`. */
 export function serviceLimits(service) {
@@ -51,6 +53,8 @@ export function serviceLimits(service) {
     cpu: limits.cpu,
     memory: limits.memory,
     timeout: template.spec.timeoutSeconds,
+    // Throttling is Cloud Run's default, so a revision may leave the annotation out.
+    cpuThrottling: annotations['run.googleapis.com/cpu-throttling'] ?? 'true',
   };
 }
 
@@ -58,16 +62,6 @@ function main([command, arg]) {
   if (command === 'guard' && arg) {
     writeGuard(resolve(arg));
     console.log(`billing guard written to ${resolve(arg)}`);
-  } else if (command === 'compile-url' && arg) {
-    const file = join(ROOT, 'wrangler.toml');
-    const before = readFileSync(file, 'utf8');
-    const after = withCompileUrl(before, arg);
-    if (after === before) {
-      console.log(`wrangler.toml already has LAB_COMPILE_URL = "${arg}"`);
-    } else {
-      writeFileSync(file, after);
-      console.log(`wrangler.toml changed: LAB_COMPILE_URL = "${arg}". Commit it; the next Pages deploy picks it up.`);
-    }
   } else if (command === 'check-service') {
     const found = serviceLimits(JSON.parse(readFileSync(0, 'utf8')));
     const wrong = Object.entries(SERVICE_LIMITS).filter(([k, v]) => found[k] !== v);
@@ -77,7 +71,7 @@ function main([command, arg]) {
       process.exit(1);
     }
   } else {
-    console.error('usage: setup-helpers.mjs guard <folder> | compile-url <url> | check-service');
+    console.error('usage: setup-helpers.mjs guard <folder> | check-service');
     process.exit(2);
   }
 }

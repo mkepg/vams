@@ -83,6 +83,8 @@ else
 fi
 echo "project $PROJECT"
 g() { gcloud --project="$PROJECT" --quiet "$@"; }
+WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT
 
 ENABLED=$(gcloud billing projects describe "$PROJECT" --format='value(billingEnabled)')
 case "$ENABLED" in
@@ -112,63 +114,8 @@ retry g projects add-iam-policy-binding "$PROJECT" --member="serviceAccount:$GUA
 echo "$RUN_SA: roles/datastore.user"
 echo "$GUARD_SA: roles/billing.projectManager"
 
-say "Artifact Registry"
-if ! g artifacts repositories describe "$REPOSITORY" --location="$REGION" >/dev/null 2>&1; then
-  g artifacts repositories create "$REPOSITORY" --repository-format=docker --location="$REGION" \
-    --description="VAMS Lab compile service images"
-fi
-# Keep the two newest images, so storage stays inside the free 0.5 GB.
-WORK=$(mktemp -d)
-trap 'rm -rf "$WORK"' EXIT
-cat > "$WORK/cleanup.json" <<'EOF'
-[
-  { "name": "keep-newest", "action": { "type": "Keep" }, "mostRecentVersions": { "keepCount": 2 } },
-  { "name": "delete-older", "action": { "type": "Delete" }, "condition": { "tagState": "ANY" } }
-]
-EOF
-g artifacts repositories set-cleanup-policies "$REPOSITORY" --location="$REGION" \
-  --policy="$(native "$WORK/cleanup.json")" --no-dry-run >/dev/null
-
-say "Firestore"
-if ! g firestore databases describe --database='(default)' >/dev/null 2>&1; then
-  g firestore databases create --location="$REGION" --type=firestore-native
-fi
-# Rate windows carry an `expires` time; Firestore deletes them once it passes.
-if ! g firestore fields ttls list --format='value(name)' 2>/dev/null | grep -q '/collectionGroups/rate/fields/expires$'; then
-  g firestore fields ttls update expires --collection-group=rate --enable-ttl --async
-fi
-
-say "Secret"
-if ! g secrets describe "$SECRET" >/dev/null 2>&1; then
-  openssl rand -hex 32 | tr -d '\r\n' | g secrets create "$SECRET" --replication-policy=automatic --data-file=-
-fi
-retry g secrets add-iam-policy-binding "$SECRET" --member="serviceAccount:$RUN_SA" \
-  --role=roles/secretmanager.secretAccessor --condition=None >/dev/null
-echo "$RUN_SA: roles/secretmanager.secretAccessor on $SECRET"
-
-say "Image"
-EMSDK_VERSION=$(tr -d '\r\n' < lab/toolchain/EMSDK_VERSION)
-TAG=$(git rev-parse --short=12 HEAD)
-if [ -n "$(git status --porcelain -- lab)" ]; then TAG=$TAG-dirty-$(date +%s); fi
-IMAGE=$REGION-docker.pkg.dev/$PROJECT/$REPOSITORY/compile:$TAG
-gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet >/dev/null
-docker build -f lab/toolchain/Dockerfile --build-arg EMSDK_VERSION="$EMSDK_VERSION" -t "$IMAGE" .
-docker push "$IMAGE"
-
-say "Cloud Run service $SERVICE"
-# Unauthenticated requests reach the service; the X-Lab-Secret header is the gate.
-g run deploy "$SERVICE" --image="$IMAGE" --region="$REGION" --service-account="$RUN_SA" \
-  --max-instances 3 --min-instances 0 --concurrency 2 --cpu 2 --memory 2Gi --timeout 30 --allow-unauthenticated \
-  --port=8080 \
-  --set-env-vars="GOOGLE_CLOUD_PROJECT=$PROJECT" \
-  --set-secrets="LAB_SECRET=$SECRET:latest"
-g run services describe "$SERVICE" --region="$REGION" --format=json | node scripts/lab/setup-helpers.mjs check-service
-URL=$(g run services describe "$SERVICE" --region="$REGION" --format='value(status.url)')
-[ -n "$URL" ] || die "the service has no URL"
-STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$URL/compile" || true)
-[ "$STATUS" = 401 ] || die "a request without the secret got $STATUS, not 401"
-echo "$URL answers 401 without the secret"
-
+# The budget and its guard come first: nothing that can be reached or charged exists
+# until the switch-off is in place, so a later step that fails leaves it standing.
 say "Budget"
 if ! g pubsub topics describe "$TOPIC" >/dev/null 2>&1; then
   g pubsub topics create "$TOPIC"
@@ -209,23 +156,84 @@ retry g run services add-iam-policy-binding "$GUARD" --region="$REGION" \
   --member="serviceAccount:$GUARD_SA" --role=roles/run.invoker >/dev/null
 echo "$GUARD_SA: roles/run.invoker on $GUARD"
 
+say "Artifact Registry"
+if ! g artifacts repositories describe "$REPOSITORY" --location="$REGION" >/dev/null 2>&1; then
+  g artifacts repositories create "$REPOSITORY" --repository-format=docker --location="$REGION" \
+    --description="VAMS Lab compile service images"
+fi
+# Keep the two newest images, so storage stays inside the free 0.5 GB.
+cat > "$WORK/cleanup.json" <<'EOF'
+[
+  { "name": "keep-newest", "action": { "type": "Keep" }, "mostRecentVersions": { "keepCount": 2 } },
+  { "name": "delete-older", "action": { "type": "Delete" }, "condition": { "tagState": "ANY" } }
+]
+EOF
+g artifacts repositories set-cleanup-policies "$REPOSITORY" --location="$REGION" \
+  --policy="$(native "$WORK/cleanup.json")" --no-dry-run >/dev/null
+
+say "Firestore"
+if ! g firestore databases describe --database='(default)' >/dev/null 2>&1; then
+  g firestore databases create --location="$REGION" --type=firestore-native
+fi
+# Rate windows carry an `expires` time; Firestore deletes them once it passes.
+if ! g firestore fields ttls list --format='value(name)' 2>/dev/null | grep -q '/collectionGroups/rate/fields/expires$'; then
+  g firestore fields ttls update expires --collection-group=rate --enable-ttl --async
+fi
+
+say "Secret"
+if ! g secrets describe "$SECRET" >/dev/null 2>&1; then
+  openssl rand -hex 32 | tr -d '\r\n' | g secrets create "$SECRET" --replication-policy=automatic --data-file=-
+fi
+retry g secrets add-iam-policy-binding "$SECRET" --member="serviceAccount:$RUN_SA" \
+  --role=roles/secretmanager.secretAccessor --condition=None >/dev/null
+echo "$RUN_SA: roles/secretmanager.secretAccessor on $SECRET"
+
+say "Image"
+EMSDK_VERSION=$(tr -d '\r\n' < lab/toolchain/EMSDK_VERSION)
+TAG=$(git rev-parse --short=12 HEAD)
+if [ -n "$(git status --porcelain -- lab)" ]; then TAG=$TAG-dirty-$(date +%s); fi
+IMAGE=$REGION-docker.pkg.dev/$PROJECT/$REPOSITORY/compile:$TAG
+gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet >/dev/null
+# Cloud Run runs linux/amd64, whatever this machine is.
+docker build --platform linux/amd64 -f lab/toolchain/Dockerfile --build-arg EMSDK_VERSION="$EMSDK_VERSION" -t "$IMAGE" .
+docker push "$IMAGE"
+
+say "Cloud Run service $SERVICE"
+# Unauthenticated requests reach the service; the X-Lab-Secret header is the gate.
+# --cpu-throttling keeps CPU billed per request, which the free allowance covers.
+g run deploy "$SERVICE" --image="$IMAGE" --region="$REGION" --service-account="$RUN_SA" \
+  --max-instances 3 --min-instances 0 --concurrency 2 --cpu 2 --memory 2Gi --timeout 30 --allow-unauthenticated \
+  --cpu-throttling --port=8080 \
+  --set-env-vars="GOOGLE_CLOUD_PROJECT=$PROJECT" \
+  --set-secrets="LAB_SECRET=$SECRET:latest"
+g run services describe "$SERVICE" --region="$REGION" --format=json | node scripts/lab/setup-helpers.mjs check-service
+URL=$(g run services describe "$SERVICE" --region="$REGION" --format='value(status.url)')
+[ -n "$URL" ] || die "the service has no URL"
+STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$URL/compile" || true)
+[ "$STATUS" = 401 ] || die "a request without the secret got $STATUS, not 401"
+echo "the service answers 401 without the secret"
+
 say "Cloudflare Pages"
+# Both are Pages secrets, so the service's address never appears in the repository.
 g secrets versions access latest --secret="$SECRET" \
   | npx wrangler pages secret put LAB_COMPILE_SECRET --project-name vams
-node scripts/lab/setup-helpers.mjs compile-url "$URL"
+printf '%s' "$URL" | npx wrangler pages secret put LAB_COMPILE_URL --project-name vams
 
-say "Done. Record these in docs/lab-operations.md"
+say "Done"
 cat <<EOF
+For docs/lab-operations.md, Recorded values:
 | Project | $PROJECT |
 | Region | $REGION |
-| Billing account | $BILLING_ACCOUNT |
-| Service URL | $URL |
 | Image | $IMAGE |
 | Compile service account | $RUN_SA |
 | Guard service account | $GUARD_SA |
 | Budget | $BUDGET_NAME, $BUDGET_AMOUNT, alerts at 50%, 90% and 100% to $TOPIC |
+
+The billing account and the service URL stay out of the repository. Read them with
+  gcloud billing projects describe $PROJECT
+  gcloud run services describe $SERVICE --region=$REGION --project=$PROJECT --format='value(status.url)'
+
+The Pages secrets take effect at the site's next deployment. Push to main, or in the
+Cloudflare dashboard open Workers & Pages > vams > Deployments and retry the latest
+production deployment. Until then /api/compile answers offline.
 EOF
-if ! git diff --quiet -- wrangler.toml; then
-  echo
-  echo "wrangler.toml changed (LAB_COMPILE_URL). Commit it; the next Pages deploy uses it."
-fi

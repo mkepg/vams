@@ -5,19 +5,23 @@
 //   node --experimental-strip-types scripts/lab/load-test.mjs --project <id> [--record]
 //
 // Options (or the environment variables after them):
-//   --url <url>        the Cloud Run service URL            LAB_COMPILE_URL
-//   --secret <value>   the service's shared secret          LAB_SECRET
 //   --project <id>     the Google Cloud project             LAB_PROJECT
-//                      With a project, a missing URL or secret is read with gcloud,
-//                      and SEC-LAB-07 reaches Firestore with gcloud's access token.
+//                      With a project, the URL and the secret are read with gcloud,
+//                      and SEC-LAB-07 and SEC-LAB-10 reach Firestore, Pub/Sub and
+//                      Logging with gcloud's access token.
+//   --url <url>        the Cloud Run service URL            LAB_COMPILE_URL
+//   (the secret)       the service's shared secret          LAB_SECRET
+//                      Only from the environment or gcloud, never on the command line.
 //   --site <url>       send SEC-LAB-09 through the site's /api/compile instead, so
 //                      the compiles come from this machine's IP
 //   --only <ids>       comma-separated check ids
 //   --record           append the results to docs/lab-operations.md
+//   --lower-egress <bytes>  lower this month's egress counter by <bytes> and stop: the
+//                      repair SEC-LAB-07 names if it could not put the counter back
 //
-// SEC-LAB-10 deploys nothing and touches no billing: it runs the billing guard
-// from lab/billing-guard/index.ts in this process, with a fetch that answers for
-// Google and records what the guard sends.
+// SEC-LAB-10 never touches billing. It first runs the guard's source in this
+// process with a stand-in for Google, then publishes a message below the budget
+// to the real budget topic and waits for the deployed guard's log line for it.
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -169,16 +173,19 @@ async function withRetries(sendOnce, retries) {
   }
 }
 
-async function firestoreCall(ctx, method, body) {
-  const base = `https://firestore.googleapis.com/v1/projects/${ctx.project}/databases/(default)/documents`;
-  const res = await ctx.fetch(`${base}:${method}`, {
+/** A Google API call with the signed-in account's token, billed to the project. */
+async function googleCall(ctx, url, body) {
+  const res = await ctx.fetch(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${ctx.token()}`, 'Content-Type': 'application/json', 'x-goog-user-project': ctx.project },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`Firestore ${method} answered ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new Error(`${new URL(url).host} answered ${res.status}: ${(await res.text()).slice(0, 200)}`);
   return res.json();
 }
+
+const firestoreCall = (ctx, method, body) =>
+  googleCall(ctx, `https://firestore.googleapis.com/v1/projects/${ctx.project}/databases/(default)/documents:${method}`, body);
 
 /** Adds `by` to the month's egress bytes, atomically, so concurrent compiles still count. */
 const addEgress = (ctx, name, by) =>
@@ -296,17 +303,36 @@ export const CHECKS = [
     title: 'At 80% of the month the next compile is 503 resting',
     needs: ['url', 'secret', 'project'],
     async run(ctx) {
-      const name = `projects/${ctx.project}/databases/(default)/documents/usage/${monthKey(new Date())}`;
+      const month = monthKey(new Date());
+      const name = `projects/${ctx.project}/databases/(default)/documents/usage/${month}`;
       const [found] = await firestoreCall(ctx, 'batchGet', { documents: [name] });
       const egress = Number(found?.found?.fields?.egressBytes?.integerValue ?? 0);
       const delta = Math.max(0, Math.ceil(STOP_AT * ALLOWANCE.egressBytes) - egress);
+      // Lowered again only once the raise has committed, so a failed raise changes nothing.
+      let raised = false;
       let r;
+      let failed;
       try {
         await addEgress(ctx, name, delta);
+        raised = true;
         r = await compiler(ctx)('int main() {}');
-      } finally {
-        await addEgress(ctx, name, -delta);
+      } catch (e) {
+        failed = e;
       }
+      if (raised) {
+        try {
+          await addEgress(ctx, name, -delta);
+        } catch (e) {
+          return {
+            pass: false,
+            detail:
+              `RESTORE FAILED (${e instanceof Error ? e.message : String(e)}): usage/${month} egressBytes is still ${delta} bytes high, ` +
+              'so the Lab rests until it is lowered. Lower it with: ' +
+              `node --experimental-strip-types scripts/lab/load-test.mjs --project ${ctx.project} --lower-egress ${delta}`,
+          };
+        }
+      }
+      if (failed) throw failed;
       return {
         pass: r.status === 503 && r.json?.resting === 'month',
         detail: `${r.status} ${JSON.stringify(r.json)}; counter restored (an instance may rest up to 60 s more)`,
@@ -315,39 +341,103 @@ export const CHECKS = [
   },
   {
     id: 'SEC-LAB-10',
-    title: 'A budget message at 100% makes the guard switch billing off (dry run)',
-    needs: [],
+    title: 'The deployed guard reads a budget message from the budget topic',
+    needs: ['project'],
     async run(ctx) {
-      const project = ctx.project || 'vams-lab-dry-run';
-      const billingInfo = `https://cloudbilling.googleapis.com/v1/projects/${project}/billingInfo`;
-      const sent = [];
-      // Answers as Google would; any other address is refused, so nothing leaves this process.
-      const fakeFetch = async (url, init = {}) => {
-        const u = String(url);
-        const method = init.method ?? 'GET';
-        sent.push({ url: u, method, body: init.body });
-        if (u.endsWith('/instance/service-accounts/default/token')) return Response.json({ access_token: 'dry-run' });
-        if (u === billingInfo && method === 'GET') return Response.json({ billingEnabled: true });
-        if (u === billingInfo && method === 'PUT') return Response.json({ billingEnabled: false });
-        throw new Error(`the dry run sends nothing to ${u}`);
+      // First the guard's own source, in this process, with a stand-in for Google: it must
+      // switch billing off at 100% and leave it on below. Only then does a message go live.
+      const pre = await guardDryRun(ctx.project);
+      if (!pre.pass) return { pass: false, detail: `in-process pre-check failed: ${pre.detail}` };
+
+      // A message below the budget, in the shape Cloud Billing sends, so the deployed guard
+      // logs and leaves billing on. Its name is unique to this run, so only this run's line counts.
+      const name = `vams-lab live check ${ctx.run}`;
+      const now = new Date();
+      const message = {
+        budgetDisplayName: name,
+        alertThresholdExceeded: 0.5,
+        costAmount: 0.5,
+        costIntervalStart: `${monthKey(now)}-01T07:00:00Z`,
+        budgetAmount: 1,
+        budgetAmountType: 'SPECIFIED_AMOUNT',
+        currencyCode: 'USD',
       };
-      const message = { budgetDisplayName: 'vams-lab', costAmount: 1, budgetAmount: 1, alertThresholdExceeded: 1, currencyCode: 'USD' };
-      const event = { data: { message: { data: Buffer.from(JSON.stringify(message)).toString('base64') } } };
-      const logged = [];
-      const log = console.log;
-      console.log = (...args) => logged.push(args.join(' '));
-      try {
-        await onBudget(event, { fetch: fakeFetch, env: { GOOGLE_CLOUD_PROJECT: project } });
-      } finally {
-        console.log = log;
+      const want = `Budget ${name} not reached (0.5 of 1): billing stays on.`;
+      const since = now.toISOString();
+      await googleCall(ctx, `https://pubsub.googleapis.com/v1/projects/${ctx.project}/topics/budget:publish`, {
+        messages: [{ data: Buffer.from(JSON.stringify(message)).toString('base64'), attributes: { schemaVersion: '1.0' } }],
+      });
+      const filter = [
+        'resource.type="cloud_run_revision"',
+        'resource.labels.service_name="billing-guard"',
+        `timestamp>="${since}"`,
+        `textPayload:"${name}"`,
+      ].join(' AND ');
+      const started = Date.now();
+      for (;;) {
+        const listed = await googleCall(ctx, 'https://logging.googleapis.com/v2/entries:list', {
+          resourceNames: [`projects/${ctx.project}`],
+          filter,
+          orderBy: 'timestamp desc',
+          pageSize: 20,
+        });
+        const lines = (listed.entries ?? []).map((e) => String(e.textPayload ?? '').trim());
+        if (lines.includes(want)) {
+          const waited = ((Date.now() - started) / 1000).toFixed(0);
+          return { pass: true, detail: `pre-check passed; published to budget, and the guard logged "${want}" within ${waited} s` };
+        }
+        if (Date.now() - started >= ctx.logWaitMs) break;
+        await new Promise((go) => setTimeout(go, ctx.logPollMs));
       }
-      const puts = sent.filter((c) => c.method === 'PUT');
-      const said = logged.includes(`Billing turned off for ${project}.`);
-      const pass = puts.length === 1 && puts[0].url === billingInfo && puts[0].body === '{"billingAccountName":""}' && said;
-      return { pass, detail: `${puts.length} PUT to ${billingInfo} with ${puts[0]?.body ?? 'nothing'}; logged: ${logged.join(' / ') || 'nothing'}` };
+      return {
+        pass: false,
+        detail: `pre-check passed; published to budget, but the guard logged no "${want}" within ${ctx.logWaitMs / 1000} s`,
+      };
     },
   },
 ];
+
+/**
+ * The guard from lab/billing-guard/index.ts, run here with a fetch that answers for Google:
+ * a message at 100% must send one PUT that empties the billing account, and one at 50% none.
+ * Any other address is refused, so nothing leaves this process.
+ */
+export async function guardDryRun(project) {
+  const billingInfo = `https://cloudbilling.googleapis.com/v1/projects/${project}/billingInfo`;
+  const run = async (message) => {
+    const sent = [];
+    const fakeFetch = async (url, init = {}) => {
+      const u = String(url);
+      const method = init.method ?? 'GET';
+      sent.push({ url: u, method, body: init.body });
+      if (u.endsWith('/instance/service-accounts/default/token')) return Response.json({ access_token: 'dry-run' });
+      if (u === billingInfo && method === 'GET') return Response.json({ billingEnabled: true });
+      if (u === billingInfo && method === 'PUT') return Response.json({ billingEnabled: false });
+      throw new Error(`the dry run sends nothing to ${u}`);
+    };
+    const event = { data: { message: { data: Buffer.from(JSON.stringify(message)).toString('base64') } } };
+    const logged = [];
+    const log = console.log;
+    console.log = (...args) => logged.push(args.join(' '));
+    try {
+      await onBudget(event, { fetch: fakeFetch, env: { GOOGLE_CLOUD_PROJECT: project } });
+    } finally {
+      console.log = log;
+    }
+    return { puts: sent.filter((c) => c.method === 'PUT'), logged };
+  };
+  const over = await run({ budgetDisplayName: 'vams-lab', costAmount: 1, budgetAmount: 1, alertThresholdExceeded: 1, currencyCode: 'USD' });
+  const below = await run({ budgetDisplayName: 'vams-lab', costAmount: 0.5, budgetAmount: 1, alertThresholdExceeded: 0.5, currencyCode: 'USD' });
+  const pass =
+    over.puts.length === 1 &&
+    over.puts[0].url === billingInfo &&
+    over.puts[0].body === '{"billingAccountName":""}' &&
+    over.logged.includes(`Billing turned off for ${project}.`) &&
+    below.puts.length === 0 &&
+    below.logged.includes('Budget vams-lab not reached (0.5 of 1): billing stays on.');
+  const said = (r) => r.logged.join(' / ') || 'nothing';
+  return { pass, detail: `at 100%: ${over.puts.length} PUT, logged ${said(over)}; at 50%: ${below.puts.length} PUT, logged ${said(below)}` };
+}
 
 /** Runs the checks in order, printing a line for each. A check that throws fails. */
 export async function runChecks(ctx, ids = CHECKS.map((c) => c.id)) {
@@ -384,9 +474,18 @@ export function context(options = {}) {
     slackMs: 10_000,
     classSize: 40,
     windowMs: 60_000,
+    // How long SEC-LAB-10 waits for the guard's log line, and how often it looks.
+    logWaitMs: 180_000,
+    logPollMs: 10_000,
     programs: programs(),
     ...options,
   };
+}
+
+/** Lowers this month's egress counter by `bytes`: the repair for a SEC-LAB-07 that could not restore it. */
+export async function lowerEgress(ctx, bytes) {
+  const name = `projects/${ctx.project}/databases/(default)/documents/usage/${monthKey(new Date())}`;
+  await addEgress(ctx, name, -bytes);
 }
 
 /** The doc with the results added as rows at the end of the Live checks table. */
@@ -419,30 +518,32 @@ async function main() {
   const { values } = parseArgs({
     options: {
       url: { type: 'string' },
-      secret: { type: 'string' },
       project: { type: 'string' },
       site: { type: 'string' },
       only: { type: 'string' },
       record: { type: 'boolean' },
+      'lower-egress': { type: 'string' },
     },
   });
   const project = values.project ?? process.env.LAB_PROJECT ?? '';
   let url = values.url ?? process.env.LAB_COMPILE_URL ?? '';
-  let secret = values.secret ?? process.env.LAB_SECRET ?? '';
+  let secret = process.env.LAB_SECRET ?? '';
+  let token = '';
+  const accessToken = () => (token ||= gcloud(['auth', 'print-access-token']));
+  if (values['lower-egress'] !== undefined) {
+    const bytes = Number(values['lower-egress']);
+    if (!project || !Number.isSafeInteger(bytes) || bytes <= 0) throw new Error('--lower-egress needs --project and a whole number of bytes');
+    await lowerEgress(context({ project, token: accessToken }), bytes);
+    console.log(`lowered usage/${monthKey(new Date())} egressBytes by ${bytes}`);
+    return;
+  }
   if (project && !url) {
     url = gcloud(['run', 'services', 'describe', 'lab-compile', `--region=${REGION}`, `--project=${project}`, '--format=value(status.url)']);
   }
   if (project && !secret) {
     secret = gcloud(['secrets', 'versions', 'access', 'latest', '--secret=lab-secret', `--project=${project}`]);
   }
-  let token = '';
-  const ctx = context({
-    url,
-    secret,
-    project,
-    site: values.site ?? '',
-    token: () => (token ||= gcloud(['auth', 'print-access-token'])),
-  });
+  const ctx = context({ url, secret, project, site: values.site ?? '', token: accessToken });
   const ids = values.only ? values.only.split(',').map((s) => s.trim()) : undefined;
   const unknown = (ids ?? []).filter((id) => !CHECKS.some((c) => c.id === id));
   if (unknown.length) throw new Error(`no such check: ${unknown.join(', ')}`);

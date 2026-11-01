@@ -12,7 +12,6 @@ id = "7d85439fec8247699fb6cbef54207f94"
 binding = "LAB_RUNTIME"
 id = "03554bbf6ea4458bba35732e7e1f43db"
 
-[vars]
-# Filled in when the compile service is deployed. While empty, /api/compile answers offline.
-# The secret LAB_COMPILE_SECRET is set with `wrangler pages secret put`, never in this file.
-LAB_COMPILE_URL = ""
+# The compile service's address and shared secret, LAB_COMPILE_URL and LAB_COMPILE_SECRET,
+# are Pages secrets set with `wrangler pages secret put`, never in this file: a [vars]
+# entry of the same name would clash with them. Until they are set, /api/compile answers offline.
