@@ -2,11 +2,11 @@ import './code-viewer.scss';
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentChildren } from 'preact';
 import { X } from 'lucide-react';
-import { Compartment, EditorSelection, EditorState, Prec, type ChangeSpec, type StateEffect, type Text } from '@codemirror/state';
+import { ChangeSet, Compartment, EditorSelection, EditorState, Prec, type ChangeSpec, type StateEffect, type Text } from '@codemirror/state';
 import { EditorView, gutters, keymap, lineNumbers } from '@codemirror/view';
 import { cppLanguage, glNameDecorations, readOnlyCode, vamsEditorTheme, vamsHighlight } from '@/shared/ui/code-editor';
 import { REVEAL_PADDING, revealTop, scrollBehavior } from './reveal-scroll';
-import { isLineShown, setViewerInput, viewerDecorations, type ViewerDecorationInput } from './cm-decorations';
+import { cursorLineMark, isLineShown, setViewerInput, shownLines, viewerDecorations, type ViewerDecorationInput } from './cm-decorations';
 import type { CodeMark, CodeNote, CodeRow, CodeStrip } from './types';
 
 export interface CodeViewerProps {
@@ -109,22 +109,18 @@ function moveLine(view: EditorView, dir: 1 | -1, extend: boolean) {
 }
 
 /**
- * Where a cursor left in lines that just folded away goes: the nearest drawn line above them.
- * Null when the cursor's line is drawn.
+ * Where a cursor at `head` in `doc` goes when its line is not among the `shown` ones: the end of
+ * the nearest drawn line above, else the start of the nearest below. Null when its line is drawn.
  */
-function shownHead(state: EditorState): number | null {
-  const line = state.doc.lineAt(state.selection.main.head).number - 1;
-  if (isLineShown(state, line)) return null;
+function shownHead(doc: Text, head: number, shown: ReadonlySet<number>): number | null {
+  const line = doc.lineAt(head).number - 1;
+  if (shown.has(line)) return null;
   let n = line;
-  while (n >= 0 && !isLineShown(state, n)) n--;
-  let head: number;
-  if (n >= 0) head = state.doc.line(n + 1).to;
-  else {
-    n = line;
-    while (n < state.doc.lines && !isLineShown(state, n)) n++;
-    head = n < state.doc.lines ? state.doc.line(n + 1).from : 0;
-  }
-  return head;
+  while (n >= 0 && !shown.has(n)) n--;
+  if (n >= 0) return doc.line(n + 1).to;
+  n = line;
+  while (n < doc.lines && !shown.has(n)) n++;
+  return n < doc.lines ? doc.line(n + 1).from : 0;
 }
 
 const CodeViewer = memo(function CodeViewer({
@@ -193,6 +189,7 @@ const CodeViewer = memo(function CodeViewer({
         extensions: [
           lineNumbers(),
           viewerDecorations(),
+          cursorLineMark(),
           gutters({ fixed: false }),
           cppLanguage(),
           vamsHighlight(),
@@ -293,22 +290,38 @@ const CodeViewer = memo(function CodeViewer({
   const lastAria = useRef('false:false');
   // The text the view holds, so an update that keeps the code skips comparing it.
   const lastText = useRef(text);
+  // The explained line the view last drew, so only a newly opened explanation moves the cursor.
+  const lastExplained = useRef<number | null>(null);
   useLayoutEffect(() => {
     const view = viewRef.current;
     if (!view) return;
-    const changes = lastText.current === text ? null : changeTo(view.state.doc, text);
+    const { doc } = view.state;
+    const change = lastText.current === text ? null : changeTo(doc, text);
     lastText.current = text;
+    const changes = change && ChangeSet.of(change, doc.length);
     const effects: StateEffect<unknown>[] = [setViewerInput.of(input)];
     if (lastAria.current !== ariaKey) {
       lastAria.current = ariaKey;
       effects.push(ariaRef.current.reconfigure(ariaFor(!!strip, showHint)));
     }
-    const spec = { ...(changes ? { changes } : {}), effects };
     // The cursor's move rides in the same transaction. A second one straight after would make the
     // editor take its scroll anchor from the new layout, and folds that open or close above the
-    // student's place would then shift the code under them.
-    const head = shownHead(view.state.update(spec).state);
-    view.dispatch(head === null ? spec : { ...spec, selection: { anchor: head } });
+    // student's place would then shift the code under them. Where it goes is worked out from the
+    // new text and rows, without building the next state twice.
+    const next = changes ? changes.apply(doc) : doc;
+    const head = changes ? changes.mapPos(view.state.selection.main.head) : view.state.selection.main.head;
+    const shown = shownLines(input.rows);
+    const explained = input.explainedLine;
+    const opened = explained !== lastExplained.current;
+    lastExplained.current = explained;
+    let anchor: number | null;
+    // An explanation opened from outside the code (the math, a lesson's recap, Find) brings the
+    // cursor to its line. It carries no user event, so the line is not explained a second time.
+    if (opened && explained !== null && explained < next.lines && shown.has(explained)) {
+      const start = next.line(explained + 1).from;
+      anchor = next.lineAt(head).number - 1 === explained ? null : start;
+    } else anchor = shownHead(next, head, shown);
+    view.dispatch({ ...(changes ? { changes } : {}), effects, ...(anchor === null ? {} : { selection: { anchor } }) });
     drawn.current = true;
     // ariaFor reads only ids that never change.
     // eslint-disable-next-line react-hooks/exhaustive-deps

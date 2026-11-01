@@ -1,5 +1,5 @@
 import { RangeSet, StateEffect, StateField, type EditorState, type Extension, type Range, type Text } from '@codemirror/state';
-import { Decoration, EditorView, GutterMarker, WidgetType, gutterLineClass, type DecorationSet } from '@codemirror/view';
+import { Decoration, EditorView, GutterMarker, ViewPlugin, WidgetType, gutterLineClass, type DecorationSet, type ViewUpdate } from '@codemirror/view';
 import type { CodeMark, CodeNote, CodeRow } from './types';
 
 /** Everything the code view draws besides the text, as the props give it. */
@@ -239,7 +239,8 @@ export function buildDecorations(
   return { blocks: Decoration.set(blocks, true), marks: Decoration.set(marks, true) };
 }
 
-function shownLines(rows: readonly CodeRow[]): Set<number> {
+/** The lines `rows` draw as code, counted from 0; folded and hidden lines are left out. */
+export function shownLines(rows: readonly CodeRow[]): Set<number> {
   return new Set(rows.flatMap((r) => (r.kind === 'line' ? [r.line] : [])));
 }
 
@@ -287,6 +288,29 @@ const viewerField = StateField.define<ViewerValue>({
 
 /** Whether line `line` (from 0) is drawn, rather than folded away. */
 export const isLineShown = (state: EditorState, line: number) => state.field(viewerField).shown.has(line);
+
+const cursorLineClass = Decoration.line({ class: 'is-cursor' });
+const cursorLineOf = (view: EditorView) =>
+  Decoration.set([cursorLineClass.range(view.state.doc.lineAt(view.state.selection.main.head).from)]);
+
+/**
+ * Marks the line the cursor is on, so the focus ring can show where the keyboard is. The ring is
+ * drawn only while the code has focus; at rest the line looks like any other.
+ */
+export function cursorLineMark(): Extension {
+  return ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet;
+      constructor(view: EditorView) {
+        this.decorations = cursorLineOf(view);
+      }
+      update(update: ViewUpdate) {
+        if (update.selectionSet || update.docChanged) this.decorations = cursorLineOf(update.view);
+      }
+    },
+    { decorations: (plugin) => plugin.decorations },
+  );
+}
 
 /** The folds, notes, marks and ▾ toggles the props describe. */
 export function viewerDecorations(): Extension {

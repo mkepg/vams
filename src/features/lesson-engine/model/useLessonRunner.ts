@@ -75,6 +75,8 @@ const ARROW_KEY_OWNERS = [
   '[role="slider"]', '[role="dialog"]', '[role="alertdialog"]', '[role="spinbutton"]',
 ].join(', ');
 const ESCAPE_KEY_OWNERS = '[role="menu"], [role="dialog"], [role="alertdialog"]';
+/** The code panel's text: focusable and editable for its cursor, but read-only. */
+const READ_ONLY_CODE = '.cm-content[aria-readonly="true"]';
 
 /** Leaves the editor for the course map. An object, so a test can stand in for the page load. */
 export const courseMap = {
@@ -559,7 +561,10 @@ export function useLessonRunner(): LessonRunner {
       // A control that handled the key (a radiogroup, a menu, a dialog, a field) owns it.
       if (e.defaultPrevented) return;
       const target = e.target instanceof HTMLElement ? e.target : null;
-      if (target) {
+      // The generated code is editable only so its cursor can move; no keystroke changes it, so the
+      // lesson keeps its keys there. The code's own Esc, closing an explanation, prevents the default above.
+      const inCode = !!target?.closest(READ_ONLY_CODE);
+      if (target && !inCode) {
         if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable) return;
         // Arrow keys inside a composite widget move within that widget, never the lesson.
         if (e.key !== 'Escape' && target.closest(ARROW_KEY_OWNERS)) return;
@@ -567,6 +572,8 @@ export function useLessonRunner(): LessonRunner {
         if (e.key === 'Escape' && target.closest(ESCAPE_KEY_OWNERS)) return;
       }
 
+      // In the code, ← and → step the lesson and never move the cursor along its line.
+      if (inCode && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) e.preventDefault();
       if (e.key === 'ArrowRight') {
         if (canAdvance) handleNext();
       } else if (e.key === 'ArrowLeft') {

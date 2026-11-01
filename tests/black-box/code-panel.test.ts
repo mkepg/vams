@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, it, expect, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
+import { EditorState } from '@codemirror/state';
 import { EditorView, type BlockInfo } from '@codemirror/view';
 import CodeViewer from '@/shared/ui/code-viewer/CodeViewer';
 import type { CodeRow } from '@/shared/ui/code-viewer/types';
@@ -1275,6 +1276,63 @@ describe('BB-CODE-46: A click with the strip open explains the line once', () =>
     key(contentOf(host), 'ArrowDown');
     await settle();
     expect(onExplain.mock.calls).toEqual([[3]]);
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-47: An explanation opened from outside the code brings the cursor to its line', () => {
+  it('puts the cursor on the explained line without explaining it again, and leaves it on a closed strip', async () => {
+    const onExplain = vi.fn();
+    const props = { code: SMALL, explainable: new Set([2, 3]), onExplain };
+    const host = mount(h(CodeViewer, { ...props, explainedLine: null }));
+    await settle();
+    putCursor(host, 0);
+    // The Math panel, a recap link or Find opens line 3's explanation.
+    render(h(CodeViewer, { ...props, explainedLine: 3 }), host);
+    await settle();
+    expect(cursorLine(host)).toBe(3);
+    expect(onExplain).not.toHaveBeenCalled();
+    // Closing the strip leaves the cursor where it is.
+    render(h(CodeViewer, { ...props, explainedLine: null }), host);
+    await settle();
+    expect(cursorLine(host)).toBe(3);
+    unmount(host);
+  });
+});
+
+describe('BB-CODE-48: A change of props reaches the code in one transaction', () => {
+  it('builds the next state once per update, cursor move included', async () => {
+    const rows: CodeRow[] = [0, 1, 2, 3, 4].map((line) => ({ kind: 'line', line }));
+    const host = mount(h(CodeViewer, { code: SMALL, rows }));
+    await settle();
+    putCursor(host, 2);
+    const update = vi.spyOn(EditorState.prototype, 'update');
+    try {
+      // Line 2 folds away, so the cursor moves up to line 1 in the same transaction.
+      render(h(CodeViewer, { code: SMALL, rows: rows.filter((r) => r.kind !== 'line' || r.line !== 2) }), host);
+      await settle();
+      expect(update).toHaveBeenCalledTimes(1);
+      expect(cursorLine(host)).toBe(1);
+    } finally {
+      update.mockRestore();
+      unmount(host);
+    }
+  });
+});
+
+describe('BB-CODE-49: The cursor’s line carries the focus ring while the code has focus', () => {
+  it('marks the line the cursor is on, follows the cursor, and rings it in the focus-ring colour', async () => {
+    const host = mount(h(CodeViewer, { code: SMALL }));
+    await settle();
+    const marked = () => [...host.querySelectorAll('.cm-line.is-cursor')].map((el) => lineOf(host, el));
+    putCursor(host, 2);
+    await settle();
+    expect(marked()).toEqual([2]);
+    putCursor(host, 3);
+    await settle();
+    expect(marked()).toEqual([3]);
+    const css = readFileSync('src/shared/ui/code-viewer/code-viewer.scss', 'utf8');
+    expect(css).toMatch(/\.cm-content:focus-visible \.cm-line\.is-cursor\s*{[^}]*outline:\s*2px solid var\(--focus-ring\)/);
     unmount(host);
   });
 });

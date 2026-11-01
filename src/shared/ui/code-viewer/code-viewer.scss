@@ -287,6 +287,13 @@ $fold-col: 20px;
 
 .cm-line.is-explainable { cursor: pointer; }
 
+// While the code has focus, its cursor's line wears the focus ring, across the whole row as the
+// old line buttons did, so the keyboard's place shows. At rest no line is ringed.
+.code-content .cm-content:focus-visible .cm-line.is-cursor {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
 // The panel's only full-line background: the line being explained.
 .cm-line.is-explained { background: var(--paper-raised); }
 
