@@ -134,6 +134,43 @@ describe('WB-LAB-08: A reserve plus a settle makes at most 3 Firestore writes', 
     expect(fake.docs.get(fake.name('usage/2026-10'))!.requests).toEqual({ integerValue: '11' });
   });
 
+  it('retries a transaction that lost to another as a retry of that one, and still writes the windows once', async () => {
+    const fake = fakeFirestore();
+    let lost = false;
+    const fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      if (!lost && String(input).endsWith(':commit')) {
+        lost = true;
+        return new Response(JSON.stringify({ error: { code: 409, status: 'ABORTED' } }), { status: 409 });
+      }
+      return fake.fetch(input, init);
+    }) as typeof globalThis.fetch;
+    const store = firestoreStore('vams-test', { fetch });
+    expect(await store.reserve({ visitor: 'v-1', ip: IP, now: at(T0) })).toEqual(OK);
+    await store.settle({ bytes: 10, ms: 10, now: at(T0) });
+
+    const begins = fake.calls.filter((c) => c.url.endsWith(':beginTransaction')).map((c) => c.body);
+    expect(begins).toEqual([{ options: { readWrite: {} } }, { options: { readWrite: { retryTransaction: 'tx-1' } } }]);
+    expect(fake.docs.get(fake.name('rate/v-1'))!.count).toEqual({ integerValue: '1' });
+    expect(fake.writes()).toBeLessThanOrEqual(3);
+  });
+
+  it('gives up on a call that timed out without waiting another 10 s to roll back', async () => {
+    const fake = fakeFirestore();
+    const fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith(':commit')) throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+      if (url.endsWith(':rollback')) {
+        // A Firestore that has stopped answering: only the call's own timeout ends it.
+        return new Promise<Response>((_, fail) => init?.signal?.addEventListener('abort', () => fail(init.signal!.reason)));
+      }
+      return fake.fetch(input, init);
+    }) as typeof globalThis.fetch;
+    const store = firestoreStore('vams-test', { fetch });
+    const started = Date.now();
+    await expect(store.reserve({ visitor: 'v-1', ip: IP, now: at(T0) })).rejects.toThrow(/timeout/);
+    expect(Date.now() - started).toBeLessThan(2_000);
+  });
+
   it('stores the IP only as its SHA-256 hash, and signs in with the metadata server token', async () => {
     const fake = fakeFirestore();
     const store = firestoreStore('vams-test', { fetch: fake.fetch });

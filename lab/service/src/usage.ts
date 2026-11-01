@@ -141,8 +141,9 @@ export function firestoreStore(project: string, options: { fetch?: typeof fetch 
       if (kept) return kept;
 
       const monthPath = `usage/${monthKey(now)}`;
+      let lost: string | undefined;
       for (let attempt = 1; ; attempt++) {
-        const transaction = await db.begin();
+        const transaction = await db.begin(lost);
         try {
           const docs = await db.get([monthPath, visitorPath, ipPath], transaction);
           const d = decide({ month: readMonth(docs.get(monthPath)), visitor: readWindow(docs.get(visitorPath)), ip: readWindow(docs.get(ipPath)) }, now);
@@ -156,6 +157,7 @@ export function firestoreStore(project: string, options: { fetch?: typeof fetch 
         } catch (e) {
           await db.rollback(transaction).catch(() => {});
           if (!(e instanceof FirestoreError && e.status === CONTENDED) || attempt >= ATTEMPTS) throw e;
+          lost = transaction;
           await new Promise((r) => setTimeout(r, 20 * attempt + Math.random() * 30));
         }
       }

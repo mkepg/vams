@@ -9,11 +9,11 @@
  *  - The flags match lab/runtime/build.sh word for word
  *  - POST /compile answers 200, 422, 503, 429 and 401 as the contract says, two compiles at a time
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
-import type { AddressInfo } from 'node:net';
+import { connect, type AddressInfo } from 'node:net';
 import { request as httpRequest, type Server } from 'node:http';
 import { includeTrace, rewriteDiagnostics, scrubPaths, type Diagnostic } from '../../lab/service/src/diagnostics.ts';
 import { sideFlags, traceIsInside } from '../../lab/service/src/compile.ts';
@@ -439,6 +439,57 @@ describe('WB-LAB-14: POST /compile follows the HTTP contract, two compiles at a 
     const url = await start({ usage, compile: async () => (compiled++, okResult()) });
     expect((await post(url, request)).status).toBe(500);
     expect(compiled).toBe(0);
+  });
+
+  it("logs a failed request's message, and never its stack", async () => {
+    const logged: unknown[][] = [];
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => void logged.push(args));
+    try {
+      const usage: UsageStore = {
+        reserve: async () => {
+          throw new Error('Firestore is unreachable.');
+        },
+        settle: async () => {},
+      };
+      const url = await start({ usage });
+      expect((await post(url, request)).status).toBe(500);
+      expect(logged).toEqual([['compile request failed:', 'Firestore is unreachable.']]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('reserves nothing for a client that has gone before its reserve', async () => {
+    let reserved = 0;
+    let compiled = 0;
+    const usage: UsageStore = { reserve: async () => (reserved++, { ok: true }), settle: async () => {} };
+    const url = new URL(await start({ usage, compile: async () => (compiled++, okResult()) }));
+    const body = JSON.stringify(request);
+    const CRLF = String.fromCharCode(13, 10);
+    for (let i = 0; i < 5; i++) {
+      // The whole request, then the client leaves at once: its body has ended, and so has it.
+      await new Promise<void>((done) => {
+        const socket = connect(Number(url.port), url.hostname, () => {
+          socket.write(
+            [
+              'POST /compile HTTP/1.1',
+              'Host: lab',
+              'Content-Type: application/json',
+              `X-Lab-Secret: ${SECRET}`,
+              'X-Lab-Client-IP: 203.0.113.7',
+              `Content-Length: ${body.length}`,
+              '',
+              body,
+            ].join(CRLF),
+          );
+          socket.destroy();
+          setTimeout(done, 20);
+        });
+      });
+    }
+    expect(reserved).toBe(0);
+    expect(compiled).toBe(0);
+    expect((await post(url.href, request)).status).toBe(200);
   });
 
   it('compiles nothing for a client that leaves while its compile is being reserved', async () => {

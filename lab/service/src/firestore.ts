@@ -7,6 +7,8 @@
 export const METADATA_TOKEN_URL = 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token';
 /** A Firestore or metadata call that takes longer than this fails. */
 export const CALL_TIMEOUT_MS = 10_000;
+/** A rollback is a courtesy that frees the transaction's locks early, so it waits less. */
+export const ROLLBACK_TIMEOUT_MS = 1_000;
 
 export interface Value {
   integerValue?: string;
@@ -42,7 +44,8 @@ export const fieldPath = (...names: string[]) =>
 export interface Firestore {
   /** The full name of a document, from a path such as usage/2026-10. */
   name(path: string): string;
-  begin(): Promise<string>;
+  /** Starts a read-write transaction; `retry` names one that lost to another and is tried again. */
+  begin(retry?: string): Promise<string>;
   /** Reads documents by path. A missing document reads as null. */
   get(paths: string[], transaction?: string): Promise<Map<string, Fields | null>>;
   commit(writes: Write[], transaction?: string): Promise<void>;
@@ -70,12 +73,12 @@ export function firestore(project: string, fetchFn: typeof fetch = fetch): Fires
     return token;
   };
 
-  const call = async (method: string, body: unknown): Promise<unknown> => {
+  const call = async (method: string, body: unknown, timeout = CALL_TIMEOUT_MS): Promise<unknown> => {
     const res = await fetchFn(`${base}:${method}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${await signIn()}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeout),
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
@@ -86,8 +89,9 @@ export function firestore(project: string, fetchFn: typeof fetch = fetch): Fires
 
   return {
     name,
-    async begin() {
-      const { transaction } = (await call('beginTransaction', { options: { readWrite: {} } })) as { transaction: string };
+    async begin(retry) {
+      const readWrite = retry ? { retryTransaction: retry } : {};
+      const { transaction } = (await call('beginTransaction', { options: { readWrite } })) as { transaction: string };
       return transaction;
     },
     async get(paths, transaction) {
@@ -106,7 +110,7 @@ export function firestore(project: string, fetchFn: typeof fetch = fetch): Fires
       await call('commit', { writes, ...(transaction && { transaction }) });
     },
     async rollback(transaction) {
-      await call('rollback', { transaction });
+      await call('rollback', { transaction }, ROLLBACK_TIMEOUT_MS);
     },
   };
 }

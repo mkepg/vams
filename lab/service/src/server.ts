@@ -188,6 +188,10 @@ export function createService(options: ServiceOptions): Server {
     res.on('close', () => {
       if (!res.writableFinished) abort.abort();
     });
+    // A client that left as its body ended closes on the next turn of the event loop,
+    // before the listener hears it. Waiting that turn means it costs no reserve.
+    await new Promise((go) => setImmediate(go));
+    if (req.socket.destroyed || abort.signal.aborted) return;
     const reservation = await usage.reserve({ visitor, ip, now: new Date() });
     if (!reservation.ok) {
       const { reason } = reservation;
@@ -235,7 +239,9 @@ export function createService(options: ServiceOptions): Server {
   };
 
   const server = createServer((req, res) => {
-    handle(req, res).catch(() => {
+    handle(req, res).catch((e: unknown) => {
+      // The message only: a stack could carry part of a student's source.
+      console.error('compile request failed:', e instanceof Error ? e.message : String(e));
       if (!res.headersSent) sendJson(res, 500, { error: 'internal' });
       else res.destroy();
     });
