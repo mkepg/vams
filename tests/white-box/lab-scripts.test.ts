@@ -110,11 +110,14 @@ describe('WB-LAB-16: The live checks pass against a local service, fail when the
   /**
    * Firestore, plus Pub/Sub and Logging as the deployed guard sees them: a message published to
    * the budget topic runs the guard's source, and what it logs is what entries:list returns.
+   * `skewMs` stamps each line that much before the publish, as Google's clock would against a
+   * local one running ahead, and `payload` says whether a line is text or structured JSON.
    */
-  function fakeGoogle(guard: 'deployed' | 'silent' = 'deployed') {
+  function fakeGoogle(guard: 'deployed' | 'silent' = 'deployed', { skewMs = 0, payload = 'text' } = {}) {
     const fake = fakeFirestore(PROJECT);
     const published: { budgetDisplayName: string; costAmount: number; budgetAmount: number }[] = [];
-    const logs: string[] = [];
+    const logs: { line: string; timestamp: string }[] = [];
+    const filters: string[] = [];
     const answer = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
     const fetch = (async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
@@ -123,7 +126,8 @@ describe('WB-LAB-16: The live checks pass against a local service, fail when the
         published.push(JSON.parse(Buffer.from(messages[0].data, 'base64').toString('utf8')));
         if (guard === 'deployed') {
           const log = console.log;
-          console.log = (...a: unknown[]) => void logs.push(`${a.join(' ')}\n`);
+          const timestamp = new Date(Date.now() - skewMs).toISOString();
+          console.log = (...a: unknown[]) => void logs.push({ line: `${a.join(' ')}\n`, timestamp });
           try {
             await onBudget({ data: { message: { data: messages[0].data } } }, {
               fetch: (async () => {
@@ -139,12 +143,18 @@ describe('WB-LAB-16: The live checks pass against a local service, fail when the
       }
       if (url === 'https://logging.googleapis.com/v2/entries:list') {
         const { filter } = JSON.parse(String(init!.body));
-        const name = /textPayload:"([^"]+)"/.exec(filter)![1];
-        return answer({ entries: logs.filter((l) => l.includes(name)).map((textPayload) => ({ textPayload })) });
+        filters.push(filter);
+        // The filter's bare string, and the time it starts from.
+        const name = / AND "([^"]+)"$/.exec(filter)![1];
+        const since = Date.parse(/timestamp>="([^"]+)"/.exec(filter)![1]);
+        const entries = logs
+          .filter((l) => l.line.includes(name) && Date.parse(l.timestamp) >= since)
+          .map((l) => (payload === 'text' ? { textPayload: l.line } : { jsonPayload: { message: l.line.trim() } }));
+        return answer({ entries });
       }
       return fake.fetch(input, init);
     }) as typeof globalThis.fetch;
-    return { fake, fetch, published, logs };
+    return { fake, fetch, published, logs, filters };
   }
 
   it('passes every check, and leaves the month below 80%', async () => {
@@ -246,6 +256,27 @@ describe('WB-LAB-16: The live checks pass against a local service, fail when the
     expect(r.detail).toMatch(/^threw: firestore\.googleapis\.com answered 403/);
     expect(commits).toHaveLength(1);
     expect(fake.docs.get(monthDoc(fake))!.egressBytes).toEqual({ integerValue: '777' });
+  });
+
+  it("finds the guard's line stamped up to a minute before the publish, by its name in any field", async () => {
+    const { fetch, filters } = fakeGoogle('deployed', { skewMs: 59_000 });
+    const ctx = context({ project: PROJECT, fetch, token: () => 'fake-token', log: quiet, logWaitMs: 50, logPollMs: 10 });
+    const [r] = await runChecks(ctx, ['SEC-LAB-10']);
+    expect(r, r.detail).toMatchObject({ pass: true });
+    expect(filters[0]).toMatch(/ AND "vams-lab live check [0-9a-f]+"$/);
+    expect(filters[0]).not.toContain('textPayload');
+
+    // A line older than the minute is out of the window.
+    const late = fakeGoogle('deployed', { skewMs: 65_000 });
+    const [missed] = await runChecks({ ...ctx, fetch: late.fetch }, ['SEC-LAB-10']);
+    expect(missed.pass).toBe(false);
+  });
+
+  it("reads a line the guard logged as structured JSON, from jsonPayload.message", async () => {
+    const { fetch } = fakeGoogle('deployed', { payload: 'json' });
+    const ctx = context({ project: PROJECT, fetch, token: () => 'fake-token', log: quiet, logWaitMs: 50, logPollMs: 10 });
+    const [r] = await runChecks(ctx, ['SEC-LAB-10']);
+    expect(r, r.detail).toMatchObject({ pass: true });
   });
 
   it('fails SEC-LAB-10 when the deployed guard logs nothing for the message in time', async () => {

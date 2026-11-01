@@ -363,7 +363,9 @@ export const CHECKS = [
         currencyCode: 'USD',
       };
       const want = `Budget ${name} not reached (0.5 of 1): billing stays on.`;
-      const since = now.toISOString();
+      // A minute early, so a local clock running ahead of Google's can't hide the line;
+      // the run's own budget name keeps older lines out.
+      const since = new Date(Date.now() - 60_000).toISOString();
       await googleCall(ctx, `https://pubsub.googleapis.com/v1/projects/${ctx.project}/topics/budget:publish`, {
         messages: [{ data: Buffer.from(JSON.stringify(message)).toString('base64'), attributes: { schemaVersion: '1.0' } }],
       });
@@ -371,7 +373,8 @@ export const CHECKS = [
         'resource.type="cloud_run_revision"',
         'resource.labels.service_name="billing-guard"',
         `timestamp>="${since}"`,
-        `textPayload:"${name}"`,
+        // A bare string matches any field, so a line logged as text or as structured JSON is found.
+        `"${name}"`,
       ].join(' AND ');
       const started = Date.now();
       for (;;) {
@@ -381,7 +384,7 @@ export const CHECKS = [
           orderBy: 'timestamp desc',
           pageSize: 20,
         });
-        const lines = (listed.entries ?? []).map((e) => String(e.textPayload ?? '').trim());
+        const lines = (listed.entries ?? []).map((e) => String(e.textPayload ?? e.jsonPayload?.message ?? '').trim());
         if (lines.includes(want)) {
           const waited = ((Date.now() - started) / 1000).toFixed(0);
           return { pass: true, detail: `pre-check passed; published to budget, and the guard logged "${want}" within ${waited} s` };
