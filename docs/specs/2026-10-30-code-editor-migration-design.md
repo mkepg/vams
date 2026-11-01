@@ -21,7 +21,7 @@ The code panel keeps every product rule. It stays read-only, and its text is sti
   - notes under the key lines;
   - the two syntax colours (GL calls and comments) and everything else in ink.
 - One shared module holds the CodeMirror setup (language, colours, theme, GL-name colouring), so the Lab's editor builds on it.
-- The code is readable by keyboard and screen reader as text. Today each explainable line is a button, and the rest of the code is out of reach of the keyboard.
+- The code is readable by keyboard and screen reader as text. Today each explainable line is a button, and the rest of the code is out of reach of the keyboard. CodeMirror draws only the lines near the screen, so fold buttons far below are reached once the code scrolls to them, and the browser's own Ctrl+F finds only the drawn lines; VAMS's Find covers every line.
 
 ## Non-goals
 

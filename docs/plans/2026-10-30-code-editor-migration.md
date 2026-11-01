@@ -2,7 +2,7 @@
 
 **Goal:** The editor's code panel and the phone scene view draw generated C++ with CodeMirror 6 in read-only mode, with every current behaviour kept, through a shared module the Lab will reuse.
 
-**Architecture:** A new `src/shared/ui/code-editor/` module holds the CodeMirror setup: language, highlight style, GL-name decoration and theme. `CodeViewer` keeps its props and its Preact header, strip and hint. Its code area becomes one `EditorView`, fed from props through a `StateField` of decorations: fold and "more" rows and notes as block widgets, the ▾ toggles in a gutter, and marks, Find matches, the fired branch and explainable lines as mark and line decorations.
+**Architecture:** A new `src/shared/ui/code-editor/` module holds the CodeMirror setup: language, highlight style, GL-name decoration and theme. `CodeViewer` keeps its props and its Preact header, strip and hint. Its code area becomes one `EditorView`, fed from props through a `StateField` of decorations: fold and "more" rows and notes as block widgets, the ▾ toggles as inline widgets at the start of their lines in the code, and marks, Find matches, the fired branch and explainable lines as mark and line decorations.
 
 **Tech stack:** CodeMirror 6 (`@codemirror/state`, `@codemirror/view`, `@codemirror/language`, `@codemirror/lang-cpp`, `@lezer/highlight`), Preact, Vitest + happy-dom, Playwright.
 
@@ -45,7 +45,7 @@
   - `src/shared/ui/code-editor/extensions.ts`
   - `src/shared/ui/code-editor/code-editor.scss`
 - Modify: `package.json` and `package-lock.json`, through `npm install`
-- Test: `tests/black-box/code-panel.test.ts`, new `BB-CODE-40`
+- Test: `tests/black-box/code-panel.test.ts`, new `BB-CODE-42`
 
 **Produces:**
 - `glNameRanges(line: string): Array<{ from: number; to: number }>`: the GL and GLUT call names in one line, by the tokenizer's rule. Use `tokenizeLine`, keeping tokens of kind `glfn`.
@@ -56,8 +56,8 @@
 - `readOnlyCode(): Extension[]`: `EditorState.readOnly.of(true)` and `EditorView.editable.of(true)` (focusable, so the cursor moves), plus `EditorView.contentAttributes.of({ 'aria-label': 'Generated C++ code', 'aria-readonly': 'true' })`.
 
 - [ ] **Step 1: Install.** Run `npm install @codemirror/state @codemirror/view @codemirror/language @codemirror/lang-cpp @lezer/highlight`. Expected: `package.json` lists the five packages.
-- [ ] **Step 2: Write BB-CODE-40, the GL colouring matches the tokenizer.** For every line of `currentProgram()` (the existing helper) after `mockScene()`, the text covered by `glNameRanges(line)` equals the `glfn` tokens of `tokenizeLine(line)`, in order. Also check that `glNameRanges('glBegin(GL_TRIANGLES); // glEnd')` covers `glBegin` only before the comment, and that `glutSwapBuffers()` is covered.
-- [ ] **Step 3: Run it.** `npx vitest run tests/black-box/code-panel.test.ts -t BB-CODE-40`. Expected: FAIL, because the module does not exist yet.
+- [ ] **Step 2: Write BB-CODE-42, the GL colouring matches the tokenizer.** For every line of `currentProgram()` (the existing helper) after `mockScene()`, the text covered by `glNameRanges(line)` equals the `glfn` tokens of `tokenizeLine(line)`, in order. Also check that `glNameRanges('glBegin(GL_TRIANGLES); // glEnd')` covers `glBegin` only before the comment, and that `glutSwapBuffers()` is covered.
+- [ ] **Step 3: Run it.** `npx vitest run tests/black-box/code-panel.test.ts -t BB-CODE-42`. Expected: FAIL, because the module does not exist yet.
 - [ ] **Step 4: Implement the module.** Comment bodies must not get GL marks: skip ranges at or after the first `//` outside a string, as the tokenizer does.
 - [ ] **Step 5: Run it.** Expected: PASS.
 - [ ] **Step 6: Commit** `feat(code): shared CodeMirror setup for generated C++`.
@@ -81,7 +81,7 @@
   - `fired`, `firedSeq`, `explainable`, `explainedLine`;
   - `notes`, `notesOn`, `changedLines`;
   - the callbacks the widgets call: `onToggleFold`, from a fold's button and a ▾.
-- `lineSegments` stays exported from `CodeViewer.tsx`, because BB-CODE tests use it, until no test needs it. Then it is removed with its tests rewritten. The implementer's choice, recorded in the report.
+- `lineSegments` stays exported from `CodeViewer.tsx`, because BB-CODE tests use it, until no test needs it. Then it is removed, and its check in BB-CODE-04 runs through the view.
 
 Behaviour to keep, mapped to tests:
 - Folds and ▾: BB-CODE-03, 13, 16, 35–39.
@@ -100,10 +100,10 @@ Keyboard model (spec decision 7), replacing the old per-line buttons:
 - **BB-CODE-26:** the close button returns focus to the content element, with the cursor on the explained line.
 
 New tests:
-- **BB-CODE-41:** the view is read-only. Dispatching an input transaction, or a paste event with text, leaves the document equal to `code`.
-- **BB-CODE-42:** a click on a folded block's button opens it without moving the cursor into hidden text. With the cursor inside a block that then folds, the cursor ends on the fold row's line or above it, and Enter explains nothing hidden.
+- **BB-CODE-43:** the view is read-only. Dispatching an input transaction, or a paste event with text, leaves the document equal to `code`.
+- **BB-CODE-44:** a click on a folded block's button opens it without moving the cursor into hidden text. With the cursor inside a block that then folds, the cursor ends on the fold row's line or above it, and Enter explains nothing hidden.
 
-- [ ] **Step 1: Rewrite the BB-CODE tests that read the old markup, and add BB-CODE-41 and BB-CODE-42.**
+- [ ] **Step 1: Rewrite the BB-CODE tests that read the old markup, and add BB-CODE-43 and BB-CODE-44.**
   - Lines are read from `.cm-line` (or `view.state.doc` through a test hook on the container, `data-testid="code-view"`, and `EditorView.findFromDOM`).
   - `lineTexts()` keeps returning the visible line texts, top to bottom.
 - [ ] **Step 2: Run them.** `npx vitest run tests/black-box/code-panel.test.ts`. Expected: the rewritten and new tests fail against the old viewer.
@@ -113,7 +113,7 @@ New tests:
   - Scrolling keeps the `reveal-scroll.ts` rules, measured with `view.lineBlockAt(view.state.doc.line(n + 1).from)` and `view.scrollDOM`.
 - [ ] **Step 4: Run** `npx vitest run tests/black-box/code-panel.test.ts`. Expected: every BB-CODE test passes.
 - [ ] **Step 5: Update the other suites' selectors.** Run `npx vitest run`. Expected: every test passes.
-- [ ] **Step 6: Run** `npm run lint` and `npm run build`. Expected: both clean. Record the editor chunk's gzipped size before and after in the report.
+- [ ] **Step 6: Run** `npm run lint` and `npm run build`. Expected: both clean. The editor's first load grows by about 129 KB gzipped, against the spec's "about 120 KB"; CodeMirror's own floor for these packages is about 124 KB, and the roadmap records the overrun as accepted.
 - [ ] **Step 7: Commit** `feat(code): the code panel draws with CodeMirror, read-only, with folds, marks, notes and explanations kept`.
 
 ### Task 3: Visual parity, the phone view and the docs
