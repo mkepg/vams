@@ -142,9 +142,13 @@ tests/
 │   │                                        string students read)
 │   ├── lab-service.test.ts               (WB-LAB-*: the Lab compile service's
 │   │                                        diagnostics, flags and HTTP contract)
-│   └── lab-limits.test.ts                (WB-LAB-03 to 09: the compile service's
-│                                            rate limits, daily ceiling and
-│                                            monthly counter)
+│   ├── lab-limits.test.ts                (WB-LAB-03 to 09: the compile service's
+│   │                                        rate limits, daily ceiling and
+│   │                                        monthly counter)
+│   ├── lab-billing-guard.test.ts         (WB-LAB-10 and 11: the function that
+│   │                                        turns billing off at the budget)
+│   └── lab-scripts.test.ts               (WB-LAB-15 to 18: the setup, publish
+│                                            and live-check scripts, offline)
 ├── security/                     ← What a Lab program can reach on the
 │   │                                compile server.
 │   └── lab-includes.test.ts              (SEC-LAB-*: include and directive
