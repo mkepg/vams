@@ -97,7 +97,7 @@ These don't start before the expo:
 - SP6 editor behaviour changes, starting with a walkthrough. Ideas are parked until then.
 - SP7, the full curriculum expansion.
 - Analytics.
-- Switch the code panel to CodeMirror 6, only if time allows after the expo (owner, 2026-10-16). The panel's folds were fixed in place first.
+- Switch the code panel to CodeMirror 6, only if time allows after the expo (owner, 2026-10-16). The panel's folds were fixed in place first. Done 2026-10-30; see the status note on the code panel below.
 
 New ideas join this list in priority order.
 
@@ -132,6 +132,8 @@ Review of the 2026-10-30 round: a whole-branch review found no critical problems
 - The rice terraces card says N turns the stars on and off, and the search button shows ⌘ K on a Mac.
 - The Teaching page and the Learn page share one section-anchor rule, in the lesson catalogue.
 - The footer gives the wordmark and the project's name the same space in both themes.
+
+Code panel on CodeMirror 6 (2026-10-30, [spec](2026-10-30-code-editor-migration-design.md)): the code panel and the phone scene view now draw the generated C++ with CodeMirror 6, read-only. This is the first half of the move to one code editor shared with the Lab; the grammar, colours, theme and GL-name colouring live in `src/shared/ui/code-editor/` for the Lab to build on. Every behaviour is kept: focused folding with its ▸ and ▾, the amber marks and their fade, Run's fired branch, the scrolls that follow a selection and reveal a change or a lesson's lines, Find, Copy, the explanation strip and the notes. The code can now be selected, and it is one tab stop that Up and Down move through line by line. The editor's first load grew by about 129 KB gzipped, against the spec's "about 120 KB". CodeMirror's own floor for these packages is about 124 KB, so the overrun was accepted. The code captures in the visual suite were checked against the old viewer in both themes, and only those that differed by anti-aliasing were re-recorded.
 
 Rehearsal checklist (presentation, Nov 10):
 

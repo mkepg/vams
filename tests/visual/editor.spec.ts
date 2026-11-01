@@ -182,7 +182,7 @@ const THEMES = ['light', 'dark'] as const;
 
 /** Waits until the code panel has stopped scrolling to the call that fired: the same position over two frames. */
 async function codeSettled(page: Page) {
-  const position = () => page.locator('.code-content').first().evaluate(async (el) => {
+  const position = () => page.locator('.code-content .cm-scroller').first().evaluate(async (el) => {
     const before = el.scrollTop;
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     return before === el.scrollTop;

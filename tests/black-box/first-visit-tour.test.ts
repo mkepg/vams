@@ -307,7 +307,7 @@ describe('BB-TOUR-07: During the tour the code marks the value an edit changes',
     await settle();
     getState().updateObjectTransform(triangle.id, { translateX: 0.7 });
     await settle();
-    const changed = [...host.querySelectorAll('.code-line.is-changed')].map((el) => el.textContent ?? '');
+    const changed = [...host.querySelectorAll('.cm-line.is-changed')].map((el) => el.textContent ?? '');
     expect(changed.some((line) => line.includes('ObjectState state_'))).toBe(true);
     expect(changed.some((line) => line.includes('glTranslatef'))).toBe(false);
     expect([...host.querySelectorAll('.code-value')].map((el) => el.textContent)).toEqual(['0.7000f']);
