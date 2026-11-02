@@ -186,9 +186,13 @@ tests/
 │   ├── algorithm-1-global-matrix.test.ts        (ALG-1-*)
 │   ├── algorithm-2-code-generation.test.ts      (ALG-2-*)
 │   ├── algorithm-3-lesson-step.test.ts          (ALG-3-*)
-│   └── gl-geometry.test.ts                      (ALG-FID-*: points, lines,
-│                                                  stipple and FLAT colours by the
-│                                                  OpenGL 1.5 multisample rules)
+│   ├── gl-geometry.test.ts                      (ALG-FID-*: points, lines,
+│   │                                              stipple and FLAT colours by the
+│   │                                              OpenGL 1.5 multisample rules)
+│   └── gl-raster.test.ts                        (ALG-LAB-01 to 08 and 17: the Lab's
+│                                                  rasteriser, pixel by pixel, by the
+│                                                  OpenGL 1.5 rules with and without
+│                                                  multisampling)
 └── reports/                      ← Per-run output; consumed by Chapter 4.
     ├── algorithm-1-results.json
     ├── algorithm-2-results.json

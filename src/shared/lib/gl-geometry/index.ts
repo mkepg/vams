@@ -121,35 +121,50 @@ export function lineTriangles(
   let counter = 0;
   for (const seg of lineSegments(mode, vertices.length)) {
     if (seg.resetsStipple) counter = 0;
-    const A = vertices[seg.a];
-    const B = vertices[seg.b];
-    const dx = B.x - A.x;
-    const dy = B.y - A.y;
-    const len = Math.hypot(dx, dy);
-    if (len === 0) continue;
-    const nx = (-dy / len) * (width / 2);
-    const ny = (dx / len) * (width / 2);
-    const frags = fragmentColumns(A, B);
-    const spans: [number, number][] = stipple
-      ? stippleRuns(counter, frags.count, stipple.factor, stipple.pattern).map(([s0, s1]) => frags.span(s0 - counter, s1 - counter))
-      : [[0, 1]];
-    for (const [t0, t1] of spans) {
-      const c0 = shade === 'FLAT' ? vertices[seg.provoking].color : lerp(A.color, B.color, t0);
-      const c1 = shade === 'FLAT' ? vertices[seg.provoking].color : lerp(A.color, B.color, t1);
-      const x0 = A.x + dx * t0;
-      const y0 = A.y + dy * t0;
-      const x1 = A.x + dx * t1;
-      const y1 = A.y + dy * t1;
-      push(out, x0 - nx, y0 - ny, c0);
-      push(out, x1 - nx, y1 - ny, c1);
-      push(out, x1 + nx, y1 + ny, c1);
-      push(out, x0 - nx, y0 - ny, c0);
-      push(out, x1 + nx, y1 + ny, c1);
-      push(out, x0 + nx, y0 + ny, c0);
-    }
-    counter += frags.count;
+    const flat = shade === 'FLAT' ? vertices[seg.provoking].color : null;
+    counter += segmentTriangles(out, vertices[seg.a], vertices[seg.b], width, flat, stipple, counter);
   }
   return out;
+}
+
+/**
+ * One segment's rectangle, or its stipple pieces with the counter starting at `counter`, added to
+ * `out` in `flat` or, when it is null, the end colours blended. Returns how far the counter moves.
+ */
+export function segmentTriangles(
+  out: Triangles,
+  A: GeoVertex,
+  B: GeoVertex,
+  width: number,
+  flat: Rgba | null,
+  stipple: Stipple | null,
+  counter: number,
+): number {
+  const dx = B.x - A.x;
+  const dy = B.y - A.y;
+  const len = Math.hypot(dx, dy);
+  if (len === 0) return 0;
+  const nx = (-dy / len) * (width / 2);
+  const ny = (dx / len) * (width / 2);
+  const frags = fragmentColumns(A, B);
+  const spans: [number, number][] = stipple
+    ? stippleRuns(counter, frags.count, stipple.factor, stipple.pattern).map(([s0, s1]) => frags.span(s0 - counter, s1 - counter))
+    : [[0, 1]];
+  for (const [t0, t1] of spans) {
+    const c0 = flat ?? lerp(A.color, B.color, t0);
+    const c1 = flat ?? lerp(A.color, B.color, t1);
+    const x0 = A.x + dx * t0;
+    const y0 = A.y + dy * t0;
+    const x1 = A.x + dx * t1;
+    const y1 = A.y + dy * t1;
+    push(out, x0 - nx, y0 - ny, c0);
+    push(out, x1 - nx, y1 - ny, c1);
+    push(out, x1 + nx, y1 + ny, c1);
+    push(out, x0 - nx, y0 - ny, c0);
+    push(out, x1 + nx, y1 + ny, c1);
+    push(out, x0 + nx, y0 + ny, c0);
+  }
+  return frags.count;
 }
 
 /**
