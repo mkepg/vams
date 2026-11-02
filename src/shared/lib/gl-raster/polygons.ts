@@ -1,6 +1,6 @@
 import { fragmentBox, type Box } from './clip';
 import { SAMPLE_OFFSETS, type Framebuffer } from './framebuffer';
-import { emitFragment, FULL_COVERAGE, type RasterState, type RGBA, type WinVertex } from './fragment';
+import { drawable, emitFragment, FULL_COVERAGE, type RasterState, type RGBA, type WinVertex } from './fragment';
 import { rasterLine } from './lines';
 import { rasterPoint } from './points';
 
@@ -102,7 +102,7 @@ export function rasterPolygon(
   triangles?: readonly (readonly [number, number, number])[],
 ): void {
   const n = vertices.length;
-  if (n < 3) return;
+  if (n < 3 || !vertices.every(drawable)) return;
   let area = 0;
   for (let i = 0; i < n; i++) {
     const p = vertices[i];

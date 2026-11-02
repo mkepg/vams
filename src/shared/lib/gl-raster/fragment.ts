@@ -14,6 +14,11 @@ export interface WinVertex {
   tex?: [number, number];
 }
 
+/** Whether a vertex has a finite window position; one that doesn't (a 0/0 in the program) draws nothing. */
+export function drawable(v: WinVertex): boolean {
+  return Number.isFinite(v.x) && Number.isFinite(v.y);
+}
+
 export type PolygonMode = 'POINT' | 'LINE' | 'FILL';
 export type Face = 'FRONT' | 'BACK' | 'FRONT_AND_BACK';
 export type BlendFactor =

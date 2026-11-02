@@ -3,7 +3,10 @@
  * 3.4.2, 3.5, 3.4.4, 3.5.6 and Table 2.12). Every expected pixel set and value is worked out by hand
  * from those rules; the comment beside each one names the rule.
  */
-import { describe, expect, it } from 'vitest';
+import { Worker } from 'node:worker_threads';
+import { resolve } from 'node:path';
+import { build, type Rollup } from 'vite';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { lineSegments } from '@/shared/lib/gl-geometry';
 import {
   clearFramebuffer,
@@ -18,6 +21,7 @@ import {
   type RGBA,
   type WinVertex,
 } from '@/shared/lib/gl-raster';
+import type { RasterCall, RasterResult } from '../helpers/raster-worker';
 
 const WHITE: RGBA = [1, 1, 1, 1];
 const RED: RGBA = [1, 0, 0, 1];
@@ -71,7 +75,7 @@ describe('ALG-LAB-01: A point is a size × size square of pixels (3.3)', () => {
     [3, 10, block(9, 11, 9, 11)],
     [4, 10, block(8, 11, 8, 11)],
   ];
-  it.each(cases)('size %d at (%d, %d) covers its square', (size, at, expected) => {
+  it.each(cases)('size %d at x = y = %d covers its square', (size, at, expected) => {
     const fb = createFramebuffer(24, 24);
     rasterPoint(fb, v(at, at), state({ pointSize: size }));
     expect(covered(fb)).toEqual(expected);
@@ -276,5 +280,103 @@ describe('ALG-LAB-17: Multisample mode covers 4 samples a pixel (3.4.4, 3.5.6)',
     rasterLine(fb, v(5, 5.5), v(10, 5.5), s);
     // Columns 0..4 then 5..9 take s = 0..9; the set bits are s = 2, 3, 6, 7, each a whole pixel column.
     expect(covered(fb)).toEqual(pixels([[2, 5], [3, 5], [6, 5], [7, 5]]));
+  });
+});
+
+// A call that never returns blocks its thread, so no test timeout could fire in this one. ALG-LAB-18
+// runs its calls in a worker thread and ends it when they are not back within the deadline.
+const DEADLINE_MS = 5000;
+let workerCode = '';
+
+async function inWorker(calls: RasterCall[]): Promise<RasterResult[]> {
+  const worker = new Worker(workerCode, { eval: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await new Promise<RasterResult[]>((resolve, reject) => {
+      timer = setTimeout(() => reject(new Error(`raster calls still running after ${DEADLINE_MS} ms`)), DEADLINE_MS);
+      worker.once('message', resolve);
+      worker.once('error', reject);
+      worker.postMessage(calls);
+    });
+  } finally {
+    clearTimeout(timer);
+    await worker.terminate();
+  }
+}
+
+const call = (fn: RasterCall['fn'], vertices: WinVertex[], s: RasterState, width = 16, height = 16): RasterCall => ({
+  fn,
+  vertices,
+  state: s,
+  width,
+  height,
+});
+
+describe('ALG-LAB-18: Non-finite vertices draw nothing, and sizes stop at the implementation maximum', () => {
+  beforeAll(async () => {
+    const out = (await build({
+      configFile: false,
+      logLevel: 'silent',
+      resolve: { alias: { '@': resolve(__dirname, '../../src') } },
+      build: {
+        ssr: resolve(__dirname, '../helpers/raster-worker.ts'),
+        write: false,
+        minify: false,
+        rollupOptions: { output: { format: 'cjs' } },
+      },
+    })) as Rollup.RollupOutput | Rollup.RollupOutput[];
+    workerCode = (Array.isArray(out) ? out[0] : out).output[0].code;
+  }, 60_000);
+
+  const bad: [string, number, number][] = [
+    ['NaN x', NaN, 3],
+    ['NaN y', 3, NaN],
+    ['+Infinity x', Infinity, 3],
+    ['-Infinity x', -Infinity, 3],
+    ['+Infinity y', 3, Infinity],
+    ['-Infinity y', 3, -Infinity],
+  ];
+  const modes = [false, true];
+
+  it.each(bad)('a line to a %s vertex returns and draws nothing', async (_, x, y) => {
+    const results = await inWorker(
+      modes.flatMap((multisample) => {
+        const s = state({ multisample, stipple: { factor: 1, pattern: 0xffff, enabled: true, counter: 5 } });
+        return [call('rasterLine', [v(1, 1), v(x, y)], s), call('rasterLine', [v(x, y), v(1, 1)], s)];
+      }),
+    );
+    for (const r of results) expect(r).toEqual({ covered: [], counter: 5 });
+  });
+
+  it.each(bad)('a point at a %s vertex returns and draws nothing', async (_, x, y) => {
+    const results = await inWorker(modes.map((multisample) => call('rasterPoint', [v(x, y)], state({ multisample, pointSize: 4 }))));
+    for (const r of results) expect(r.covered).toEqual([]);
+  });
+
+  it.each(bad)('a triangle or polygon with a %s vertex returns and draws nothing', async (_, x, y) => {
+    const results = await inWorker(
+      modes.flatMap((multisample) =>
+        (['FILL', 'LINE', 'POINT'] as const).flatMap((mode) => {
+          const s = state({ multisample, polygonMode: { front: mode, back: mode } });
+          return [
+            call('rasterTriangle', [v(1, 1), v(12, 2), v(x, y)], s),
+            call('rasterPolygon', [v(1, 1), v(12, 1), v(x, y), v(1, 12)], s),
+          ];
+        }),
+      ),
+    );
+    for (const r of results) expect(r.covered).toEqual([]);
+  });
+
+  it('stops a huge point at 64 pixels square', async () => {
+    const [r] = await inWorker([call('rasterPoint', [v(32.5, 32.5)], state({ pointSize: 1e6 }), 128, 128)]);
+    // Size clamps to 64, even: centre ⌊32.5 + ½⌋ = 33, so x and y run 33 − 32 = 1 to 64.
+    expect(r.covered).toEqual(block(1, 64, 1, 64));
+  });
+
+  it('stops a huge line width at 10 pixels', async () => {
+    const [r] = await inWorker([call('rasterLine', [v(10.5, 60), v(20.5, 60)], state({ lineWidth: 1e6 }), 32, 80)]);
+    // Width clamps to 10: the segment moves down 4.5 to y 55.5, whose fragments (10..19, 55) each start a column 10 high.
+    expect(r.covered).toEqual(block(10, 19, 55, 64));
   });
 });

@@ -1,13 +1,16 @@
 import { segmentTriangles, type Triangles } from '@/shared/lib/gl-geometry';
 import { fragmentBox } from './clip';
 import type { Framebuffer } from './framebuffer';
-import { emitFragment, type RasterState, type RGBA, type WinVertex } from './fragment';
+import { drawable, emitFragment, type RasterState, type RGBA, type WinVertex } from './fragment';
 import { fillTriangle } from './polygons';
 
 // The endpoints move by (−ε, −ε²) so none lies on a diamond's edge (3.4.1). ε is small next to a
 // pixel and ε² still well above a double's rounding at window sizes.
 const EPS = 2 ** -16;
 const EPS2 = 2 ** -32;
+
+// The widest aliased line. The reference driver's range isn't documented; 10 is Mesa's.
+const MAX_LINE_WIDTH = 10;
 
 /**
  * Whether the segment p → q meets the open diamond |x − cx| + |y − cy| < ½: the four half-planes
@@ -83,14 +86,15 @@ function along(state: RasterState, a: WinVertex, b: WinVertex, t: number): Pick<
 }
 
 /**
- * Segment a → b. Without multisampling: width rounded to an integer, the segment moved
- * (w − 1)/2 down (x-major) or left (y-major), and each diamond-exit fragment of the moved segment
+ * Segment a → b. Without multisampling: width rounded to an integer up to MAX_LINE_WIDTH, the
+ * segment moved (w − 1)/2 down (x-major) or left (y-major), and each diamond-exit fragment of the moved segment
  * the first of w in the minor direction, the whole column kept or dropped by the stipple bit (3.4.2).
  * Data are perspective-correct (eq. 3.4) at each fragment's centre. With multisampling, the
  * rectangle or stipple pieces gl-geometry builds cover samples (3.4.4). Either way the stipple
  * counter moves on once per fragment of the major axis, carried in `state.stipple.counter`.
  */
 export function rasterLine(fb: Framebuffer, a: WinVertex, b: WinVertex, state: RasterState): void {
+  if (!drawable(a) || !drawable(b)) return;
   const box = fragmentBox(fb, state.scissor);
   if (state.multisample) {
     const { enabled, factor, pattern } = state.stipple;
@@ -110,7 +114,7 @@ export function rasterLine(fb: Framebuffer, a: WinVertex, b: WinVertex, state: R
     return;
   }
 
-  const w = Math.max(1, Math.round(state.lineWidth));
+  const w = Math.min(MAX_LINE_WIDTH, Math.max(1, Math.round(state.lineWidth)));
   const xMajor = Math.abs(b.x - a.x) >= Math.abs(b.y - a.y);
   const shift = (w - 1) / 2;
   const ax = xMajor ? a.x : a.x - shift;

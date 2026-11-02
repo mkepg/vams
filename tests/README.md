@@ -27,6 +27,8 @@ tests/
 │   ├── fake-firestore.ts         ← Firestore's REST API and the metadata
 │   │                                token as a fake fetch, for the Lab's
 │   │                                limits.
+│   ├── raster-worker.ts          ← Runs raster calls in a worker thread, so
+│   │                                ALG-LAB-18 can end one that never returns.
 │   └── image-compare.ts          ← PNG reading and writing, and the render
 │                                    fidelity rule (edge pixels may differ,
 │                                    the rest within 2 per channel).
@@ -189,7 +191,7 @@ tests/
 │   ├── gl-geometry.test.ts                      (ALG-FID-*: points, lines,
 │   │                                              stipple and FLAT colours by the
 │   │                                              OpenGL 1.5 multisample rules)
-│   └── gl-raster.test.ts                        (ALG-LAB-01 to 08 and 17: the Lab's
+│   └── gl-raster.test.ts                        (ALG-LAB-01 to 08, 17 and 18: the Lab's
 │                                                  rasteriser, pixel by pixel, by the
 │                                                  OpenGL 1.5 rules with and without
 │                                                  multisampling)
