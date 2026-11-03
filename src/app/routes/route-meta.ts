@@ -74,6 +74,16 @@ export const ROUTES: readonly RouteMeta[] = [
   },
 ];
 
+/** The routes a build publishes: the Lab's entry is left out while the Lab is off. */
+export function publishedRoutes(labOn: boolean): readonly RouteMeta[] {
+  return ROUTES.filter((route) => labOn || route.path !== '/lab');
+}
+
+/** The routes besides the home page that a build prerenders; the Lab's is left out while the Lab is off. */
+export function prerenderRoutes(labOn: boolean): string[] {
+  return ['/404', '/learn', '/gallery', '/guide', '/teach', '/about', ...(labOn ? ['/lab'] : [])];
+}
+
 export function findRouteMeta(pathname: string): RouteMeta {
   const trimmed = pathname.replace(/\/+$/, '') || '/';
   // A stored share link opens in the editor, so it has the editor's title and metadata.

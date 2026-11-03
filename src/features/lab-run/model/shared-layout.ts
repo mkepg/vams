@@ -10,8 +10,8 @@
  * Every ring has one writer and one reader, each owning one of its two counters, so neither side
  * ever takes a lock. A counter counts around twice the ring's capacity, not for ever, so it never
  * leaves Int32 however long the program prints; the ring holds `(head - tail) mod 2 x capacity`
- * items, which tells a full ring from an empty one. After writing an event or input the page bumps SIGNAL and notifies it, which
- * is the one word the worker sleeps on while it waits for anything.
+ * items, which tells a full ring from an empty one. After writing an event or input the page bumps
+ * SIGNAL and notifies it, which is the one word the worker sleeps on while it waits for anything.
  *
  * The program's output goes through the output ring, not messages, so the page can read it while
  * the program runs, whatever the program does next: a program that prints and then spins in a loop

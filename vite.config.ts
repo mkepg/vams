@@ -1,18 +1,20 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import preact from '@preact/preset-vite'
 import { fileURLToPath, URL } from 'node:url'
-import { DEFAULT_SITE_URL } from './src/app/routes/route-meta'
+import { DEFAULT_SITE_URL, prerenderRoutes, publishedRoutes } from './src/app/routes/route-meta'
 import { VitePWA } from 'vite-plugin-pwa'
 import { buildPwaOptions } from './src/app/pwa/pwa-options'
 import { buildRobots, buildSitemap } from './src/app/seo/sitemap'
+import { LAB_LIVE } from './src/pages/lab/model/lab-live'
+import { labEnabled } from './src/pages/lab/model/lab-enabled'
 import { labDevServer } from './scripts/lab/vite-lab-dev'
 
-function seoFiles(siteUrl: string): Plugin {
+function seoFiles(siteUrl: string, labOn: boolean): Plugin {
   return {
     name: 'vams-seo-files',
     apply: 'build',
     generateBundle() {
-      this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: buildSitemap(siteUrl) })
+      this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: buildSitemap(siteUrl, publishedRoutes(labOn)) })
       this.emitFile({ type: 'asset', fileName: 'robots.txt', source: buildRobots(siteUrl) })
     },
   }
@@ -37,23 +39,25 @@ function notFoundPage(): Plugin {
   }
 }
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  const labOn = labEnabled({ live: LAB_LIVE, flag: env.VITE_LAB, dev: command === 'serve' })
   const siteUrl = env.VITE_SITE_URL?.trim() || DEFAULT_SITE_URL
 
   return {
+    define: { __LAB_ENABLED__: JSON.stringify(labOn) },
     plugins: [
       preact({
         prerender: {
           enabled: true,
           renderTarget: '#root',
-          additionalPrerenderRoutes: ['/404', '/learn', '/gallery', '/guide', '/teach', '/about', '/lab'],
+          additionalPrerenderRoutes: prerenderRoutes(labOn),
           previewMiddlewareEnabled: true,
           previewMiddlewareFallback: '/404',
         },
       }),
       labDevServer(fileURLToPath(new URL('./lab/runtime/out', import.meta.url))),
-      seoFiles(siteUrl),
+      seoFiles(siteUrl, labOn),
       notFoundPage(),
       VitePWA(buildPwaOptions()),
     ],

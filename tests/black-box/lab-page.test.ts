@@ -6,16 +6,20 @@
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { PassThrough } from 'node:stream';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { h, render } from 'preact';
 import { act } from 'preact/test-utils';
-import { findRouteMeta, ROUTES } from '@/app/routes/route-meta';
+import { findRouteMeta, prerenderRoutes, publishedRoutes, ROUTES } from '@/app/routes/route-meta';
+import { buildSitemap } from '@/app/seo/sitemap';
 import { buildPwaOptions } from '@/app/pwa/pwa-options';
 import SiteHeader from '@/widgets/site-header';
-import { NAV_LINKS } from '@/widgets/site-header/model/nav';
+import { NAV_LINKS, navLinks } from '@/widgets/site-header/model/nav';
+import { labEnabled } from '@/pages/lab/model/lab-enabled';
+import { LAB_ENABLED } from '@/shared/config/lab';
 import LabPage from '@/pages/lab';
 import { ISOLATION_RELOAD_KEY } from '@/pages/lab/model/isolation';
-import { isLabPage, labRuntimeFile } from '../../scripts/lab/vite-lab-dev';
+import { isLabPage, labDevServer, labRuntimeFile } from '../../scripts/lab/vite-lab-dev';
 
 describe('BB-LAB-32: /lab is a route, and the header lists Lab after Gallery', () => {
   it('has indexable metadata, a nav link after Gallery and a prerender entry', () => {
@@ -24,10 +28,14 @@ describe('BB-LAB-32: /lab is a route, and the header lists Lab after Gallery', (
     expect(meta.indexable).toBe(true);
     expect(findRouteMeta('/lab').title).toBe('Lab — VAMS');
     expect(meta.description).toBe('Write a 2D OpenGL and GLUT program in C++ and run it in your browser, with nothing to install.');
-    const hrefs = NAV_LINKS.map((l) => l.href);
+    // The tests run with the Lab on, as the dev server does.
+    expect(LAB_ENABLED).toBe(true);
+    const hrefs = navLinks(true).map((l) => l.href);
     expect(hrefs.indexOf('/lab')).toBe(hrefs.indexOf('/gallery') + 1);
-    expect(NAV_LINKS.find((l) => l.href === '/lab')!.label).toBe('Lab');
-    expect(readFileSync('vite.config.ts', 'utf8')).toMatch(/additionalPrerenderRoutes:\s*\[[^\]]*'\/lab'/);
+    expect(navLinks(true).find((l) => l.href === '/lab')!.label).toBe('Lab');
+    expect(NAV_LINKS.map((l) => l.href)).toEqual(hrefs);
+    expect(prerenderRoutes(true)).toContain('/lab');
+    expect(publishedRoutes(true)).toContain(meta);
   });
 });
 
@@ -127,6 +135,27 @@ describe('BB-LAB-36: A page that is not isolated reloads once, then asks for a r
     host.remove();
   });
 
+  it('shows the message once, with no reload, when the browser blocks sessionStorage', async () => {
+    setIsolated(false);
+    const original = Object.getOwnPropertyDescriptor(window, 'sessionStorage');
+    const blocked = () => {
+      throw new Error('blocked');
+    };
+    Object.defineProperty(window, 'sessionStorage', {
+      configurable: true,
+      value: { getItem: blocked, setItem: blocked, removeItem: blocked },
+    });
+    const reload = vi.fn();
+    const host = await open(reload);
+    expect(reload).not.toHaveBeenCalled();
+    expect(host.querySelectorAll('.lab__notice')).toHaveLength(1);
+    expect(host.textContent!.split('The Lab needs a fresh page load.')).toHaveLength(2);
+    if (original) Object.defineProperty(window, 'sessionStorage', original);
+    else Reflect.deleteProperty(window, 'sessionStorage');
+    render(null, host);
+    host.remove();
+  });
+
   it('shows the workspace, and clears the mark, when the page is isolated', async () => {
     setIsolated(true);
     sessionStorage.setItem(ISOLATION_RELOAD_KEY, '1');
@@ -175,8 +204,97 @@ describe('BB-LAB-65: The dev server serves the local runtime build and isolates 
     expect(isLabPage('/lab-runtime/dev/vams_main.mjs')).toBe(false);
   });
 
-  it('is a dev-only plugin in the config', () => {
-    expect(readFileSync('vite.config.ts', 'utf8')).toContain('labDevServer(');
-    expect(readFileSync('scripts/lab/vite-lab-dev.ts', 'utf8')).toContain("apply: 'serve'");
+  /** Runs the plugin's middleware on a fake server, with a fake request and response. */
+  async function request(dir: string, url: string, method = 'GET') {
+    const plugin = labDevServer(dir);
+    let handler!: (req: unknown, res: unknown, next: () => void) => void;
+    (plugin.configureServer as (server: unknown) => void)({ middlewares: { use: (fn: typeof handler) => (handler = fn) } });
+    const headers: Record<string, string> = {};
+    const body: Buffer[] = [];
+    const res = Object.assign(new PassThrough(), {
+      statusCode: 200,
+      setHeader: (name: string, value: string) => void (headers[name.toLowerCase()] = value),
+    });
+    res.on('data', (chunk: Buffer) => body.push(chunk));
+    const finished = new Promise<void>((done) => res.on('end', done));
+    let passed = false;
+    handler({ url, method }, res, () => {
+      passed = true;
+      res.end();
+    });
+    await finished;
+    return { status: res.statusCode, headers, body: Buffer.concat(body).toString(), passed };
+  }
+
+  it('is a serve-only plugin', () => {
+    expect(labDevServer('.').apply).toBe('serve');
+  });
+
+  it('sends COOP and COEP for /lab, then lets the page through', async () => {
+    const r = await request(runtimeDir(), '/lab?x=1');
+    expect(r.passed).toBe(true);
+    expect(r.headers['cross-origin-opener-policy']).toBe('same-origin');
+    expect(r.headers['cross-origin-embedder-policy']).toBe('require-corp');
+    const other = await request(runtimeDir(), '/learn');
+    expect(other.passed).toBe(true);
+    expect(other.headers['cross-origin-opener-policy']).toBeUndefined();
+  });
+
+  it('streams a runtime file with its content type and CORP', async () => {
+    const r = await request(runtimeDir(), '/lab-runtime/dev/vams_main.mjs');
+    expect(r.status).toBe(200);
+    expect(r.headers['content-type']).toBe('text/javascript; charset=utf-8');
+    expect(r.headers['cross-origin-resource-policy']).toBe('same-origin');
+    expect(r.body).toBe('export default 1;');
+    expect(r.passed).toBe(false);
+    const head = await request(runtimeDir(), '/lab-runtime/dev/vams_main.mjs', 'HEAD');
+    expect(head.status).toBe(200);
+    expect(head.body).toBe('');
+  });
+
+  it('answers 404 with nothing else for a missing file and for a path that climbs out', async () => {
+    for (const url of ['/lab-runtime/dev/missing.wasm', '/lab-runtime/dev/../../package.json', '/lab-runtime/dev/%2e%2e/package.json']) {
+      const r = await request(runtimeDir(), url);
+      expect(r.status).toBe(404);
+      expect(r.body).toBe('');
+      expect(r.headers['content-type']).toBeUndefined();
+      expect(r.passed).toBe(false);
+    }
+  });
+
+  it('refuses methods other than GET and HEAD', async () => {
+    const r = await request(runtimeDir(), '/lab-runtime/dev/vams_main.mjs', 'POST');
+    expect(r.status).toBe(405);
+    expect(r.body).toBe('');
+  });
+});
+
+describe('BB-LAB-59: A production build without the flag leaves the Lab out', () => {
+  const off = { live: false, flag: undefined, dev: false };
+
+  it('is on only when live, flagged with VITE_LAB=1, or in the dev server', () => {
+    expect(labEnabled(off)).toBe(false);
+    expect(labEnabled({ ...off, flag: '0' })).toBe(false);
+    expect(labEnabled({ ...off, flag: '1' })).toBe(true);
+    expect(labEnabled({ ...off, dev: true })).toBe(true);
+    expect(labEnabled({ ...off, live: true })).toBe(true);
+  });
+
+  it('leaves out the header link, the prerender and the sitemap entry', () => {
+    expect(navLinks(false).map((l) => l.href)).toEqual(['/', '/learn', '/gallery', '/guide', '/about']);
+    expect(prerenderRoutes(false)).not.toContain('/lab');
+    expect(publishedRoutes(false).some((r) => r.path === '/lab')).toBe(false);
+    expect(buildSitemap('https://example.test', publishedRoutes(false))).not.toContain('/lab');
+    expect(buildSitemap('https://example.test', publishedRoutes(true))).toContain('<loc>https://example.test/lab/</loc>');
+  });
+
+  it('makes every consumer read the one decision', () => {
+    const config = readFileSync('vite.config.ts', 'utf8');
+    expect(config).toContain('labEnabled({ live: LAB_LIVE');
+    expect(config).toContain('__LAB_ENABLED__: JSON.stringify(labOn)');
+    expect(config).toContain('prerenderRoutes(labOn)');
+    expect(config).toContain('publishedRoutes(labOn)');
+    expect(readFileSync('src/app/SiteApp.tsx', 'utf8')).toContain('LAB_ENABLED ?');
+    expect(readFileSync('playwright.config.ts', 'utf8')).toContain("VITE_LAB: '1'");
   });
 });

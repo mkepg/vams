@@ -6,7 +6,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { h, render } from 'preact';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
-import { findRouteMeta } from '@/app/routes/route-meta';
+import { findRouteMeta, prerenderRoutes } from '@/app/routes/route-meta';
 import { buildSitemap } from '@/app/seo/sitemap';
 import { prerender } from '@/app/prerender';
 import { NAV_LINKS } from '@/widgets/site-header/model/nav';
@@ -57,7 +57,7 @@ describe('BB-GUIDE-01: /guide and /teach are finished, linked, prerendered pages
       expect(meta.indexable).toBe(true);
       expect(meta.title).toBe(title);
       expect(buildSitemap(SITE)).toContain(`<loc>${SITE}${path}/</loc>`);
-      expect(readFileSync('vite.config.ts', 'utf8')).toMatch(new RegExp(`additionalPrerenderRoutes:\\s*\\[[^\\]]*'${path}'`));
+      expect(prerenderRoutes(false)).toContain(path);
       window.history.replaceState(null, '', path);
       const result = await prerender({ url: path });
       expect(result.html).toContain(cls);

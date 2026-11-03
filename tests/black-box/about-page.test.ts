@@ -11,7 +11,7 @@ import { TEAM } from '@/pages/home/model/content';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { LESSON_CATALOG } from '@/features/lesson-engine/model/catalog';
-import { findRouteMeta } from '@/app/routes/route-meta';
+import { findRouteMeta, prerenderRoutes } from '@/app/routes/route-meta';
 import { buildSitemap } from '@/app/seo/sitemap';
 import { prerender } from '@/app/prerender';
 
@@ -284,7 +284,7 @@ describe('BB-ABOUT-01: /about is a finished, indexable, prerendered route', () =
       'Why VAMS exists, what it teaches, where your work is kept, and the undergraduate thesis behind it, with a citation to copy.',
     );
     expect(buildSitemap('https://example.test')).toContain('<loc>https://example.test/about/</loc>');
-    expect(readFileSync('vite.config.ts', 'utf8')).toMatch(/additionalPrerenderRoutes:\s*\[[^\]]*'\/about'/);
+    expect(prerenderRoutes(false)).toContain('/about');
     const { result } = await prerenderAbout();
     expect(result.head.title).toBe('About — VAMS');
   });

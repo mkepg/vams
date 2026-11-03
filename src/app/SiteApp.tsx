@@ -7,6 +7,7 @@ import GalleryPage from '@/pages/gallery';
 import GuidePage from '@/pages/guide';
 import TeachPage from '@/pages/teach';
 import LabPage from '@/pages/lab';
+import { LAB_ENABLED } from '@/shared/config/lab';
 import EditorPage from '@/pages/editor';
 import NotFoundPage from '@/pages/not-found';
 import { findRouteMeta } from '@/app/routes/route-meta';
@@ -38,7 +39,7 @@ export default function SiteApp() {
           <Route path="/guide" component={GuidePage} />
           <Route path="/teach" component={TeachPage} />
           <Route path="/about" component={AboutPage} />
-          <Route path="/lab" component={LabPage} />
+          {LAB_ENABLED ? [<Route key="lab" path="/lab" component={LabPage} />] : []}
           <Route path="/app" component={EditorPage} />
           <Route path="/s/:id" component={EditorPage} />
           <Route default component={NotFoundPage} />

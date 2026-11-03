@@ -2,6 +2,8 @@ import { defineConfig } from 'vitest/config';
 import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
+  // The tests run with the Lab on, as the dev server does.
+  define: { __LAB_ENABLED__: 'true' },
   resolve: {
     // Prefer ESM entry points, as the browser build does. A CommonJS entry (lucide-react's
     // `main`) would `require('react')` and load real React, bypassing the alias below.

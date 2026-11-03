@@ -15,7 +15,7 @@ import { parseEditorLink } from '@/pages/editor/model/editor-link';
 import { h, render } from 'preact';
 import { renderToString } from 'preact-render-to-string';
 import { prerender } from '@/app/prerender';
-import { findRouteMeta } from '@/app/routes/route-meta';
+import { findRouteMeta, prerenderRoutes } from '@/app/routes/route-meta';
 import { buildSitemap } from '@/app/seo/sitemap';
 import { NAV_LINKS } from '@/widgets/site-header/model/nav';
 import SiteFooter from '@/widgets/site-footer';
@@ -157,7 +157,7 @@ describe('BB-GALLERY-07: /gallery is a finished, linked, prerendered page', () =
     expect(meta.title).toBe('Gallery — VAMS');
     expect(NAV_LINKS.map((l) => l.href)).toEqual(['/', '/learn', '/gallery', '/lab', '/guide', '/about']);
     expect(buildSitemap('https://example.test')).toContain('<loc>https://example.test/gallery/</loc>');
-    expect(readFileSync('vite.config.ts', 'utf8')).toMatch(/additionalPrerenderRoutes:\s*\[[^\]]*'\/gallery'/);
+    expect(prerenderRoutes(false)).toContain('/gallery');
 
     const host = document.createElement('div');
     render(h(SiteFooter, {}), host);

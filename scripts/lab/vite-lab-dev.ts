@@ -41,6 +41,12 @@ export function labDevServer(dir: string): Plugin {
           return next();
         }
         if (!pathname.startsWith('/lab-runtime/')) return next();
+        if (req.method !== 'GET' && req.method !== 'HEAD') {
+          res.statusCode = 405;
+          res.setHeader('Allow', 'GET, HEAD');
+          res.end();
+          return;
+        }
         const file = labRuntimeFile(pathname, dir);
         if (!file) {
           res.statusCode = 404;
@@ -50,7 +56,20 @@ export function labDevServer(dir: string): Plugin {
         res.setHeader('Content-Type', file.type);
         res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
         res.setHeader('Cache-Control', 'no-store');
-        createReadStream(file.path).pipe(res);
+        if (req.method === 'HEAD') {
+          res.end();
+          return;
+        }
+        const stream = createReadStream(file.path);
+        stream.on('error', () => {
+          // A file removed while a rebuild runs: end the answer, whatever has been sent.
+          if (res.headersSent) res.destroy();
+          else {
+            res.statusCode = 404;
+            res.end();
+          }
+        });
+        stream.pipe(res);
       });
     },
   };
