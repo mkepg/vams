@@ -120,10 +120,11 @@ tests/
 │   ├── lab-api.test.ts                   (BB-LAB-*: the Lab's 2D set, as the
 │   │                                        bundled headers in lab/include
 │   │                                        declare and reject it)
-│   └── lab-runtime.test.ts               (BB-LAB-20 to 31: the worker runtime:
-│                                            GLUT's main loop, events, menus,
-│                                            typed input, system(), files and
-│                                            the Console's batching)
+│   └── lab-runtime.test.ts               (BB-LAB-20 to 31 and 60: the worker
+│                                            runtime: GLUT's main loop, events,
+│                                            menus, typed input, system(), files,
+│                                            the output ring and the Console, and
+│                                            how a program's end is reported)
 ├── white-box/                    ← Maps to Table 13.
 │   ├── state-management.test.ts          (WB-STATE-*)
 │   ├── matrix-engine.test.ts             (WB-MATRIX-*)

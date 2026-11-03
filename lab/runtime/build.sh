@@ -37,8 +37,9 @@ SIDE_LD_FLAGS="$SIDE_LLVM_FLAGS -mllvm -wasm-enable-eh -mllvm -exception-model=w
 SIDE_STRIP_FLAGS="--remove-section=.debug* --remove-section=producers --remove-section=name"
 
 # The main module: libc, libc++, stb_image and the bridges, shared by every program.
+# EXIT_RUNTIME makes exit() run atexit handlers and static destructors, so files are written.
 MAIN_SOURCES="$HERE/vams_main.c $HERE/conio.c $HERE/windows.c $HERE/glew.c $HERE/stb_image_impl.c"
-MAIN_FLAGS="-O2 -fwasm-exceptions -sMAIN_MODULE=1 -sMODULARIZE -sEXPORT_ES6 -sENVIRONMENT=$ENVIRONMENT -sALLOW_MEMORY_GROWTH -sEXPORT_NAME=createVamsMain -sEXPORTED_RUNTIME_METHODS=FS,ccall"
+MAIN_FLAGS="-O2 -fwasm-exceptions -sMAIN_MODULE=1 -sMODULARIZE -sEXPORT_ES6 -sENVIRONMENT=$ENVIRONMENT -sALLOW_MEMORY_GROWTH -sEXPORT_NAME=createVamsMain -sEXPORTED_RUNTIME_METHODS=FS,ccall -sEXIT_RUNTIME=1"
 
 case "${1:-}" in
   --side-flags) echo "$SIDE_FLAGS"; exit 0 ;;

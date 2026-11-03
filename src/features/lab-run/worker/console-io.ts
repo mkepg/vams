@@ -1,27 +1,29 @@
 /**
  * The program's Console: what it prints, what it reads, and the Windows console extras.
  *
- * Output is batched into `stdout` and `stderr` messages, so a program printing in a tight loop
- * sends a few large messages rather than one per line. The first BURST writes in each BURST_MS go
- * at once, so a program that prints a little and then never waits still shows it. After that a
- * batch goes when it reaches FLUSH_BYTES, when FLUSH_MS have passed since the last one, when the
- * stream changes, and before the program blocks. Before it blocks, what stdio still holds is sent
- * too (vams_flush), so a prompt without a newline is on the page while the program waits.
+ * Output goes into the shared output ring as the program writes it, and the page reads the ring
+ * on its own animation frames, so everything printed reaches the page even when the program then
+ * spins without ever waiting. A program printing in a tight loop fills the ring between two of the
+ * page's reads and then waits for the next one, which batches its output and keeps it from running
+ * ahead of the page.
  *
  * Input comes from the shared input buffer. Reading stdin sets the "waiting for a line" input
  * state, so the page shows an input line, and blocks until the student presses Enter. getch and
  * friends set the "waiting for a key" state instead and take one key at a time.
  */
-import { CONTROL, INPUT_STATE, inputWaiting, peekInput, takeInput, type InputState, type LayoutViews } from '../model/shared-layout';
+import {
+  CONTROL,
+  INPUT_STATE,
+  inputWaiting,
+  MAX_OUTPUT_RECORD,
+  outputRoom,
+  peekInput,
+  putOutput,
+  takeInput,
+  type InputState,
+  type LayoutViews,
+} from '../model/shared-layout';
 import { waitUntil, type WorkerHost } from './event-queue';
-
-/** A batch goes once it holds this many bytes. */
-export const FLUSH_BYTES = 64 * 1024;
-/** A batch goes when this long has passed since the last one. */
-export const FLUSH_MS = 16;
-/** How many writes in each BURST_MS go at once, unbatched. */
-export const BURST = 8;
-export const BURST_MS = 100;
 
 export const PAUSE_PROMPT = 'Press any key to continue . . .';
 
@@ -31,81 +33,48 @@ export const systemMessage = (command: string) => `system("${command}") doesn't 
 type Stream = 'stdout' | 'stderr';
 
 const encoder = new TextEncoder();
+// A record's header, and at least one byte of it.
+const SMALLEST_RECORD = 4;
 
 export class ConsoleIO {
   private readonly views: LayoutViews;
   private readonly host: WorkerHost;
-  private readonly batch = new Uint8Array(FLUSH_BYTES);
-  private length = 0;
-  private stream: Stream = 'stdout';
-  private lastFlush = -Infinity;
-  private readonly decoders = { stdout: new TextDecoder(), stderr: new TextDecoder() };
   /** What is left of the line stdin last read. */
   private line: Uint8Array = new Uint8Array(0);
   /** How far into the waiting input a newline has been looked for. */
   private scanned = 0;
-  private burstStart = -Infinity;
-  private burstPosts = 0;
-  private programFlush: () => void = () => {};
-  private draining = false;
 
   constructor(views: LayoutViews, host: WorkerHost) {
     this.views = views;
     this.host = host;
   }
 
-  /** stdio's flush (vams_flush), once the program's main module has loaded. */
-  connect(flush: () => void): void {
-    this.programFlush = flush;
-  }
-
   // Output.
+
+  /** Waits until the page has read enough of the output ring for `bytes` more. */
+  private room(bytes: number): number {
+    for (;;) {
+      const tail = Atomics.load(this.views.control, CONTROL.OUTPUT_TAIL);
+      const room = outputRoom(this.views);
+      if (room >= bytes) return room;
+      this.host.wait(CONTROL.OUTPUT_TAIL, tail, Infinity);
+    }
+  }
 
   /** Program output (bytes, as the TTY writes them) or a line of the Lab's own (text). */
   write(stream: Stream, data: Uint8Array | string): void {
     const bytes = typeof data === 'string' ? encoder.encode(data) : data;
-    if (stream !== this.stream) {
-      this.flush();
-      this.stream = stream;
-    }
     for (let at = 0; at < bytes.length; ) {
-      const n = Math.min(bytes.length - at, FLUSH_BYTES - this.length);
-      this.batch.set(bytes.subarray(at, at + n), this.length);
-      this.length += n;
+      const n = Math.min(bytes.length - at, MAX_OUTPUT_RECORD, this.room(SMALLEST_RECORD) - (SMALLEST_RECORD - 1));
+      putOutput(this.views, stream, bytes.subarray(at, at + n));
       at += n;
-      if (this.length === FLUSH_BYTES) this.flush();
     }
-    if (!this.length) return;
-    const now = this.host.now();
-    if (now - this.burstStart >= BURST_MS) {
-      this.burstStart = now;
-      this.burstPosts = 0;
-    }
-    if (this.burstPosts < BURST || now - this.lastFlush >= FLUSH_MS) this.flush();
   }
 
-  /** Sends what is batched. */
-  flush(): void {
-    this.lastFlush = this.host.now();
-    if (!this.length) return;
-    const text = this.decoders[this.stream].decode(this.batch.subarray(0, this.length), { stream: true });
-    this.length = 0;
-    if (!text) return;
-    this.host.post({ type: this.stream, text });
-    this.burstPosts++;
-  }
-
-  /** Sends what stdio holds, then what is batched: everything printed so far. Before every wait. */
-  drain(): void {
-    if (!this.draining) {
-      this.draining = true;
-      try {
-        this.programFlush();
-      } finally {
-        this.draining = false;
-      }
-    }
-    this.flush();
+  /** system("cls"): the Console clears, after what was printed before it. */
+  private clear(): void {
+    this.room(SMALLEST_RECORD - 1);
+    putOutput(this.views, 'clear');
   }
 
   // Input.
@@ -123,7 +92,6 @@ export class ConsoleIO {
 
   /** The next line the student enters, as bytes ending in `\n`. Blocks until there is one. */
   private lineBytes(): Uint8Array {
-    this.drain();
     this.setState(INPUT_STATE.LINE);
     waitUntil(this.host, this.views, () => this.newline() >= 0);
     this.setState(INPUT_STATE.NONE);
@@ -151,7 +119,6 @@ export class ConsoleIO {
 
   /** One key pressed in the Console. Blocks until there is one. */
   private key(): number {
-    this.drain();
     this.setState(INPUT_STATE.KEY);
     waitUntil(this.host, this.views, () => inputWaiting(this.views) > 0);
     this.setState(INPUT_STATE.NONE);
@@ -174,7 +141,6 @@ export class ConsoleIO {
   /** conio's kbhit: whether a key is waiting, without waiting. From now the page sends keys. */
   kbhit(): boolean {
     if (inputWaiting(this.views) > 0) return true;
-    this.drain();
     this.setState(INPUT_STATE.KEY);
     return false;
   }
@@ -187,7 +153,6 @@ export class ConsoleIO {
    */
   system(command: string | null): number {
     if (command === null) return 0;
-    this.drain();
     const c = command.trim().toLowerCase();
     const pause = /^pause\s*(>\s*nul)?$/.exec(c);
     if (pause) {
@@ -197,7 +162,7 @@ export class ConsoleIO {
       return 0;
     }
     if (c === 'cls') {
-      this.host.post({ type: 'clear' });
+      this.clear();
       return 0;
     }
     this.write('stderr', `${systemMessage(command)}\n`);
@@ -206,7 +171,6 @@ export class ConsoleIO {
 
   /** Sleep(ms): waits on a word nothing writes, so only the time ends it. */
   sleep(ms: number): void {
-    this.drain();
     if (ms > 0) this.host.wait(CONTROL.SLEEP, 0, ms);
   }
 }

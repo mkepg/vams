@@ -4,11 +4,18 @@
  *   control words   CONTROL_WORDS × Int32, at 0
  *   event ring      EVENT_SLOTS events of EVENT_WORDS × Int32, page to worker
  *   input buffer    INPUT_BYTES of typed Console input, page to worker, as a byte ring
+ *   output ring     OUTPUT_BYTES of program output, worker to page
  *   framebuffer     the rest: the last frame, RGBA8, top row first, worker to page
  *
  * Every ring has one writer and one reader, each owning one of its two counters, so neither side
  * ever takes a lock. After writing an event or input the page bumps SIGNAL and notifies it, which
  * is the one word the worker sleeps on while it waits for anything.
+ *
+ * The program's output goes through the output ring, not messages, so the page can read it while
+ * the program runs, whatever the program does next: a program that prints and then spins in a loop
+ * still shows everything it printed. The page reads the ring with an OutputReader on every
+ * animation frame (and on a timer while the tab is hidden), and once more when `exit` or `crash`
+ * arrives; when the ring is full the program waits for the page, so output can't outrun it.
  *
  * When a reshape makes the window larger than the framebuffer, the worker makes a new
  * SharedArrayBuffer for frames alone and posts it as a `framebuffer` message. FRAME_GENERATION
@@ -45,12 +52,17 @@ export const CONTROL = {
   FRAME_HEIGHT: 10,
   /** Which framebuffer the published frame is in. */
   FRAME_GENERATION: 11,
+  /** Output bytes written so far (worker). */
+  OUTPUT_HEAD: 12,
+  /** Output bytes read so far (page). The page notifies it after each read. */
+  OUTPUT_TAIL: 13,
 } as const;
 
 export const CONTROL_WORDS = 16;
 export const EVENT_SLOTS = 256;
 export const EVENT_WORDS = 8;
 export const INPUT_BYTES = 8192;
+export const OUTPUT_BYTES = 64 * 1024;
 /** The longest a frame waits for the page to take it, as a lab PC's vsync waits. */
 export const FRAME_WAIT_MS = 100;
 /** The framebuffer a new layout holds: a 1024 × 768 window. */
@@ -58,7 +70,8 @@ export const DEFAULT_FRAMEBUFFER_BYTES = 1024 * 768 * 4;
 
 const EVENTS_OFFSET = CONTROL_WORDS * 4;
 const INPUT_OFFSET = EVENTS_OFFSET + EVENT_SLOTS * EVENT_WORDS * 4;
-const FRAMEBUFFER_OFFSET = INPUT_OFFSET + INPUT_BYTES;
+const OUTPUT_OFFSET = INPUT_OFFSET + INPUT_BYTES;
+const FRAMEBUFFER_OFFSET = OUTPUT_OFFSET + OUTPUT_BYTES;
 
 /** What the program waits for in the Console. The page shows an input line only for LINE. */
 export const INPUT_STATE = {
@@ -76,6 +89,7 @@ export interface LayoutViews {
   control: Int32Array;
   events: Int32Array;
   input: Uint8Array;
+  output: Uint8Array;
   framebuffer: Uint8Array;
   /** The generation `framebuffer` belongs to. */
   generation: number;
@@ -92,6 +106,7 @@ export function openLayout(layout: SharedLayout): LayoutViews {
     control: new Int32Array(buffer, 0, CONTROL_WORDS),
     events: new Int32Array(buffer, EVENTS_OFFSET, EVENT_SLOTS * EVENT_WORDS),
     input: new Uint8Array(buffer, INPUT_OFFSET, INPUT_BYTES),
+    output: new Uint8Array(buffer, OUTPUT_OFFSET, OUTPUT_BYTES),
     framebuffer: new Uint8Array(buffer, FRAMEBUFFER_OFFSET),
     generation: 0,
   };
@@ -248,6 +263,79 @@ export function takeInput(views: LayoutViews, count: number): Uint8Array {
   return out;
 }
 
+// Program output.
+
+/**
+ * Each record in the output ring is a kind byte, a 16-bit little-endian length, then that many
+ * bytes: UTF-8 for stdout and stderr, none for a clear.
+ */
+const OUTPUT_KIND = { stdout: 1, stderr: 2, clear: 3 } as const;
+const RECORD_HEADER = 3;
+/** The longest record payload. */
+export const MAX_OUTPUT_RECORD = OUTPUT_BYTES - RECORD_HEADER;
+
+export type OutputKind = keyof typeof OUTPUT_KIND;
+
+/** Worker: how many record bytes fit in the ring now, header included. */
+export function outputRoom(views: LayoutViews): number {
+  return OUTPUT_BYTES - (Atomics.load(views.control, CONTROL.OUTPUT_HEAD) - Atomics.load(views.control, CONTROL.OUTPUT_TAIL));
+}
+
+/** Worker: appends a record; the caller has made sure it fits (outputRoom). */
+export function putOutput(views: LayoutViews, kind: OutputKind, bytes: Uint8Array = new Uint8Array(0)): void {
+  const { control, output } = views;
+  const head = Atomics.load(control, CONTROL.OUTPUT_HEAD);
+  const header = [OUTPUT_KIND[kind], bytes.length & 0xff, bytes.length >> 8];
+  for (let i = 0; i < RECORD_HEADER; i++) output[(head + i) % OUTPUT_BYTES] = header[i];
+  for (let i = 0; i < bytes.length; i++) output[(head + RECORD_HEADER + i) % OUTPUT_BYTES] = bytes[i];
+  // The record is complete before the page can see it.
+  Atomics.store(control, CONTROL.OUTPUT_HEAD, head + RECORD_HEADER + bytes.length);
+}
+
+/** Output the page reads: text on a stream, or system("cls") clearing the Console. */
+export type OutputChunk = { stream: 'stdout' | 'stderr'; text: string } | { stream: 'clear' };
+
+/**
+ * Page: reads the output ring. Each take returns what the program printed since the last one,
+ * consecutive text on one stream joined, and a character split across takes comes out whole.
+ */
+export class OutputReader {
+  private readonly views: LayoutViews;
+  private readonly decoders = { stdout: new TextDecoder(), stderr: new TextDecoder() };
+
+  constructor(views: LayoutViews) {
+    this.views = views;
+  }
+
+  take(): OutputChunk[] {
+    const { control, output } = this.views;
+    const head = Atomics.load(control, CONTROL.OUTPUT_HEAD);
+    let tail = Atomics.load(control, CONTROL.OUTPUT_TAIL);
+    if (tail === head) return [];
+    const chunks: OutputChunk[] = [];
+    while (tail !== head) {
+      const kind = output[tail % OUTPUT_BYTES];
+      const length = output[(tail + 1) % OUTPUT_BYTES] | (output[(tail + 2) % OUTPUT_BYTES] << 8);
+      const bytes = new Uint8Array(length);
+      for (let i = 0; i < length; i++) bytes[i] = output[(tail + RECORD_HEADER + i) % OUTPUT_BYTES];
+      tail += RECORD_HEADER + length;
+      if (kind === OUTPUT_KIND.clear) {
+        chunks.push({ stream: 'clear' });
+        continue;
+      }
+      const stream = kind === OUTPUT_KIND.stderr ? 'stderr' : 'stdout';
+      const text = this.decoders[stream].decode(bytes, { stream: true });
+      if (!text) continue;
+      const last = chunks[chunks.length - 1];
+      if (last && last.stream === stream) last.text += text;
+      else chunks.push({ stream, text });
+    }
+    Atomics.store(control, CONTROL.OUTPUT_TAIL, tail);
+    Atomics.notify(control, CONTROL.OUTPUT_TAIL);
+    return chunks;
+  }
+}
+
 // Frames.
 
 /** A frame the page can show: `pixels` is width × height RGBA8, top row first. */
@@ -265,15 +353,20 @@ export function adoptFramebuffer(views: LayoutViews, buffer: SharedArrayBuffer, 
 }
 
 /**
- * Page: the newest frame, when it is newer than `since` and in the framebuffer the page holds.
- * The page copies the pixels out, then calls acknowledgeFrame.
+ * Page: the newest frame, when it is newer than `since`, in the framebuffer the page holds, and
+ * not changed by the worker while it was being read. The page copies the pixels out, then calls
+ * acknowledgeFrame.
  */
 export function latestFrame(views: LayoutViews, since: number): Frame | null {
   const { control } = views;
   const frame = Atomics.load(control, CONTROL.FRAME);
-  if (frame === since || Atomics.load(control, CONTROL.FRAME_GENERATION) !== views.generation) return null;
+  const generation = Atomics.load(control, CONTROL.FRAME_GENERATION);
   const width = Atomics.load(control, CONTROL.FRAME_WIDTH);
   const height = Atomics.load(control, CONTROL.FRAME_HEIGHT);
+  if (frame === since || generation !== views.generation) return null;
+  // A frame published between the loads may have a size from another one: wait for the next.
+  if (Atomics.load(control, CONTROL.FRAME) !== frame || Atomics.load(control, CONTROL.FRAME_GENERATION) !== generation) return null;
+  if (width <= 0 || height <= 0 || width * height * 4 > views.framebuffer.length) return null;
   return { frame, width, height, pixels: views.framebuffer.subarray(0, width * height * 4) };
 }
 

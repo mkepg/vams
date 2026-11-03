@@ -7,13 +7,12 @@
 //
 // stdin, stdout and stderr are the TTY's streams, rerouted to the Console: output goes in whole
 // writes, and a read of stdin returns the line the student typed, waiting for one when it must.
-// Before any wait the Console calls vams_flush (vams_main.c), so stdio's line buffer is sent.
 //
 // Emscripten evaluates this file when it links the main module, and copies each function's
 // source into it, so the functions below refer only to their arguments, VAMS and the runtime.
 
 const library = {
-  $VAMS__deps: ['$UTF8ToString', '$stringToNewUTF8', '$wasmTable', '$TTY', 'malloc', 'free', 'exit', 'vams_flush'],
+  $VAMS__deps: ['$UTF8ToString', '$stringToNewUTF8', '$wasmTable', '$TTY', 'malloc', 'free', 'exit'],
   $VAMS__postset: 'VAMS.connect();',
   $VAMS: {
     lab: null,
@@ -24,7 +23,7 @@ const library = {
       // Without a worker (the toolchain check runs plain programs in Node) nothing is rerouted.
       if (!lab) return;
       VAMS.lab = lab;
-      lab.connect({ heap: () => HEAPU8, exit: (code) => _exit(code), flush: () => _vams_flush() });
+      lab.connect({ heap: () => HEAPU8, exit: (code) => _exit(code) });
       const ops = TTY.stream_ops;
       const read = ops.read;
       ops.read = (stream, buffer, offset, length, position) => {
@@ -72,6 +71,14 @@ const library = {
       if (text === null) return 0;
       if (!VAMS.strings[key]) VAMS.strings[key] = stringToNewUTF8(text);
       return VAMS.strings[key];
+    },
+    /**
+     * Writes the names a glGen* call made to `ptr`. A null pointer has nowhere to take them: it is
+     * GL_INVALID_VALUE, and nothing is made or written, where a lab PC would crash.
+     */
+    genNames(n, ptr, gen) {
+      if (!ptr) return n === 0 ? undefined : VAMS.fail(0x0501);
+      HEAPU32.set(gen(n), ptr >> 2);
     },
     /** GL's error flag takes `code` unless it already holds one. */
     fail(code) {
@@ -173,7 +180,7 @@ const library = {
   glDrawElements: (mode, count, type, indices) => VAMS.gl().drawElements(mode, count, type, indices),
 
   // Textures.
-  glGenTextures: (n, textures) => HEAPU32.set(VAMS.gl().genTextures(n), textures >> 2),
+  glGenTextures: (n, textures) => VAMS.genNames(n, textures, (count) => VAMS.gl().genTextures(count)),
   glDeleteTextures: (n, textures) => VAMS.gl().deleteTextures(VAMS.u32(textures, n)),
   glBindTexture: (target, texture) => VAMS.gl().bindTexture(target, texture >>> 0),
   glTexImage2D: (target, level, internalformat, width, height, border, format, type, pixels) =>
@@ -198,7 +205,7 @@ const library = {
   glDeleteLists: (list, range) => VAMS.gl().deleteLists(list >>> 0, range),
 
   // Buffer objects. A mapped buffer is copied into program memory and back at glUnmapBuffer.
-  glGenBuffers: (n, buffers) => HEAPU32.set(VAMS.gl().genBuffers(n), buffers >> 2),
+  glGenBuffers: (n, buffers) => VAMS.genNames(n, buffers, (count) => VAMS.gl().genBuffers(count)),
   glDeleteBuffers: (n, buffers) => VAMS.gl().deleteBuffers(VAMS.u32(buffers, n)),
   glBindBuffer: (target, buffer) => VAMS.gl().bindBuffer(target, buffer >>> 0),
   glBufferData: (target, size, data, usage) => {

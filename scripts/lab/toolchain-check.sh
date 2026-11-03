@@ -200,8 +200,12 @@ for (const side of sides) {
   try {
     code = module.ccall('vams_run', 'number', ['string'], ['/program.wasm']);
   } catch (error) {
-    out += `threw: ${error}\n`;
-    code = -1;
+    // vams_run ends with exit(), which Emscripten throws as ExitStatus.
+    if (error?.name === 'ExitStatus') code = error.status;
+    else {
+      out += `threw: ${error}\n`;
+      code = -1;
+    }
   }
   const size = gzip(bytes);
   const want = expected[name];

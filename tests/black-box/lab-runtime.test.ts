@@ -22,7 +22,7 @@ import { build, type Rollup } from 'vite';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { GL, GLContext } from '@/shared/lib/gl-raster';
 import { GLUT_FONTS, glutBitmapString } from '@/shared/lib/glut-fonts';
-import { appendConsole, consoleLines, emptyConsole, CONSOLE_LINES } from '@/features/lab-run/model/console-lines';
+import { appendConsole, consoleLines, emptyConsole, CONSOLE_LINE_CHARS, CONSOLE_LINES } from '@/features/lab-run/model/console-lines';
 import type { WorkerMessage } from '@/features/lab-run/model/protocol';
 import {
   acknowledgeFrame,
@@ -32,17 +32,20 @@ import {
   inputState,
   latestFrame,
   openLayout,
+  OutputReader,
   postEvent,
   sendKey,
   sendLine,
   adoptFramebuffer,
   type Frame,
   type LabEvent,
+  type OutputChunk,
 } from '@/features/lab-run/model/shared-layout';
 import { ConsoleIO, PAUSE_PROMPT, systemMessage } from '@/features/lab-run/worker/console-io';
 import type { WorkerHost } from '@/features/lab-run/worker/event-queue';
 import { GLUT, GlutRuntime } from '@/features/lab-run/worker/glut-runtime';
 import { fileReports, installFiles, missingMessage, type FSStream, type LabFS } from '@/features/lab-run/worker/lab-files';
+import { runProgram } from '@/features/lab-run/worker/lab-worker';
 import type { ConsoleCall, ConsoleReply } from '../helpers/lab-console-worker';
 
 /** exit() from the program, as the fake program's C library throws it. */
@@ -62,10 +65,11 @@ interface Wait {
 
 /**
  * A runtime on the test's clock, with the page played by the test. When the runtime would block,
- * the page takes any frame waiting for it, or does the next of `page.actions`; when there is nothing
- * to do, the clock moves on by the timeout.
+ * the page reads the output ring when the runtime waits for room in it, takes any frame waiting
+ * for it, or does the next of `page.actions`; when there is nothing to do, the clock moves on by
+ * the timeout.
  */
-function lab(framebufferBytes?: number) {
+function lab(framebufferBytes?: number, screen?: { width: number; height: number }) {
   const layout = createSharedLayout(framebufferBytes);
   const worker = openLayout(layout);
   const pageViews = openLayout(layout);
@@ -73,14 +77,21 @@ function lab(framebufferBytes?: number) {
   const frames: Frame[] = [];
   const waits: Wait[] = [];
   const actions: (() => void)[] = [];
+  const reader = new OutputReader(pageViews);
+  const output: OutputChunk[] = [];
   const page = {
     views: pageViews,
     messages,
     frames,
     waits,
     actions,
+    output,
+    /** How often the runtime waited for the page to read its output. */
+    reads: 0,
     clock: 0,
     send: (...events: LabEvent[]) => actions.push(() => events.forEach((e) => expect(postEvent(pageViews, e)).toBe(true))),
+    /** The page's animation frame: reads what the program has printed. */
+    readOutput: () => output.push(...reader.take()),
   };
   let seen = 0;
   const takeFrame = () => {
@@ -99,6 +110,11 @@ function lab(framebufferBytes?: number) {
       if (Atomics.load(worker.control, index) !== value) return;
       waits.push({ index, timeout, at: page.clock });
       if (waits.length > 10_000) throw new Error('the runtime kept waiting');
+      if (index === CONTROL.OUTPUT_TAIL) {
+        page.reads++;
+        page.readOutput();
+        return;
+      }
       if (index === CONTROL.FRAME_ACK && takeFrame()) return;
       const action = actions.shift();
       if (action) return action();
@@ -107,10 +123,9 @@ function lab(framebufferBytes?: number) {
     },
   };
   const io = new ConsoleIO(worker, host);
-  const glut = new GlutRuntime({ views: worker, host, console: io });
+  const glut = new GlutRuntime({ views: worker, host, console: io, screen });
   glut.connect({
     heap: () => new Uint8Array(0),
-    flush: () => {},
     exit: (code) => {
       throw new ProgramExit(code);
     },
@@ -128,8 +143,15 @@ function openWindow(glut: GlutRuntime, width = 200, height = 100, mode: number =
   glut.setOption(GLUT.ACTION_ON_WINDOW_CLOSE, GLUT.ACTION_GLUTMAINLOOP_RETURNS);
 }
 
-const text = (messages: WorkerMessage[], type: 'stdout' | 'stderr') =>
-  messages.flatMap((m) => (m.type === type ? [m.text] : [])).join('');
+/** The text of output chunks on one stream. */
+const joined = (chunks: OutputChunk[], stream: 'stdout' | 'stderr' = 'stdout') =>
+  chunks.flatMap((c) => (c.stream === stream ? [c.text] : [])).join('');
+
+/** Everything the program has printed on `stream`, as the page reads it now. */
+const text = (page: { output: OutputChunk[]; readOutput(): void }, stream: 'stdout' | 'stderr') => {
+  page.readOutput();
+  return joined(page.output, stream);
+};
 
 const bytes = (s: string) => new TextEncoder().encode(s);
 
@@ -361,18 +383,18 @@ describe('BB-LAB-23: readLine blocks until a line is in the input buffer, then r
     worker = new Worker(workerCode, { eval: true, workerData: { layout, calls } });
     worker.on('message', (r: ConsoleReply) => replies.push(r));
     await until(() => inputState(page) === INPUT_STATE.LINE);
-    // The prompt reached the page before the program blocked, and nothing has come back since.
-    await until(() => replies.length > 0);
+    // The prompt is on the page while the program is blocked, and nothing has come back.
+    expect(joined(new OutputReader(page).take())).toBe('How many? ');
     await new Promise((r) => setTimeout(r, 100));
-    expect(replies).toEqual([{ posted: { type: 'stdout', text: 'How many? ' } }]);
+    expect(replies).toEqual([]);
     expect(sendLine(page, '42 apples')).toBe(true);
-    await until(() => replies.length === 2);
-    expect(replies[1]).toEqual({ result: '42 apples\n' });
+    await until(() => replies.length === 1);
+    expect(replies[0]).toEqual({ result: '42 apples\n' });
     // Then it waits for a key, and the line's state is gone.
     await until(() => inputState(page) === INPUT_STATE.KEY);
     sendKey(page, 13);
-    await until(() => replies.length === 3);
-    expect(replies[2]).toEqual({ result: 13 });
+    await until(() => replies.length === 2);
+    expect(replies[1]).toEqual({ result: 13 });
     expect(inputState(page)).toBe(INPUT_STATE.NONE);
   });
 
@@ -401,8 +423,7 @@ describe('BB-LAB-24: getch returns one key without echo, and getche echoes it', 
       sendKey(page.views, 'q'.charCodeAt(0));
     });
     expect(io.getch()).toBe(113);
-    io.flush();
-    expect(text(page.messages, 'stdout')).toBe('');
+    expect(text(page, 'stdout')).toBe('');
     expect(page.waits).toHaveLength(1);
   });
 
@@ -410,8 +431,7 @@ describe('BB-LAB-24: getch returns one key without echo, and getche echoes it', 
     const { page, io } = lab();
     page.actions.push(() => sendKey(page.views, 'z'.charCodeAt(0)));
     expect(io.getche()).toBe(122);
-    io.flush();
-    expect(text(page.messages, 'stdout')).toBe('z');
+    expect(text(page, 'stdout')).toBe('z');
   });
 
   it('kbhit says whether a key is waiting, without waiting', () => {
@@ -430,13 +450,12 @@ describe('BB-LAB-25: system() handles pause and cls, names any other command, an
   it('system("pause") prints its line, then waits for a key', () => {
     const { page, io } = lab();
     page.actions.push(() => {
-      expect(text(page.messages, 'stdout')).toBe(PAUSE_PROMPT);
+      expect(text(page, 'stdout')).toBe(PAUSE_PROMPT);
       expect(PAUSE_PROMPT).toBe('Press any key to continue . . .');
       sendKey(page.views, 13);
     });
     expect(io.system('pause')).toBe(0);
-    io.flush();
-    expect(text(page.messages, 'stdout')).toBe(`${PAUSE_PROMPT}\n`);
+    expect(text(page, 'stdout')).toBe(`${PAUSE_PROMPT}\n`);
     expect(page.waits).toHaveLength(1);
   });
 
@@ -444,8 +463,7 @@ describe('BB-LAB-25: system() handles pause and cls, names any other command, an
     const { page, io } = lab();
     page.actions.push(() => sendKey(page.views, 32));
     expect(io.system('pause>nul')).toBe(0);
-    io.flush();
-    expect(text(page.messages, 'stdout')).toBe('');
+    expect(text(page, 'stdout')).toBe('');
     expect(page.waits).toHaveLength(1);
   });
 
@@ -453,15 +471,15 @@ describe('BB-LAB-25: system() handles pause and cls, names any other command, an
     const { page, io } = lab();
     io.write('stdout', 'old');
     expect(io.system('cls')).toBe(0);
-    expect(page.messages.map((m) => m.type)).toEqual(['stdout', 'clear']);
+    page.readOutput();
+    expect(page.output).toEqual([{ stream: 'stdout', text: 'old' }, { stream: 'clear' }]);
   });
 
   it('system("dir") prints the line naming it and returns 1', () => {
     const { page, io } = lab();
     expect(io.system('dir')).toBe(1);
-    io.flush();
     expect(systemMessage('dir')).toBe('system("dir") doesn\'t run in the Lab.');
-    expect(text(page.messages, 'stderr')).toBe('system("dir") doesn\'t run in the Lab.\n');
+    expect(text(page, 'stderr')).toBe('system("dir") doesn\'t run in the Lab.\n');
   });
 
   it('Sleep(ms) waits its whole time on a word that never changes', () => {
@@ -586,12 +604,11 @@ describe('BB-LAB-27: A path finds the uploaded file by its name, whatever its fo
   });
 
   it('a name not in the list fails, and the Console says which name it looked for, once', () => {
-    const { page, io, fs } = filesLab();
+    const { page, fs } = filesLab();
     expect(() => fs.open('C:\\lab\\nothere.txt', 0)).toThrow();
     expect(() => fs.open('nothere.txt', 0)).toThrow();
-    io.flush();
     expect(missingMessage('nothere.txt')).toBe("Looked for nothere.txt, which isn't in your files.");
-    expect(text(page.messages, 'stderr')).toBe("Looked for nothere.txt, which isn't in your files.\n");
+    expect(text(page, 'stderr')).toBe("Looked for nothere.txt, which isn't in your files.\n");
   });
 
   it('the runtime’s own paths are left alone', () => {
@@ -640,11 +657,31 @@ describe('BB-LAB-29: The window’s title and full screen reach the page', () =>
     ]);
   });
 
+  it('a window larger than the screen is held to the screen, as Windows holds it', () => {
+    const { page, glut } = lab(undefined, { width: 800, height: 600 });
+    glut.init();
+    glut.initWindowSize(100_000, 100_000);
+    glut.createWindow('Huge');
+    glut.setOption(GLUT.ACTION_ON_WINDOW_CLOSE, GLUT.ACTION_GLUTMAINLOOP_RETURNS);
+    expect(page.messages[0]).toEqual({ type: 'window', title: 'Huge', width: 800, height: 600, x: -1, y: -1 });
+    expect([glut.gl.fb.width, glut.gl.fb.height]).toEqual([800, 600]);
+    const sizes: number[][] = [];
+    glut.reshapeFunc((w, h) => sizes.push([w, h]));
+    glut.displayFunc(() => {
+      if (sizes.length === 2) glut.leaveMainLoop();
+    });
+    page.send({ kind: 'reshape', width: 100_000, height: 50 });
+    glut.mainLoop();
+    expect(sizes).toEqual([
+      [800, 600],
+      [800, 50],
+    ]);
+  });
+
   it('a GLUT call before glutInit stops the program with FreeGLUT’s message', () => {
-    const { page, glut, io } = lab();
+    const { page, glut } = lab();
     expect(() => glut.createWindow('x')).toThrow(ProgramExit);
-    io.flush();
-    expect(text(page.messages, 'stderr')).toContain("Function <glutCreateWindow> called without first calling 'glutInit'.");
+    expect(text(page, 'stderr')).toContain("Function <glutCreateWindow> called without first calling 'glutInit'.");
   });
 });
 
@@ -693,6 +730,17 @@ describe('BB-LAB-30: Display lists and glutBitmapString draw through the context
     expect(white.length).toBeGreaterThan(10);
   });
 
+  it('a frame larger than the framebuffer the page holds is not handed out', () => {
+    const views = openLayout(createSharedLayout(16));
+    Atomics.store(views.control, CONTROL.FRAME_WIDTH, 100);
+    Atomics.store(views.control, CONTROL.FRAME_HEIGHT, 100);
+    Atomics.store(views.control, CONTROL.FRAME, 1);
+    expect(latestFrame(views, 0)).toBeNull();
+    Atomics.store(views.control, CONTROL.FRAME_WIDTH, 2);
+    Atomics.store(views.control, CONTROL.FRAME_HEIGHT, 2);
+    expect(latestFrame(views, 0)).toMatchObject({ frame: 1, width: 2, height: 2 });
+  });
+
   it('a GLUT_SINGLE window shows each glFlush', () => {
     const { page, glut } = lab();
     openWindow(glut, 4, 4, 0);
@@ -709,21 +757,21 @@ describe('BB-LAB-30: Display lists and glutBitmapString draw through the context
 });
 
 describe('BB-LAB-31: Output in a tight loop arrives batched, and the Console keeps the last 5,000 lines', () => {
-  it('100,000 lines arrive in a few messages, all of them, and the Console shows the last 5,000', () => {
+  it('100,000 lines arrive in a few reads, all of them, and the Console shows the last 5,000', () => {
     const { page, io } = lab();
     let all = '';
     for (let i = 0; i < 100_000; i++) {
       const line = `line ${i}\n`;
       all += line;
       io.write('stdout', bytes(line));
-      page.clock += 0.01;
     }
-    io.flush();
-    const batches = page.messages.filter((m) => m.type === 'stdout');
-    expect(batches.length).toBeLessThan(200);
-    expect(text(page.messages, 'stdout')).toBe(all);
+    page.readOutput();
+    // The ring filled again and again, and the program waited for the page each time.
+    expect(page.reads).toBeGreaterThan(0);
+    expect(page.output.length).toBeLessThan(200);
+    expect(joined(page.output)).toBe(all);
     let log = emptyConsole();
-    for (const m of batches) if (m.type === 'stdout') log = appendConsole(log, 'stdout', m.text);
+    for (const c of page.output) if (c.stream === 'stdout') log = appendConsole(log, 'stdout', c.text);
     const lines = consoleLines(log);
     expect(CONSOLE_LINES).toBe(5000);
     expect(lines).toHaveLength(5000);
@@ -731,7 +779,20 @@ describe('BB-LAB-31: Output in a tight loop arrives batched, and the Console kee
     expect(lines[4999]).toEqual({ stream: 'stdout', text: 'line 99999' });
   });
 
-  it('a line split across batches, and a character split across them, come out whole', () => {
+  it('20 quick lines and then nothing: all 20 reach the page without another write or a wait', () => {
+    const { page, io } = lab();
+    let all = '';
+    for (let i = 0; i < 20; i++) {
+      all += `step ${i}\n`;
+      io.write('stdout', bytes(`step ${i}\n`));
+      page.clock += 0.05;
+    }
+    // The program now spins for ever; the page reads what is there on its next frame.
+    expect(text(page, 'stdout')).toBe(all);
+    expect(page.waits).toHaveLength(0);
+  });
+
+  it('a line split across reads, and a character split across them, come out whole', () => {
     let log = emptyConsole();
     log = appendConsole(log, 'stdout', 'Enter a ');
     log = appendConsole(log, 'stdout', 'number: ');
@@ -744,32 +805,80 @@ describe('BB-LAB-31: Output in a tight loop arrives batched, and the Console kee
     const { page, io } = lab();
     const peso = bytes('₱5\n');
     io.write('stdout', peso.subarray(0, 2));
-    io.flush();
+    page.readOutput();
     io.write('stdout', peso.subarray(2));
-    io.flush();
-    expect(text(page.messages, 'stdout')).toBe('₱5\n');
+    expect(text(page, 'stdout')).toBe('₱5\n');
   });
 
-  it('what a program prints, and what stdio still holds, reaches the page before it blocks', () => {
+  it('what a program prints is on the page before it blocks', () => {
     const { page, io } = lab();
-    // stdio's line buffer, as vams_flush hands it over.
-    let held = 'Name: ';
-    io.connect(() => {
-      io.write('stdout', bytes(held));
-      held = '';
-    });
-    io.write('stdout', bytes('first\n'));
+    io.write('stdout', bytes('first\nName: '));
     page.actions.push(() => {
-      expect(text(page.messages, 'stdout')).toBe('first\nName: ');
+      expect(text(page, 'stdout')).toBe('first\nName: ');
       sendLine(page.views, 'Ada');
     });
     expect(io.readLine()).toBe('Ada\n');
   });
 
-  it('a few lines go at once, so a program that prints and then never waits still shows them', () => {
-    const { page, io } = lab();
-    for (const line of ['a\n', 'b\n', 'c\n']) io.write('stdout', bytes(line));
-    // No flush: the program is busy, in a loop that never returns.
-    expect(text(page.messages, 'stdout')).toBe('a\nb\nc\n');
+  it('a line that never ends is wrapped, so 10 MB with no newline keeps the Console bounded', () => {
+    let log = emptyConsole();
+    const chunk = '*'.repeat(64 * 1024);
+    for (let i = 0; i < 160; i++) log = appendConsole(log, 'stdout', chunk);
+    const lines = consoleLines(log);
+    const held = lines.reduce((n, l) => n + l.text.length, 0);
+    expect(lines.length).toBeLessThanOrEqual(CONSOLE_LINES);
+    expect(lines.every((l) => l.text.length <= CONSOLE_LINE_CHARS)).toBe(true);
+    expect(held).toBeLessThanOrEqual(CONSOLE_LINES * CONSOLE_LINE_CHARS);
+    expect(held).toBeLessThan(160 * chunk.length);
+    // A whole line longer than that wraps the same way, and a shorter one stays as it is.
+    log = appendConsole(emptyConsole(), 'stdout', `${'a'.repeat(CONSOLE_LINE_CHARS + 3)}\nshort\n`);
+    expect(consoleLines(log).map((l) => l.text)).toEqual(['a'.repeat(CONSOLE_LINE_CHARS), 'aaa', 'short']);
+  });
+});
+
+describe('BB-LAB-60: The worker always tells the page how the program ended', () => {
+  const start = () => ({ type: 'start' as const, module: new ArrayBuffer(0), files: [], shared: createSharedLayout(0) });
+  const main = (ccall: () => number) => async () => async () => ({ FS: new FakeFS(), ccall });
+
+  it('a return from main, exit() and a trap post exit, exit and crash', async () => {
+    const posts: WorkerMessage[][] = [[], [], []];
+    await runProgram(start(), (m) => posts[0].push(m), main(() => 4));
+    await runProgram(
+      start(),
+      (m) => posts[1].push(m),
+      main(() => {
+        throw Object.assign(new Error('Program terminated with exit(3)'), { name: 'ExitStatus', status: 3 });
+      }),
+    );
+    await runProgram(
+      start(),
+      (m) => posts[2].push(m),
+      main(() => {
+        throw new Error('memory access out of bounds');
+      }),
+    );
+    expect(posts).toEqual([[{ type: 'exit', code: 4 }], [{ type: 'exit', code: 3 }], [{ type: 'crash', message: 'memory access out of bounds' }]]);
+  });
+
+  it('when posting the end fails, the page still gets a crash', async () => {
+    const posts: WorkerMessage[] = [];
+    let refused = false;
+    const post = (m: WorkerMessage) => {
+      if (m.type === 'exit' && !refused) {
+        refused = true;
+        throw new Error('could not be cloned');
+      }
+      posts.push(m);
+    };
+    await expect(runProgram(start(), post, main(() => 0))).resolves.toBeUndefined();
+    expect(posts).toEqual([{ type: 'crash', message: 'could not be cloned' }]);
+    // The same when the program ended with exit().
+    posts.length = 0;
+    refused = false;
+    const exits = main(() => {
+      throw Object.assign(new Error('Program terminated with exit(0)'), { name: 'ExitStatus', status: 0 });
+    });
+    await expect(runProgram(start(), post, exits)).resolves.toBeUndefined();
+    expect(posts).toEqual([{ type: 'crash', message: 'could not be cloned' }]);
   });
 });

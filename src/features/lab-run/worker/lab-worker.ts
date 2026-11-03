@@ -8,9 +8,12 @@
  *   3. mounts the student's files in MEMFS, writes the side module to /main.wasm, and calls
  *      vams_run('/main.wasm'), which runs the program's main, glutMainLoop and all.
  *
- * When main returns or the program calls exit, the worker posts `exit` with the code. A trap, an
- * abort or a runtime that won't load posts `crash` with its message. The worker never stops a
- * program itself: the page terminates the worker.
+ * vams_run ends with exit(), and the main module runs its exit fully (EXIT_RUNTIME), so whichever
+ * way the program ends, its static destructors run and stdio flushes every stream: what it
+ * printed is in the output ring and what it wrote is in its files. The worker then posts the files
+ * still open for writing, and `exit` with the code; a trap, an abort or a runtime that won't load
+ * posts `crash` with its message. If that post fails, it posts `crash` as a last resort. The
+ * worker never stops a program itself: the page terminates the worker.
  */
 import type { GLContext } from '@/shared/lib/gl-raster';
 import type { PageMessage, StartMessage, WorkerMessage } from '../model/protocol';
@@ -54,19 +57,16 @@ function exitCode(error: unknown): number | null {
   return null;
 }
 
+const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
 /** Runs the program in `start`, posting what it does with `post`, and the main module from `loadMain`. */
 export async function runProgram(start: StartMessage, post: (message: WorkerMessage) => void, loadMain: () => Promise<CreateMain>): Promise<void> {
   const views = openLayout(start.shared);
   const host = atomicsHost(views, post);
   const io = new ConsoleIO(views, host);
   const glut = new GlutRuntime({ views, host, console: io, screen: start.screen });
-  let program: ProgramMemory | null = null;
   const lab: VamsLab = {
-    connect: (memory) => {
-      program = memory;
-      glut.connect(memory);
-      io.connect(memory.flush);
-    },
+    connect: (memory) => glut.connect(memory),
     get gl() {
       return glut.gl;
     },
@@ -76,15 +76,13 @@ export async function runProgram(start: StartMessage, post: (message: WorkerMess
   (globalThis as { __vamsLab?: VamsLab }).__vamsLab = lab;
   let files: { closeAll(): void } | null = null;
   const finish = (message: WorkerMessage) => {
-    // Emscripten's exit() leaves stdio as it was, so what the program printed last is sent here.
     try {
-      program?.flush();
-    } catch {
-      // The program stopped part way through stdio; what it held is lost.
+      files?.closeAll();
+      post(message);
+    } catch (error) {
+      // The page must hear how the program ended, or Run would look as if it were still going.
+      post({ type: 'crash', message: errorMessage(error) });
     }
-    files?.closeAll();
-    io.flush();
-    post(message);
   };
   try {
     const create = await loadMain();
@@ -99,7 +97,7 @@ export async function runProgram(start: StartMessage, post: (message: WorkerMess
   } catch (error) {
     const code = exitCode(error);
     if (code !== null) finish({ type: 'exit', code });
-    else finish({ type: 'crash', message: error instanceof Error ? error.message : String(error) });
+    else finish({ type: 'crash', message: errorMessage(error) });
   }
 }
 

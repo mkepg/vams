@@ -60,8 +60,6 @@ export interface ProgramMemory {
   heap(): Uint8Array;
   /** The C library's exit: ends the program with `code`. */
   exit(code: number): never;
-  /** Sends what stdio holds for stdout and stderr to the Console (vams_flush). */
-  flush(): void;
 }
 
 type Callback = (...args: number[]) => void;
@@ -98,7 +96,6 @@ export interface GlutOptions {
 
 const noProgram: ProgramMemory = {
   heap: () => new Uint8Array(0),
-  flush: () => {},
   exit: (code) => {
     throw new Error(`exit(${code}) before the program loaded`);
   },
@@ -184,9 +181,17 @@ export class GlutRuntime {
 
   // The window.
 
+  /** A window size held to the screen, as Windows holds a window, so a huge one can't exhaust memory. */
+  private fit(width: number, height: number): { width: number; height: number } {
+    return {
+      width: Math.max(1, Math.min(this.screen.width, Math.trunc(width))),
+      height: Math.max(1, Math.min(this.screen.height, Math.trunc(height))),
+    };
+  }
+
   createWindow(title: string): number {
     this.requireInit('glutCreateWindow');
-    const { width, height } = this.initSize;
+    const { width, height } = this.fit(this.initSize.width, this.initSize.height);
     this.window = { title, x: this.initPosition.x, y: this.initPosition.y, width, height };
     this.context = new GLContext(width, height, {
       multisample: (this.displayMode & GLUT.MULTISAMPLE) !== 0,
@@ -271,7 +276,6 @@ export class GlutRuntime {
     Atomics.store(control, CONTROL.FRAME_GENERATION, this.views.generation);
     const frame = Atomics.add(control, CONTROL.FRAME, 1) + 1;
     this.published = true;
-    this.console.drain();
     const deadline = this.host.now() + FRAME_WAIT_MS;
     for (;;) {
       const ack = Atomics.load(control, CONTROL.FRAME_ACK);
@@ -483,8 +487,7 @@ export class GlutRuntime {
   private reshape(width: number, height: number): void {
     const w = this.window;
     if (!w) return;
-    width = Math.max(1, Math.trunc(width));
-    height = Math.max(1, Math.trunc(height));
+    ({ width, height } = this.fit(width, height));
     if (width !== this.context.fb.width || height !== this.context.fb.height) {
       this.ensureFramebuffer(width * height * 4);
       this.context.resize(width, height);
@@ -567,7 +570,6 @@ export class GlutRuntime {
     if (this.redisplay || this.reshapePending || this.events.waiting) return;
     const timeout = this.timers.length ? this.timers[0].due - this.host.now() : Infinity;
     if (timeout <= 0) return;
-    this.console.drain();
     this.events.waitForEvent(timeout);
   }
 
@@ -595,7 +597,6 @@ export class GlutRuntime {
       else this.sleepForWork();
     }
     this.running = false;
-    this.console.drain();
     if (this.actionOnClose === GLUT.ACTION_EXIT) this.program.exit(0);
   }
 
