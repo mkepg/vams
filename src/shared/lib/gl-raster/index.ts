@@ -4,7 +4,7 @@
  * the multisample rules (4 samples a pixel) when the program asks for GLUT_MULTISAMPLE. Depth is
  * carried on vertices and not tested. GLContext puts the GL state machine in front of it.
  */
-export { GL, GLContext, MAX_STACK_DEPTH, MAX_VIEWPORT_SIZE, type GLContextOptions, type Pointer } from './context';
+export { GL, GLContext, MAX_DRAW_ELEMENTS, MAX_STACK_DEPTH, MAX_VIEWPORT_SIZE, type GLContextOptions, type Pointer } from './context';
 export { MAX_LIST_NESTING } from './lists';
 export { clearFramebuffer, createFramebuffer, type Framebuffer } from './framebuffer';
 export type { Box, Scissor } from './clip';

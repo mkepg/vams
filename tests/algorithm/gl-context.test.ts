@@ -5,10 +5,11 @@
  * reference in tests/helpers/matrix.ts; every expected pixel is worked out by hand from the rule
  * named beside it.
  */
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { GL, GLContext, MAX_LIST_NESTING, MAX_STACK_DEPTH, type Framebuffer } from '@/shared/lib/gl-raster';
+import { GL, GLContext, MAX_DRAW_ELEMENTS, MAX_LIST_NESTING, MAX_STACK_DEPTH, type Framebuffer } from '@/shared/lib/gl-raster';
 import { polygonPieces } from '@/shared/lib/gl-raster/assembly';
 import {
   GLUT_FONTS,
@@ -19,6 +20,7 @@ import {
   glutBitmapWidth,
   type GlutFontName,
 } from '@/shared/lib/glut-fonts';
+import { GLYPHS } from '@/shared/lib/glut-fonts/font-9x15';
 import { lineOrigin, rasterizeLine } from '@/shared/lib/text-raster';
 import { makeMatrix, matrixDistance, multiply, ndcToWindow, orthoToNdc, transformPoint, type Mat } from '../helpers/matrix';
 
@@ -903,7 +905,8 @@ describe('ALG-LAB-15: glutBitmapCharacter and the GLUT fonts, as freeglut and th
     after.rasterPos2i(0, 10);
     glutBitmapString(after, font, 'Hello');
     glutBitmapCharacter(after, font, '|'.charCodeAt(0));
-    const extra = covered(after.fb).filter((p) => !covered(gl.fb).includes(p));
+    const before = new Set(covered(gl.fb));
+    const extra = covered(after.fb).filter((p) => !before.has(p));
     expect(Math.min(...extra.map((p) => +p.split(',')[0]))).toBeGreaterThanOrEqual(H_ + e + 2 * l + o);
   });
 
@@ -1074,5 +1077,161 @@ describe('ALG-LAB-20: GLContext has one method per GL and GLU call the Lab allow
     for (const name of ['blendColor', 'blendEquation', 'blendFuncSeparate', 'frustum', 'perspective', 'lookAt', 'cullFace', 'frontFace', 'normal3f', 'lightfv', 'materialfv']) {
       expect(proto[name], name).toBeUndefined();
     }
+  });
+});
+
+describe('ALG-LAB-21: One draw call takes at most MAX_DRAW_ELEMENTS elements', () => {
+  /** A context over a 4 MiB program memory with its vertex array at address 0: every element is (1.5, 2.5). */
+  function heapContext(): { gl: GLContext; heap: Uint8Array } {
+    const heap = new Uint8Array(4 * 1024 * 1024);
+    const gl = new GLContext(8, 8, { memory: () => heap });
+    gl.matrixMode(GL.PROJECTION);
+    gl.ortho2D(0, 8, 0, 8);
+    gl.matrixMode(GL.MODELVIEW);
+    gl.vertexPointer(2, GL.FLOAT, 0, new Uint8Array(new Float32Array([1.5, 2.5]).buffer));
+    gl.enableClientState(GL.VERTEX_ARRAY);
+    return { gl, heap };
+  }
+
+  it('a count of 2^31 − 1 returns at once, draws nothing and records GL_OUT_OF_MEMORY', () => {
+    const { gl } = heapContext();
+    let start = performance.now();
+    gl.drawElements(GL.POINTS, 2 ** 31 - 1, GL.UNSIGNED_BYTE, 0);
+    expect(performance.now() - start).toBeLessThan(100);
+    expect(covered(gl.fb)).toEqual([]);
+    expect(gl.getError()).toBe(GL.OUT_OF_MEMORY);
+    start = performance.now();
+    gl.drawArrays(GL.POINTS, 0, 2 ** 31 - 1);
+    expect(performance.now() - start).toBeLessThan(100);
+    expect(covered(gl.fb)).toEqual([]);
+    expect(gl.getError()).toBe(GL.OUT_OF_MEMORY);
+  });
+
+  it('a count at the cap still draws', () => {
+    expect(MAX_DRAW_ELEMENTS).toBe(1 << 20);
+    const { gl } = heapContext();
+    // 2^20 zero indices from program memory: every one is element 0, the point (1.5, 2.5).
+    gl.drawElements(GL.POINTS, MAX_DRAW_ELEMENTS, GL.UNSIGNED_BYTE, 0);
+    expect(gl.getError()).toBe(GL.NO_ERROR);
+    expect(covered(gl.fb)).toEqual(['1,2']);
+  });
+});
+
+describe('ALG-LAB-22: Every font’s glyphs are freeglut’s, by a digest taken from fg_font_data.c', () => {
+  // SHA-256 of the 256 entries "width:rows as hex", joined by commas, computed from freeglut master's
+  // src/fg_font_data.c (each <Font>_Character_Map resolved by position), not from this repository.
+  const FREEGLUT_DIGESTS: Record<GlutFontName, string> = {
+    GLUT_BITMAP_8_BY_13: '16a1e3dd0b92c7e13952792e277a538ba293b603f9d802dfd46200850e80487b',
+    GLUT_BITMAP_9_BY_15: '5f9ef2249c97a87d232975006ed6dc2b583e2dec541ec0653634ace6da4f7158',
+    GLUT_BITMAP_HELVETICA_10: 'fe66b1c244dedec4ebdd3b15ef10724d5b21e545e93a6b1f681ac7d2ed43e2f6',
+    GLUT_BITMAP_HELVETICA_12: '6e6165e862f3bb17910171f70ce6e34f40229eb78ce5e0f50c867ff25d11bd83',
+    GLUT_BITMAP_HELVETICA_18: 'c275330be37a4095eba856914f5183781938955673b6f013f7fb08087a5c204b',
+    GLUT_BITMAP_TIMES_ROMAN_10: '27d129904554d08bb72b0a2fbf664c610efcec951afada314ff9a1c234b39fb4',
+    GLUT_BITMAP_TIMES_ROMAN_24: '6e89850958d227bb1a081541ff4382f67632bc8d620afd3ae5076d1cc47199cb',
+  };
+  const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
+
+  it.each(Object.keys(FREEGLUT_DIGESTS) as GlutFontName[])('%s', (name) => {
+    expect(sha256(GLUT_FONTS[name].glyphs.map(([w, hex]) => `${w}:${hex}`).join(','))).toBe(FREEGLUT_DIGESTS[name]);
+  });
+
+  it('the editor draws the 9×15 glyphs it drew before the Lab', () => {
+    // SHA-256 of the 95 GLYPHS of src/shared/lib/glut-bitmap-9x15.ts at fe7a2e9, joined by commas.
+    expect(GLYPHS).toHaveLength(95);
+    expect(sha256(GLYPHS.join(','))).toBe('2eba0a047ac8c08d73184d7803e8954988466575ac5fce4fe75421cba5fd5566');
+  });
+});
+
+describe('ALG-LAB-23: The bundled GL/gl.h and the context agree on every enum, glScissor included', () => {
+  const header = () => readFileSync(join(process.cwd(), 'lab/include/GL/gl.h'), 'utf8');
+
+  it('declares glScissor and GL_SCISSOR_TEST with GL 1.5’s signature and value', () => {
+    expect(header()).toMatch(/GLAPI void glScissor\(GLint x, GLint y, GLsizei width, GLsizei height\);/);
+    expect(header()).toMatch(/#define GL_SCISSOR_TEST 0x0C11\b/);
+  });
+
+  it('every #define GL_* that the context’s GL table names has the same value', () => {
+    const table = GL as unknown as Record<string, number>;
+    const defines = [...header().matchAll(/#define GL_(\w+) (0x[0-9A-Fa-f]+|\d+)\b/g)].map(([, name, value]) => [name, Number(value)] as const);
+    const shared = defines.filter(([name]) => name in table);
+    expect(shared.map(([name]) => name)).toContain('SCISSOR_TEST');
+    expect(shared.filter(([name, value]) => table[name] !== value)).toEqual([]);
+    expect(shared.length).toBeGreaterThan(80);
+  });
+});
+
+describe('ALG-LAB-24: glIsEnabled answers for the client arrays (2.8)', () => {
+  it.each([GL.VERTEX_ARRAY, GL.COLOR_ARRAY, GL.TEXTURE_COORD_ARRAY])('array %d', (array) => {
+    const gl = new GLContext(8, 8);
+    expect(gl.isEnabled(array)).toBe(false);
+    gl.enableClientState(array);
+    expect(gl.isEnabled(array)).toBe(true);
+    gl.disableClientState(array);
+    expect(gl.isEnabled(array)).toBe(false);
+    expect(gl.getError()).toBe(GL.NO_ERROR);
+  });
+});
+
+describe('ALG-LAB-25: glTexImage2D takes no level past log2 of the largest texture (3.8.1)', () => {
+  it('level 13 is the last a 8192 texture has; level 14 is GL_INVALID_VALUE', () => {
+    const gl = new GLContext(8, 8);
+    const pixel = new Uint8Array([255, 255, 255, 255]);
+    gl.texImage2D(GL.TEXTURE_2D, 13, GL.RGBA, 1, 1, 0, GL.RGBA, GL.UNSIGNED_BYTE, pixel);
+    expect(gl.getError()).toBe(GL.NO_ERROR);
+    gl.texImage2D(GL.TEXTURE_2D, 14, GL.RGBA, 1, 1, 0, GL.RGBA, GL.UNSIGNED_BYTE, pixel);
+    expect(gl.getError()).toBe(GL.INVALID_VALUE);
+    gl.texImage2D(GL.TEXTURE_2D, 1e9, GL.RGBA, 1, 1, 0, GL.RGBA, GL.UNSIGNED_BYTE, pixel);
+    expect(gl.getError()).toBe(GL.INVALID_VALUE);
+  });
+});
+
+describe('ALG-LAB-26: Point size and line width stop at 64 and 10 in both sampling modes', () => {
+  /** How many pixels of column x the drawing covers, each counted by its alpha, so a half-covered pixel is ½. */
+  const columnCover = (fb: Framebuffer, x: number) => {
+    let sum = 0;
+    for (let y = 0; y < fb.height; y++) sum += px(fb, x, y)[3] / 255;
+    return sum;
+  };
+
+  it.each([false, true])('multisample %s: glPointSize(1e30) draws a 64 × 64 square', (multisample) => {
+    const gl = pixelContext(100, 100, multisample);
+    gl.pointSize(1e30);
+    gl.begin(GL.POINTS);
+    gl.vertex2f(50, 50);
+    gl.end();
+    expect(gl.getError()).toBe(GL.NO_ERROR);
+    // Centred on the pixel corner (50, 50): x and y 18..81 (3.3.1; the multisample square's edges fall on pixel edges).
+    expect(covered(gl.fb)).toEqual(block(18, 81, 18, 81));
+  });
+
+  it.each([false, true])('multisample %s: glLineWidth(1e9) draws a line 10 pixels wide', (multisample) => {
+    const gl = pixelContext(100, 100, multisample);
+    gl.lineWidth(1e9);
+    gl.begin(GL.LINES);
+    gl.vertex2f(10, 50.5);
+    gl.vertex2f(90, 50.5);
+    gl.end();
+    expect(gl.getError()).toBe(GL.NO_ERROR);
+    // A multisampled edge row is half covered and resolves to 128 / 255, so allow for 8-bit rounding.
+    expect(columnCover(gl.fb, 50)).toBeCloseTo(10, 1);
+  });
+
+  it('a multisampled, stippled, widest line to 1e30 stays in the window and finishes within a second', () => {
+    const gl = pixelContext(32, 32, true);
+    gl.lineWidth(1e9);
+    gl.enable(GL.LINE_STIPPLE);
+    gl.lineStipple(1, 0x5555);
+    const start = performance.now();
+    gl.begin(GL.LINES);
+    gl.vertex2f(-1e30, 16.5);
+    gl.vertex2f(1e30, 16.5);
+    gl.vertex2f(-1e15, -1e15);
+    gl.vertex2f(1e15, 1e15);
+    gl.vertex2f(-1e7, 8.5);
+    gl.vertex2f(1e7, 8.5);
+    gl.end();
+    expect(performance.now() - start).toBeLessThan(1000);
+    expect(covered(gl.fb).length).toBeGreaterThan(0);
+    expect(covered(gl.fb).length).toBeLessThanOrEqual(32 * 32);
   });
 });

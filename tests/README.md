@@ -195,7 +195,7 @@ tests/
 │   │                                              rasteriser, pixel by pixel, by the
 │   │                                              OpenGL 1.5 rules with and without
 │   │                                              multisampling)
-│   └── gl-context.test.ts                       (ALG-LAB-09 to 16, 19 and 20: the Lab's
+│   └── gl-context.test.ts                       (ALG-LAB-09 to 16 and 19 to 26: the Lab's
 │                                                  OpenGL 1.5 state machine, display lists,
 │                                                  textures and GLUT's bitmap fonts)
 └── reports/                      ← Per-run output; consumed by Chapter 4.

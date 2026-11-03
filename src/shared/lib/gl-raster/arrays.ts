@@ -118,25 +118,26 @@ export function readsMapped(source: ArraySource): boolean {
 }
 
 /**
- * Element `i` of an enabled array: `size` components, each read by `read`, or 0 past the end of
- * its bytes.
+ * A reader of an enabled array's elements, over one view of its bytes: element `i` is `size`
+ * components, each read by `read`, or 0 past the end of the bytes.
  */
-export function readElement(
+export function elementReader(
   p: ArrayPointer,
-  i: number,
   memory: (() => Uint8Array) | undefined,
   read: (view: DataView, at: number, type: number) => number,
-): number[] {
+): (i: number) => number[] {
   const { bytes, start } = sourceBytes(p, memory);
   const width = typeSize(p.type);
   const stride = p.stride || p.size * width;
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const out: number[] = [];
-  for (let k = 0; k < p.size; k++) {
-    const at = start + i * stride + k * width;
-    out.push(at >= 0 && at + width <= bytes.byteLength ? read(view, at, p.type) : 0);
-  }
-  return out;
+  return (i) => {
+    const out: number[] = [];
+    for (let k = 0; k < p.size; k++) {
+      const at = start + i * stride + k * width;
+      out.push(at >= 0 && at + width <= bytes.byteLength ? read(view, at, p.type) : 0);
+    }
+    return out;
+  };
 }
 
 /** How many whole elements the array's bytes hold from its start. */

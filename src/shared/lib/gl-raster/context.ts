@@ -2,7 +2,7 @@ import {
   createPointer,
   elementCount,
   GL_TYPE,
-  readElement,
+  elementReader,
   readIndices,
   readNormalised,
   readsMapped,
@@ -22,6 +22,7 @@ import * as M from './matrix';
 import { MAX_POINT_SIZE } from './points';
 import {
   createTexture,
+  MAX_TEXTURE_LEVEL,
   formatComponents,
   internalBase,
   isComplete,
@@ -118,6 +119,9 @@ export const GL = {
 export const MAX_STACK_DEPTH = 32;
 // GL_MAX_VIEWPORT_DIMS: glViewport clamps its width and height to this.
 export const MAX_VIEWPORT_SIZE = 16384;
+// The most elements one glDrawArrays or glDrawElements takes; a larger count draws nothing and is
+// GL_OUT_OF_MEMORY, where a lab PC would read past the program's arrays and stop.
+export const MAX_DRAW_ELEMENTS = 1 << 20;
 // The most names one glGenTextures or glGenBuffers hands out.
 const MAX_GEN_NAMES = 1 << 16;
 
@@ -518,6 +522,8 @@ export class GLContext {
         case GL.SCISSOR_TEST:
           return this.raster.scissor!.enabled;
       }
+      const array = this.clientArray(cap);
+      if (array) return array.enabled;
       this.fail(GL.INVALID_ENUM);
       return false;
     }, false);
@@ -769,18 +775,21 @@ export class GLContext {
   /** glArrayElement's values for each index, read now, as a display list compiles them. */
   private elements(indices: readonly number[]): ArrayElement[] {
     const { vertex, color, tex } = this.arrays;
+    const readColor = color.enabled ? elementReader(color, this.memory, readNormalised) : null;
+    const readTex = tex.enabled ? elementReader(tex, this.memory, readValue) : null;
+    const readVertex = vertex.enabled ? elementReader(vertex, this.memory, readValue) : null;
     return indices.map((i) => {
       const e: ArrayElement = {};
-      if (color.enabled) {
-        const c = readElement(color, i, this.memory, readNormalised);
+      if (readColor) {
+        const c = readColor(i);
         e.color = [c[0], c[1], c[2], color.size === 4 ? c[3] : 1];
       }
-      if (tex.enabled) {
-        const t = readElement(tex, i, this.memory, readValue);
+      if (readTex) {
+        const t = readTex(i);
         e.tex = [t[0], tex.size > 1 ? t[1] : 0];
       }
-      if (vertex.enabled) {
-        const v = readElement(vertex, i, this.memory, readValue);
+      if (readVertex) {
+        const v = readVertex(i);
         e.vertex = [v[0], v[1], vertex.size > 2 ? v[2] : 0, vertex.size > 3 ? v[3] : 1];
       }
       return e;
@@ -816,6 +825,10 @@ export class GLContext {
     }
     if (count < 0 || first < 0) {
       this.fail(GL.INVALID_VALUE);
+      return false;
+    }
+    if (count > MAX_DRAW_ELEMENTS) {
+      this.fail(GL.OUT_OF_MEMORY);
       return false;
     }
     if (this.mappedSource()) {
@@ -914,7 +927,7 @@ export class GLContext {
     let image: ReturnType<typeof unpackImage> | null = null;
     let error: number = GL.NO_ERROR;
     if (target !== GL.TEXTURE_2D || formatComponents(format) === 0 || typeSize(type) === 0) error = GL.INVALID_ENUM;
-    else if (!base || level < 0 || width < 0 || height < 0 || width > MAX_TEXTURE_SIZE || height > MAX_TEXTURE_SIZE || border !== 0) {
+    else if (!base || level < 0 || level > MAX_TEXTURE_LEVEL || width < 0 || height < 0 || width > MAX_TEXTURE_SIZE || height > MAX_TEXTURE_SIZE || border !== 0) {
       error = GL.INVALID_VALUE;
     } else {
       const bytes = typeof pixels === 'number' ? (this.memory?.().subarray(pixels) ?? null) : pixels;

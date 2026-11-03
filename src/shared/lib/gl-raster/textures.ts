@@ -31,6 +31,8 @@ export function createTexture(): TextureObject {
 
 // The largest image glTexImage2D takes, in each direction.
 export const MAX_TEXTURE_SIZE = 8192;
+// The last mipmap level of the largest texture: log2(MAX_TEXTURE_SIZE).
+export const MAX_TEXTURE_LEVEL = Math.log2(MAX_TEXTURE_SIZE);
 
 export const GL_TEXTURE = {
   ALPHA: 0x1906,

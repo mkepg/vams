@@ -90,6 +90,7 @@ typedef ptrdiff_t GLsizeiptr;
 #define GL_BLEND 0x0BE2
 #define GL_LINE_STIPPLE 0x0B24
 #define GL_TEXTURE_2D 0x0DE1
+#define GL_SCISSOR_TEST 0x0C11
 
 /* glBlendFunc */
 #define GL_ZERO 0
@@ -228,6 +229,7 @@ GLAPI const GLubyte *glGetString(GLenum name);
 GLAPI void glClear(GLbitfield mask);
 GLAPI void glClearColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
 GLAPI void glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
+GLAPI void glScissor(GLint x, GLint y, GLsizei width, GLsizei height);
 GLAPI void glFlush(void);
 GLAPI void glFinish(void);
 
