@@ -1,6 +1,7 @@
 // The Lab's main module. It holds everything a student's program shares
-// (libc, libc++ and the bridges to the worker) and runs the program, which
-// arrives as a side module.
+// (libc, libc++, stb_image, the Windows extras and the bridges to the worker:
+// conio.c, windows.c, glew.c, stb_image_impl.c and library_vams.js) and runs
+// the program, which arrives as a side module.
 
 #include <dlfcn.h>
 #include <stdio.h>
@@ -8,6 +9,13 @@
 #include <emscripten.h>
 
 typedef int (*main_fn)(int, char **);
+
+// Sends what stdio holds for stdout and stderr to the Console. The worker calls it
+// before the program waits, so a prompt without a newline is on the Console.
+EMSCRIPTEN_KEEPALIVE void vams_flush(void) {
+  fflush(stdout);
+  fflush(stderr);
+}
 
 // Loads the side module at `path`, calls its main and returns the exit code.
 // Returns 127 when the module can't be loaded or has no main.

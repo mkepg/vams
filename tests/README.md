@@ -29,6 +29,8 @@ tests/
 │   │                                limits.
 │   ├── raster-worker.ts          ← Runs raster calls in a worker thread, so
 │   │                                ALG-LAB-18 can end one that never returns.
+│   ├── lab-console-worker.ts     ← The Lab's Console in a worker thread,
+│   │                                blocking on Atomics.wait, for BB-LAB-23.
 │   └── image-compare.ts          ← PNG reading and writing, and the image
 │                                    rule of the render fidelity and Lab
 │                                    batteries (edge pixels may differ, the
@@ -115,9 +117,13 @@ tests/
 │   ├── lesson-rules.test.ts              (BB-LRULE-*: generator-name coverage,
 │   │                                        wording, hints, recaps, code blanks
 │   │                                        and capstones across the lessons)
-│   └── lab-api.test.ts                   (BB-LAB-*: the Lab's 2D set, as the
-│                                            bundled headers in lab/include
-│                                            declare and reject it)
+│   ├── lab-api.test.ts                   (BB-LAB-*: the Lab's 2D set, as the
+│   │                                        bundled headers in lab/include
+│   │                                        declare and reject it)
+│   └── lab-runtime.test.ts               (BB-LAB-20 to 31: the worker runtime:
+│                                            GLUT's main loop, events, menus,
+│                                            typed input, system(), files and
+│                                            the Console's batching)
 ├── white-box/                    ← Maps to Table 13.
 │   ├── state-management.test.ts          (WB-STATE-*)
 │   ├── matrix-engine.test.ts             (WB-MATRIX-*)

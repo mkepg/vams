@@ -36,7 +36,8 @@ SIDE_CC_FLAGS="--target=wasm32-unknown-emscripten --sysroot=$LAB_SYSROOT -fvisib
 SIDE_LD_FLAGS="$SIDE_LLVM_FLAGS -mllvm -wasm-enable-eh -mllvm -exception-model=wasm --import-memory --strip-debug --export-dynamic --export=__wasm_call_ctors --export-if-defined=main --export-if-defined=__main_argc_argv --export-if-defined=__wasm_apply_data_relocs --experimental-pic --unresolved-symbols=import-dynamic -shared"
 SIDE_STRIP_FLAGS="--remove-section=.debug* --remove-section=producers --remove-section=name"
 
-# The main module: libc, libc++ and the bridges, shared by every program.
+# The main module: libc, libc++, stb_image and the bridges, shared by every program.
+MAIN_SOURCES="$HERE/vams_main.c $HERE/conio.c $HERE/windows.c $HERE/glew.c $HERE/stb_image_impl.c"
 MAIN_FLAGS="-O2 -fwasm-exceptions -sMAIN_MODULE=1 -sMODULARIZE -sEXPORT_ES6 -sENVIRONMENT=$ENVIRONMENT -sALLOW_MEMORY_GROWTH -sEXPORT_NAME=createVamsMain -sEXPORTED_RUNTIME_METHODS=FS,ccall"
 
 case "${1:-}" in
@@ -50,5 +51,5 @@ esac
 
 mkdir -p "$OUT"
 # shellcheck disable=SC2086
-emcc $MAIN_FLAGS "$HERE/vams_main.c" -o "$OUT/vams_main.mjs"
+emcc $MAIN_FLAGS -isystem "$HERE/../include" --js-library "$HERE/library_vams.js" $MAIN_SOURCES -o "$OUT/vams_main.mjs"
 echo "built $OUT/vams_main.mjs and $OUT/vams_main.wasm"
