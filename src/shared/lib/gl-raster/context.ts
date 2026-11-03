@@ -451,8 +451,10 @@ export class GLContext {
       this.pos.valid = insideVolume(v);
       if (!this.pos.valid) return;
       const win = toWindow(v, this.vp);
-      this.pos.x = win.x;
-      this.pos.y = win.y;
+      // The reference driver keeps the position on a 1/256-pixel grid, so a rounding error under that
+      // doesn't move a bitmap by a pixel.
+      this.pos.x = Math.round(win.x * 256) / 256;
+      this.pos.y = Math.round(win.y * 256) / 256;
       this.pos.z = win.z;
       this.pos.color = v.color;
       this.pos.tex = v.tex;

@@ -255,9 +255,10 @@ describe('ALG-LAB-17: Multisample mode covers 4 samples a pixel (3.4.4, 3.5.6)',
     const s = state({ multisample: true });
     const rect = [v(10.5, 0, RED), v(20, 0, RED), v(20, 20, RED), v(10.5, 20, RED)];
     rasterPolygon(fb, rect, s, 3);
-    // Pixel 10's samples sit at x 10.375, 10.875, 10.125, 10.625; the two right of 10.5 are covered, so
-    // the resolve averages (255 + 255 + 0 + 0) / 4 = 127.5 → 128.
-    expect(px(fb, 10, 5)).toEqual([128, 0, 0, 128]);
+    // Pixel 10's samples sit at x 10.375, 10.875, 10.125, 10.625; the two right of 10.5 are covered.
+    // The resolve averages them as light, in sRGB as the reference driver does (ALG-LAB-36): half of
+    // full red encodes to 188. Alpha averages as it is, to 128.
+    expect(px(fb, 10, 5)).toEqual([188, 0, 0, 128]);
     expect(px(fb, 9, 5)).toEqual([0, 0, 0, 0]);
     // Every sample inside belongs to exactly one of the two triangles, so the diagonal leaves no seam.
     for (let y = 1; y < 19; y++) for (let x = 11; x < 20; x++) expect(px(fb, x, y)).toEqual([255, 0, 0, 255]);
@@ -267,13 +268,14 @@ describe('ALG-LAB-17: Multisample mode covers 4 samples a pixel (3.4.4, 3.5.6)',
     const fb = createFramebuffer(16, 20);
     rasterLine(fb, v(2, 10), v(12, 10), state({ multisample: true, lineWidth: 3 }));
     // The rectangle x 2..12, y 8.5..11.5: columns 2..11 have every sample inside; rows 9 and 10 are
-    // whole, and rows 8 and 11 hold 2 samples each (y offsets ±2/16 and ±6/16 on the inner side).
+    // whole, and rows 8 and 11 hold 2 samples each (y offsets ±2/16 and ±6/16 on the inner side),
+    // which resolve in sRGB to 188 (ALG-LAB-36), alpha to 128.
     expect(covered(fb)).toEqual(block(2, 11, 8, 11));
     for (let x = 2; x <= 11; x++) {
-      expect(px(fb, x, 8)).toEqual([128, 128, 128, 128]);
+      expect(px(fb, x, 8)).toEqual([188, 188, 188, 128]);
       expect(px(fb, x, 9)).toEqual([255, 255, 255, 255]);
       expect(px(fb, x, 10)).toEqual([255, 255, 255, 255]);
-      expect(px(fb, x, 11)).toEqual([128, 128, 128, 128]);
+      expect(px(fb, x, 11)).toEqual([188, 188, 188, 128]);
     }
   });
 

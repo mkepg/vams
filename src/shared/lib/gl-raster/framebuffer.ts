@@ -58,14 +58,33 @@ export function storePixel(fb: Framebuffer, x: number, y: number, r: number, g: 
   for (let s = 0; s < SAMPLES; s++) fb.samples.set(fb.color.subarray(p, p + 4), p * SAMPLES + s * 4);
 }
 
-/** Sets pixel `x`, `y` to the average of its samples. */
+// A byte's light in linear terms, by the sRGB curve, for each of the 256 values.
+const LINEAR = Array.from({ length: 256 }, (_, v) => {
+  const c = v / 255;
+  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+});
+
+/** Linear light back to an sRGB byte. */
+function srgbByte(l: number): number {
+  const c = l <= 0.0031308 ? l * 12.92 : 1.055 * l ** (1 / 2.4) - 0.055;
+  return Math.round(Math.min(1, Math.max(0, c)) * 255);
+}
+
+/**
+ * Sets pixel `x`, `y` to the average of its samples. Red, green and blue are averaged as light, in
+ * sRGB, as the reference driver resolves them, so a pixel half covered by white over black is 188,
+ * not 128; alpha is averaged as it is.
+ */
 export function resolvePixel(fb: Framebuffer, x: number, y: number): void {
   const samples = sampleStore(fb);
   const p = (y * fb.width + x) * 4;
   for (let c = 0; c < 4; c++) {
     let sum = 0;
-    for (let s = 0; s < SAMPLES; s++) sum += samples[p * SAMPLES + s * 4 + c];
-    fb.color[p + c] = Math.round(sum / SAMPLES);
+    for (let s = 0; s < SAMPLES; s++) {
+      const v = samples[p * SAMPLES + s * 4 + c];
+      sum += c < 3 ? LINEAR[v] : v;
+    }
+    fb.color[p + c] = c < 3 ? srgbByte(sum / SAMPLES) : Math.round(sum / SAMPLES);
   }
 }
 

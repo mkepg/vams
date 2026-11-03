@@ -22,6 +22,7 @@ import {
 } from '@/shared/lib/glut-fonts';
 import { GLYPHS } from '@/shared/lib/glut-fonts/font-9x15';
 import { lineOrigin, rasterizeLine } from '@/shared/lib/text-raster';
+import { decodePng } from '../helpers/image-compare';
 import { makeMatrix, matrixDistance, multiply, ndcToWindow, orthoToNdc, transformPoint, type Mat } from '../helpers/matrix';
 
 /** A context whose projection maps object units to window pixels: gluOrtho2D(0, w, 0, h). */
@@ -959,8 +960,8 @@ describe('ALG-LAB-16: glClear fills the scissor box only while GL_SCISSOR_TEST i
     gl.clear(GL.COLOR_BUFFER_BIT);
     gl.rectf(0, 0, 4.5, 10);
     // Pixel 4's samples at 4.5 − 2/16 and 4.5 − 6/16 are covered, the two at + 6/16 and + 2/16 are not:
-    // half white, half red: (255, 127.5, 127.5) rounds to (255, 128, 128).
-    expect(px(gl.fb, 4, 5)).toEqual([255, 128, 128, 255]);
+    // half white, half red. Averaged as light in sRGB (ALG-LAB-36), green and blue are 188.
+    expect(px(gl.fb, 4, 5)).toEqual([255, 188, 188, 255]);
     expect(px(gl.fb, 3, 5)).toEqual([255, 255, 255, 255]);
     expect(px(gl.fb, 5, 5)).toEqual([255, 0, 0, 255]);
   });
@@ -1568,7 +1569,8 @@ describe('ALG-LAB-33: A quad is filled as triangles 0-1-2 and 0-2-3, as the refe
 
 describe('ALG-LAB-34: A multisampled point covers the samples inside a circle as wide as its size (3.3.3)', () => {
   // A size-8 star of tests/fixtures/lab/programs/gallery-solar-system.cpp, white on black, so a
-  // pixel's red over 63.75 counts its covered samples. The counts are the reference image's.
+  // pixel's red, back in linear light (ALG-LAB-36) and times 4, counts its covered samples. The
+  // counts are the reference image's.
   function star(): (x: number, y: number) => number {
     const gl = new GLContext(500, 500, { multisample: true });
     gl.matrixMode(GL.PROJECTION);
@@ -1578,7 +1580,8 @@ describe('ALG-LAB-34: A multisampled point covers the samples inside a circle as
     gl.begin(GL.POINTS);
     gl.vertex2f(-1.0362, -0.8099);
     gl.end();
-    return (x, y) => Math.round(px(gl.fb, x, y)[0] / 63.75);
+    const linear = (v: number) => (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4);
+    return (x, y) => Math.round(linear(px(gl.fb, x, y)[0]) * 4);
   }
 
   it('leaves out the corners of the 8 × 8 square around (88.09, 25.03), and fills the middle', () => {
@@ -1600,5 +1603,104 @@ describe('ALG-LAB-34: A multisampled point covers the samples inside a circle as
     gl.vertex2f(10, 10);
     gl.end();
     expect(covered(gl.fb)).toEqual(block(8, 11, 8, 11));
+  });
+});
+
+describe('ALG-LAB-35: A multisampled stipple counts distance along the line, on through a strip or loop', () => {
+  // The reference driver measures a multisampled line's stipple in window units along the line,
+  // carried on through every segment of a strip or loop, not one count per pixel column.
+
+  it('the dashed Mars orbit of gallery-solar-system.cpp lights the pixels the reference lights', () => {
+    const program = readFileSync(join(process.cwd(), 'tests/fixtures/lab/programs/gallery-solar-system.cpp'), 'utf8');
+    const block = program.split('void draw_Mars_path()').pop()!.split('glEnd();')[0];
+    const vertices = [...block.matchAll(/glVertex2f\((-?[\d.]+)f, (-?[\d.]+)f\)/g)].map((m) => [Number(m[1]), Number(m[2])]);
+    expect(vertices).toHaveLength(64);
+    const gl = new GLContext(500, 500, { multisample: true });
+    gl.clearColor(0.02, 0.03, 0.1, 1);
+    gl.clear(GL.COLOR_BUFFER_BIT);
+    gl.matrixMode(GL.PROJECTION);
+    gl.ortho(-1.6, 1.6, -0.9, 0.9, -1, 1);
+    gl.matrixMode(GL.MODELVIEW);
+    gl.enable(GL.LINE_STIPPLE);
+    gl.lineStipple(2, 0x0f0f);
+    gl.color3f(0.24, 0.29, 0.48);
+    gl.begin(GL.LINE_LOOP);
+    for (const [x, y] of vertices) gl.vertex2f(x, y);
+    gl.end();
+    // The top of the orbit, window rows 466 to 474: every pixel the reference shows clearly lit
+    // (blue over 100) or clearly dark (blue under 30) must be the same here.
+    const reference = decodePng(readFileSync(join(process.cwd(), 'tests/fixtures/lab/reference/gallery-solar-system.png')));
+    const wrong: string[] = [];
+    let checked = 0;
+    for (let y = 466; y <= 474; y++) {
+      for (let x = 200; x < 300; x++) {
+        const want = reference.data[((499 - y) * 500 + x) * 4 + 2];
+        if (want > 30 && want < 100) continue;
+        checked++;
+        const lit = px(gl.fb, x, y)[2] > 60;
+        if (lit !== want >= 100) wrong.push(`${x},${y}`);
+      }
+    }
+    expect(checked).toBeGreaterThan(800);
+    expect(wrong).toEqual([]);
+  });
+
+  it('a 45° line takes 16 units of (1, 0x00FF) for every 11.3 pixels of x, the same split into pieces', () => {
+    const draw = (pieces: number) => {
+      const gl = pixelContext(200, 200, true);
+      gl.enable(GL.LINE_STIPPLE);
+      gl.lineStipple(1, 0x00ff);
+      gl.begin(GL.LINE_STRIP);
+      for (let i = 0; i <= pieces; i++) gl.vertex2f(10.3 + (140 * i) / pieces, 10.3 + (140 * i) / pieces);
+      gl.end();
+      return Array.from({ length: 140 }, (_, k) => (px(gl.fb, 10 + k, 10 + k)[3] > 128 ? '#' : ' ')).join('');
+    };
+    // Along the diagonal the dashes repeat every 16 / √2 ≈ 11.3 pixels, as the reference driver draws them.
+    // On for 0 to 5.66 pixels of x from 10.3, off to 11.31, on to 16.97, off to 22.63, on to 28.28.
+    const one = draw(1);
+    expect([2, 8, 13, 19, 24].map((k) => one[k]).join('')).toBe('# # #');
+    expect(draw(53)).toBe(one);
+  });
+});
+
+describe('ALG-LAB-36: The 4 samples of a pixel resolve as the reference driver resolves them, averaged in sRGB', () => {
+  // White on black: the reference image's partly covered pixels are 137, 188 and 225 for 1, 2 and 3
+  // samples, the sRGB encoding of a quarter, a half and three quarters of full light
+  // (tests/fixtures/lab/reference/gallery-solar-system.png's stars).
+  it.each([
+    [10.7, 1, 137],
+    [10.5, 2, 188],
+    [10.25, 3, 225],
+  ])('a rectangle from x = %s covers %s of pixel 10’s samples and resolves to %s', (left, _samples, value) => {
+    const gl = pixelContext(24, 24, true);
+    gl.rectf(left, 0, 20, 20);
+    // Pixel 10's samples sit at x 10.375, 10.875, 10.125 and 10.625.
+    expect(Math.abs(px(gl.fb, 10, 5)[0] - value)).toBeLessThanOrEqual(1);
+    expect(px(gl.fb, 11, 5)[0]).toBe(255);
+    expect(px(gl.fb, 9, 5)[0]).toBe(0);
+  });
+
+  it('a covered pixel keeps its colour exactly, and alpha averages as coverage', () => {
+    const gl = pixelContext(24, 24, true);
+    gl.color4f(0.2, 0.6, 1, 1);
+    gl.rectf(10.5, 0, 20, 20);
+    expect(px(gl.fb, 15, 5)).toEqual([51, 153, 255, 255]);
+    expect(px(gl.fb, 10, 5)[3]).toBe(128);
+  });
+});
+
+describe('ALG-LAB-37: The raster position sits on a 1/256-pixel grid, as the reference driver keeps it (2.13)', () => {
+  // tests/fixtures/lab/programs/bitmap-text.cpp's Helvetica 18 line at glRasterPos2i(8, 104) under
+  // glOrtho(0, 720, 0, 640): worked out exactly the position is 103.99999999999999, which would put
+  // the glyphs a row low; the reference draws them from row 104.
+  it('glRasterPos2i(8, 104) under glOrtho(0, 720, 0, 640) puts a glyph’s origin at (8, 104)', () => {
+    const gl = new GLContext(720, 640);
+    gl.matrixMode(GL.PROJECTION);
+    gl.ortho(0, 720, 0, 640, -1, 1);
+    gl.matrixMode(GL.MODELVIEW);
+    gl.rasterPos2i(8, 104);
+    // A 1 × 1 bitmap with its one bit set lands on the raster position's pixel.
+    gl.bitmap(1, 1, 0, 0, 0, 0, new Uint8Array([0x80]));
+    expect(covered(gl.fb)).toEqual(['8,104']);
   });
 });
