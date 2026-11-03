@@ -54,10 +54,10 @@ export interface PolygonPiece {
   split?: [number, number, number][];
 }
 
-// The split the reference driver uses for a quad: 0-1-3 and 1-2-3.
+// The split the reference driver uses for a quad: 0-1-2 and 0-2-3.
 const QUAD_SPLIT: [number, number, number][] = [
-  [0, 1, 3],
-  [1, 2, 3],
+  [0, 1, 2],
+  [0, 2, 3],
 ];
 // A quad strip's quad 2i, 2i+1, 2i+3, 2i+2 split the same way: 2i-2i+1-2i+3 and 2i-2i+3-2i+2.
 const QUAD_STRIP_SPLIT: [number, number, number][] = [

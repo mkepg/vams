@@ -183,10 +183,11 @@ describe('ALG-LAB-10: Begin/End objects break into the specification’s polygon
       { vertices: [0, 2, 3], provoking: 3, split: undefined },
       { vertices: [0, 3, 4], provoking: 4, split: undefined },
     ]);
-    // The reference driver splits a quad 0-1-3, 1-2-3.
+    // The reference driver splits a quad 0-1-2, 0-2-3 (ALG-LAB-33; it was 0-1-3, 1-2-3 when the
+    // references came from another GPU).
     expect(flat(GL.QUADS, 9)).toEqual([
-      { vertices: [0, 1, 2, 3], provoking: 3, split: [[0, 1, 3], [1, 2, 3]] },
-      { vertices: [4, 5, 6, 7], provoking: 7, split: [[0, 1, 3], [1, 2, 3]] },
+      { vertices: [0, 1, 2, 3], provoking: 3, split: [[0, 1, 2], [0, 2, 3]] },
+      { vertices: [4, 5, 6, 7], provoking: 7, split: [[0, 1, 2], [0, 2, 3]] },
     ]);
     // Quad i is v2i, v2i+1, v2i+3, v2i+2.
     expect(flat(GL.QUAD_STRIP, 7)).toEqual([
@@ -1193,15 +1194,30 @@ describe('ALG-LAB-26: Point size and line width stop at 64 and 10 in both sampli
     return sum;
   };
 
-  it.each([false, true])('multisample %s: glPointSize(1e30) draws a 64 × 64 square', (multisample) => {
-    const gl = pixelContext(100, 100, multisample);
+  it('without multisampling, glPointSize(1e30) draws a 64 × 64 square', () => {
+    const gl = pixelContext(100, 100);
     gl.pointSize(1e30);
     gl.begin(GL.POINTS);
     gl.vertex2f(50, 50);
     gl.end();
     expect(gl.getError()).toBe(GL.NO_ERROR);
-    // Centred on the pixel corner (50, 50): x and y 18..81 (3.3.1; the multisample square's edges fall on pixel edges).
+    // Centred on the pixel corner (50, 50): x and y 18..81 (3.3.1).
     expect(covered(gl.fb)).toEqual(block(18, 81, 18, 81));
+  });
+
+  it('with multisampling, glPointSize(1e30) draws a circle 64 wide', () => {
+    const gl = pixelContext(100, 100, true);
+    gl.pointSize(1e30);
+    gl.begin(GL.POINTS);
+    gl.vertex2f(50, 50);
+    gl.end();
+    expect(gl.getError()).toBe(GL.NO_ERROR);
+    // A circle of radius 32 about (50, 50) (3.3.3, ALG-LAB-34): it reaches rows and columns 18 and
+    // 81 at its middle, and leaves the corners of the 64 × 64 square out.
+    const lit = covered(gl.fb);
+    expect(lit.every((p) => block(18, 81, 18, 81).includes(p))).toBe(true);
+    for (const p of ['18,49', '81,50', '49,18', '50,81', '30,30']) expect(lit).toContain(p);
+    for (const p of ['18,18', '81,18', '18,81', '81,81', '24,24']) expect(lit).not.toContain(p);
   });
 
   it.each([false, true])('multisample %s: glLineWidth(1e9) draws a line 10 pixels wide', (multisample) => {
@@ -1519,5 +1535,70 @@ describe('ALG-LAB-32: An aliased line width rounds half to even, as the referenc
     gl.vertex2f(30, 20.5);
     gl.end();
     expect(covered(gl.fb).filter((p) => p.startsWith('15,'))).toHaveLength(pixels);
+  });
+});
+
+describe('ALG-LAB-33: A quad is filled as triangles 0-1-2 and 0-2-3, as the reference driver splits it', () => {
+  // The smooth ramp of tests/fixtures/lab/programs/blend.cpp; expected colours are
+  // tests/fixtures/lab/reference/blend.png's, at pixels well away from the 0-2 diagonal and the edges.
+  it('the ramp from blend.cpp takes the reference colours on both sides of the 0-2 diagonal', () => {
+    const gl = pixelContext(500, 500);
+    gl.shadeModel(GL.SMOOTH);
+    gl.begin(GL.QUADS);
+    gl.color3f(1, 1, 0);
+    gl.vertex2f(360, 150);
+    gl.color3f(0, 1, 1);
+    gl.vertex2f(480, 150);
+    gl.color3f(1, 0, 1);
+    gl.vertex2f(480, 370);
+    gl.color3f(1, 1, 1);
+    gl.vertex2f(360, 370);
+    gl.end();
+    const reference: [number, number, number[]][] = [
+      [370, 339, [255, 233, 220]],
+      [365, 250, [255, 243, 116]],
+      [380, 300, [255, 211, 174]],
+      [470, 159, [31, 244, 235]],
+      [475, 350, [242, 23, 245]],
+      [460, 170, [65, 231, 214]],
+    ];
+    for (const [x, y, want] of reference) expect(near(px(gl.fb, x, y), want, 1), `${x},${y}: ${px(gl.fb, x, y)}`).toBe(true);
+  });
+});
+
+describe('ALG-LAB-34: A multisampled point covers the samples inside a circle as wide as its size (3.3.3)', () => {
+  // A size-8 star of tests/fixtures/lab/programs/gallery-solar-system.cpp, white on black, so a
+  // pixel's red over 63.75 counts its covered samples. The counts are the reference image's.
+  function star(): (x: number, y: number) => number {
+    const gl = new GLContext(500, 500, { multisample: true });
+    gl.matrixMode(GL.PROJECTION);
+    gl.ortho(-1.6, 1.6, -0.9, 0.9, -1, 1);
+    gl.matrixMode(GL.MODELVIEW);
+    gl.pointSize(8);
+    gl.begin(GL.POINTS);
+    gl.vertex2f(-1.0362, -0.8099);
+    gl.end();
+    return (x, y) => Math.round(px(gl.fb, x, y)[0] / 63.75);
+  }
+
+  it('leaves out the corners of the 8 × 8 square around (88.09, 25.03), and fills the middle', () => {
+    const samples = star();
+    for (const [x, y] of [[84, 28], [91, 28], [84, 21], [91, 21]]) expect(samples(x, y), `${x},${y}`).toBe(0);
+    for (const [x, y] of [[88, 25], [86, 26], [89, 23]]) expect(samples(x, y), `${x},${y}`).toBe(4);
+  });
+
+  it('half covers the edge pixels the reference half covers', () => {
+    const samples = star();
+    expect(samples(84, 23)).toBe(2);
+    expect(samples(86, 28)).toBe(2);
+  });
+
+  it('a point without multisampling stays a square', () => {
+    const gl = pixelContext(20, 20);
+    gl.pointSize(4);
+    gl.begin(GL.POINTS);
+    gl.vertex2f(10, 10);
+    gl.end();
+    expect(covered(gl.fb)).toEqual(block(8, 11, 8, 11));
   });
 });
