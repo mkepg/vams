@@ -10,7 +10,7 @@ const EPS = 2 ** -16;
 const EPS2 = 2 ** -32;
 
 // The widest aliased line. The reference driver's range isn't documented; 10 is Mesa's.
-const MAX_LINE_WIDTH = 10;
+export const MAX_LINE_WIDTH = 10;
 
 /**
  * Whether the segment p → q meets the open diamond |x − cx| + |y − cy| < ½: the four half-planes

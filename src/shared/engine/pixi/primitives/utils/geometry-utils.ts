@@ -1,6 +1,6 @@
 import * as PIXI from "pixi.js";
 import type { SceneNode, Vertex } from "@/core/types/scene";
-import { GLYPH_ADVANCE, GLYPH_DESCENT, GLYPH_HEIGHT } from "@/shared/lib/glut-bitmap-9x15";
+import { GLYPH_ADVANCE, GLYPH_DESCENT, GLYPH_HEIGHT } from "@/shared/lib/glut-fonts/font-9x15";
 import { TEXT_LINE_PIXELS, textLines } from "@/shared/lib/text-raster";
 
 export function pxToWorld(px: number, worldScaleX?: number): number {

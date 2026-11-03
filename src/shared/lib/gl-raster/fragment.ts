@@ -33,17 +33,25 @@ export type BlendFactor =
   | 'DST_ALPHA'
   | 'ONE_MINUS_DST_ALPHA'
   | 'SRC_ALPHA_SATURATE';
-export type EnvMode = 'MODULATE' | 'REPLACE' | 'DECAL' | 'ADD';
-export type Wrap = 'REPEAT' | 'CLAMP';
+export type EnvMode = 'MODULATE' | 'REPLACE' | 'DECAL' | 'BLEND' | 'ADD';
+export type Wrap = 'REPEAT' | 'CLAMP' | 'CLAMP_TO_EDGE';
+export type Filter = 'NEAREST' | 'LINEAR';
+/** A texture's base internal format (Table 3.15), which decides what the environment takes from it. */
+export type TextureBase = 'ALPHA' | 'LUMINANCE' | 'LUMINANCE_ALPHA' | 'RGB' | 'RGBA';
 
-/** A bound 2D texture: RGBA8 texels, row 0 at t = 0, sampled GL_NEAREST. */
+/**
+ * One image of the bound 2D texture: RGBA8 texels, row 0 at t = 0, with the components its base
+ * format lacks stored as luminance in R, G and B, alpha 1 or colour 0. `filter` is the one this
+ * primitive samples with, the magnification or the minification filter.
+ */
 export interface TextureUnit {
   width: number;
   height: number;
   data: Uint8Array;
+  base: TextureBase;
   wrapS: Wrap;
   wrapT: Wrap;
-  filter: 'NEAREST';
+  filter: Filter;
 }
 
 /** The GL state rasterisation reads. Drawing a line moves `stipple.counter` on. */
@@ -87,30 +95,74 @@ export const FULL_COVERAGE = (1 << SAMPLES) - 1;
 
 const clamp01 = (c: number) => Math.min(1, Math.max(0, c));
 
-function wrap(i: number, size: number, mode: Wrap): number {
-  return mode === 'REPEAT' ? ((i % size) + size) % size : Math.min(size - 1, Math.max(0, i));
+/** A texture coordinate as the wrap mode leaves it (3.8.7): REPEAT keeps the fraction, CLAMP 0..1, CLAMP_TO_EDGE ½N..1 − ½N. */
+function wrapCoord(s: number, size: number, mode: Wrap): number {
+  if (mode === 'REPEAT') return s - Math.floor(s);
+  const min = mode === 'CLAMP' ? 0 : 1 / (2 * size);
+  return Math.min(1 - min, Math.max(min, s));
 }
 
-function sampleTexture(t: TextureUnit, s: number, u: number): Rgba {
-  const i = wrap(Math.floor(s * t.width), t.width, t.wrapS);
-  const j = wrap(Math.floor(u * t.height), t.height, t.wrapT);
+// The border colour: GL_TEXTURE_BORDER_COLOR's initial (0, 0, 0, 0).
+const BORDER: Rgba = [0, 0, 0, 0];
+
+/** Texel i, j, or the border colour when either lies outside the image. */
+function texel(t: TextureUnit, i: number, j: number): Rgba {
+  if (i < 0 || j < 0 || i >= t.width || j >= t.height) return BORDER;
   const p = (j * t.width + i) * 4;
   return [t.data[p] / 255, t.data[p + 1] / 255, t.data[p + 2] / 255, t.data[p + 3] / 255];
 }
 
-/** The texture environment of Table 3.22 for an RGBA texture. */
+/** A texel index as the wrap mode gives it: REPEAT wraps it into the image, the clamps leave it. */
+function wrapIndex(i: number, size: number, mode: Wrap): number {
+  return mode === 'REPEAT' ? ((i % size) + size) % size : i;
+}
+
+/** The texture value at s, t: the nearest texel (eq. 3.19, 3.20) or the 2 × 2 weighted by eq. 3.22. */
+function sampleTexture(t: TextureUnit, s: number, u: number): Rgba {
+  const x = wrapCoord(s, t.width, t.wrapS) * t.width;
+  const y = wrapCoord(u, t.height, t.wrapT) * t.height;
+  if (t.filter === 'NEAREST') {
+    // s = 1 under a clamp takes the last texel.
+    return texel(t, Math.min(t.width - 1, Math.floor(x)), Math.min(t.height - 1, Math.floor(y)));
+  }
+  const i0 = Math.floor(x - 0.5);
+  const j0 = Math.floor(y - 0.5);
+  const a = x - 0.5 - i0;
+  const b = y - 0.5 - j0;
+  const i = [wrapIndex(i0, t.width, t.wrapS), wrapIndex(i0 + 1, t.width, t.wrapS)];
+  const j = [wrapIndex(j0, t.height, t.wrapT), wrapIndex(j0 + 1, t.height, t.wrapT)];
+  const t00 = texel(t, i[0], j[0]);
+  const t10 = texel(t, i[1], j[0]);
+  const t01 = texel(t, i[0], j[1]);
+  const t11 = texel(t, i[1], j[1]);
+  const mix = (c: number) => (1 - a) * (1 - b) * t00[c] + a * (1 - b) * t10[c] + (1 - a) * b * t01[c] + a * b * t11[c];
+  return [mix(0), mix(1), mix(2), mix(3)];
+}
+
+/**
+ * The texture environment of Table 3.22 for the texture's base format. DECAL leaves an ALPHA or
+ * LUMINANCE texture's fragment as it is, and BLEND's constant colour is its initial (0, 0, 0, 0).
+ */
 function texture(state: RasterState, f: Rgba, tex: readonly [number, number] | undefined): Rgba {
   if (!state.texture || !tex) return f;
+  const { base } = state.texture;
   const t = sampleTexture(state.texture, tex[0], tex[1]);
+  const hasColor = base !== 'ALPHA';
+  const hasAlpha = base === 'ALPHA' || base === 'LUMINANCE_ALPHA' || base === 'RGBA';
+  const rgb = (fn: (c: number) => number): [number, number, number] => (hasColor ? [fn(0), fn(1), fn(2)] : [f[0], f[1], f[2]]);
   switch (state.envMode) {
     case 'REPLACE':
-      return t;
+      return [...rgb((c) => t[c]), hasAlpha ? t[3] : f[3]];
     case 'MODULATE':
-      return [f[0] * t[0], f[1] * t[1], f[2] * t[2], f[3] * t[3]];
+      return [...rgb((c) => f[c] * t[c]), hasAlpha ? f[3] * t[3] : f[3]];
     case 'DECAL':
-      return [f[0] * (1 - t[3]) + t[0] * t[3], f[1] * (1 - t[3]) + t[1] * t[3], f[2] * (1 - t[3]) + t[2] * t[3], f[3]];
+      if (base === 'RGBA') return [...rgb((c) => f[c] * (1 - t[3]) + t[c] * t[3]), f[3]];
+      if (base === 'RGB') return [t[0], t[1], t[2], f[3]];
+      return f;
+    case 'BLEND':
+      return [...rgb((c) => f[c] * (1 - t[c])), hasAlpha ? f[3] * t[3] : f[3]];
     case 'ADD':
-      return [f[0] + t[0], f[1] + t[1], f[2] + t[2], f[3] * t[3]];
+      return [...rgb((c) => f[c] + t[c]), hasAlpha ? f[3] * t[3] : f[3]];
   }
 }
 

@@ -1,4 +1,4 @@
-import { FIRST_CHAR, GLYPHS, GLYPH_ADVANCE, GLYPH_DESCENT, GLYPH_HEIGHT, GLYPH_WIDTH } from './glut-bitmap-9x15';
+import { FIRST_CHAR, GLYPHS, GLYPH_ADVANCE, GLYPH_DESCENT, GLYPH_HEIGHT, GLYPH_WIDTH } from './glut-fonts/font-9x15';
 
 /** Generated text starts each line this many window pixels below the one before. */
 export const TEXT_LINE_PIXELS = 17;

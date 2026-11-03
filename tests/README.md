@@ -191,10 +191,13 @@ tests/
 │   ├── gl-geometry.test.ts                      (ALG-FID-*: points, lines,
 │   │                                              stipple and FLAT colours by the
 │   │                                              OpenGL 1.5 multisample rules)
-│   └── gl-raster.test.ts                        (ALG-LAB-01 to 08, 17 and 18: the Lab's
-│                                                  rasteriser, pixel by pixel, by the
-│                                                  OpenGL 1.5 rules with and without
-│                                                  multisampling)
+│   ├── gl-raster.test.ts                        (ALG-LAB-01 to 08, 17 and 18: the Lab's
+│   │                                              rasteriser, pixel by pixel, by the
+│   │                                              OpenGL 1.5 rules with and without
+│   │                                              multisampling)
+│   └── gl-context.test.ts                       (ALG-LAB-09 to 16, 19 and 20: the Lab's
+│                                                  OpenGL 1.5 state machine, display lists,
+│                                                  textures and GLUT's bitmap fonts)
 └── reports/                      ← Per-run output; consumed by Chapter 4.
     ├── algorithm-1-results.json
     ├── algorithm-2-results.json

@@ -5,7 +5,7 @@ import { drawable, emitFragment, type RasterState, type WinVertex } from './frag
 import { fillTriangle } from './polygons';
 
 // The widest aliased point. The reference driver's range isn't documented; 64 is close to Mesa's.
-const MAX_POINT_SIZE = 64;
+export const MAX_POINT_SIZE = 64;
 
 /**
  * A point. Without multisampling it is a square of pixels, the size rounded to an integer up to
