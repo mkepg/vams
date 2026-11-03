@@ -511,6 +511,7 @@ describe('BB-SITE-29: /learn is a finished, linked, prerendered page', () => {
       { href: '/', label: 'Home' },
       { href: '/learn', label: 'Learn' },
       { href: '/gallery', label: 'Gallery' },
+      { href: '/lab', label: 'Lab' },
       { href: '/guide', label: 'Guide' },
       { href: '/about', label: 'About' },
     ]);

@@ -5,6 +5,7 @@ import { DEFAULT_SITE_URL } from './src/app/routes/route-meta'
 import { VitePWA } from 'vite-plugin-pwa'
 import { buildPwaOptions } from './src/app/pwa/pwa-options'
 import { buildRobots, buildSitemap } from './src/app/seo/sitemap'
+import { labDevServer } from './scripts/lab/vite-lab-dev'
 
 function seoFiles(siteUrl: string): Plugin {
   return {
@@ -46,11 +47,12 @@ export default defineConfig(({ mode }) => {
         prerender: {
           enabled: true,
           renderTarget: '#root',
-          additionalPrerenderRoutes: ['/404', '/learn', '/gallery', '/guide', '/teach', '/about'],
+          additionalPrerenderRoutes: ['/404', '/learn', '/gallery', '/guide', '/teach', '/about', '/lab'],
           previewMiddlewareEnabled: true,
           previewMiddlewareFallback: '/404',
         },
       }),
+      labDevServer(fileURLToPath(new URL('./lab/runtime/out', import.meta.url))),
       seoFiles(siteUrl),
       notFoundPage(),
       VitePWA(buildPwaOptions()),

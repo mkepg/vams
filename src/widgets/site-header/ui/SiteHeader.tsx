@@ -15,9 +15,9 @@ export default function SiteHeader({ current }: { current?: string } = {}) {
         <nav className="site-header__nav" aria-label="Site">
           {/* The site's pages as one switcher; the current page is the raised segment. */}
           <ul className="site-header__pages">
-            {NAV_LINKS.map(({ href, label, icon: Icon }) => (
+            {NAV_LINKS.map(({ href, label, icon: Icon, native }) => (
               <li key={href}>
-                <a className="site-header__link" href={href} aria-current={href === current ? 'page' : undefined}>
+                <a className="site-header__link" href={href} target={native ? '_top' : undefined} aria-current={href === current ? 'page' : undefined}>
                   {Icon && <Icon aria-hidden="true" />}
                   {label}
                 </a>

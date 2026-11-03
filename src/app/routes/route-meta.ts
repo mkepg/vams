@@ -55,6 +55,12 @@ export const ROUTES: readonly RouteMeta[] = [
     indexable: true,
   },
   {
+    path: '/lab',
+    title: 'Lab — VAMS',
+    description: 'Write a 2D OpenGL and GLUT program in C++ and run it in your browser, with nothing to install.',
+    indexable: true,
+  },
+  {
     path: '/app',
     title: 'VAMS Editor',
     description: 'Author 2D scenes and read the generated OpenGL 1.5 code and math side by side.',

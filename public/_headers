@@ -6,3 +6,9 @@
   Cache-Control: no-cache
 /manifest.webmanifest
   Cache-Control: no-cache
+/lab
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+/lab/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
