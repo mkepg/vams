@@ -402,7 +402,7 @@ describe('BB-JOURNEY-14: A working row\'s GL call opens Code on that line', () =
     await settle();
     expect(getState().codePane).toBe('code');
     expect(getState().explainRequest).toBeNull();
-    expect(host.querySelector('.code-line.is-explained .code-line__text')!.textContent!.trim()).toMatch(/^glTranslatef\(state_Triangle\.x/);
+    expect(host.querySelector('.cm-line.is-explained')!.textContent!.trim()).toMatch(/^glTranslatef\(state_Triangle\.x/);
     expect(host.querySelector('.code-strip__sig')!.textContent).toBe('glTranslatef(x, y, z)');
     unmount(host);
   });
@@ -644,7 +644,7 @@ describe('BB-JOURNEY-19: The glViewport link exists only when a reshape handler 
     await settle();
     await settle();
     expect(getState().codePane).toBe('code');
-    expect(host.querySelector('.code-line.is-explained .code-line__text')!.textContent).toContain('glViewport(0, 0, width, height)');
+    expect(host.querySelector('.cm-line.is-explained')!.textContent).toContain('glViewport(0, 0, width, height)');
     expect(host.querySelector('.code-strip__sig')!.textContent).toBe('glViewport(x, y, width, height)');
     unmount(host);
     getState().setCallbackHandler('reshape', '');
@@ -750,14 +750,14 @@ describe('BB-JOURNEY-27: A group row\'s GL call opens the group\'s line, not the
     scales[1].click();
     await settle();
     await settle();
-    expect(host.querySelector('.code-line.is-explained .code-line__text')!.textContent!.trim()).toMatch(/^glScalef\(state_Group_1\.scaleX/);
+    expect(host.querySelector('.cm-line.is-explained')!.textContent!.trim()).toMatch(/^glScalef\(state_Group_1\.scaleX/);
     expect(host.querySelector('section.code-strip')!.textContent).toContain('state_Group_1.scaleX');
     unmount(host);
   });
 });
 
 describe('BB-JOURNEY-28: A vertex row\'s GL call opens the followed vertex\'s line', () => {
-  const explainedText = (host: HTMLElement) => host.querySelector('.code-line.is-explained .code-line__text')!.textContent!.trim();
+  const explainedText = (host: HTMLElement) => host.querySelector('.cm-line.is-explained')!.textContent!.trim();
   const clickCall = async (host: HTMLElement, call: string) => {
     ([...host.querySelectorAll('.journey-work__call-link')].find((b) => b.textContent === call) as HTMLButtonElement).click();
     await settle();

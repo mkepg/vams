@@ -1,9 +1,12 @@
 import './code-viewer.scss';
-import { memo, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentChildren } from 'preact';
 import { X } from 'lucide-react';
-import { tokenizeLine } from './tokenize';
+import { ChangeSet, Compartment, EditorSelection, EditorState, Prec, type ChangeSpec, type StateEffect, type Text } from '@codemirror/state';
+import { EditorView, gutters, keymap, lineNumbers } from '@codemirror/view';
+import { cppLanguage, glNameDecorations, readOnlyCode, vamsEditorTheme, vamsHighlight } from '@/shared/ui/code-editor';
 import { REVEAL_PADDING, revealTop, scrollBehavior } from './reveal-scroll';
+import { cursorLineMark, isLineShown, setViewerInput, shownLines, viewerDecorations, type ViewerDecorationInput } from './cm-decorations';
 import type { CodeMark, CodeNote, CodeRow, CodeStrip } from './types';
 
 export interface CodeViewerProps {
@@ -48,60 +51,76 @@ export interface CodeViewerProps {
   onToggleNotes?: () => void;
 }
 
-interface Overlay {
-  start: number;
-  end: number;
-  cls: string;
-}
-
-interface Segment {
-  text: string;
-  cls: string;
-}
-
-/** Splits a line's tokens at the overlay edges, so a mark or a Find match can cover part of a token. */
-export function lineSegments(text: string, overlays: readonly Overlay[]): Segment[] {
-  const out: Segment[] = [];
-  let pos = 0;
-  for (const token of tokenizeLine(text)) {
-    const start = pos;
-    const end = pos + token.t.length;
-    const cuts = new Set([start, end]);
-    for (const o of overlays) {
-      if (o.start > start && o.start < end) cuts.add(o.start);
-      if (o.end > start && o.end < end) cuts.add(o.end);
-    }
-    const edges = [...cuts].sort((a, b) => a - b);
-    for (let k = 0; k < edges.length - 1; k++) {
-      const a = edges[k];
-      const b = edges[k + 1];
-      const extra = overlays.filter((o) => o.start <= a && o.end >= b).map((o) => o.cls);
-      out.push({ text: text.slice(a, b), cls: [`tk-${token.k}`, ...extra].join(' ') });
-    }
-    pos = end;
-  }
-  return out;
-}
-
-const LineText = memo(function LineText({ text, overlays }: { text: string; overlays: readonly Overlay[] }) {
-  const parts = useMemo(() => lineSegments(text, overlays), [text, overlays]);
-  return (
-    <>
-      {parts.map((p, i) => (
-        <span key={i} className={p.cls}>{p.text}</span>
-      ))}
-    </>
-  );
-});
-
-const NO_OVERLAYS: readonly Overlay[] = [];
+const NO_MARKS: readonly CodeMark[] = [];
+const NO_LINES: ReadonlySet<number> = new Set();
 
 const prefersReducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-function byLine<T extends { line: number }>(items: readonly T[] | undefined): Map<number, T[]> {
-  const map = new Map<number, T[]>();
-  for (const item of items ?? []) map.set(item.line, [...(map.get(item.line) ?? []), item]);
-  return map;
+/** The line the cursor is on, counted from 0. */
+const cursorLine = (view: EditorView) => view.state.doc.lineAt(view.state.selection.main.head).number - 1;
+
+/** Where line `line` starts in the scroller, and how tall it is. */
+function lineBox(view: EditorView, line: number) {
+  const block = view.lineBlockAt(view.state.doc.line(line + 1).from);
+  return { top: view.documentPadding.top + block.top, height: block.height };
+}
+
+/**
+ * Whether any of `lines` is on screen as the view is laid out now. A folded line counts by the
+ * fold row that stands in for it; a line drawn nowhere does not count.
+ */
+function anyOnScreen(view: EditorView, lines: readonly number[]) {
+  const scroller = view.scrollDOM;
+  const viewTop = scroller.scrollTop;
+  const viewBottom = viewTop + scroller.clientHeight;
+  return lines.some((line) => {
+    if (line >= view.state.doc.lines) return false;
+    const box = lineBox(view, line);
+    return box.height > 0 && box.top + box.height > viewTop && box.top < viewBottom;
+  });
+}
+
+/** The smallest change that turns `doc` into `next`, so the view keeps its scroll and cursor. */
+function changeTo(doc: Text, next: string): ChangeSpec | null {
+  const prev = doc.toString();
+  if (prev === next) return null;
+  let start = 0;
+  const max = Math.min(prev.length, next.length);
+  while (start < max && prev.charCodeAt(start) === next.charCodeAt(start)) start++;
+  let end = 0;
+  while (end < max - start && prev.charCodeAt(prev.length - 1 - end) === next.charCodeAt(next.length - 1 - end)) end++;
+  return { from: start, to: prev.length - end, insert: next.slice(start, next.length - end) };
+}
+
+/** Up and Down step through the lines that are drawn, keeping the column where they can. */
+function moveLine(view: EditorView, dir: 1 | -1, extend: boolean) {
+  const { state } = view;
+  const sel = state.selection.main;
+  const from = state.doc.lineAt(sel.head);
+  const column = sel.goalColumn ?? sel.head - from.from;
+  let n = from.number - 1 + dir;
+  while (n >= 0 && n < state.doc.lines && !isLineShown(state, n)) n += dir;
+  if (n < 0 || n >= state.doc.lines) return true;
+  const to = state.doc.line(n + 1);
+  const head = to.from + Math.min(column, to.length);
+  const range = extend ? EditorSelection.range(sel.anchor, head, column) : EditorSelection.cursor(head, 0, undefined, column);
+  view.dispatch({ selection: EditorSelection.create([range]), scrollIntoView: true, userEvent: 'select' });
+  return true;
+}
+
+/**
+ * Where a cursor at `head` in `doc` goes when its line is not among the `shown` ones: the end of
+ * the nearest drawn line above, else the start of the nearest below. Null when its line is drawn.
+ */
+function shownHead(doc: Text, head: number, shown: ReadonlySet<number>): number | null {
+  const line = doc.lineAt(head).number - 1;
+  if (shown.has(line)) return null;
+  let n = line;
+  while (n >= 0 && !shown.has(n)) n--;
+  if (n >= 0) return doc.line(n + 1).to;
+  n = line;
+  while (n < doc.lines && !shown.has(n)) n++;
+  return n < doc.lines ? doc.line(n + 1).from : 0;
 }
 
 const CodeViewer = memo(function CodeViewer({
@@ -114,15 +133,16 @@ const CodeViewer = memo(function CodeViewer({
   const [query, setQuery] = useState('');
   const [current, setCurrent] = useState(0);
   const findRef = useRef<HTMLInputElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const lineEls = useRef<Map<number, HTMLDivElement>>(new Map());
+  const hostRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<EditorView | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const findWordRef = useRef<HTMLButtonElement>(null);
   // Focus follows a keyboard toggle: the control that was pressed is replaced, so its twin takes focus.
-  const focusAfter = useRef<{ selector: string } | null>(null);
+  const focusAfter = useRef<string | null>(null);
   const refocusFind = useRef(false);
 
   const lines = useMemo(() => code.replace(/\r\n/g, '\n').split('\n'), [code]);
+  const text = useMemo(() => lines.join('\n'), [lines]);
   const rowList = useMemo<readonly CodeRow[]>(() => rows ?? lines.map((_, line) => ({ kind: 'line', line })), [rows, lines]);
 
   const matches = useMemo<CodeMark[]>(() => {
@@ -137,6 +157,175 @@ const CodeViewer = memo(function CodeViewer({
   }, [lines, query]);
   const index = matches.length === 0 ? -1 : Math.min(current, matches.length - 1);
   const currentMatch = index >= 0 ? matches[index] : null;
+
+  const stripId = `${baseId}-strip`;
+  const hintId = `${baseId}-hint`;
+  const showHint = !strip && !!explainable && explainable.size > 0;
+
+  // The keys and clicks inside the view read the latest props from here.
+  const live = useRef({ explainable, explainedLine, onExplain, onToggleFold });
+  useLayoutEffect(() => {
+    live.current = { explainable, explainedLine, onExplain, onToggleFold };
+  });
+
+  const ariaRef = useRef(new Compartment());
+  const ariaFor = (open: boolean, hint: boolean) => EditorView.contentAttributes.of({
+    ...(open ? { 'aria-controls': stripId } : {}),
+    ...(hint ? { 'aria-describedby': hintId } : {}),
+  });
+
+  // One view for the life of the panel; props reach it through transactions below.
+  useLayoutEffect(() => {
+    const explainCursor = (view: EditorView) => {
+      const line = cursorLine(view);
+      const { explainable: can, onExplain: explain } = live.current;
+      if (isLineShown(view.state, line) && can?.has(line)) explain?.(line);
+      return true;
+    };
+    const view = new EditorView({
+      parent: hostRef.current!,
+      state: EditorState.create({
+        doc: text,
+        extensions: [
+          lineNumbers(),
+          viewerDecorations(),
+          cursorLineMark(),
+          gutters({ fixed: false }),
+          cppLanguage(),
+          vamsHighlight(),
+          glNameDecorations(),
+          vamsEditorTheme(),
+          readOnlyCode(),
+          ariaRef.current.of(ariaFor(false, false)),
+          // Escape closes the strip before the editor sees the key.
+          Prec.highest(keymap.of([{
+            key: 'Escape',
+            run: () => {
+              if (live.current.explainedLine == null) return false;
+              live.current.onExplain?.(null);
+              return true;
+            },
+          }])),
+          keymap.of([
+            { key: 'ArrowDown', run: (v) => moveLine(v, 1, false), shift: (v) => moveLine(v, 1, true) },
+            { key: 'ArrowUp', run: (v) => moveLine(v, -1, false), shift: (v) => moveLine(v, -1, true) },
+            { key: 'Enter', run: explainCursor },
+            { key: 'Space', run: explainCursor },
+          ]),
+          EditorView.domEventHandlers({
+            // A click on a line explains it, as the line buttons did.
+            click: (event, view) => {
+              const target = event.target as Element | null;
+              // The ▾ folds its block; it never explains the line it sits on.
+              if (target?.closest?.('.code-fold-toggle')) return false;
+              const el = target?.closest?.('.cm-line');
+              if (!el || !view.state.selection.main.empty) return false;
+              const pos = view.posAtDOM(el);
+              const line = view.state.doc.lineAt(pos).number - 1;
+              if (cursorLine(view) !== line) view.dispatch({ selection: { anchor: pos } });
+              if (live.current.explainable?.has(line)) live.current.onExplain?.(line);
+              return false;
+            },
+          }),
+          // While the strip is open, the cursor landing on an explainable line explains it. A
+          // pointer's move is left to the click above, so a click explains once.
+          EditorView.updateListener.of((update) => {
+            const byKey = update.transactions.some((tr) => tr.isUserEvent('select') && !tr.isUserEvent('select.pointer'));
+            if (!update.selectionSet || !byKey) return;
+            const { explainable: can, explainedLine: shown, onExplain: explain } = live.current;
+            if (shown == null) return;
+            const line = cursorLine(update.view);
+            if (line !== shown && isLineShown(update.state, line) && can?.has(line)) explain?.(line);
+          }),
+        ],
+      }),
+    });
+    viewRef.current = view;
+    return () => {
+      view.destroy();
+      viewRef.current = null;
+    };
+    // The view is made once; later props arrive through the effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toggleFold = useCallback((block: string, pressed: HTMLElement) => {
+    if (document.activeElement === pressed) focusAfter.current = block;
+    live.current.onToggleFold?.(block);
+  }, []);
+
+  const input = useMemo<ViewerDecorationInput>(() => ({
+    rows: rowList,
+    marks: marks ?? NO_MARKS,
+    marksKey,
+    matches,
+    currentMatch,
+    fired: new Set(firedLines ?? []),
+    firedSeq,
+    explainable: explainable ?? NO_LINES,
+    explainedLine: explainedLine ?? null,
+    notes,
+    notesOn: !!notesOn,
+    changedLines: new Set((marks ?? NO_MARKS).map((m) => m.line)),
+    idPrefix: baseId,
+    onToggleFold: toggleFold,
+  }), [rowList, marks, marksKey, matches, currentMatch, firedLines, firedSeq, explainable, explainedLine, notes, notesOn, baseId, toggleFold]);
+
+  // Whether the student could see the new selection's lines, or the fold rows standing in for them,
+  // before the selection redraws the code. It is read here, ahead of the update below, because
+  // folds that open or close above the student's place move the code, and the editor puts it back
+  // under them only in a later frame. Null until the view has drawn the props once.
+  const followKey = follow?.key ?? null;
+  const drawn = useRef(false);
+  const followSeen = useRef<boolean | null>(null);
+  useLayoutEffect(() => {
+    const view = viewRef.current;
+    followSeen.current = view && follow && drawn.current ? anyOnScreen(view, follow.lines) : null;
+    // Only a new selection asks; the lines are the latest the props give.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followKey]);
+
+  // The text changes only when the program does; everything drawn around it changes with the props.
+  const ariaKey = `${!!strip}:${showHint}`;
+  const lastAria = useRef('false:false');
+  // The text the view holds, so an update that keeps the code skips comparing it.
+  const lastText = useRef(text);
+  // The explained line the view last drew, so only a newly opened explanation moves the cursor.
+  const lastExplained = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const { doc } = view.state;
+    const change = lastText.current === text ? null : changeTo(doc, text);
+    lastText.current = text;
+    const changes = change && ChangeSet.of(change, doc.length);
+    const effects: StateEffect<unknown>[] = [setViewerInput.of(input)];
+    if (lastAria.current !== ariaKey) {
+      lastAria.current = ariaKey;
+      effects.push(ariaRef.current.reconfigure(ariaFor(!!strip, showHint)));
+    }
+    // The cursor's move rides in the same transaction. A second one straight after would make the
+    // editor take its scroll anchor from the new layout, and folds that open or close above the
+    // student's place would then shift the code under them. Where it goes is worked out from the
+    // new text and rows, without building the next state twice.
+    const next = changes ? changes.apply(doc) : doc;
+    const head = changes ? changes.mapPos(view.state.selection.main.head) : view.state.selection.main.head;
+    const shown = shownLines(input.rows);
+    const explained = input.explainedLine;
+    const opened = explained !== lastExplained.current;
+    lastExplained.current = explained;
+    let anchor: number | null;
+    // An explanation opened from outside the code (the math, a lesson's recap, Find) brings the
+    // cursor to its line. It carries no user event, so the line is not explained a second time.
+    if (opened && explained !== null && explained < next.lines && shown.has(explained)) {
+      const start = next.line(explained + 1).from;
+      anchor = next.lineAt(head).number - 1 === explained ? null : start;
+    } else anchor = shownHead(next, head, shown);
+    view.dispatch({ ...(changes ? { changes } : {}), effects, ...(anchor === null ? {} : { selection: { anchor } }) });
+    drawn.current = true;
+    // ariaFor reads only ids that never change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, input, ariaKey]);
 
   // The parent opens the fold around the current match.
   const findLine = currentMatch?.line ?? null;
@@ -154,16 +343,23 @@ const CodeViewer = memo(function CodeViewer({
 
   // The row that took the place of a pressed fold or ▾ gets the focus the press had.
   useEffect(() => {
-    const pending = focusAfter.current;
-    if (!pending) return;
+    const block = focusAfter.current;
+    if (!block) return;
     focusAfter.current = null;
-    scrollRef.current?.querySelector<HTMLElement>(pending.selector)?.focus();
+    viewRef.current?.dom.querySelector<HTMLElement>(`.code-fold[data-block="${block}"], .code-fold-toggle[data-block="${block}"]`)?.focus();
   }, [rowList]);
+
+  /** Scrolls line `line` into view by the least distance, once it is drawn. */
+  const scrollNearest = (line: number) => requestAnimationFrame(() => {
+    const view = viewRef.current;
+    if (!view || line >= view.state.doc.lines || !isLineShown(view.state, line)) return;
+    view.dispatch({ effects: EditorView.scrollIntoView(view.state.doc.line(line + 1).from, { y: 'nearest' }) });
+  });
 
   // Bring the current match into view once its fold has opened.
   useEffect(() => {
     if (!currentMatch) return;
-    const raf = requestAnimationFrame(() => lineEls.current.get(currentMatch.line)?.scrollIntoView?.({ block: 'nearest' }));
+    const raf = scrollNearest(currentMatch.line);
     return () => cancelAnimationFrame(raf);
   }, [currentMatch, rowList]);
 
@@ -173,9 +369,7 @@ const CodeViewer = memo(function CodeViewer({
   // True from when a reveal is scheduled until it runs, so a follow in the same update yields to it.
   const revealPending = useRef(false);
   useEffect(() => {
-    if (!revealLines || revealLines.length === 0) return;
-    const scroller = scrollRef.current;
-    if (!scroller) return;
+    if (!revealLines || revealLines.length === 0 || !viewRef.current) return;
     const top = Math.min(...revealLines);
     const bottom = Math.max(...revealLines);
     const range = `${top}:${bottom}`;
@@ -184,14 +378,13 @@ const CodeViewer = memo(function CodeViewer({
     revealPending.current = true;
     const raf = requestAnimationFrame(() => {
       revealPending.current = false;
-      const el = lineEls.current.get(top);
-      if (!el || !scroller.contains(el)) return;
-      const scrollerRect = scroller.getBoundingClientRect();
-      const elRect = el.getBoundingClientRect();
-      const elTop = scroller.scrollTop + (elRect.top - scrollerRect.top);
-      const endEl = lineEls.current.get(bottom);
-      const height = endEl ? endEl.getBoundingClientRect().bottom - elRect.top : elRect.height;
-      const target = revealTop(elTop, height, scroller.clientHeight);
+      const view = viewRef.current;
+      if (!view || top >= view.state.doc.lines || !isLineShown(view.state, top)) return;
+      const scroller = view.scrollDOM;
+      const first = lineBox(view, top);
+      const last = bottom < view.state.doc.lines && isLineShown(view.state, bottom) ? lineBox(view, bottom) : first;
+      const height = last.top + last.height - first.top;
+      const target = revealTop(first.top, height, scroller.clientHeight);
       scroller.scrollTo({ top: target, left: 0, behavior: scrollBehavior(scroller.scrollTop, target, scroller.clientHeight, prefersReducedMotion()) });
     });
     return () => {
@@ -202,7 +395,6 @@ const CodeViewer = memo(function CodeViewer({
 
   // A new selection brings its lines to the top when none of them is on screen. Only the key
   // starts this, so an edit that moves the lines leaves the student where they are.
-  const followKey = follow?.key ?? null;
   const followRef = useRef(follow);
   // Mirror the latest lines before the effect below reads them; it runs only when the key changes.
   useLayoutEffect(() => {
@@ -210,65 +402,41 @@ const CodeViewer = memo(function CodeViewer({
   });
   useEffect(() => {
     const target = followRef.current;
-    const scroller = scrollRef.current;
-    if (!target || target.hold || !scroller || revealPending.current) return;
+    const seen = followSeen.current;
+    if (!target || target.hold || !viewRef.current || revealPending.current || seen) return;
     const raf = requestAnimationFrame(() => {
-      const shown = target.lines.flatMap((line) => {
-        const el = lineEls.current.get(line);
-        return el && scroller.contains(el) ? [el] : [];
-      });
+      const view = viewRef.current;
+      if (!view) return;
+      const shown = target.lines.filter((line) => line < view.state.doc.lines && isLineShown(view.state, line));
       if (shown.length === 0) return;
-      const box = scroller.getBoundingClientRect();
-      const onScreen = shown.some((el) => {
-        const r = el.getBoundingClientRect();
-        return r.bottom > box.top && r.top < box.bottom;
-      });
-      if (onScreen) return;
-      const top = Math.max(0, scroller.scrollTop + (shown[0].getBoundingClientRect().top - box.top) - REVEAL_PADDING);
-      scroller.scrollTo({ top, left: 0, behavior: scrollBehavior(scroller.scrollTop, top, box.height, prefersReducedMotion()) });
+      // On the first draw there is no earlier layout to ask, so the drawn lines answer.
+      if (seen === null && anyOnScreen(view, shown)) return;
+      const scroller = view.scrollDOM;
+      const top = Math.max(0, lineBox(view, shown[0]).top - REVEAL_PADDING);
+      scroller.scrollTo({ top, left: 0, behavior: scrollBehavior(scroller.scrollTop, top, scroller.clientHeight, prefersReducedMotion()) });
     });
     return () => cancelAnimationFrame(raf);
   }, [followKey]);
 
-  const stripId = `${baseId}-strip`;
-  const shownLines = useMemo(
-    () => rowList.flatMap((r) => (r.kind === 'line' && explainable?.has(r.line) ? [r.line] : [])),
-    [rowList, explainable],
-  );
-  const tabLine = explainedLine != null && shownLines.includes(explainedLine) ? explainedLine : shownLines[0];
-
-  const moveTo = (from: number, delta: 1 | -1) => {
-    const next = shownLines[shownLines.indexOf(from) + delta];
-    if (next === undefined) return;
-    lineEls.current.get(next)?.focus();
-    if (explainedLine != null) onExplain?.(next);
-  };
-
-  const onLineKey = (line: number) => (e: KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onExplain?.(line);
-    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      moveTo(line, e.key === 'ArrowDown' ? 1 : -1);
-    } else if (e.key === 'Escape' && explainedLine != null) {
-      e.preventDefault();
-      onExplain?.(null);
-    }
-  };
-
   // The explained line scrolls into view, as when it was chosen from the math.
   useEffect(() => {
     if (explainedLine == null) return;
-    const raf = requestAnimationFrame(() => lineEls.current.get(explainedLine)?.scrollIntoView?.({ block: 'nearest' }));
+    const raf = scrollNearest(explainedLine);
     return () => cancelAnimationFrame(raf);
   }, [explainedLine]);
 
   const closeStrip = () => {
     const line = explainedLine;
     onExplain?.(null);
-    // The close button leaves with the strip; the line keeps the focus.
-    if (line != null) requestAnimationFrame(() => lineEls.current.get(line)?.focus());
+    // The close button leaves with the strip; the code takes the focus, with the cursor on the line.
+    if (line != null) {
+      requestAnimationFrame(() => {
+        const view = viewRef.current;
+        if (!view || line >= view.state.doc.lines) return;
+        if (cursorLine(view) !== line) view.dispatch({ selection: { anchor: view.state.doc.line(line + 1).from } });
+        view.focus();
+      });
+    }
   };
 
   const handleCopy = async () => {
@@ -286,120 +454,6 @@ const CodeViewer = memo(function CodeViewer({
     setQuery('');
     setCurrent(0);
     setFindOpen(false);
-  };
-
-  const marksByLine = useMemo(() => byLine(marks), [marks]);
-  const matchesByLine = useMemo(() => byLine(matches), [matches]);
-  const fired = useMemo(() => new Set(firedLines ?? []), [firedLines]);
-
-  const overlaysFor = (line: number): readonly Overlay[] => {
-    const lineMarks = marksByLine.get(line);
-    const lineMatches = matchesByLine.get(line);
-    if (!lineMarks && !lineMatches) return NO_OVERLAYS;
-    return [
-      ...(lineMarks ?? []).map((m) => ({ start: m.start, end: m.end, cls: 'code-value' })),
-      ...(lineMatches ?? []).map((m) => ({ start: m.start, end: m.end, cls: m === currentMatch ? 'code-find is-current' : 'code-find' })),
-    ];
-  };
-
-  // The toggle is replaced by its twin in the same column, so the twin takes the focus the press had.
-  const toggleFromKey = (block: string, pressed: HTMLElement) => {
-    if (document.activeElement === pressed) {
-      focusAfter.current = { selector: `.code-fold[data-block="${block}"], .code-fold-toggle[data-block="${block}"]` };
-    }
-    onToggleFold?.(block);
-  };
-
-  const renderLine = (row: Extract<CodeRow, { kind: 'line' }>) => {
-    const { line } = row;
-    const text = lines[line] ?? '';
-    const changed = marksByLine.has(line);
-    const canExplain = explainable?.has(line) ?? false;
-    const explained = explainedLine === line;
-    const note = notes?.get(line);
-    const classes = [
-      'code-line', changed ? 'is-changed' : '', fired.has(line) ? 'is-fired' : '',
-      fired.has(line) && firedSeq !== undefined && firedSeq % 2 === 0 ? 'is-fired--again' : '',
-      canExplain ? 'is-explainable' : '', explained ? 'is-explained' : '',
-    ].filter(Boolean).join(' ');
-    return (
-      // A changed line remounts on each edit, so its fade starts again.
-      <div key={changed ? `${line}:${marksKey}` : `${line}`} className="code-row">
-        {/* The gutter is the line's sibling, never inside it: the line itself is a button. It sits over the line's reserved fold column. */}
-        {row.closes && (
-          <div className="code-gutter">
-            <button
-              type="button"
-              className="code-fold-toggle"
-              aria-expanded="true"
-              aria-label={`Fold ${row.closes.label}`}
-              data-block={row.closes.block}
-              onClick={(e) => toggleFromKey(row.closes!.block, e.currentTarget)}
-            >
-              ▾
-            </button>
-          </div>
-        )}
-        <div
-          ref={(el) => {
-            if (el) lineEls.current.set(line, el);
-            else lineEls.current.delete(line);
-          }}
-          className={classes}
-          data-line={line}
-          role={canExplain ? 'button' : undefined}
-          tabIndex={canExplain ? (line === tabLine ? 0 : -1) : undefined}
-          aria-expanded={canExplain ? explained : undefined}
-          aria-controls={explained ? stripId : undefined}
-          onClick={canExplain ? () => onExplain?.(line) : undefined}
-          onKeyDown={canExplain ? onLineKey(line) : undefined}
-        >
-          <span className="code-line__num" aria-hidden="true">{line + 1}</span>
-          <span className="code-line__fold" aria-hidden="true" />
-          <span className="code-line__text">{text ? <LineText text={text} overlays={overlaysFor(line)} /> : ' '}</span>
-        </div>
-        {notesOn && note && (
-          <div className="code-note">
-            <span className="code-line__num" aria-hidden="true" />
-            <span className="code-line__fold" aria-hidden="true" />
-            <span className="code-note__indent" aria-hidden="true">{text.match(/^\s*/)![0]}</span>
-            <span className="code-note__text">
-              {note.map((part, k) =>
-                part.changed === undefined ? (
-                  <span key={k}>{part.text}</span>
-                ) : (
-                  <b key={k} className={`code-note__value${part.changed ? ' is-changed' : ''}`}>{part.text}</b>
-                ),
-              )}
-            </span>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderFold = (row: Exclude<CodeRow, { kind: 'line' }>) => {
-    const tipId = row.kind === 'fold' ? `${baseId}-fold-${row.start}` : undefined;
-    return (
-      <div key={`${row.kind}:${row.block}:${row.start}`} className={`code-fold-row code-fold-row--${row.kind}`}>
-        <button
-          type="button"
-          className="code-fold"
-          aria-expanded="false"
-          aria-label={`Unfold ${row.label}`}
-          aria-describedby={tipId}
-          data-block={row.block}
-          onClick={(e) => toggleFromKey(row.block, e.currentTarget)}
-        >
-          <span className="code-line__num" aria-hidden="true">{row.start + 1}</span>
-          <span className="code-fold__arrow code-line__fold" aria-hidden="true">▸</span>
-          <span className="code-fold__label">{row.label}</span>
-        </button>
-        {row.kind === 'fold' && (
-          <span id={tipId} role="tooltip" className="code-fold__summary">{row.summary}</span>
-        )}
-      </div>
-    );
   };
 
   return (
@@ -455,9 +509,7 @@ const CodeViewer = memo(function CodeViewer({
         </div>
       </div>
 
-      <div className="code-content" ref={scrollRef}>
-        {rowList.map((row) => (row.kind === 'line' ? renderLine(row) : renderFold(row)))}
-      </div>
+      <div className="code-content" ref={hostRef} data-testid="code-view" />
 
       {/* Always mounted, so the first explanation is announced. */}
       <div className="code-live" aria-live="polite">
@@ -496,8 +548,8 @@ const CodeViewer = memo(function CodeViewer({
         </section>
         )}
       </div>
-      {!strip && explainable && explainable.size > 0 && (
-        <p className="code-hint"><b>Click any line</b> to see what it does.</p>
+      {showHint && (
+        <p className="code-hint" id={hintId}><b>Click any line</b> to see what it does.</p>
       )}
     </div>
   );

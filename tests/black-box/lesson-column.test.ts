@@ -29,6 +29,7 @@ import TextNodePanel from '@/features/text-nodes/ui/TextNodePanel';
 import SceneHierarchyPanel from '@/features/scene-hierarchy/ui/SceneHierarchyPanel';
 import MathPanel from '@/features/math-panel/ui/MathPanel';
 import SceneCodePanel from '@/features/code-generation/ui/SceneCodePanel';
+import { EditorView } from '@codemirror/view';
 import { addQuad, addTriangle, findById } from '../helpers/store';
 
 async function settle() {
@@ -1511,7 +1512,7 @@ describe('BB-LCOL-53: The recap lists its points and the calls, and a call opens
       expect(s.codePane).toBe('code');
       expect(s.codeHidden).toBe(false);
       expect(s.explainedLine).not.toBeNull();
-      const line = code.querySelector(`.code-line[data-line="${s.explainedLine}"] .code-line__text`)!;
+      const line = code.querySelector('.cm-line.is-explained')!;
       expect(line.textContent).toContain('glRotatef(');
 
       const finish = buttonNamed(bar, 'Finish')!;
@@ -2107,5 +2108,62 @@ describe('BB-LCOL-71: A step aimed at the Callbacks panel marks it like any othe
     const scss = readFileSync('src/widgets/layout/editor-column/editor-column.scss', 'utf8');
     expect(scss).toMatch(/\.callbacks-rail-panel\.is-focus/);
     unmount(host);
+  });
+});
+
+describe('BB-LCOL-72: In the read-only code the lesson keeps its ← → and Esc', () => {
+  /** The lesson bar and the code panel, on the demo's second step, with the code focused on glTranslatef's line. */
+  async function lessonWithCode() {
+    startLesson('transforms-demo-1');
+    useVamsStore.getState().setCurrentStep(1);
+    const bar = mount(h(LessonBar, {}));
+    const code = mount(h(SceneCodePanel, {}));
+    await settle();
+    const content = code.querySelector('.cm-content') as HTMLElement;
+    const view = EditorView.findFromDOM(code.querySelector('[data-testid="code-view"]') as HTMLElement)!;
+    const line = [...code.querySelectorAll('.cm-line')].find((l) => l.textContent?.includes('glTranslatef('))!;
+    content.focus();
+    view.dispatch({ selection: { anchor: view.posAtDOM(line) } });
+    const cursorLine = () => view.state.doc.lineAt(view.state.selection.main.head).number;
+    return { bar, code, content, line, cursorLine, done: () => { unmount(bar); unmount(code); } };
+  }
+
+  it('steps the lesson on → and ← from a focused line, and the cursor stays on its line', async () => {
+    const { content, cursorLine, done } = await lessonWithCode();
+    const at = cursorLine();
+    const right = key(content, 'ArrowRight');
+    await settle();
+    expect(useVamsStore.getState().currentStepIndex).toBe(2);
+    // The browser's own caret move is cancelled, so the cursor never leaves the line.
+    expect(right.defaultPrevented).toBe(true);
+    expect(cursorLine()).toBe(at);
+    const left = key(content, 'ArrowLeft');
+    await settle();
+    expect(useVamsStore.getState().currentStepIndex).toBe(1);
+    expect(left.defaultPrevented).toBe(true);
+    expect(cursorLine()).toBe(at);
+    done();
+  });
+
+  it('closes an open explanation on Esc and keeps the lesson', async () => {
+    const { content, line, done } = await lessonWithCode();
+    (line as HTMLElement).click();
+    await settle();
+    expect(useVamsStore.getState().explainedLine).not.toBeNull();
+    key(content, 'Escape');
+    await settle();
+    expect(useVamsStore.getState().explainedLine).toBeNull();
+    expect(useVamsStore.getState().appMode).toBe('Lesson');
+    done();
+  });
+
+  it('leaves the lesson on Esc with no explanation open, as Esc does elsewhere in it', async () => {
+    const { content, done } = await lessonWithCode();
+    expect(useVamsStore.getState().explainedLine).toBeNull();
+    key(content, 'Escape');
+    await settle();
+    expect(useVamsStore.getState().appMode).toBe('Author');
+    expect(useVamsStore.getState().activeLessonId).toBeNull();
+    done();
   });
 });

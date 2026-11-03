@@ -53,7 +53,7 @@ for (const theme of ['dark', 'light'] as const) {
 for (const theme of ['dark', 'light'] as const) {
   test(`VIS-CM-04: Code pane with notes and the strip open on glTranslatef, ${theme}, 1280`, async ({ page }) => {
     await openMockScene(page, theme);
-    await page.locator('.code-line', { hasText: 'glTranslatef(state_Triangle.x' }).click();
+    await page.locator('.cm-line', { hasText: 'glTranslatef(state_Triangle.x' }).click();
     await expect(page.locator('.code-strip__sig')).toHaveText('glTranslatef(x, y, z)');
     await expect(page.locator('.code-math-column')).toHaveScreenshot(`cm-code-strip-${theme}-1280.png`, { animations: 'allow' });
   });
