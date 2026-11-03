@@ -8,7 +8,9 @@
  *   framebuffer     the rest: the last frame, RGBA8, top row first, worker to page
  *
  * Every ring has one writer and one reader, each owning one of its two counters, so neither side
- * ever takes a lock. After writing an event or input the page bumps SIGNAL and notifies it, which
+ * ever takes a lock. A counter counts around twice the ring's capacity, not for ever, so it never
+ * leaves Int32 however long the program prints; the ring holds `(head - tail) mod 2 x capacity`
+ * items, which tells a full ring from an empty one. After writing an event or input the page bumps SIGNAL and notifies it, which
  * is the one word the worker sleeps on while it waits for anything.
  *
  * The program's output goes through the output ring, not messages, so the page can read it while
@@ -67,6 +69,26 @@ export const OUTPUT_BYTES = 64 * 1024;
 export const FRAME_WAIT_MS = 100;
 /** The framebuffer a new layout holds: a 1024 × 768 window. */
 export const DEFAULT_FRAMEBUFFER_BYTES = 1024 * 768 * 4;
+
+/** `n` modulo `m`, never negative. */
+function mod(n: number, m: number): number {
+  return ((n % m) + m) % m;
+}
+
+/** A counter of a ring holding `capacity` items, read from shared memory and kept in its range. */
+function counter(control: Int32Array, word: number, capacity: number): number {
+  return mod(Atomics.load(control, word), 2 * capacity);
+}
+
+/** How many items a ring holds. */
+function held(head: number, tail: number, capacity: number): number {
+  return mod(head - tail, 2 * capacity);
+}
+
+/** A counter moved on by `by` items. */
+function advance(at: number, by: number, capacity: number): number {
+  return mod(at + by, 2 * capacity);
+}
 
 const EVENTS_OFFSET = CONTROL_WORDS * 4;
 const INPUT_OFFSET = EVENTS_OFFSET + EVENT_SLOTS * EVENT_WORDS * 4;
@@ -189,29 +211,32 @@ function wake(control: Int32Array): void {
 /** Page: queues an event for the program. False when the ring is full and the event is dropped. */
 export function postEvent(views: LayoutViews, event: LabEvent): boolean {
   const { control, events } = views;
-  const head = Atomics.load(control, CONTROL.EVENT_HEAD);
-  if (head - Atomics.load(control, CONTROL.EVENT_TAIL) >= EVENT_SLOTS) return false;
+  const head = counter(control, CONTROL.EVENT_HEAD, EVENT_SLOTS);
+  if (held(head, counter(control, CONTROL.EVENT_TAIL, EVENT_SLOTS), EVENT_SLOTS) >= EVENT_SLOTS) return false;
   const at = (head % EVENT_SLOTS) * EVENT_WORDS;
   events.fill(0, at, at + EVENT_WORDS);
   events.set(encode(event), at);
-  Atomics.store(control, CONTROL.EVENT_HEAD, head + 1);
+  Atomics.store(control, CONTROL.EVENT_HEAD, advance(head, 1, EVENT_SLOTS));
   wake(control);
   return true;
 }
 
 /** Worker: whether an event is waiting. */
 export function eventsWaiting(views: LayoutViews): boolean {
-  return Atomics.load(views.control, CONTROL.EVENT_HEAD) !== Atomics.load(views.control, CONTROL.EVENT_TAIL);
+  const { control } = views;
+  return counter(control, CONTROL.EVENT_HEAD, EVENT_SLOTS) !== counter(control, CONTROL.EVENT_TAIL, EVENT_SLOTS);
 }
 
 /** Worker: takes every event waiting, oldest first. */
 export function takeEvents(views: LayoutViews): LabEvent[] {
   const { control, events } = views;
-  const head = Atomics.load(control, CONTROL.EVENT_HEAD);
-  let tail = Atomics.load(control, CONTROL.EVENT_TAIL);
+  const head = counter(control, CONTROL.EVENT_HEAD, EVENT_SLOTS);
+  const tail = counter(control, CONTROL.EVENT_TAIL, EVENT_SLOTS);
   const out: LabEvent[] = [];
-  for (; tail !== head; tail++) out.push(decode(events, (tail % EVENT_SLOTS) * EVENT_WORDS));
-  Atomics.store(control, CONTROL.EVENT_TAIL, tail);
+  for (let i = 0, n = held(head, tail, EVENT_SLOTS); i < n; i++) {
+    out.push(decode(events, (advance(tail, i, EVENT_SLOTS) % EVENT_SLOTS) * EVENT_WORDS));
+  }
+  Atomics.store(control, CONTROL.EVENT_TAIL, head);
   return out;
 }
 
@@ -225,10 +250,10 @@ export function inputState(views: LayoutViews): InputState {
 /** Page: queues Console input. False, and nothing queued, when it doesn't fit. */
 export function sendInput(views: LayoutViews, bytes: Uint8Array): boolean {
   const { control, input } = views;
-  const head = Atomics.load(control, CONTROL.INPUT_HEAD);
-  if (head - Atomics.load(control, CONTROL.INPUT_TAIL) + bytes.length > INPUT_BYTES) return false;
+  const head = counter(control, CONTROL.INPUT_HEAD, INPUT_BYTES);
+  if (held(head, counter(control, CONTROL.INPUT_TAIL, INPUT_BYTES), INPUT_BYTES) + bytes.length > INPUT_BYTES) return false;
   for (let i = 0; i < bytes.length; i++) input[(head + i) % INPUT_BYTES] = bytes[i];
-  Atomics.store(control, CONTROL.INPUT_HEAD, head + bytes.length);
+  Atomics.store(control, CONTROL.INPUT_HEAD, advance(head, bytes.length, INPUT_BYTES));
   wake(control);
   return true;
 }
@@ -247,19 +272,21 @@ export function sendKey(views: LayoutViews, code: number): boolean {
 
 /** Worker: how many input bytes are waiting. */
 export function inputWaiting(views: LayoutViews): number {
-  return Atomics.load(views.control, CONTROL.INPUT_HEAD) - Atomics.load(views.control, CONTROL.INPUT_TAIL);
+  const { control } = views;
+  return held(counter(control, CONTROL.INPUT_HEAD, INPUT_BYTES), counter(control, CONTROL.INPUT_TAIL, INPUT_BYTES), INPUT_BYTES);
 }
 
 /** Worker: the `offset`th waiting input byte, without taking it. */
 export function peekInput(views: LayoutViews, offset: number): number {
-  return views.input[(Atomics.load(views.control, CONTROL.INPUT_TAIL) + offset) % INPUT_BYTES];
+  return views.input[(counter(views.control, CONTROL.INPUT_TAIL, INPUT_BYTES) + offset) % INPUT_BYTES];
 }
 
 /** Worker: takes the next `count` waiting input bytes. */
 export function takeInput(views: LayoutViews, count: number): Uint8Array {
   const out = new Uint8Array(count);
   for (let i = 0; i < count; i++) out[i] = peekInput(views, i);
-  Atomics.add(views.control, CONTROL.INPUT_TAIL, count);
+  const { control } = views;
+  Atomics.store(control, CONTROL.INPUT_TAIL, advance(counter(control, CONTROL.INPUT_TAIL, INPUT_BYTES), count, INPUT_BYTES));
   return out;
 }
 
@@ -278,18 +305,19 @@ export type OutputKind = keyof typeof OUTPUT_KIND;
 
 /** Worker: how many record bytes fit in the ring now, header included. */
 export function outputRoom(views: LayoutViews): number {
-  return OUTPUT_BYTES - (Atomics.load(views.control, CONTROL.OUTPUT_HEAD) - Atomics.load(views.control, CONTROL.OUTPUT_TAIL));
+  const { control } = views;
+  return OUTPUT_BYTES - held(counter(control, CONTROL.OUTPUT_HEAD, OUTPUT_BYTES), counter(control, CONTROL.OUTPUT_TAIL, OUTPUT_BYTES), OUTPUT_BYTES);
 }
 
 /** Worker: appends a record; the caller has made sure it fits (outputRoom). */
 export function putOutput(views: LayoutViews, kind: OutputKind, bytes: Uint8Array = new Uint8Array(0)): void {
   const { control, output } = views;
-  const head = Atomics.load(control, CONTROL.OUTPUT_HEAD);
+  const head = counter(control, CONTROL.OUTPUT_HEAD, OUTPUT_BYTES);
   const header = [OUTPUT_KIND[kind], bytes.length & 0xff, bytes.length >> 8];
   for (let i = 0; i < RECORD_HEADER; i++) output[(head + i) % OUTPUT_BYTES] = header[i];
   for (let i = 0; i < bytes.length; i++) output[(head + RECORD_HEADER + i) % OUTPUT_BYTES] = bytes[i];
   // The record is complete before the page can see it.
-  Atomics.store(control, CONTROL.OUTPUT_HEAD, head + RECORD_HEADER + bytes.length);
+  Atomics.store(control, CONTROL.OUTPUT_HEAD, advance(head, RECORD_HEADER + bytes.length, OUTPUT_BYTES));
 }
 
 /** Output the page reads: text on a stream, or system("cls") clearing the Console. */
@@ -298,6 +326,13 @@ export type OutputChunk = { stream: 'stdout' | 'stderr'; text: string } | { stre
 /**
  * Page: reads the output ring. Each take returns what the program printed since the last one,
  * consecutive text on one stream joined, and a character split across takes comes out whole.
+ *
+ * Use one reader for each run: its decoders hold the half of a character a take ended in, so a
+ * reader carried into the next run could join the end of one program's output to the start of
+ * another's. Build it from the page's own LayoutViews (the ones the page opened, not the
+ * worker's). `take()` advances OUTPUT_TAIL and notifies it, which wakes a program waiting for room
+ * in the ring. Take on every animation frame, on a timer while the tab is hidden, and once more
+ * after `exit` or `crash` arrives, with `finish()`.
  */
 export class OutputReader {
   private readonly views: LayoutViews;
@@ -309,8 +344,8 @@ export class OutputReader {
 
   take(): OutputChunk[] {
     const { control, output } = this.views;
-    const head = Atomics.load(control, CONTROL.OUTPUT_HEAD);
-    let tail = Atomics.load(control, CONTROL.OUTPUT_TAIL);
+    const head = counter(control, CONTROL.OUTPUT_HEAD, OUTPUT_BYTES);
+    let tail = counter(control, CONTROL.OUTPUT_TAIL, OUTPUT_BYTES);
     if (tail === head) return [];
     const chunks: OutputChunk[] = [];
     while (tail !== head) {
@@ -318,7 +353,7 @@ export class OutputReader {
       const length = output[(tail + 1) % OUTPUT_BYTES] | (output[(tail + 2) % OUTPUT_BYTES] << 8);
       const bytes = new Uint8Array(length);
       for (let i = 0; i < length; i++) bytes[i] = output[(tail + RECORD_HEADER + i) % OUTPUT_BYTES];
-      tail += RECORD_HEADER + length;
+      tail = advance(tail, RECORD_HEADER + length, OUTPUT_BYTES);
       if (kind === OUTPUT_KIND.clear) {
         chunks.push({ stream: 'clear' });
         continue;
@@ -332,6 +367,20 @@ export class OutputReader {
     }
     Atomics.store(control, CONTROL.OUTPUT_TAIL, tail);
     Atomics.notify(control, CONTROL.OUTPUT_TAIL);
+    return chunks;
+  }
+
+  /**
+   * The end of the output: takes what is still in the ring, then ends each stream, so a UTF-8
+   * sequence the program stopped in the middle of comes out as U+FFFD and is not dropped. Call it
+   * once, after `exit` or `crash`.
+   */
+  finish(): OutputChunk[] {
+    const chunks = this.take();
+    for (const stream of ['stdout', 'stderr'] as const) {
+      const text = this.decoders[stream].decode();
+      if (text) chunks.push({ stream, text });
+    }
     return chunks;
   }
 }
