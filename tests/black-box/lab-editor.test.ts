@@ -340,7 +340,7 @@ describe('BB-LAB-45: The retry wait and the time guard', () => {
 
 describe('BB-LAB-46: Diagnostics are read from the wire and checked', () => {
   it('decodes the header the service writes, with non-ASCII text', () => {
-    const sent: Diagnostic[] = [diag(3, 5, 'error', 'expected “;” after é'), diag(4, 1, 'warning', 'unused')];
+    const sent: Diagnostic[] = [diag(3, 5, 'error', 'expected â€œ;â€ after Ã©'), diag(4, 1, 'warning', 'unused')];
     expect(decodeDiagnostics(encodeDiagnostics(sent))).toEqual(sent);
   });
 
@@ -353,10 +353,41 @@ describe('BB-LAB-46: Diagnostics are read from the wire and checked', () => {
   });
 
   it('reads the header of a successful compile', async () => {
-    const header = encodeDiagnostics([diag(2, 2, 'warning', 'ü')]);
+    const header = encodeDiagnostics([diag(2, 2, 'warning', 'Ã¼')]);
     const result = await compileSource('x', {
       fetch: async () => new Response(new Uint8Array([0, 0x61, 0x73, 0x6d]), { status: 200, headers: { 'content-type': 'application/wasm', 'x-lab-diagnostics': header } }),
     });
-    expect(result.kind === 'ok' && result.diagnostics).toEqual([diag(2, 2, 'warning', 'ü')]);
+    expect(result.kind === 'ok' && result.diagnostics).toEqual([diag(2, 2, 'warning', 'Ã¼')]);
+  });
+});
+
+describe('BB-LAB-47: Sent texts are drained as the parent echoes them', () => {
+  const type = (view: EditorView, at: number, text: string) =>
+    act(() => view.dispatch({ changes: { from: at, insert: text }, userEvent: 'input.type' }));
+  const echo = (root: HTMLElement, value: string) =>
+    act(() => render(h(LabEditor, { value, onChange: () => {}, diagnostics: [] }), root));
+
+  it('sets the text back to an earlier value after both edits were echoed', () => {
+    const root = mount(h(LabEditor, { value: 'A', onChange: () => {}, diagnostics: [] }));
+    const view = viewOf(root);
+    type(view, 1, 'B');
+    echo(root, 'AB');
+    type(view, 2, 'C');
+    echo(root, 'ABC');
+    echo(root, 'A');
+    expect(view.state.doc.toString()).toBe('A');
+  });
+
+  it('applies a reset to the loaded text after type, delete and type again', () => {
+    const root = mount(h(LabEditor, { value: 'O', onChange: () => {}, diagnostics: [] }));
+    const view = viewOf(root);
+    type(view, 1, 'x');
+    echo(root, 'Ox');
+    act(() => view.dispatch({ changes: { from: 1, to: 2 }, userEvent: 'delete.backward' }));
+    echo(root, 'O');
+    type(view, 1, 'y');
+    echo(root, 'Oy');
+    echo(root, 'O');
+    expect(view.state.doc.toString()).toBe('O');
   });
 });

@@ -118,14 +118,16 @@ export default function LabEditor({ value, onChange, diagnostics, jumpTo, onRun 
 
   useEffect(() => {
     const current = view.current;
-    if (!current || current.state.doc.toString() === value) return;
-    // A value the editor itself sent is the parent catching up, not new text.
+    if (!current) return;
+    // A value the editor itself sent is the parent catching up, not new text. Settle it first, so
+    // acknowledged sends never pile up and later swallow a real reset to the same text.
     const at = sent.current.indexOf(value);
     if (at >= 0) {
       sent.current = sent.current.slice(at + 1);
       return;
     }
     sent.current = [];
+    if (current.state.doc.toString() === value) return;
     current.dispatch({ changes: { from: 0, to: current.state.doc.length, insert: value }, annotations: fromProps.of(true) });
   }, [value]);
 
