@@ -1704,3 +1704,33 @@ describe('ALG-LAB-37: The raster position sits on a 1/256-pixel grid, as the ref
     expect(covered(gl.fb)).toEqual(['8,104']);
   });
 });
+
+describe('ALG-LAB-38: An open glBegin or glNewList holds at most MAX_DRAW_ELEMENTS, and drops the rest', () => {
+  it('a vertex past the cap is dropped and records GL_OUT_OF_MEMORY; glEnd draws the rest', () => {
+    const gl = pixelContext(8, 8);
+    gl.begin(GL.POINTS);
+    for (let i = 0; i < MAX_DRAW_ELEMENTS; i++) gl.vertex2f(1.5, 2.5);
+    gl.vertex2f(5.5, 5.5);
+    gl.end();
+    expect(gl.getError()).toBe(GL.OUT_OF_MEMORY);
+    expect(covered(gl.fb)).toEqual(['1,2']);
+  });
+
+  it('a command past a full display list is dropped and records GL_OUT_OF_MEMORY; the list keeps the rest', () => {
+    const gl = pixelContext(8, 8);
+    gl.newList(1, GL.COMPILE);
+    // glBegin, MAX_DRAW_ELEMENTS − 2 vertices and glEnd fill the list.
+    gl.begin(GL.POINTS);
+    for (let i = 0; i < MAX_DRAW_ELEMENTS - 2; i++) gl.vertex2f(1.5, 2.5);
+    gl.end();
+    expect(gl.error).toBe(GL.NO_ERROR);
+    gl.begin(GL.POINTS);
+    gl.vertex2f(5.5, 5.5);
+    gl.end();
+    gl.endList();
+    expect(gl.getError()).toBe(GL.OUT_OF_MEMORY);
+    gl.callList(1);
+    expect(gl.getError()).toBe(GL.NO_ERROR);
+    expect(covered(gl.fb)).toEqual(['1,2']);
+  });
+});

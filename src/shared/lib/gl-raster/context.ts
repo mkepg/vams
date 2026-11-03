@@ -121,7 +121,9 @@ export const MAX_STACK_DEPTH = 32;
 // GL_MAX_VIEWPORT_DIMS: glViewport clamps its width and height to this.
 export const MAX_VIEWPORT_SIZE = 16384;
 // The most elements one glDrawArrays or glDrawElements takes; a larger count draws nothing and is
-// GL_OUT_OF_MEMORY, where a lab PC would read past the program's arrays and stop.
+// GL_OUT_OF_MEMORY, where a lab PC would read past the program's arrays and stop. It is also the
+// most vertices one glBegin and the most commands one display list hold: each one past it is
+// GL_OUT_OF_MEMORY and dropped, so a glBegin or glNewList left open can't grow without end.
 export const MAX_DRAW_ELEMENTS = 1 << 20;
 // The most names one glGenTextures or glGenBuffers hands out.
 const MAX_GEN_NAMES = 1 << 16;
@@ -225,7 +227,7 @@ export class GLContext {
   private texCoord: [number, number] = [0, 0];
   private prim: { mode: number; vertices: ClipVertex[] } | null = null;
   private readonly pos = initialRasterPos();
-  private readonly lists = new DisplayLists();
+  private readonly lists = new DisplayLists(MAX_DRAW_ELEMENTS, () => this.fail(GL.OUT_OF_MEMORY));
   private texture2D = false;
   private readonly textures = new Map<number, TextureObject>([[0, createTexture()]]);
   private boundTexture = 0;
@@ -326,9 +328,11 @@ export class GLContext {
     return { x: cx, y: cy, z: cz, w: cw, color: [clamp01(c[0]), clamp01(c[1]), clamp01(c[2]), clamp01(c[3])], tex: [...this.texCoord] };
   }
 
-  /** A vertex between glBegin and glEnd; outside them it does nothing. */
+  /** A vertex between glBegin and glEnd; outside them it does nothing. Past MAX_DRAW_ELEMENTS it is dropped. */
   private vertex(x: number, y: number, z: number, w: number): void {
-    this.prim?.vertices.push(this.processed(x, y, z, w));
+    if (!this.prim) return;
+    if (this.prim.vertices.length >= MAX_DRAW_ELEMENTS) return this.fail(GL.OUT_OF_MEMORY);
+    this.prim.vertices.push(this.processed(x, y, z, w));
   }
 
   begin(mode: number): void {

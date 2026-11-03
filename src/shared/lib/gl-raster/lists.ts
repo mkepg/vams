@@ -18,6 +18,14 @@ export class DisplayLists {
   private readonly lists = new Map<number, Command[]>();
   private defining: { list: number; mode: number; commands: Command[] } | null = null;
   private depth = 0;
+  private readonly limit: number;
+  private readonly onFull: () => void;
+
+  /** A list holds at most `limit` commands; each one past that is dropped and `onFull` is called. */
+  constructor(limit: number, onFull: () => void) {
+    this.limit = limit;
+    this.onFull = onFull;
+  }
 
   /** Whether a glNewList is open. */
   get open(): boolean {
@@ -51,11 +59,12 @@ export class DisplayLists {
 
   /**
    * Takes a compilable command: records it while a list is being defined, and says whether it
-   * should also run now (no list open, or COMPILE_AND_EXECUTE).
+   * should also run now (no list open, or COMPILE_AND_EXECUTE). A list that is full records nothing more.
    */
   record(command: Command): boolean {
     if (!this.defining) return true;
-    this.defining.commands.push(command);
+    if (this.defining.commands.length < this.limit) this.defining.commands.push(command);
+    else this.onFull();
     return this.defining.mode === GL_LIST.COMPILE_AND_EXECUTE;
   }
 
