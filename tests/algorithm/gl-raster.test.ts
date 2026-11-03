@@ -110,19 +110,23 @@ describe('ALG-LAB-02: A width-1 line covers the diamond-exit pixels and leaves o
 });
 
 describe('ALG-LAB-03: A wide line is width pixels in the minor direction (3.4.2)', () => {
-  it('rounds width 4.5 to 5 and stacks 5 pixels a column', () => {
+  it('rounds width 4.5 to 4 and stacks 4 pixels a column', () => {
     const fb = createFramebuffer(16, 20);
     rasterLine(fb, v(2.5, 10.5), v(8.5, 10.5), state({ lineWidth: 4.5 }));
-    // Width rounds to the nearest integer, 4.5 to 5; the segment moves down (5 − 1)/2 = 2 to y 8.5,
-    // whose fragments (2..7, 8) are each the lowest of a column 5 high.
-    expect(covered(fb)).toEqual(block(2, 7, 8, 12));
+    // Width rounds to the nearest integer, a half to the even one as the reference driver does,
+    // so 4.5 to 4; the segment moves down (4 − 1)/2 = 1.5 to y 9, on the boundary between rows 8 and
+    // 9, where an x-major segment takes the diamonds' top corners: fragments (2..7, 8) are each the
+    // lowest of a column 4 high. The reference GPU draws the same.
+    expect(covered(fb)).toEqual(block(2, 7, 8, 11));
   });
 
   it('lays a y-major wide line out as rows in x', () => {
     const fb = createFramebuffer(16, 16);
     rasterLine(fb, v(5.5, 2.5), v(5.5, 6.5), state({ lineWidth: 4.5 }));
-    // y-major: the segment moves left 2 to x 3.5; fragments (3, 2..5) each start a row 5 long.
-    expect(covered(fb)).toEqual(block(3, 7, 2, 5));
+    // y-major: the segment moves left 1.5 to x 4, through the right corners of column 3's diamonds,
+    // which a y-major segment takes; it ends on (3, 6)'s, which is left out. Fragments (3, 2..5)
+    // each start a row 4 long. The reference GPU draws the same.
+    expect(covered(fb)).toEqual(block(3, 6, 2, 5));
   });
 
   it('builds a slanted wide line from columns, not a turned rectangle', () => {

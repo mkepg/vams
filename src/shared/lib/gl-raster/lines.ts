@@ -4,13 +4,19 @@ import type { Framebuffer } from './framebuffer';
 import { drawable, emitFragment, type RasterState, type RGBA, type WinVertex } from './fragment';
 import { fillTriangle } from './polygons';
 
-// The endpoints move by (−ε, −ε²) so none lies on a diamond's edge (3.4.1). ε is small next to a
-// pixel and ε² still well above a double's rounding at window sizes.
-const EPS = 2 ** -16;
-const EPS2 = 2 ** -32;
+// Endpoints are snapped to 1/65536 of a pixel, so a coordinate the transforms leave a rounding
+// error away from a pixel edge or centre lands on it, and the tie rules below decide it.
+const SNAP = 2 ** 16;
+const snap = (c: number) => Math.round(c * SNAP) / SNAP;
 
 // The widest aliased line. The reference driver's range isn't documented; 10 is Mesa's.
 export const MAX_LINE_WIDTH = 10;
+
+/** A width rounded to the nearest whole pixel, a half to the even one, as the reference driver does (4.5 is 4). */
+function roundWidth(w: number): number {
+  const r = Math.round(w);
+  return r - w === 0.5 && r % 2 !== 0 ? r - 1 : r;
+}
 
 /**
  * Whether the segment p → q meets the open diamond |x − cx| + |y − cy| < ½: the four half-planes
@@ -35,17 +41,34 @@ function meetsDiamond(px: number, py: number, qx: number, qy: number, cx: number
   return lo < hi && lo < 1 && hi > 0;
 }
 
+/** Whether point (x, y) lies on the segment p → q, exactly. */
+function onSegment(px: number, py: number, qx: number, qy: number, x: number, y: number): boolean {
+  const dx = qx - px;
+  const dy = qy - py;
+  if (dx * (y - py) - dy * (x - px) !== 0) return false;
+  const t = (x - px) * dx + (y - py) * dy;
+  return t >= 0 && t <= dx * dx + dy * dy;
+}
+
 /**
  * The fragments of a width-1 segment by the diamond-exit rule, in order from a to b: each pixel
- * whose diamond the segment meets, unless b lies in it (3.4.1). An x-major segment has at most one
- * a column, on the row its line crosses the column's centre, so only that row and its neighbours
- * are tried; a y-major one is the same with x and y swapped.
+ * whose diamond the segment meets, unless b lies in it (3.4.1). The diamond is open, apart from two
+ * of its corners, which settle a segment that only touches corners or ends on one. These are the
+ * corners the reference driver takes: the top one and, for an x-major segment, the one the segment
+ * comes from (left when it runs right); the bottom and right ones for a y-major segment.
+ * An x-major segment has at most one fragment a column, on the row its line crosses the column's
+ * centre, so only that row and its neighbours are tried; a y-major one is the same with x and y
+ * swapped.
  */
 function diamondExit(ax: number, ay: number, bx: number, by: number): [number, number][] {
   const out: [number, number][] = [];
+  [ax, ay, bx, by] = [snap(ax), snap(ay), snap(bx), snap(by)];
   const xMajor = Math.abs(bx - ax) >= Math.abs(by - ay);
+  const corners: [number, number][] = xMajor ? [[0, 0.5], [bx > ax ? -0.5 : 0.5, 0]] : [[0, -0.5], [0.5, 0]];
+  const inside = (x: number, y: number, cx: number, cy: number) =>
+    Math.abs(x - cx) + Math.abs(y - cy) < 0.5 || corners.some(([ox, oy]) => x === cx + ox && y === cy + oy);
   // In (u, v) the major axis is u.
-  const [pu, pv, qu, qv] = xMajor ? [ax - EPS, ay - EPS2, bx - EPS, by - EPS2] : [ay - EPS2, ax - EPS, by - EPS2, bx - EPS];
+  const [pu, pv, qu, qv] = xMajor ? [ax, ay, bx, by] : [ay, ax, by, bx];
   if (pu === qu) return out;
   const step = qu > pu ? 1 : -1;
   const first = Math.floor(pu) - step;
@@ -54,9 +77,9 @@ function diamondExit(ax: number, ay: number, bx: number, by: number): [number, n
     const cu = u + 0.5;
     const row = Math.floor(pv + ((cu - pu) * (qv - pv)) / (qu - pu));
     for (let v = row - 1; v <= row + 1; v++) {
-      const cv = v + 0.5;
-      if (Math.abs(qu - cu) + Math.abs(qv - cv) < 0.5) continue;
-      if (meetsDiamond(pu, pv, qu, qv, cu, cv)) {
+      const [cx, cy] = xMajor ? [cu, v + 0.5] : [v + 0.5, cu];
+      if (inside(bx, by, cx, cy)) continue;
+      if (meetsDiamond(ax, ay, bx, by, cx, cy) || corners.some(([ox, oy]) => onSegment(ax, ay, bx, by, cx + ox, cy + oy))) {
         out.push(xMajor ? [u, v] : [v, u]);
         break;
       }
@@ -114,7 +137,7 @@ export function rasterLine(fb: Framebuffer, a: WinVertex, b: WinVertex, state: R
     return;
   }
 
-  const w = Math.min(MAX_LINE_WIDTH, Math.max(1, Math.round(state.lineWidth)));
+  const w = Math.min(MAX_LINE_WIDTH, Math.max(1, roundWidth(state.lineWidth)));
   const xMajor = Math.abs(b.x - a.x) >= Math.abs(b.y - a.y);
   const shift = (w - 1) / 2;
   const ax = xMajor ? a.x : a.x - shift;

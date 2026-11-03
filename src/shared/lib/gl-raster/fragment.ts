@@ -52,6 +52,10 @@ export interface TextureUnit {
   wrapS: Wrap;
   wrapT: Wrap;
   filter: Filter;
+  /** GL_TEXTURE_BORDER_COLOR, which GL_CLAMP with GL_LINEAR blends in at the image's edge; (0, 0, 0, 0) when absent. */
+  border?: RGBA;
+  /** For a *_MIPMAP_LINEAR filter between two levels: the next level, and how much of it to take (3.8.8). */
+  next?: { unit: TextureUnit; weight: number };
 }
 
 /** The GL state rasterisation reads. Drawing a line moves `stipple.counter` on. */
@@ -102,12 +106,12 @@ function wrapCoord(s: number, size: number, mode: Wrap): number {
   return Math.min(1 - min, Math.max(min, s));
 }
 
-// The border colour: GL_TEXTURE_BORDER_COLOR's initial (0, 0, 0, 0).
+// GL_TEXTURE_BORDER_COLOR's initial value.
 const BORDER: Rgba = [0, 0, 0, 0];
 
 /** Texel i, j, or the border colour when either lies outside the image. */
 function texel(t: TextureUnit, i: number, j: number): Rgba {
-  if (i < 0 || j < 0 || i >= t.width || j >= t.height) return BORDER;
+  if (i < 0 || j < 0 || i >= t.width || j >= t.height) return t.border ?? BORDER;
   const p = (j * t.width + i) * 4;
   return [t.data[p] / 255, t.data[p + 1] / 255, t.data[p + 2] / 255, t.data[p + 3] / 255];
 }
@@ -117,8 +121,22 @@ function wrapIndex(i: number, size: number, mode: Wrap): number {
   return mode === 'REPEAT' ? ((i % size) + size) % size : i;
 }
 
-/** The texture value at s, t: the nearest texel (eq. 3.19, 3.20) or the 2 × 2 weighted by eq. 3.22. */
+/**
+ * The texture value at s, t: the nearest texel (eq. 3.19, 3.20) or the 2 × 2 weighted by eq. 3.22,
+ * and between two mipmap levels the weighted sum of both (eq. 3.23).
+ */
 function sampleTexture(t: TextureUnit, s: number, u: number): Rgba {
+  if (t.next) {
+    const a = sampleLevel(t, s, u);
+    const b = sampleLevel(t.next.unit, s, u);
+    const w = t.next.weight;
+    return [a[0] + (b[0] - a[0]) * w, a[1] + (b[1] - a[1]) * w, a[2] + (b[2] - a[2]) * w, a[3] + (b[3] - a[3]) * w];
+  }
+  return sampleLevel(t, s, u);
+}
+
+/** One level's value at s, t. */
+function sampleLevel(t: TextureUnit, s: number, u: number): Rgba {
   const x = wrapCoord(s, t.width, t.wrapS) * t.width;
   const y = wrapCoord(u, t.height, t.wrapT) * t.height;
   if (t.filter === 'NEAREST') {

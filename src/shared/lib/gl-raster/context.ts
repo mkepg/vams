@@ -70,6 +70,7 @@ export const GL = {
   TEXTURE_MIN_FILTER: 0x2801,
   TEXTURE_WRAP_S: 0x2802,
   TEXTURE_WRAP_T: 0x2803,
+  TEXTURE_BORDER_COLOR: 0x1004,
   NEAREST: 0x2600,
   LINEAR: 0x2601,
   NEAREST_MIPMAP_NEAREST: 0x2700,
@@ -968,6 +969,15 @@ export class GLContext {
   }
   texParameteri(target: number, pname: number, param: number): void {
     this.texParameter(target, pname, param);
+  }
+  /** glTexParameterfv: GL_TEXTURE_BORDER_COLOR's four values, clamped to 0..1, or any other parameter's one. */
+  texParameterfv(target: number, pname: number, params: ArrayLike<number>): void {
+    if (pname !== GL.TEXTURE_BORDER_COLOR) return this.texParameter(target, pname, params[0]);
+    const border: RGBA = [clamp01(params[0]), clamp01(params[1]), clamp01(params[2]), clamp01(params[3])];
+    this.compiled(() => {
+      if (target !== GL.TEXTURE_2D) return this.fail(GL.INVALID_ENUM);
+      this.textureObject(this.boundTexture).border = border;
+    });
   }
 
   private texEnv(target: number, pname: number, param: number): void {

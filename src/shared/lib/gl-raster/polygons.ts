@@ -45,7 +45,13 @@ export function fillTriangle(
   const y0 = Math.max(box.y0, Math.floor(Math.min(a.y, b.y, c.y)));
   const y1 = Math.min(box.y1 - 1, Math.floor(Math.max(a.y, b.y, c.y)));
   // Edge functions: positive left of the edge, which is inside for a counter-clockwise triangle.
-  const edge = (p: WinVertex, q: WinVertex, x: number, y: number) => (q.x - p.x) * (y - p.y) - (q.y - p.y) * (x - p.x);
+  // Each is worked out from the edge's left end (its lower end when it is vertical), so the
+  // triangle on the other side of a shared edge gets exactly the negated value, and the tie rule
+  // in inside() sees both as 0.
+  const edge = (p: WinVertex, q: WinVertex, x: number, y: number) =>
+    p.x < q.x || (p.x === q.x && p.y < q.y)
+      ? (q.x - p.x) * (y - p.y) - (q.y - p.y) * (x - p.x)
+      : -((p.x - q.x) * (y - q.y) - (p.y - q.y) * (x - q.x));
   const offsets = state.multisample ? SAMPLE_OFFSETS : CENTRE;
   const tex = a.tex && b.tex && c.tex ? [a.tex, b.tex, c.tex] : null;
   for (let y = y0; y <= y1; y++) {

@@ -473,10 +473,10 @@ describe('ALG-LAB-11: Geometry is clipped to the view volume before rasterising 
     line.vertex2f(-1e7, 8.5);
     line.vertex2f(1e7, 8.5);
     line.end();
-    // Clipped to x 0..16. The start at x = 0 meets pixel −1's diamond (counter 0, off the window),
-    // and the end at x = 16, moved by −ε, lies in pixel 15's, which is left out (3.4.1). 0x5555
-    // draws the even counters: pixels 1, 3 … 13.
-    expect(covered(line.fb)).toEqual([1, 3, 5, 7, 9, 11, 13].map((x) => `${x},8`));
+    // Clipped to x 0..16. The counter moves on by the 10⁷ pixels cut off, a whole number of
+    // repeats, so pixel 0 takes counter 0 and pixel 15 counter 15 (ALG-LAB-29, ALG-LAB-30). 0x5555
+    // draws the even counters: pixels 0, 2 … 14.
+    expect(covered(line.fb)).toEqual([0, 2, 4, 6, 8, 10, 12, 14].map((x) => `${x},8`));
   });
 });
 
@@ -1233,5 +1233,291 @@ describe('ALG-LAB-26: Point size and line width stop at 64 and 10 in both sampli
     expect(performance.now() - start).toBeLessThan(1000);
     expect(covered(gl.fb).length).toBeGreaterThan(0);
     expect(covered(gl.fb).length).toBeLessThanOrEqual(32 * 32);
+  });
+});
+
+/** A 64 × 64 texture whose mipmap levels 0 to 6 are each one colour, bound with `minFilter`. */
+function levelTexture(gl: GLContext, minFilter: number, magFilter: number = GL.LINEAR): void {
+  const colours = [[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0], [255, 0, 255], [0, 255, 255], [255, 255, 255]];
+  gl.bindTexture(GL.TEXTURE_2D, gl.genTextures(1)[0]);
+  for (let level = 0, size = 64; size >= 1; level++, size /= 2) {
+    const texels = new Uint8Array(size * size * 4);
+    for (let i = 0; i < size * size; i++) texels.set([...colours[level], 255], i * 4);
+    gl.texImage2D(GL.TEXTURE_2D, level, GL.RGBA, size, size, 0, GL.RGBA, GL.UNSIGNED_BYTE, texels);
+  }
+  gl.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, minFilter);
+  gl.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, magFilter);
+  gl.enable(GL.TEXTURE_2D);
+}
+
+/** An axis-aligned quad from (x, y), `size` pixels wide, with texture coordinates 0..`repeat`. */
+function texturedSquare(gl: GLContext, x: number, y: number, size: number, repeat = 1): void {
+  gl.begin(GL.QUADS);
+  gl.texCoord2f(0, 0);
+  gl.vertex2f(x, y);
+  gl.texCoord2f(repeat, 0);
+  gl.vertex2f(x + size, y);
+  gl.texCoord2f(repeat, repeat);
+  gl.vertex2f(x + size, y + size);
+  gl.texCoord2f(0, repeat);
+  gl.vertex2f(x, y + size);
+  gl.end();
+}
+
+/** Whether colour `got` is within `tolerance` of `want` in red, green and blue. */
+const near = (got: number[], want: number[], tolerance: number) => want.every((c, i) => Math.abs(got[i] - c) <= tolerance);
+
+describe('ALG-LAB-27: *_MIPMAP_LINEAR blends levels ⌊λ⌋ and ⌊λ⌋ + 1 by the fraction of λ (3.8.8)', () => {
+  // Expected colours are the reference image's: tests/fixtures/lab/reference/textured-quad.png.
+  it('a 26-pixel quad (λ ≈ 1.30) is 70 % level 1 and 30 % level 2: 0, 178, 77', () => {
+    const gl = pixelContext(100, 100);
+    levelTexture(gl, GL.LINEAR_MIPMAP_LINEAR);
+    texturedSquare(gl, 10, 10, 26);
+    expect(near(px(gl.fb, 23, 23), [0, 178, 77], 1), String(px(gl.fb, 23, 23))).toBe(true);
+  });
+
+  it('a 45-pixel quad (λ ≈ 0.51) is half level 0, half level 1: 126, 129, 0', () => {
+    const gl = pixelContext(100, 100);
+    levelTexture(gl, GL.LINEAR_MIPMAP_LINEAR);
+    texturedSquare(gl, 10, 10, 45);
+    expect(near(px(gl.fb, 32, 32), [126, 129, 0], 2), String(px(gl.fb, 32, 32))).toBe(true);
+  });
+
+  it('NEAREST_MIPMAP_LINEAR blends the same two levels', () => {
+    const gl = pixelContext(100, 100);
+    levelTexture(gl, GL.NEAREST_MIPMAP_LINEAR, GL.NEAREST);
+    texturedSquare(gl, 10, 10, 26);
+    expect(near(px(gl.fb, 23, 23), [0, 178, 77], 1), String(px(gl.fb, 23, 23))).toBe(true);
+  });
+
+  it('at λ = 6, the last level, and past it, it is level 6 alone', () => {
+    const gl = pixelContext(100, 100);
+    levelTexture(gl, GL.LINEAR_MIPMAP_LINEAR);
+    texturedSquare(gl, 10, 10, 4, 4);
+    texturedSquare(gl, 20, 10, 4, 8);
+    expect(px(gl.fb, 11, 11)).toEqual([255, 255, 255, 255]);
+    expect(px(gl.fb, 21, 11)).toEqual([255, 255, 255, 255]);
+  });
+});
+
+/** Adds 64 to red for every fragment, so a pixel's red over 64 counts the fragments it took. */
+function counting(gl: GLContext): (x: number, y: number) => number {
+  gl.enable(GL.BLEND);
+  gl.blendFunc(GL.ONE, GL.ONE);
+  gl.color4f(64 / 255, 0, 0, 0);
+  return (x, y) => px(gl.fb, x, y)[0] / 64;
+}
+
+/** A seeded generator (mulberry32), so the property test draws the same triangles every run. */
+function seeded(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+describe('ALG-LAB-28: A pixel centre on an edge two polygons share is filled exactly once (3.5.1)', () => {
+  it('the quad (20, 20)–(84, 84) in a 500-pixel window fills its 4096 pixels once each', () => {
+    const gl = pixelContext(500, 500);
+    const count = counting(gl);
+    gl.begin(GL.QUADS);
+    gl.vertex2f(20, 20);
+    gl.vertex2f(84, 20);
+    gl.vertex2f(84, 84);
+    gl.vertex2f(20, 84);
+    gl.end();
+    const wrong: string[] = [];
+    for (let y = 0; y < 100; y++) {
+      for (let x = 0; x < 100; x++) {
+        const want = x >= 20 && x < 84 && y >= 20 && y < 84 ? 1 : 0;
+        if (count(x, y) !== want) wrong.push(`${x},${y}:${count(x, y)}`);
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  it('200 seeded triangle pairs: every centre on the shared edge once, no pixel twice', () => {
+    const random = seeded(20261103);
+    const problems: string[] = [];
+    for (let n = 0; n < 200; n++) {
+      const gl = pixelContext(500, 500);
+      const count = counting(gl);
+      // The shared edge p–q runs between pixel centres in a whole-number direction d, so the
+      // centres p + j·d between them lie exactly on it.
+      const p = [100 + Math.floor(random() * 200) + 0.5, 100 + Math.floor(random() * 200) + 0.5];
+      const d = [Math.floor(random() * 7) - 3, Math.floor(random() * 7) - 3];
+      if (d[0] === 0 && d[1] === 0) d[0] = 1;
+      const k = 2 + Math.floor(random() * 12);
+      const q = [p[0] + k * d[0], p[1] + k * d[1]];
+      const mid = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+      // A third vertex on side s of the edge: out along the normal, and anywhere along the edge.
+      const away = (s: number) => {
+        const out = 0.3 + random() * 20;
+        const along = (random() - 0.5) * 1.5 * k;
+        return [mid[0] - s * d[1] * out + along * d[0], mid[1] + s * d[0] * out + along * d[1]];
+      };
+      const r = away(1);
+      const s = away(-1);
+      gl.begin(GL.TRIANGLES);
+      for (const v of [p, q, r, q, p, s]) gl.vertex2f(v[0], v[1]);
+      gl.end();
+      for (let j = 1; j < k; j++) {
+        const cx = p[0] + j * d[0] - 0.5;
+        const cy = p[1] + j * d[1] - 0.5;
+        if (count(cx, cy) !== 1) problems.push(`pair ${n}: centre ${cx},${cy} taken ${count(cx, cy)} times`);
+      }
+      const xs = [p[0], q[0], r[0], s[0]];
+      const ys = [p[1], q[1], r[1], s[1]];
+      for (let y = Math.floor(Math.min(...ys)); y <= Math.ceil(Math.max(...ys)); y++) {
+        for (let x = Math.floor(Math.min(...xs)); x <= Math.ceil(Math.max(...xs)); x++) if (count(x, y) > 1) problems.push(`pair ${n}: ${x},${y} twice`);
+      }
+    }
+    expect(problems.slice(0, 10)).toEqual([]);
+  });
+});
+
+/** The lit runs of row y, as "first-last". */
+function runs(fb: Framebuffer, y: number): string[] {
+  const out: string[] = [];
+  let start = -1;
+  for (let x = 0; x <= fb.width; x++) {
+    const lit = x < fb.width && px(fb, x, y)[3] > 0;
+    if (lit && start < 0) start = x;
+    if (!lit && start >= 0) {
+      out.push(`${start}-${x - 1}`);
+      start = -1;
+    }
+  }
+  return out;
+}
+
+describe('ALG-LAB-29: A clipped line’s stipple counts from its unclipped start, as the reference driver does', () => {
+  it('(4, 0x00FF) from (−91, 40.5) to (480, 40.5) lights x where (x + 91) mod 64 < 32', () => {
+    // tests/fixtures/lab/reference/lines-stipple.png, row y = 40.
+    const gl = pixelContext(500, 500);
+    gl.enable(GL.LINE_STIPPLE);
+    gl.lineStipple(4, 0x00ff);
+    gl.begin(GL.LINES);
+    gl.vertex2f(-91, 40.5);
+    gl.vertex2f(480, 40.5);
+    gl.end();
+    expect(runs(gl.fb, 40)).toEqual(['0-4', '37-68', '101-132', '165-196', '229-260', '293-324', '357-388', '421-452']);
+  });
+});
+
+describe('ALG-LAB-30: Lines on a pixel edge or a diamond corner take the pixels the reference driver takes (3.4.1)', () => {
+  // Each case is what the reference GPU drew, in tests/fixtures/lab/reference/lines-stipple.png
+  // and line-ties.png.
+  const line = (w: number, h: number, ...v: number[]) => {
+    const gl = pixelContext(w, h);
+    gl.begin(GL.LINES);
+    for (let i = 0; i < v.length; i += 2) gl.vertex2f(v[i], v[i + 1]);
+    gl.end();
+    return covered(gl.fb);
+  };
+  const diagonal = (f: (k: number) => [number, number]) =>
+    Array.from({ length: 20 }, (_, i) => f(10 + i))
+      .sort((a, b) => a[1] - b[1] || a[0] - b[0])
+      .map(([x, y]) => `${x},${y}`);
+
+  it('(4, 0x00FF) from (0, 20.5) to (480, 20.5) lights 0-31, 64-95 … 448-479', () => {
+    const gl = pixelContext(500, 500);
+    gl.enable(GL.LINE_STIPPLE);
+    gl.lineStipple(4, 0x00ff);
+    gl.begin(GL.LINES);
+    gl.vertex2f(0, 20.5);
+    gl.vertex2f(480, 20.5);
+    gl.end();
+    expect(runs(gl.fb, 20)).toEqual(['0-31', '64-95', '128-159', '192-223', '256-287', '320-351', '384-415', '448-479']);
+  });
+
+  it('a horizontal line on the boundary y = 460 takes row 459', () => {
+    expect(line(500, 500, 20, 460, 230, 460)).toEqual(block(20, 229, 459, 459));
+  });
+
+  it('a vertical line on the boundary x = 20 takes column 19, either way', () => {
+    expect(line(40, 40, 20, 10, 20, 30)).toEqual(block(19, 19, 10, 29));
+    expect(line(40, 40, 20, 30, 20, 10)).toEqual(block(19, 19, 10, 29));
+  });
+
+  it('a horizontal line through pixel centres from x = 10 to x = 30 takes 10..29 either way', () => {
+    expect(line(40, 40, 10, 20.5, 30, 20.5)).toEqual(block(10, 29, 20, 20));
+    expect(line(40, 40, 30, 20.5, 10, 20.5)).toEqual(block(10, 29, 20, 20));
+  });
+
+  it('a vertical line through pixel centres from y = 10 to y = 30 takes 10..29 going up and 11..30 going down', () => {
+    expect(line(40, 40, 20.5, 10, 20.5, 30)).toEqual(block(20, 20, 10, 29));
+    expect(line(40, 40, 20.5, 30, 20.5, 10)).toEqual(block(20, 20, 11, 30));
+  });
+
+  it('45° lines through pixel corners, and through edge midpoints', () => {
+    expect(line(40, 40, 10, 10, 30, 30)).toEqual(diagonal((k) => [k, k]));
+    expect(line(40, 40, 30, 30, 10, 10)).toEqual(diagonal((k) => [k, k]));
+    expect(line(40, 40, 10, 30, 30, 10)).toEqual(diagonal((k) => [k, 39 - k]));
+    expect(line(40, 40, 10.5, 10, 30.5, 30)).toEqual(diagonal((k) => [k, k - 1]));
+  });
+});
+
+describe('ALG-LAB-31: glTexParameterfv sets GL_TEXTURE_BORDER_COLOR, which GL_CLAMP blends in (3.8.4, 3.8.7)', () => {
+  it('a blue border makes the clamped band half edge texel and half blue', () => {
+    const gl = pixelContext(40, 40);
+    gl.bindTexture(GL.TEXTURE_2D, gl.genTextures(1)[0]);
+    gl.texImage2D(GL.TEXTURE_2D, 0, GL.RGBA, 1, 1, 0, GL.RGBA, GL.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
+    gl.texParameterfv(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, [GL.LINEAR]);
+    gl.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.CLAMP);
+    gl.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.CLAMP);
+    gl.texParameterfv(GL.TEXTURE_2D, GL.TEXTURE_BORDER_COLOR, [0, 0, 1, 1]);
+    expect(gl.getError()).toBe(GL.NO_ERROR);
+    gl.enable(GL.TEXTURE_2D);
+    // s runs 0 to 2 and t stays 0.5, the texel's centre.
+    gl.begin(GL.QUADS);
+    for (const [s, x, y] of [[0, 0, 0], [2, 40, 0], [2, 40, 40], [0, 0, 40]]) {
+      gl.texCoord2f(s, 0.5);
+      gl.vertex2f(x, y);
+    }
+    gl.end();
+    // Past s = 1 the clamp leaves s = 1, half way between the texel and the border.
+    expect(px(gl.fb, 39, 20)).toEqual([128, 128, 255, 255]);
+    // At s = 0.475 (pixel 9) 2.5 % of the border: 0.975 × 255 rounds to 249.
+    expect(px(gl.fb, 9, 20)).toEqual([249, 249, 255, 255]);
+  });
+
+  it('GL/gl.h declares the call and the names it takes, with GL 1.5’s values', () => {
+    const header = readFileSync(join(process.cwd(), 'lab/include/GL/gl.h'), 'utf8');
+    expect(header).toMatch(/GLAPI void glTexParameterfv\(GLenum target, GLenum pname, const GLfloat \*params\);/);
+    const names: [string, string][] = [
+      ['NEAREST_MIPMAP_NEAREST', '0x2700'],
+      ['LINEAR_MIPMAP_NEAREST', '0x2701'],
+      ['NEAREST_MIPMAP_LINEAR', '0x2702'],
+      ['LINEAR_MIPMAP_LINEAR', '0x2703'],
+      ['TEXTURE_BORDER_COLOR', '0x1004'],
+    ];
+    for (const [name, value] of names) expect(header).toMatch(new RegExp(`#define GL_${name} ${value}\\b`));
+  });
+});
+
+describe('ALG-LAB-32: An aliased line width rounds half to even, as the reference driver rounds it (3.4.2)', () => {
+  it('width 4.5 is 4 pixels: lines-wide.png column 62 takes rows 148 to 151', () => {
+    const gl = pixelContext(500, 500);
+    gl.lineWidth(4.5);
+    gl.begin(GL.LINES);
+    gl.vertex2f(22.5, 150);
+    gl.vertex2f(102.5, 150);
+    gl.end();
+    expect(covered(gl.fb).filter((p) => p.startsWith('62,'))).toEqual(['62,148', '62,149', '62,150', '62,151']);
+  });
+
+  it.each([[1.5, 2], [2.5, 2], [3.5, 4], [5.5, 6], [6.5, 6], [2.7, 3], [3.3, 3]])('width %s is %s pixels', (width, pixels) => {
+    const gl = pixelContext(40, 40);
+    gl.lineWidth(width);
+    gl.begin(GL.LINES);
+    gl.vertex2f(10, 20.5);
+    gl.vertex2f(30, 20.5);
+    gl.end();
+    expect(covered(gl.fb).filter((p) => p.startsWith('15,'))).toHaveLength(pixels);
   });
 });

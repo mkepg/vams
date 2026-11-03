@@ -221,12 +221,25 @@ function textureSize(t: Target): [number, number] {
   return unit ? [unit.width, unit.height] : [1, 1];
 }
 
-/** A segment clipped, mapped to the window and rasterised; the stipple counter carries on in `t.state`. */
+/**
+ * A segment clipped, mapped to the window and rasterised; the stipple counter carries on in
+ * `t.state`. When clipping moves the start, the counter first moves on by the pixels cut off along
+ * the major axis, so the pattern keeps the phase it has from the unclipped start, as the reference
+ * driver draws it. Only the counter's place in the pattern matters, so it is kept within one repeat.
+ */
 function drawSegment(t: Target, a: ClipVertex, b: ClipVertex, size: [number, number]): void {
   const clipped = clipSegment(a, b);
   if (!clipped) return;
   const wa = toWindow(clipped[0], t.viewport);
   const wb = toWindow(clipped[1], t.viewport);
+  const stipple = t.state.stipple;
+  if (stipple.enabled && clipped[0] !== a && a.w > 0) {
+    const start = toWindow(a, t.viewport);
+    const xMajor = Math.abs(wb.x - wa.x) >= Math.abs(wb.y - wa.y);
+    const cut = Math.round(Math.abs(xMajor ? start.x - wa.x : start.y - wa.y));
+    const repeat = 16 * Math.min(256, Math.max(1, Math.round(stipple.factor)));
+    if (Number.isFinite(cut)) stipple.counter = (stipple.counter + (cut % repeat)) % repeat;
+  }
   rasterLine(t.fb, wa, wb, stateFor(t, segmentLambda(wa, wb, size)));
 }
 

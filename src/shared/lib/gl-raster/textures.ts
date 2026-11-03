@@ -1,4 +1,4 @@
-import type { Filter, TextureBase, TextureUnit, Wrap } from './fragment';
+import type { Filter, RGBA, TextureBase, TextureUnit, Wrap } from './fragment';
 
 /** GL_TEXTURE_MIN_FILTER's values; the four mipmap filters need every level down to 1 × 1. */
 export type MinFilter =
@@ -23,10 +23,11 @@ export interface TextureObject {
   magFilter: Filter;
   wrapS: Wrap;
   wrapT: Wrap;
+  border: RGBA;
 }
 
 export function createTexture(): TextureObject {
-  return { levels: [], minFilter: 'NEAREST_MIPMAP_LINEAR', magFilter: 'LINEAR', wrapS: 'REPEAT', wrapT: 'REPEAT' };
+  return { levels: [], minFilter: 'NEAREST_MIPMAP_LINEAR', magFilter: 'LINEAR', wrapS: 'REPEAT', wrapT: 'REPEAT', border: [0, 0, 0, 0] };
 }
 
 // The largest image glTexImage2D takes, in each direction.
@@ -184,22 +185,23 @@ export function isComplete(t: TextureObject): boolean {
 
 /**
  * The image and filter a primitive samples with, from its level of detail λ (3.8.8, 3.8.9): the
- * magnification filter on level 0 while λ ≤ c, otherwise the minification filter. A mipmap filter
- * samples the level nearest λ with the filter its first word names. Call only on a complete texture.
+ * magnification filter on level 0 while λ ≤ c, otherwise the minification filter. *_MIPMAP_NEAREST
+ * samples the level nearest λ; *_MIPMAP_LINEAR samples levels ⌊λ⌋ and ⌊λ⌋ + 1 and takes frac(λ)
+ * of the second, or level q alone from λ = q on. Each level is sampled with the filter the first
+ * word names. Call only on a complete texture.
  */
 export function textureFor(t: TextureObject, lambda: number): TextureUnit {
   const c = t.magFilter === 'LINEAR' && (t.minFilter === 'NEAREST_MIPMAP_NEAREST' || t.minFilter === 'NEAREST_MIPMAP_LINEAR') ? 0.5 : 0;
-  let level = 0;
-  let filter: Filter = t.magFilter;
-  if (lambda > c) {
-    filter = t.minFilter.startsWith('LINEAR') ? 'LINEAR' : 'NEAREST';
-    if (isMipmapped(t.minFilter)) {
-      const q = lastLevel(t.levels[0]!.width, t.levels[0]!.height);
-      level = t.minFilter.endsWith('MIPMAP_NEAREST')
-        ? Math.min(q, Math.max(0, lambda <= 0.5 ? 0 : Math.ceil(lambda + 0.5) - 1))
-        : Math.min(q, Math.max(0, Math.round(lambda)));
-    }
-  }
-  const image = t.levels[level]!;
-  return { width: image.width, height: image.height, data: image.data, base: image.base, wrapS: t.wrapS, wrapT: t.wrapT, filter };
+  const unit = (level: number, filter: Filter): TextureUnit => {
+    const image = t.levels[level]!;
+    return { width: image.width, height: image.height, data: image.data, base: image.base, wrapS: t.wrapS, wrapT: t.wrapT, filter, border: t.border };
+  };
+  if (!(lambda > c)) return unit(0, t.magFilter);
+  const filter: Filter = t.minFilter.startsWith('LINEAR') ? 'LINEAR' : 'NEAREST';
+  if (!isMipmapped(t.minFilter)) return unit(0, filter);
+  const q = lastLevel(t.levels[0]!.width, t.levels[0]!.height);
+  if (t.minFilter.endsWith('MIPMAP_NEAREST')) return unit(Math.min(q, lambda <= 0.5 ? 0 : Math.ceil(lambda + 0.5) - 1), filter);
+  if (lambda >= q) return unit(q, filter);
+  const d1 = Math.floor(lambda);
+  return { ...unit(d1, filter), next: { unit: unit(d1 + 1, filter), weight: lambda - d1 } };
 }
