@@ -47,7 +47,7 @@ const labTheme = EditorView.theme({
   '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--ink)' },
 });
 
-function extensions(callbacks: { current: Pick<LabEditorProps, 'onChange' | 'onRun'> }): Extension[] {
+function extensions(callbacks: { current: Pick<LabEditorProps, 'onChange' | 'onRun'> }, sent: { current: string[] }): Extension[] {
   return [
     // Ctrl and Cmd both run, on every platform, ahead of the default "insert blank line".
     Prec.highest(
@@ -86,7 +86,9 @@ function extensions(callbacks: { current: Pick<LabEditorProps, 'onChange' | 'onR
     EditorView.contentAttributes.of({ 'aria-label': 'C++ code, main.cpp', spellcheck: 'false', autocapitalize: 'off', autocorrect: 'off' }),
     EditorView.updateListener.of((update) => {
       if (update.docChanged && !update.transactions.some((tr) => tr.annotation(fromProps))) {
-        callbacks.current.onChange(update.state.doc.toString());
+        const text = update.state.doc.toString();
+        sent.current = [...sent.current, text].slice(-100);
+        callbacks.current.onChange(text);
       }
     }),
   ];
@@ -97,11 +99,13 @@ export default function LabEditor({ value, onChange, diagnostics, jumpTo, onRun 
   const view = useRef<EditorView | null>(null);
   const callbacks = useRef({ onChange, onRun });
   callbacks.current = { onChange, onRun };
+  // Texts sent through onChange that the parent has not handed back yet, oldest first.
+  const sent = useRef<string[]>([]);
 
   useEffect(() => {
     const created = new EditorView({
       parent: host.current as HTMLDivElement,
-      state: EditorState.create({ doc: value, extensions: extensions(callbacks) }),
+      state: EditorState.create({ doc: value, extensions: extensions(callbacks, sent) }),
     });
     view.current = created;
     return () => {
@@ -115,6 +119,13 @@ export default function LabEditor({ value, onChange, diagnostics, jumpTo, onRun 
   useEffect(() => {
     const current = view.current;
     if (!current || current.state.doc.toString() === value) return;
+    // A value the editor itself sent is the parent catching up, not new text.
+    const at = sent.current.indexOf(value);
+    if (at >= 0) {
+      sent.current = sent.current.slice(at + 1);
+      return;
+    }
+    sent.current = [];
     current.dispatch({ changes: { from: 0, to: current.state.doc.length, insert: value }, annotations: fromProps.of(true) });
   }, [value]);
 

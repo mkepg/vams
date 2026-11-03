@@ -7,6 +7,7 @@ export const LAB_MESSAGES = {
   restingDay: 'Run is resting until tomorrow. Your code is saved in this browser.',
   offline: 'Run needs the internet. Your code is saved in this browser.',
   limited: 'The Lab is too busy to compile right now. Your code is saved in this browser. Try Run again in a minute.',
+  failed: "The Lab couldn't compile this time. Your code is saved in this browser. Try Run again.",
 } as const;
 
 /** The line to show for a result that did not produce a program, or null when there is nothing to say. */
@@ -18,6 +19,8 @@ export function compileMessage(result: CompileResult): string | null {
       return LAB_MESSAGES.offline;
     case 'limited':
       return LAB_MESSAGES.limited;
+    case 'failed':
+      return LAB_MESSAGES.failed;
     default:
       return null;
   }

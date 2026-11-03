@@ -13,6 +13,8 @@ import { act } from 'preact/test-utils';
 import { EditorView } from '@codemirror/view';
 import { LabEditor, statusLine, type Diagnostic } from '@/features/lab-editor';
 import { compileSource, compileMessage, visitorId, LAB_MESSAGES } from '@/features/lab-compile';
+import { decodeDiagnostics } from '@/features/lab-compile/model/compile-client';
+import { encodeDiagnostics } from '../../lab/service/src/server';
 import LabLog from '@/widgets/lab-workspace/ui/LabLog';
 
 const diag = (line: number, col: number, severity: Diagnostic['severity'] = 'error', message = 'expected ;'): Diagnostic => ({
@@ -153,6 +155,7 @@ describe('BB-LAB-40: Offline shows the spec message without a request', () => {
     expect(
       (
         await compileSource('x', {
+          online: () => false,
           fetch: async () => {
             throw new TypeError('network');
           },
@@ -248,5 +251,112 @@ describe('BB-LAB-42: The log folds and remembers it', () => {
     act(() => tabs[1].click());
     expect(root.textContent).toContain('hello');
     expect(root.textContent).not.toContain('main.cpp:3:4');
+  });
+});
+
+describe('BB-LAB-43: A keystroke typed before the parent catches up survives', () => {
+  it('keeps both characters when value arrives one change behind', () => {
+    const root = mount(h(LabEditor, { value: 'int a;', onChange: () => {}, diagnostics: [] }));
+    const view = viewOf(root);
+    act(() => view.dispatch({ changes: { from: 0, insert: 'x' }, userEvent: 'input.type' }));
+    act(() => view.dispatch({ changes: { from: 1, insert: 'y' }, userEvent: 'input.type' }));
+    act(() => render(h(LabEditor, { value: 'xint a;', onChange: () => {}, diagnostics: [] }), root));
+    expect(view.state.doc.toString()).toBe('xyint a;');
+    act(() => render(h(LabEditor, { value: 'xyint a;', onChange: () => {}, diagnostics: [] }), root));
+    expect(view.state.doc.toString()).toBe('xyint a;');
+  });
+
+  it('still replaces the text when the page loads other code', () => {
+    const root = mount(h(LabEditor, { value: 'int a;', onChange: () => {}, diagnostics: [] }));
+    const view = viewOf(root);
+    act(() => view.dispatch({ changes: { from: 0, insert: 'x' }, userEvent: 'input.type' }));
+    act(() => render(h(LabEditor, { value: 'void f();', onChange: () => {}, diagnostics: [] }), root));
+    expect(view.state.doc.toString()).toBe('void f();');
+  });
+});
+
+describe('BB-LAB-44: Only a program counts as a program', () => {
+  it('rejects a 200 that is not wasm', async () => {
+    const html = await compileSource('x', { fetch: async () => new Response('<html></html>', { status: 200, headers: { 'content-type': 'text/html' } }) });
+    expect(html).toEqual({ kind: 'failed', status: 200 });
+  });
+
+  it('accepts the wasm magic bytes when the content type is missing', async () => {
+    const bytes = new Uint8Array([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]);
+    const result = await compileSource('x', { fetch: async () => new Response(bytes, { status: 200 }) });
+    expect(result.kind).toBe('ok');
+  });
+
+  it('says failed for a broken service, not busy', async () => {
+    for (const status of [400, 401, 404, 405, 500]) {
+      const result = await compileSource('x', { fetch: async () => new Response('no', { status }), sleep: async () => {} });
+      expect(result).toEqual({ kind: 'failed', status });
+      expect(compileMessage(result)).toBe("The Lab couldn't compile this time. Your code is saved in this browser. Try Run again.");
+    }
+    expect(LAB_MESSAGES.failed).toBe("The Lab couldn't compile this time. Your code is saved in this browser. Try Run again.");
+  });
+
+  it('says failed with status 0 for a network error while online', async () => {
+    const result = await compileSource('x', {
+      online: () => true,
+      fetch: async () => {
+        throw new TypeError('network');
+      },
+    });
+    expect(result).toEqual({ kind: 'failed', status: 0 });
+  });
+});
+
+describe('BB-LAB-45: The retry wait and the time guard', () => {
+  it('clears the timer and rejects when the caller stops during a wait', async () => {
+    vi.useFakeTimers();
+    try {
+      const controller = new AbortController();
+      const done = compileSource('x', { fetch: async () => new Response('busy', { status: 429 }), signal: controller.signal });
+      const outcome = done.then(
+        () => 'settled',
+        (e: Error) => e.name,
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      expect(vi.getTimerCount()).toBe(1);
+      controller.abort();
+      expect(await outcome).toBe('AbortError');
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('stops retrying once more than 61 s have passed', async () => {
+    const times = [0, 62000, 62000, 62000];
+    const fetchFn = vi.fn(async () => new Response('busy', { status: 429 }));
+    const onBusy = vi.fn();
+    const result = await compileSource('x', { fetch: fetchFn, sleep: async () => {}, now: () => times.shift() ?? 62000, onBusy });
+    expect(result.kind).toBe('limited');
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(onBusy).not.toHaveBeenCalled();
+  });
+});
+
+describe('BB-LAB-46: Diagnostics are read from the wire and checked', () => {
+  it('decodes the header the service writes, with non-ASCII text', () => {
+    const sent: Diagnostic[] = [diag(3, 5, 'error', 'expected “;” after é'), diag(4, 1, 'warning', 'unused')];
+    expect(decodeDiagnostics(encodeDiagnostics(sent))).toEqual(sent);
+  });
+
+  it('drops malformed entries from the header and from a 422 body', async () => {
+    const mixed = [diag(1, 2), { line: 'x' }, null, 7, { file: 'main.cpp', line: 2, col: 1, severity: 'loud', message: 'm' }, diag(5, 6, 'note')];
+    const header = Buffer.from(JSON.stringify(mixed), 'utf8').toString('base64url');
+    expect(decodeDiagnostics(header)).toEqual([diag(1, 2), diag(5, 6, 'note')]);
+    const result = await compileSource('x', { fetch: async () => json({ diagnostics: mixed }, 422) });
+    expect(result).toEqual({ kind: 'errors', diagnostics: [diag(1, 2), diag(5, 6, 'note')] });
+  });
+
+  it('reads the header of a successful compile', async () => {
+    const header = encodeDiagnostics([diag(2, 2, 'warning', 'ü')]);
+    const result = await compileSource('x', {
+      fetch: async () => new Response(new Uint8Array([0, 0x61, 0x73, 0x6d]), { status: 200, headers: { 'content-type': 'application/wasm', 'x-lab-diagnostics': header } }),
+    });
+    expect(result.kind === 'ok' && result.diagnostics).toEqual([diag(2, 2, 'warning', 'ü')]);
   });
 });

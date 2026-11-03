@@ -6,6 +6,8 @@ export type CompileResult =
   | { kind: 'errors'; diagnostics: Diagnostic[] }
   | { kind: 'resting'; until: 'month' | 'day' }
   | { kind: 'limited' }
+  /** The service answered with something that is not a result; status 0 is a network error. */
+  | { kind: 'failed'; status: number }
   | { kind: 'offline' };
 
 export interface CompileOptions {
@@ -44,17 +46,35 @@ function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-function decodeDiagnostics(header: string | null): Diagnostic[] {
+const SEVERITIES = new Set(['error', 'warning', 'note']);
+
+/** The entries that have the shape of a diagnostic; anything else is dropped. */
+function validDiagnostics(value: unknown): Diagnostic[] {
+  if (!Array.isArray(value)) return [];
+  const out: Diagnostic[] = [];
+  for (const d of value) {
+    if (!d || typeof d !== 'object') continue;
+    const { line, col, severity, message } = d as Record<string, unknown>;
+    if (typeof line !== 'number' || !Number.isFinite(line) || typeof col !== 'number' || !Number.isFinite(col)) continue;
+    if (typeof severity !== 'string' || !SEVERITIES.has(severity) || typeof message !== 'string') continue;
+    out.push({ file: 'main.cpp', line, col, severity: severity as Diagnostic['severity'], message });
+  }
+  return out;
+}
+
+/** The service's X-Lab-Diagnostics header: base64url of UTF-8 JSON. */
+export function decodeDiagnostics(header: string | null): Diagnostic[] {
   if (!header) return [];
   try {
     const base64 = header.replace(/-/g, '+').replace(/_/g, '/');
     const bytes = Uint8Array.from(atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4)), (c) => c.charCodeAt(0));
-    const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
-    return Array.isArray(parsed) ? (parsed as Diagnostic[]) : [];
+    return validDiagnostics(JSON.parse(new TextDecoder().decode(bytes)));
   } catch {
     return [];
   }
 }
+
+const WASM_MAGIC = [0x00, 0x61, 0x73, 0x6d];
 
 async function readJson(res: Response): Promise<Record<string, unknown>> {
   try {
@@ -85,15 +105,19 @@ export async function compileSource(source: string, opts: CompileOptions = {}): 
       res = await send(ENDPOINT, { method: 'POST', headers: { 'content-type': 'application/json' }, body, signal });
     } catch (err) {
       if (signal?.aborted) throw err;
-      return { kind: 'offline' };
+      return online() ? { kind: 'failed', status: 0 } : { kind: 'offline' };
     }
 
     if (res.status === 200) {
-      return { kind: 'ok', module: await res.arrayBuffer(), diagnostics: decodeDiagnostics(res.headers.get('x-lab-diagnostics')) };
+      const module = await res.arrayBuffer();
+      const magic = new Uint8Array(module, 0, Math.min(4, module.byteLength));
+      const isWasm = (res.headers.get('content-type') ?? '').includes('application/wasm') || WASM_MAGIC.every((b, i) => magic[i] === b);
+      if (!isWasm) return { kind: 'failed', status: 200 };
+      return { kind: 'ok', module, diagnostics: decodeDiagnostics(res.headers.get('x-lab-diagnostics')) };
     }
     if (res.status === 422) {
       const answer = await readJson(res);
-      return { kind: 'errors', diagnostics: Array.isArray(answer.diagnostics) ? (answer.diagnostics as Diagnostic[]) : [] };
+      return { kind: 'errors', diagnostics: validDiagnostics(answer.diagnostics) };
     }
     if (res.status === 413) {
       return { kind: 'errors', diagnostics: [{ file: 'main.cpp', line: 1, col: 1, severity: 'error', message: 'The source is over 200 KB.' }] };
@@ -107,7 +131,7 @@ export async function compileSource(source: string, opts: CompileOptions = {}): 
       // The service names its own rate limits; only Cloud Run's plain 429 means "wait".
       if (answer.limit !== undefined) busy = false;
     }
-    if (!busy) return { kind: 'limited' };
+    if (!busy) return res.status === 429 ? { kind: 'limited' } : { kind: 'failed', status: res.status };
 
     const wait = RETRY_WAITS_MS[attempt];
     if (wait === undefined || now() - started > 61000) return { kind: 'limited' };
