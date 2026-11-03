@@ -9,12 +9,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-// The GL 1.0 names of two mipmap filters, for headers that leave them out.
-#ifndef GL_NEAREST_MIPMAP_NEAREST
-#define GL_NEAREST_MIPMAP_NEAREST 0x2700
-#define GL_LINEAR_MIPMAP_LINEAR 0x2703
-#endif
-
 GLuint checker, levels;
 
 void quad(float x, float y, float size, float t0, float t1)

@@ -6,8 +6,12 @@
 //   VAMS_GLUT_TOOLCHAIN=<the toolchain's mingw32 folder> node scripts/lab/capture-reference.mjs [name ...]
 //
 // stb_image.h is read from VAMS_STB_IMAGE, or from the Application folder beside mingw32.
-// VAMS_CAPTURE_FRAME picks the frame to save (default 1).
+// VAMS_CAPTURE_FRAME picks the frame to save (default 1). A program fails unless the renderer it
+// ran on names VAMS_CAPTURE_RENDERER (default NVIDIA). Each capture records the SHA-256 of its
+// program, and the renderer, in tests/fixtures/lab/reference/manifest.json. Needs Node 22.2 or
+// later (node:zlib's crc32).
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
@@ -19,6 +23,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const PROGRAMS = join(ROOT, 'tests/fixtures/lab/programs');
 const CAPTURE = join(ROOT, 'tests/fixtures/lab/capture');
 const REFERENCE = join(ROOT, 'tests/fixtures/lab/reference');
+const MANIFEST = join(REFERENCE, 'manifest.json');
 
 function chunk(type, data) {
   const out = Buffer.alloc(12 + data.length);
@@ -59,7 +64,10 @@ function capture(name, toolchain, stb, work) {
   if (build.status !== 0) throw new Error(`${name} didn't build:\n${build.stderr}`);
 
   const run = spawnSync(exe, [], { cwd: PROGRAMS, env, timeout: 20_000, encoding: 'utf8' });
-  if (run.status !== 0 || !existsSync(out)) throw new Error(`${name} didn't save a frame (exit ${run.status}).`);
+  if (run.status !== 0 || !existsSync(out)) throw new Error(`${name} didn't save a frame (exit ${run.status}).\n${run.stderr ?? ''}`);
+  const renderer = run.stderr.trim().split(/\r?\n/).pop() ?? '';
+  const want = process.env.VAMS_CAPTURE_RENDERER ?? 'NVIDIA';
+  if (!renderer.includes(want)) throw new Error(`${name} ran on "${renderer}"; the references are recorded on ${want}.`);
 
   const frame = readFileSync(out);
   const width = frame.readInt32LE(0);
@@ -78,7 +86,7 @@ function capture(name, toolchain, stb, work) {
   const rgba = new Uint8Array(width * height * 4);
   for (let y = 0; y < height; y++) rgba.set(rows.subarray((height - 1 - y) * width * 4, (height - y) * width * 4), y * width * 4);
   for (let i = 3; i < rgba.length; i += 4) rgba[i] = 255;
-  return { png: encodePng(width, height, rgba), renderer: run.stderr.trim() };
+  return { png: encodePng(width, height, rgba), renderer };
 }
 
 const toolchain = process.env.VAMS_GLUT_TOOLCHAIN;
@@ -89,12 +97,17 @@ if (!toolchain) {
 const stb = process.env.VAMS_STB_IMAGE ?? join(toolchain, '..', 'Application');
 const names = process.argv.slice(2);
 const all = readdirSync(PROGRAMS).filter((f) => f.endsWith('.cpp')).map((f) => basename(f, '.cpp'));
+const manifest = existsSync(MANIFEST) ? JSON.parse(readFileSync(MANIFEST, 'utf8')) : { renderer: '', programs: {} };
 const work = mkdtempSync(join(tmpdir(), 'vams-lab-capture-'));
 try {
   for (const name of names.length > 0 ? names : all) {
     if (!all.includes(name)) throw new Error(`There is no ${name}.cpp in ${PROGRAMS}.`);
     const { png, renderer } = capture(name, toolchain, stb, work);
     writeFileSync(join(REFERENCE, `${name}.png`), png);
+    manifest.renderer = renderer;
+    manifest.programs[name] = createHash('sha256').update(readFileSync(join(PROGRAMS, `${name}.cpp`))).digest('hex');
+    const programs = Object.fromEntries(Object.entries(manifest.programs).sort(([a], [b]) => (a < b ? -1 : 1)));
+    writeFileSync(MANIFEST, `${JSON.stringify({ renderer: manifest.renderer, programs }, null, 2)}\n`.replaceAll('\n', '\r\n'));
     console.log(`${name}.png  ${png.length} bytes  (${renderer})`);
   }
 } finally {

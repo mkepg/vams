@@ -10,6 +10,12 @@
 #undef glutSwapBuffers
 #undef glFlush
 
+// Runs the program on the discrete GPU of a laptop with switchable graphics.
+extern "C" {
+__declspec(dllexport) unsigned long NvOptimusEnablement = 1;
+__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+}
+
 static int frames = 0;
 
 static void endFrame(GLenum buffer) {
@@ -23,6 +29,10 @@ static void endFrame(GLenum buffer) {
   glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
   const char* out = getenv("VAMS_CAPTURE_OUT");
   FILE* f = fopen(out ? out : "capture.rgba", "wb");
+  if (!f) {
+    fprintf(stderr, "Can't write the frame to %s\n", out ? out : "capture.rgba");
+    exit(3);
+  }
   GLint samples = 0;
   glGetIntegerv(GL_SAMPLES, &samples);
   fwrite(&w, 4, 1, f);

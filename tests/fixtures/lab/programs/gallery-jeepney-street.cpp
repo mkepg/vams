@@ -2426,8 +2426,6 @@ void init()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     {
         int width, height, channels;
-        // IMPORTANT: Replace the placeholder below with the FULL ABSOLUTE FILE PATH to your image.
-        // Using a relative path may fail if the working directory differs when running the executable.
         unsigned char* data = stbi_load("Sari-sari sign.png", &width, &height, &channels, 4);
         if (data) {
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);

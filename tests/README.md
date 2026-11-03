@@ -157,8 +157,9 @@ tests/
 │   │                                        turns billing off at the budget)
 │   ├── lab-scripts.test.ts               (WB-LAB-15 to 18: the setup, publish
 │   │                                        and live-check scripts, offline)
-│   └── lab-battery.test.ts               (WB-LAB-19: the Lab battery's programs
-│                                            from the editor are its export)
+│   └── lab-battery.test.ts               (WB-LAB-19: each Lab battery program is
+│                                            the one its reference was captured
+│                                            from)
 ├── security/                     ← What a Lab program can reach on the
 │   │                                compile server.
 │   └── lab-includes.test.ts              (SEC-LAB-*: include and directive
@@ -203,9 +204,11 @@ tests/
 │   │                                              rasteriser, pixel by pixel, by the
 │   │                                              OpenGL 1.5 rules with and without
 │   │                                              multisampling)
-│   └── gl-context.test.ts                       (ALG-LAB-09 to 16 and 19 to 26: the Lab's
+│   └── gl-context.test.ts                       (ALG-LAB-09 to 16 and 19 to 32: the Lab's
 │                                                  OpenGL 1.5 state machine, display lists,
-│                                                  textures and GLUT's bitmap fonts)
+│                                                  textures and GLUT's bitmap fonts, and
+│                                                  the reference GPU's choices where the
+│                                                  rules leave one)
 └── reports/                      ← Per-run output; consumed by Chapter 4.
     ├── algorithm-1-results.json
     ├── algorithm-2-results.json
@@ -249,19 +252,28 @@ frame saved. `stb_image.h` is read from `VAMS_STB_IMAGE`, or from the
 committing it.
 
 The Lab's references in `tests/fixtures/lab/reference/` are recorded the same
-way, from the programs in `tests/fixtures/lab/programs/`. The programs that come
-from the editor (S-1 to S-7 and five gallery scenes) are checked against the
-export by `WB-LAB-19`; rewrite them with `LAB_EXPORT=1 npx vitest run
-tests/white-box/lab-battery.test.ts`. Then record every reference, or the ones
-named:
+way, from the programs in `tests/fixtures/lab/programs/`. Record every reference,
+or the ones named:
 
 ```bash
 VAMS_GLUT_TOOLCHAIN=<path to the toolchain's mingw32 folder> node scripts/lab/capture-reference.mjs [name ...]
 ```
 
-`VAMS_CAPTURE_FRAME` picks the frame to save (default 1). The script prints the
-renderer each program ran on; the committed references came from Intel Iris Xe
-Graphics (OpenGL 4.6, driver 31.0.101.4502).
+`VAMS_CAPTURE_FRAME` picks the frame to save (default 1). The capture shim asks
+for the discrete GPU, and a program fails unless the renderer it ran on names
+`VAMS_CAPTURE_RENDERER` (default `NVIDIA`). The committed references came from an
+NVIDIA GeForce RTX 3060 Laptop GPU (OpenGL 4.6, driver 592.82). Each capture
+writes the program's SHA-256 and the renderer to
+`tests/fixtures/lab/reference/manifest.json`, and `WB-LAB-19` fails when a
+program no longer matches its entry.
+
+The programs that come from the editor (S-1 to S-7 and five gallery scenes) are
+its export at 500 × 500, with the image paths shortened to the file name. They
+are frozen; `LAB_EXPORT_CHECK=1 npx vitest run tests/white-box/lab-battery.test.ts`
+checks that they still equal the export, and `LAB_EXPORT=1` rewrites them and
+the images they load, after which their references are recorded again.
+`checkerboard.png` is an 8 × 8 RGBA image of one-texel cells, white where x + y
+is even and red (220, 30, 30) where it is odd, written once with `encodePng`.
 
 ## Acceptance bar (per §3.10)
 

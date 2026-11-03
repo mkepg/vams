@@ -1,29 +1,44 @@
 /**
  * WHITE-BOX TEST SUITE — WB-LAB (the Lab's reference battery)
- * The battery programs that come from the editor are the editor's own export: S-1 to S-7 of
- * tests/reports/manual-compile-procedure.md, built through the store, and five gallery scenes,
- * each exported with generateCodeFromState at 500 × 500. Their reference images were captured
- * from these files, so a changed export means recapturing them.
+ * Each battery program is the one its reference image was captured from: its SHA-256 is the one
+ * scripts/lab/capture-reference.mjs recorded in tests/fixtures/lab/reference/manifest.json.
  *
- * Rewrite the programs and their images with LAB_EXPORT=1, then recapture the references with
- * scripts/lab/capture-reference.mjs.
+ * The programs that come from the editor are its export: S-1 to S-7 of
+ * tests/reports/manual-compile-procedure.md, built through the store, and five gallery scenes,
+ * each exported with generateCodeFromState at 500 × 500. They are frozen fixtures, so the check
+ * that they still equal the export runs only with LAB_EXPORT_CHECK=1. LAB_EXPORT=1 rewrites them
+ * and the images they load; then recapture their references.
+ *
+ * checkerboard.png, which S-6 and textured-quad.cpp load, is an 8 × 8 RGBA image of one-texel
+ * cells, white (255, 255, 255) where x + y is even and red (220, 30, 30) where it is odd, top row
+ * first: the render fidelity battery's checker, written once with encodePng.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { getPreset } from '@/entities/project/model/scene-presets';
 import { FOX_PALETTE, FOX_SPRITE, SAMPLE_TEXTURE_SPECS } from '@/features/textures/lib/sample-textures';
 import { encodePng } from '../helpers/image-compare';
 import { addPrimitive, addQuad, addTriangle, getState, setState } from '../helpers/store';
 
-const PROGRAMS = resolve('tests/fixtures/lab/programs');
+// Beside this file, whatever the working directory (import.meta.url isn't a file URL under happy-dom).
+const PROGRAMS = join(__dirname, '../fixtures/lab/programs/');
+const MANIFEST = join(__dirname, '../fixtures/lab/reference/manifest.json');
 const SIZE = { width: 500, height: 500 };
 const EXPORT = process.env.LAB_EXPORT === '1';
+const CHECK_EXPORT = EXPORT || process.env.LAB_EXPORT_CHECK === '1';
 
-/** The export as a battery file: CRLF, and images read from the folder the program runs in. */
+/**
+ * The export as a battery file: CRLF, and images read from the folder the program runs in, so the
+ * comment asking for an absolute path goes with the placeholder.
+ */
 function asProgram(cpp: string): string {
-  return cpp.replaceAll('C:\\\\path\\\\to\\\\your\\\\', '').replace(/\r?\n/g, '\r\n');
+  return cpp
+    .replace(/ *\/\/ IMPORTANT: Replace the placeholder below.*\n *\/\/ Using a relative path may fail.*\n/g, '')
+    .replaceAll('C:\\\\path\\\\to\\\\your\\\\', '')
+    .replace(/\r?\n/g, '\r\n');
 }
 
 function exportScene(): string {
@@ -39,13 +54,15 @@ function colour(id: string, colours: string[]) {
   o.vertices.forEach((v, i) => getState().updateVertexColor(id, v.id, colours[i % colours.length]));
 }
 
-/** Checks a battery file against what it should hold, or writes it under LAB_EXPORT. */
+/** Checks a battery file against the export, or writes it under LAB_EXPORT. */
 function expectFile(name: string, bytes: Uint8Array | string) {
-  const path = join(PROGRAMS, name);
+  const path = PROGRAMS + name;
   if (EXPORT) writeFileSync(path, bytes);
-  expect(existsSync(path), `${name} is missing: run with LAB_EXPORT=1`).toBe(true);
+  const program = name.replace(/\.(cpp|png)$/, '');
+  const fix = `re-export with LAB_EXPORT=1, then run node scripts/lab/capture-reference.mjs ${name.endsWith('.cpp') ? program : '<the programs that load it>'}`;
+  expect(existsSync(path), `${name} is missing: ${fix}`).toBe(true);
   const want = typeof bytes === 'string' ? Buffer.from(bytes, 'utf8') : Buffer.from(bytes);
-  expect(readFileSync(path).equals(want), `${name} differs from the export: run with LAB_EXPORT=1 and recapture`).toBe(true);
+  expect(readFileSync(path).equals(want), `${name} differs from the export: ${fix}`).toBe(true);
 }
 
 const RGB = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
@@ -113,7 +130,24 @@ function pixelFox(): Uint8Array {
   return encodePng({ width: size, height: size, data });
 }
 
-describe('WB-LAB-19: The battery programs from the editor are its export of their scenes', () => {
+describe('WB-LAB-19: Each battery program is the one its reference was captured from', () => {
+  const manifest: { renderer: string; programs: Record<string, string> } = existsSync(MANIFEST)
+    ? JSON.parse(readFileSync(MANIFEST, 'utf8'))
+    : { renderer: '', programs: {} };
+  const programs = readdirSync(PROGRAMS).filter((f) => f.endsWith('.cpp')).map((f) => f.slice(0, -4)).sort();
+
+  it('records every program, captured on NVIDIA graphics', () => {
+    expect(Object.keys(manifest.programs).sort()).toEqual(programs);
+    expect(manifest.renderer).toContain('NVIDIA');
+  });
+
+  it.each(programs)('%s matches the manifest', (name) => {
+    const sha = createHash('sha256').update(readFileSync(`${PROGRAMS}${name}.cpp`)).digest('hex');
+    expect(sha, `${name} changed since its reference: run node scripts/lab/capture-reference.mjs ${name}`).toBe(manifest.programs[name]);
+  });
+});
+
+describe.runIf(CHECK_EXPORT)('WB-LAB-19: The battery programs from the editor are its export of their scenes (LAB_EXPORT_CHECK=1)', () => {
   // The test setup keeps uploaded textures between tests; each scene starts with none.
   beforeEach(() => setState({ uploadedTextures: [] }));
 
