@@ -254,7 +254,7 @@ describe('BB-LAB-42: The log folds and remembers it', () => {
   });
 });
 
-describe('BB-LAB-43: A keystroke typed before the parent catches up survives', () => {
+describe('BB-LAB-66: A keystroke typed before the parent catches up survives', () => {
   it('keeps both characters when value arrives one change behind', () => {
     const root = mount(h(LabEditor, { value: 'int a;', onChange: () => {}, diagnostics: [] }));
     const view = viewOf(root);
@@ -275,7 +275,7 @@ describe('BB-LAB-43: A keystroke typed before the parent catches up survives', (
   });
 });
 
-describe('BB-LAB-44: Only a program counts as a program', () => {
+describe('BB-LAB-67: Only a program counts as a program', () => {
   it('rejects a 200 that is not wasm', async () => {
     const html = await compileSource('x', { fetch: async () => new Response('<html></html>', { status: 200, headers: { 'content-type': 'text/html' } }) });
     expect(html).toEqual({ kind: 'failed', status: 200 });
@@ -307,7 +307,7 @@ describe('BB-LAB-44: Only a program counts as a program', () => {
   });
 });
 
-describe('BB-LAB-45: The retry wait and the time guard', () => {
+describe('BB-LAB-68: The retry wait and the time guard', () => {
   it('clears the timer and rejects when the caller stops during a wait', async () => {
     vi.useFakeTimers();
     try {
@@ -338,7 +338,7 @@ describe('BB-LAB-45: The retry wait and the time guard', () => {
   });
 });
 
-describe('BB-LAB-46: Diagnostics are read from the wire and checked', () => {
+describe('BB-LAB-69: Diagnostics are read from the wire and checked', () => {
   it('decodes the header the service writes, with non-ASCII text', () => {
     const sent: Diagnostic[] = [diag(3, 5, 'error', 'expected “;” after é'), diag(4, 1, 'warning', 'unused')];
     expect(decodeDiagnostics(encodeDiagnostics(sent))).toEqual(sent);
@@ -361,7 +361,7 @@ describe('BB-LAB-46: Diagnostics are read from the wire and checked', () => {
   });
 });
 
-describe('BB-LAB-47: Sent texts are drained as the parent echoes them', () => {
+describe('BB-LAB-70: Sent texts are drained as the parent echoes them', () => {
   const type = (view: EditorView, at: number, text: string) =>
     act(() => view.dispatch({ changes: { from: at, insert: text }, userEvent: 'input.type' }));
   const echo = (root: HTMLElement, value: string) =>
