@@ -29,16 +29,21 @@ tests/
 │   │                                limits.
 │   ├── raster-worker.ts          ← Runs raster calls in a worker thread, so
 │   │                                ALG-LAB-18 can end one that never returns.
-│   └── image-compare.ts          ← PNG reading and writing, and the render
-│                                    fidelity rule (edge pixels may differ,
-│                                    the rest within 2 per channel).
+│   └── image-compare.ts          ← PNG reading and writing, and the image
+│                                    rule of the render fidelity and Lab
+│                                    batteries (edge pixels may differ, the
+│                                    rest within 2 per channel).
 ├── fixtures/
 │   ├── no-callbacks-program.cpp  ← The program generated for a scene with
 │   │                                no callbacks, pinned by BB-CB-12.
 │   │                                Rewrite it with WRITE_CALLBACK_FIXTURE=1.
-│   └── fidelity/                 ← The render fidelity battery: scenes.ts,
-│                                    the capture shim and the FreeGLUT
-│                                    reference images VIS-FID compares with.
+│   ├── fidelity/                 ← The render fidelity battery: scenes.ts,
+│   │                                the capture shim and the FreeGLUT
+│   │                                reference images VIS-FID compares with.
+│   └── lab/                      ← The Lab's drawing battery: programs/
+│                                    (C++ and the images they load), the
+│                                    capture shim and the FreeGLUT reference
+│                                    images the Lab is compared with.
 ├── black-box/                    ← Maps to Table 12.
 │   ├── primitive-creation.test.ts        (BB-PRIM-*)
 │   ├── transformation-operations.test.ts (BB-XFORM-*)
@@ -139,7 +144,8 @@ tests/
 │   ├── bitmap-text.test.ts               (WB-TEXT-*: GLUT's 9×15 glyphs, line
 │   │                                        spacing, glBitmap placement and the
 │   │                                        canvas layout)
-│   ├── image-compare.test.ts             (WB-FID-*: the battery's image rule)
+│   ├── image-compare.test.ts             (WB-FID-*, WB-LAB-12: the batteries'
+│   │                                        image rule)
 │   ├── british-spelling.test.ts          (WB-SPELL-*: British spelling in every
 │   │                                        string students read)
 │   ├── lab-service.test.ts               (WB-LAB-*: the Lab compile service's
@@ -149,8 +155,10 @@ tests/
 │   │                                        monthly counter)
 │   ├── lab-billing-guard.test.ts         (WB-LAB-10 and 11: the function that
 │   │                                        turns billing off at the budget)
-│   └── lab-scripts.test.ts               (WB-LAB-15 to 18: the setup, publish
-│                                            and live-check scripts, offline)
+│   ├── lab-scripts.test.ts               (WB-LAB-15 to 18: the setup, publish
+│   │                                        and live-check scripts, offline)
+│   └── lab-battery.test.ts               (WB-LAB-19: the Lab battery's programs
+│                                            from the editor are its export)
 ├── security/                     ← What a Lab program can reach on the
 │   │                                compile server.
 │   └── lab-includes.test.ts              (SEC-LAB-*: include and directive
@@ -239,6 +247,21 @@ Each scene's C++ is exported, built with the capture shim, run, and its first
 frame saved. `stb_image.h` is read from `VAMS_STB_IMAGE`, or from the
 `Application` folder beside `mingw32`. Look at every image that changes before
 committing it.
+
+The Lab's references in `tests/fixtures/lab/reference/` are recorded the same
+way, from the programs in `tests/fixtures/lab/programs/`. The programs that come
+from the editor (S-1 to S-7 and five gallery scenes) are checked against the
+export by `WB-LAB-19`; rewrite them with `LAB_EXPORT=1 npx vitest run
+tests/white-box/lab-battery.test.ts`. Then record every reference, or the ones
+named:
+
+```bash
+VAMS_GLUT_TOOLCHAIN=<path to the toolchain's mingw32 folder> node scripts/lab/capture-reference.mjs [name ...]
+```
+
+`VAMS_CAPTURE_FRAME` picks the frame to save (default 1). The script prints the
+renderer each program ran on; the committed references came from Intel Iris Xe
+Graphics (OpenGL 4.6, driver 31.0.101.4502).
 
 ## Acceptance bar (per §3.10)
 
