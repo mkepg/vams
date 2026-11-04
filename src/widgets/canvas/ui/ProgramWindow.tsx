@@ -5,7 +5,7 @@ import { RUN_HINT, runController, useRunSnapshot } from '@/features/callbacks';
 import { PROGRAM_WINDOW_TITLE } from '@/shared/lib/program-window';
 import { MIN_WINDOW_SIZE, fittedRect, resizeRect, volumeAspect, type Rect, type ResizeEdge } from '../model/program-window';
 import { useProgramWindow } from '../model/program-window-store';
-import CanvasWindow, { type WindowControls } from './CanvasWindow';
+import { CanvasWindow, type WindowControls } from '@/shared/ui/floating-window';
 
 interface ProgramWindowProps {
   size: { width: number; height: number };

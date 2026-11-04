@@ -442,7 +442,7 @@ describe('BB-RUN-18: The window bar holds no Run note', () => {
   it('has no note in the bar or the header, and no style for one', async () => {
     const { readFileSync } = await import('node:fs');
     expect(readFileSync('src/features/callbacks/ui/run-overlay.scss', 'utf8')).not.toContain('.run-plate');
-    expect(readFileSync('src/widgets/canvas/ui/canvas-window.scss', 'utf8')).not.toMatch(/run-plate|@container/);
+    expect(readFileSync('src/shared/ui/floating-window/canvas-window.scss', 'utf8')).not.toMatch(/run-plate|@container/);
     const { ProgramWindow } = { ProgramWindow: (await import('@/widgets/canvas/ui/ProgramWindow')).default };
     const win = mount(h(ProgramWindow, { size: { width: 100, height: 100 } }, h('div', {})));
     await settle();

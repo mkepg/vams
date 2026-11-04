@@ -2,7 +2,7 @@ import './canvas-window.scss';
 import type { ComponentChildren, JSX } from 'preact';
 import { Copy, Minus, Square, X } from 'lucide-react';
 import { PROGRAM_WINDOW_TITLE } from '@/shared/lib/program-window';
-import type { ResizeEdge } from '../model/program-window';
+import type { ResizeEdge } from './resize-edge';
 
 /** What a movable window adds to the bar: the three buttons, the drag surface and the resize handles. */
 export interface WindowControls {

@@ -6,7 +6,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
 import { useVamsStore } from '@/core/store';
 import CanvasHeader from '@/widgets/canvas/ui/CanvasHeader';
-import CanvasWindow from '@/widgets/canvas/ui/CanvasWindow';
+import { CanvasWindow } from '@/shared/ui/floating-window';
 import { CanvasOverlays } from '@/widgets/canvas/ui/CanvasOverlays';
 import { PROGRAM_WINDOW_TITLE } from '@/shared/lib/program-window';
 import { useCanvasSize } from '@/shared/lib/use-canvas-size';
@@ -311,7 +311,7 @@ describe('BB-CANVAS-09: The header has a View menu beside Run', () => {
 describe('BB-CANVAS-10: The resize handles hang outside the window box', () => {
   it('keeps the east and south handles out of the clipped frame, so they cover no canvas', async () => {
     const { readFileSync } = await import('node:fs');
-    const scss = readFileSync('src/widgets/canvas/ui/canvas-window.scss', 'utf8');
+    const scss = readFileSync('src/shared/ui/floating-window/canvas-window.scss', 'utf8');
     expect(scss).toMatch(/&__handle--e \{[^}]*right:\s*-\d+px/);
     expect(scss).toMatch(/&__handle--s \{[^}]*bottom:\s*-\d+px/);
     const { default: ProgramWindow } = await import('@/widgets/canvas/ui/ProgramWindow');

@@ -6,7 +6,7 @@ import { copyLink, resolveSharedScene, SHARE_MESSAGES } from '@/features/share';
 import { loadProjectData } from '@/features/scene-library';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import ThemeToggleButton from '@/features/theme-toggle/ui/ThemeToggleButton';
-import CanvasWindow from '@/widgets/canvas/ui/CanvasWindow';
+import { CanvasWindow } from '@/shared/ui/floating-window';
 import VamsCanvas from '@/widgets/canvas/VamsCanvas';
 import CodeViewer from '@/shared/ui/code-viewer/CodeViewer';
 import { Button, SegmentedControl } from '@/shared/ui/controls';

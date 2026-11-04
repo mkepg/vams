@@ -6,7 +6,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { h, render, type VNode } from 'preact';
 import { useVamsStore } from '@/core/store';
 import ProgramWindow from '@/widgets/canvas/ui/ProgramWindow';
-import CanvasWindow from '@/widgets/canvas/ui/CanvasWindow';
+import { CanvasWindow } from '@/shared/ui/floating-window';
 import { useProgramWindow } from '@/widgets/canvas/model/program-window-store';
 import { fittedRect } from '@/widgets/canvas/model/program-window';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
