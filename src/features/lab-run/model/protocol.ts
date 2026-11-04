@@ -8,13 +8,11 @@
  * Atomics.wait at any time, so the page never expects it to read another message. To stop a
  * program the page terminates the worker.
  */
+import type { LabFile } from '@/entities/lab-project';
 import type { SharedLayout } from './shared-layout';
 
-/** One file in the student's file list: an image or a text file, by its name in the list. */
-export interface LabFile {
-  name: string;
-  bytes: Uint8Array;
-}
+/** One file in the student's file list, as the Lab's project keeps it. */
+export type { LabFile };
 
 /** Page to worker: run this side module with these files. */
 export interface StartMessage {

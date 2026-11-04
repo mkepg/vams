@@ -1,9 +1,10 @@
 import Logo from '@/shared/ui/logo';
-import { Button } from '@/shared/ui/controls';
+import { Button, MenuButton, type MenuEntry } from '@/shared/ui/controls';
 
 /** The file actions. Each shows only once it has something to do. */
 export interface LabFileActions {
-  onExamples?: () => void;
+  /** The Examples menu. */
+  examples?: MenuEntry[];
   onNew?: () => void;
   onOpen?: () => void;
   onSave?: () => void;
@@ -16,8 +17,7 @@ interface LabTopBarProps extends LabFileActions {
   onRun: () => void;
 }
 
-const ACTIONS: { key: keyof LabFileActions; label: string }[] = [
-  { key: 'onExamples', label: 'Examples' },
+const ACTIONS: { key: Exclude<keyof LabFileActions, 'examples'>; label: string }[] = [
   { key: 'onNew', label: 'New' },
   { key: 'onOpen', label: 'Open' },
   { key: 'onSave', label: 'Save' },
@@ -25,7 +25,7 @@ const ACTIONS: { key: keyof LabFileActions; label: string }[] = [
 ];
 
 /** The wordmark and "Lab", the status line, the file actions and ▶ Run, in that order. */
-export default function LabTopBar({ status, onRun, ...actions }: LabTopBarProps) {
+export default function LabTopBar({ status, onRun, examples, ...actions }: LabTopBarProps) {
   return (
     <header className="lab-top-bar">
       <a className="lab-top-bar__home" href="/" aria-label="VAMS home">
@@ -36,6 +36,11 @@ export default function LabTopBar({ status, onRun, ...actions }: LabTopBarProps)
         {status}
       </p>
       <div className="lab-top-bar__actions">
+        {examples ? (
+          <MenuButton label="Examples" entries={examples} variant="quiet">
+            Examples
+          </MenuButton>
+        ) : null}
         {ACTIONS.map(({ key, label }) => {
           const action = actions[key];
           return action ? (

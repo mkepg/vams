@@ -15,6 +15,7 @@
  */
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
+import { labFileType, OTHER_FILE_TYPE } from '@/entities/lab-project';
 import { appendConsole, emptyConsole, type ConsoleLog } from './console-lines';
 import { EventOutbox } from './event-outbox';
 import type { AttachedMenu, LabFile, LabMenu, StartMessage, WorkerMessage } from './protocol';
@@ -333,7 +334,7 @@ class RunController {
         return;
       case 'fileWritten': {
         const written = state.written.filter((f) => f.name !== message.name);
-        useLabRun.setState({ written: [...written, { name: message.name, bytes: message.bytes }] });
+        useLabRun.setState({ written: [...written, { name: message.name, bytes: message.bytes, type: labFileType(message.name) ?? OTHER_FILE_TYPE }] });
         return;
       }
       case 'exit':

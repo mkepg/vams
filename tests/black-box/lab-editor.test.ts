@@ -16,6 +16,10 @@ import { compileSource, compileMessage, visitorId, LAB_MESSAGES } from '@/featur
 import { decodeDiagnostics } from '@/features/lab-compile/model/compile-client';
 import { encodeDiagnostics } from '../../lab/service/src/server';
 import LabLog from '@/widgets/lab-workspace/ui/LabLog';
+import { labProjectDefaults, useLabStore } from '@/entities/lab-project';
+
+/** The log's fold as the Lab's browser save holds it. */
+const storedFold = () => (JSON.parse(localStorage.getItem('vams-lab') ?? '{}') as { state?: { log?: { folded?: boolean } } }).state?.log?.folded;
 
 const diag = (line: number, col: number, severity: Diagnostic['severity'] = 'error', message = 'expected ;'): Diagnostic => ({
   file: 'main.cpp',
@@ -218,16 +222,18 @@ describe('BB-LAB-42: The log folds and remembers it', () => {
     act(() => toggle.click());
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(root.textContent).not.toContain('main.cpp:3:4');
-    expect(localStorage.getItem('vams-lab-log-folded')).toBe('1');
+    expect(storedFold()).toBe(true);
     act(() => toggle.click());
-    expect(localStorage.getItem('vams-lab-log-folded')).toBe('0');
+    expect(storedFold()).toBe(false);
     expect(root.textContent).toContain('main.cpp:3:4');
   });
 
-  it('opens folded when the last visit left it folded, and survives blocked storage', () => {
-    localStorage.setItem('vams-lab-log-folded', '1');
+  it('opens folded when the last visit left it folded, and survives blocked storage', async () => {
+    localStorage.setItem('vams-lab', JSON.stringify({ state: { ...labProjectDefaults(), log: { folded: true } }, version: 1 }));
+    await useLabStore.persist.rehydrate();
     const root = mount(h(LabLog, props));
     expect(root.querySelector('button[aria-expanded]')?.getAttribute('aria-expanded')).toBe('false');
+    useLabStore.setState(labProjectDefaults());
     vi.stubGlobal('localStorage', {
       getItem: () => {
         throw new Error('blocked');
@@ -237,8 +243,12 @@ describe('BB-LAB-42: The log folds and remembers it', () => {
       },
     });
     try {
+      await useLabStore.persist.rehydrate();
       const other = mount(h(LabLog, props));
-      expect(other.querySelector('button[aria-expanded]')?.getAttribute('aria-expanded')).toBe('true');
+      const toggle = other.querySelector('button[aria-expanded]') as HTMLButtonElement;
+      expect(toggle.getAttribute('aria-expanded')).toBe('true');
+      act(() => toggle.click());
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
     } finally {
       vi.unstubAllGlobals();
     }

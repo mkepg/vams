@@ -2,8 +2,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { LabEditor, statusLine, type Diagnostic } from '@/features/lab-editor';
 import { compileMessage, compileSource, LAB_MESSAGES, type CompileOptions, type CompileResult } from '@/features/lab-compile';
 import { consoleLines, INPUT_STATE, runController, useLabRun, useRunState, type LabFile, type RunStatus } from '@/features/lab-run';
+import { canOpen, chooseFile, EXAMPLES, FileList, loadExample, mayReplaceWork, newWork, OPEN_TAKES, OpenError, openWork, saveWork } from '@/features/lab-files';
+import { readLabFiles, useLabStore } from '@/entities/lab-project';
+import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
+import type { MenuEntry } from '@/shared/ui/controls';
 import { LOG_SPLIT, PANE_SPLIT, splitStyle } from '../model/split';
-import { STARTER_SOURCE } from '../model/starter';
 import { useIsNarrow } from '../model/use-narrow';
 import Handle from './Handle';
 import LabLog from './LabLog';
@@ -14,9 +17,6 @@ import './lab-workspace.scss';
 export interface LabWorkspaceProps extends LabFileActions {
   /** Sends the source to the compile service; the tests replace it. */
   compile?: (source: string, options?: CompileOptions) => Promise<CompileResult>;
-  initialSource?: string;
-  /** The images and text files the program can open. */
-  files?: LabFile[];
 }
 
 const EDITOR_HINT_ID = 'lab-editor-hint';
@@ -45,9 +45,16 @@ export function runPhase(status: RunStatus, exitCode?: number): string | null {
 
 const isAbort = (error: unknown) => error instanceof DOMException && error.name === 'AbortError';
 
+/** Said when an example's code can't be fetched. */
+export const EXAMPLE_UNAVAILABLE = "This example couldn't be loaded. Check the connection, then choose it again.";
+
 /** The Lab: the code over its log on the left, the program's stage on the right. */
-export default function LabWorkspace({ compile = compileSource, initialSource = STARTER_SOURCE, files = [], ...actions }: LabWorkspaceProps) {
-  const [source, setSource] = useState(initialSource);
+export default function LabWorkspace({ compile = compileSource, ...actions }: LabWorkspaceProps) {
+  // The code is the Lab's browser save, so every edit is kept as it is made.
+  const source = useLabStore((s) => s.source);
+  // What the file list says about Open and the examples; each new object replaces its last line.
+  const [fileNotice, setFileNotice] = useState<{ text: string | null } | null>(null);
+  const tellFiles = (text: string | null) => setFileNotice({ text });
   const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [jumpTo, setJumpTo] = useState<{ line: number; col: number } | undefined>();
@@ -60,12 +67,13 @@ export default function LabWorkspace({ compile = compileSource, initialSource = 
   const { status, exitCode } = useRunState();
   const consoleLog = useLabRun((s) => s.console);
   const input = useLabRun((s) => s.input);
+  const written = useLabRun((s) => s.written);
   const splitRef = useRef<HTMLElement>(null);
   const compiling = useRef<AbortController | null>(null);
-  // Run reads the newest source and files, whenever it was pressed.
-  const latest = useRef({ source, files });
+  // Run reads the newest source, whenever it was pressed.
+  const latest = useRef({ source });
   useLayoutEffect(() => {
-    latest.current = { source, files };
+    latest.current = { source };
   });
 
   // Stop the program and any compile when the page goes.
@@ -94,6 +102,8 @@ export default function LabWorkspace({ compile = compileSource, initialSource = 
     compiling.current = controller;
     runController.compiling();
     setMessage(null);
+    // The files are read from IndexedDB while the code compiles.
+    const filesReady = readLabFiles();
     let result: CompileResult;
     try {
       result = await compile(latest.current.source, {
@@ -116,27 +126,81 @@ export default function LabWorkspace({ compile = compileSource, initialSource = 
       return;
     }
     if (compiling.current !== controller) return;
+    let files: LabFile[] = [];
+    if (result.kind === 'ok') {
+      files = await filesReady;
+      if (compiling.current !== controller) return;
+    }
     compiling.current = null;
     const said = compileMessage(result);
     setMessage(said);
     if (result.kind === 'ok' || result.kind === 'errors') setDiagnostics(result.diagnostics);
     // What the compile has to say comes forward, even over a Console the last run brought forward.
     if (said || result.kind === 'errors') setCompilerRequest((n) => n + 1);
-    if (result.kind === 'ok') runController.start(result.module, latest.current.files);
+    if (result.kind === 'ok') runController.start(result.module, files);
     else runController.compileEnded();
   };
+
+  // New work: what the compiler said was about the old code.
+  const replaced = () => {
+    setDiagnostics([]);
+    setMessage(null);
+    tellFiles(null);
+  };
+
+  const fileActions: LabFileActions = {
+    examples: [
+      { kind: 'group', id: 'programs', label: 'Programs' },
+      ...exampleItems('program'),
+      { kind: 'group', id: 'gallery', label: 'From the gallery' },
+      ...exampleItems('gallery'),
+    ],
+    onNew: () => void newWork().then((done) => done && replaced()),
+    onOpen: () =>
+      void chooseFile('.cpp,.zip').then(async (file) => {
+        if (!file) return;
+        if (!canOpen(file.name)) return tellFiles(OPEN_TAKES);
+        if (!(await mayReplaceWork())) return;
+        try {
+          await openWork(file);
+          replaced();
+        } catch (error) {
+          tellFiles(error instanceof OpenError ? error.message : OPEN_TAKES);
+        }
+      }),
+    onSave: () => void saveWork(),
+    ...actions,
+  };
+
+  function exampleItems(group: 'program' | 'gallery'): MenuEntry[] {
+    return EXAMPLES.filter((e) => e.group === group).map((e) => ({
+      kind: 'item',
+      id: e.id,
+      label: e.title,
+      onSelect: async () => {
+        if (!(await mayReplaceWork())) return;
+        try {
+          await loadExample(e.id);
+          replaced();
+        } catch {
+          tellFiles(EXAMPLE_UNAVAILABLE);
+        }
+      },
+    }));
+  }
 
   const phase = runPhase(status, exitCode);
   const statusText = phase ? `${statusLine(diagnostics)} · ${phase}` : statusLine(diagnostics);
 
   return (
     <div className="lab-workspace" data-layout={narrow ? 'stacked' : 'split'}>
-      <LabTopBar status={statusText} onRun={() => void run()} {...actions} />
+      <LabTopBar status={statusText} onRun={() => void run()} {...fileActions} />
       <main id="main" ref={splitRef} className="lab-workspace__split" style={splitStyle({ narrow, pane, log, logFolded })}>
         <div id="lab-code" className="lab-workspace__code">
           <div className="lab-workspace__editor">
-            <LabEditor value={source} onChange={setSource} diagnostics={diagnostics} jumpTo={jumpTo} onRun={() => void run()} describedBy={EDITOR_HINT_ID} />
+            <LabEditor value={source} onChange={useLabStore.getState().setSource} diagnostics={diagnostics} jumpTo={jumpTo} onRun={() => void run()} describedBy={EDITOR_HINT_ID} />
           </div>
+          <FileList written={written} notice={fileNotice} />
           <p id={EDITOR_HINT_ID} className="lab-workspace__hint">
             {EDITOR_HINT}
           </p>
@@ -183,6 +247,7 @@ export default function LabWorkspace({ compile = compileSource, initialSource = 
           <LabStage />
         </div>
       </main>
+      <ConfirmDialog />
     </div>
   );
 }

@@ -15,6 +15,7 @@ import { renderToString } from 'preact-render-to-string';
 import { act } from 'preact/test-utils';
 import { EditorView } from '@codemirror/view';
 import { LabWorkspace } from '@/widgets/lab-workspace';
+import { useLabStore } from '@/entities/lab-project';
 import { useLabStage } from '@/widgets/lab-workspace/model/stage-store';
 import { HIDDEN_READ_MS, runController, useLabRun, type WorkerLike } from '@/features/lab-run';
 import type { StartMessage, WorkerMessage } from '@/features/lab-run/model/protocol';
@@ -132,6 +133,8 @@ const key = (el: Element, type: 'keydown' | 'keyup', k: string, code = '', extra
   });
   return event;
 };
+/** The log's fold as the Lab's browser save holds it. */
+const storedFold = () => (JSON.parse(localStorage.getItem('vams-lab') ?? '{}') as { state?: { log?: { folded?: boolean } } }).state?.log?.folded;
 const rectOf = (el: Element, left: number, top: number, width: number, height: number) =>
   vi.spyOn(el, 'getBoundingClientRect').mockReturnValue({ left, top, width, height, right: left + width, bottom: top + height, x: left, y: top, toJSON: () => ({}) } as DOMRect);
 
@@ -614,7 +617,7 @@ describe('BB-LAB-71: The prerendered workspace hydrates into the layout the scre
     Object.defineProperty(window, 'matchMedia', { configurable: true, value: undefined });
     const html = renderToString(h(LabWorkspace, { compile: async () => ok() }));
     narrowScreen(narrow);
-    if (folded) localStorage.setItem('vams-lab-log-folded', '1');
+    if (folded) useLabStore.getState().setLogFolded(true);
     const host = document.createElement('div');
     host.innerHTML = html;
     document.body.appendChild(host);
@@ -676,7 +679,7 @@ describe('BB-LAB-72: A compile message or error comes forward after a run that s
     await run(host);
     expect(host.querySelector('.lab-log')!.getAttribute('data-folded')).toBe('false');
     expect(host.querySelector('.lab-log__message')!.textContent).toBe(LAB_MESSAGES.offline);
-    expect(localStorage.getItem('vams-lab-log-folded')).toBe('0');
+    expect(storedFold()).toBe(false);
   });
 });
 
@@ -746,10 +749,10 @@ describe('BB-LAB-76: Bringing the Console forward remembers the log open', () =>
   it('stores the unfolded log when a run unfolds it', async () => {
     const host = mount();
     await act(() => (host.querySelector('.lab-log__fold') as HTMLButtonElement).click());
-    expect(localStorage.getItem('vams-lab-log-folded')).toBe('1');
+    expect(storedFold()).toBe(true);
     await run(host);
     expect(host.querySelector('.lab-log')!.getAttribute('data-folded')).toBe('false');
-    expect(localStorage.getItem('vams-lab-log-folded')).toBe('0');
+    expect(storedFold()).toBe(false);
   });
 });
 

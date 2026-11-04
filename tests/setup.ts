@@ -1,6 +1,7 @@
 import { emptyCallbacks } from '@/core/callbacks/callbacks-model';
 import { beforeEach, vi } from 'vitest';
 import { useVamsStore } from '@/core/store';
+import { labProjectDefaults, useLabStore } from '@/entities/lab-project';
 import * as sampleTextures from '@/features/textures/lib/sample-textures';
 
 // Mock sample textures since happy-dom cannot provide a 2D canvas context (see src/features/textures/lib/sample-textures.ts)
@@ -20,6 +21,8 @@ beforeEach(() => {
   }
   // Reset persisted state between tests
   try { localStorage.clear(); } catch { /* noop */ }
+  // The Lab's browser save, as a first visit finds it.
+  useLabStore.setState(labProjectDefaults());
   // Re-initialise store to default by calling reset actions that exist.
   const s = useVamsStore.getState();
   useVamsStore.setState({

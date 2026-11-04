@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Diagnostic } from '@/shared/lib/lab-diagnostic';
 import type { ConsoleLine } from '@/features/lab-run/model/console-lines';
+import { useLabStore } from '@/entities/lab-project';
 import './lab-log.scss';
 
 export interface LabLogProps {
@@ -25,23 +26,9 @@ export interface LabLogProps {
 
 type Tab = 'compiler' | 'console';
 
-const FOLD_KEY = 'vams-lab-log-folded';
-
-function readFolded(): boolean {
-  try {
-    return localStorage.getItem(FOLD_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function writeFolded(folded: boolean): void {
-  try {
-    localStorage.setItem(FOLD_KEY, folded ? '1' : '0');
-  } catch {
-    // Blocked storage: the log still folds, it just is not remembered.
-  }
-}
+/** The fold the Lab's browser save holds. */
+const readFolded = () => useLabStore.getState().log.folded;
+const writeFolded = (folded: boolean) => useLabStore.getState().setLogFolded(folded);
 
 /** The Console key for a key pressed while the program waits for one: its character, or Enter as 13. */
 function consoleKey(event: KeyboardEvent): number | null {
