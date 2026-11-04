@@ -30,7 +30,7 @@ function workFromZip(bytes: Uint8Array): LabWork {
   }
   const names = Object.keys(entries)
     .filter((path) => !path.endsWith('/') && !path.startsWith('__MACOSX/') && !baseName(path).startsWith('.'))
-    // The shallowest first, so main.cpp at the top wins over one in a folder.
+    // The shallowest first, so a file at the top wins over its namesake in a folder.
     .sort((a, b) => a.split('/').length - b.split('/').length);
   const code = names.find((path) => baseName(path).toLowerCase() === 'main.cpp') ?? names.find((path) => path.toLowerCase().endsWith('.cpp'));
   if (!code) throw new OpenError(OPEN_TAKES);
@@ -38,7 +38,7 @@ function workFromZip(bytes: Uint8Array): LabWork {
   for (const path of names) {
     const name = baseName(path);
     const type = labFileType(name);
-    if (type) files.push({ name, bytes: entries[path], type });
+    if (type && !files.some((f) => f.name.toLowerCase() === name.toLowerCase())) files.push({ name, bytes: entries[path], type });
   }
   return { source: codeText(entries[code]), files };
 }
@@ -75,17 +75,27 @@ export function chooseFile(accept: string): Promise<File | null> {
  */
 export async function addUploads(uploads: readonly File[]): Promise<string[]> {
   const taken: LabFile[] = [];
+  const unread: string[] = [];
   let other = false;
   for (const upload of uploads) {
     const name = baseName(upload.name);
     const type = labFileType(name);
-    if (type) taken.push({ name, bytes: await bytesOf(upload), type });
-    else other = true;
+    if (!type) {
+      other = true;
+      continue;
+    }
+    try {
+      taken.push({ name, bytes: await bytesOf(upload), type });
+    } catch {
+      // Moved or deleted since it was picked.
+      unread.push(name);
+    }
   }
   const replaced = taken.length > 0 ? await useLabStore.getState().addFiles(taken) : [];
   const said = replaced.map(({ name, replaced: old }) =>
     name === old ? `${name} replaced the earlier ${old}.` : `${name} replaced ${old}. The program finds a file by its name in any case.`,
   );
+  for (const name of unread) said.push(`${name} couldn't be read. Add it again.`);
   if (other) said.push(LAB_TAKES);
   return said;
 }

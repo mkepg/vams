@@ -1,5 +1,5 @@
 import { useLabStore, labFileType, type LabWork } from '@/entities/lab-project';
-import { GALLERY_SCENES, type GallerySlug } from '@/entities/project/model/gallery-links';
+import { GALLERY_SCENES, type GallerySlug } from '@/entities/project';
 import { dataUrlBytes, EXAMPLE_IMAGES } from './example-images';
 
 /**

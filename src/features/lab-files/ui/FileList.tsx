@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useLabStore, type LabFile } from '@/entities/lab-project';
 import { Button } from '@/shared/ui/controls';
+import { BROWSER_SAVE_FAILED } from '../model/browser-save';
 import { addUploads } from '../model/open';
 import { downloadBlob } from '../model/save';
 import './file-list.scss';
@@ -21,6 +22,7 @@ const ACCEPT = '.png,.jpg,.jpeg,.bmp,.txt,image/png,image/jpeg,image/bmp,text/pl
 /** The images and text files the program opens, beside main.cpp, and the files it wrote. */
 export default function FileList({ written, notice }: FileListProps) {
   const files = useLabStore((s) => s.files);
+  const saveFailed = useLabStore((s) => s.browserSaveFailed);
   const input = useRef<HTMLInputElement>(null);
   const [said, setSaid] = useState<{ lines: string[]; notice: FileListProps['notice'] }>({ lines: notice?.text ? [notice.text] : [], notice });
   // A new notice takes the place of what the list said last.
@@ -77,6 +79,11 @@ export default function FileList({ written, notice }: FileListProps) {
         Add files
       </Button>
       <input ref={input} type="file" multiple accept={ACCEPT} hidden onChange={(event) => void add(event)} />
+      {saveFailed ? (
+        <p className="lab-files__warning" role="alert">
+          {BROWSER_SAVE_FAILED}
+        </p>
+      ) : null}
       {said.lines.length > 0 ? (
         <p className="lab-files__message" role="status">
           {said.lines.join(' ')}

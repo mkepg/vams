@@ -1,4 +1,4 @@
-import { CLOUD_TEXTURE, SIGN_TEXTURE } from '@/entities/project/model/gallery-scenes/gallery-textures';
+import { CLOUD_TEXTURE, SIGN_TEXTURE } from '@/entities/project';
 
 /**
  * The images the examples load, by file name, as PNG data URLs.

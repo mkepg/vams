@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import SiteHeader from '@/widgets/site-header';
 import SiteFooter from '@/widgets/site-footer';
 import { LabWorkspace } from '@/widgets/lab-workspace';
+import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
 import { LAB_COPY } from '../model/copy';
 import { ensureIsolation } from '../model/isolation';
 import './lab-page.scss';
@@ -30,7 +31,14 @@ export default function LabPage({ reload = () => window.location.reload() }: Lab
   }, []);
 
   // The workspace is a whole-window tool with its own top bar; only the reload notice is a site page.
-  if (!needsReload) return <LabWorkspace />;
+  // The page hosts the one confirm dialog that New, Open and the examples ask through.
+  if (!needsReload)
+    return (
+      <>
+        <LabWorkspace />
+        <ConfirmDialog />
+      </>
+    );
 
   return (
     <div className="site-page">

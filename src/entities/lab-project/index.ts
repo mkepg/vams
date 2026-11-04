@@ -2,6 +2,7 @@ export {
   useLabStore,
   labProjectDefaults,
   readLabFiles,
+  dropMissingFiles,
   labFileType,
   OTHER_FILE_TYPE,
   LAB_STORAGE_KEY,

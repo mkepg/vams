@@ -14,13 +14,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { h, render } from 'preact';
 import { act } from 'preact/test-utils';
 import { EditorView } from '@codemirror/view';
-import { clear as clearIdb, get as idbGet } from 'idb-keyval';
-import { unzipSync } from 'fflate';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { clear as clearIdb, del as idbDel, get as idbGet } from 'idb-keyval';
+import { strToU8, unzipSync, zipSync } from 'fflate';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { labProjectDefaults, readLabFiles, useLabStore, type LabFile } from '@/entities/lab-project';
 import {
   addUploads,
+  BROWSER_SAVE_FAILED,
+  missingFilesMessage,
   EXAMPLES,
   exampleWork,
   FileList,
@@ -40,7 +42,10 @@ import { useLabStage } from '@/widgets/lab-workspace/model/stage-store';
 import { runController, useLabRun, type WorkerLike } from '@/features/lab-run';
 import type { StartMessage, WorkerMessage } from '@/features/lab-run/model/protocol';
 import type { CompileResult } from '@/features/lab-compile';
-import { useConfirmStore } from '@/shared/ui/confirm-dialog/confirm-store';
+import { confirm, useConfirmStore } from '@/shared/ui/confirm-dialog/confirm-store';
+import { LAB_MESSAGES } from '@/features/lab-compile';
+import LabPage from '@/pages/lab';
+import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
 import { GALLERY_BUILDERS } from '@/entities/project/model/gallery-scenes';
 import { getPreset } from '@/entities/project/model/scene-presets';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
@@ -67,8 +72,8 @@ let workers: FakeWorker[] = [];
 const hosts: HTMLElement[] = [];
 
 beforeEach(async () => {
+  // tests/setup.ts has put the store back as a first visit finds it.
   await clearIdb();
-  useLabStore.setState(labProjectDefaults());
   workers = [];
   runController.setWorkerFactory(() => {
     const w = new FakeWorker();
@@ -86,6 +91,7 @@ afterEach(() => {
   runController.reset();
   useConfirmStore.setState({ open: false, options: null, resolve: null });
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 const flush = async () => {
@@ -94,11 +100,12 @@ const flush = async () => {
 
 const ok = (): CompileResult => ({ kind: 'ok', module: new Uint8Array([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]).buffer, diagnostics: [] });
 
-function mountWorkspace() {
+/** The workspace with the confirm host the Lab page gives it. */
+function mountWorkspace(compile: () => Promise<CompileResult> = async () => ok()) {
   const host = document.createElement('div');
   document.body.appendChild(host);
   hosts.push(host);
-  act(() => render(h(LabWorkspace, { compile: async () => ok() }), host));
+  act(() => render(h('div', null, h(LabWorkspace, { compile }), h(ConfirmDialog, null)), host));
   return host;
 }
 
@@ -161,6 +168,9 @@ describe('BB-LAB-52: The code autosaves, and survives a reload of the store', ()
       { name: 'sky.png', bytes: PNG_A, type: 'image/png' },
       { name: 'Input.txt', bytes: INPUT, type: 'text/plain' },
     ]);
+    // What a reload reads is IndexedDB's copy: with it gone, the file is gone.
+    await idbDel('vams-lab-file:sky.png');
+    expect((await readLabFiles()).map((f) => f.name)).toEqual(['Input.txt']);
   });
 });
 
@@ -425,5 +435,150 @@ describe('BB-LAB-57: The examples are the five programs and every gallery scene,
     const checker = decodePng(dataUrlBytes(EXAMPLE_IMAGES['checkerboard.png']));
     expect([checker.width, checker.height]).toEqual([8, 8]);
     expect([...checker.data.subarray(0, 8)]).toEqual([255, 255, 255, 255, 220, 30, 30, 255]);
+  });
+});
+
+describe('BB-LAB-78: A browser save that fails is said once, and Run stops saying the code is saved', () => {
+  const warnings = (host: ParentNode) => [...host.querySelectorAll('[role="alert"]')].filter((a) => a.textContent === BROWSER_SAVE_FAILED);
+
+  it('says so when IndexedDB refuses a file, and keeps the file for this visit', async () => {
+    vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(() => {
+      throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+    });
+    const host = mount(h(FileList, { written: [] }));
+    expect(warnings(host)).toHaveLength(0);
+    await addUploads([file(PNG_A, 'sky.png')]);
+    await addUploads([file(PNG_B, 'sea.png')]);
+    await flush();
+    expect(useLabStore.getState().browserSaveFailed).toBe(true);
+    expect(warnings(host)).toHaveLength(1);
+    expect((await readLabFiles()).map((f) => f.name)).toEqual(['sky.png', 'sea.png']);
+  });
+
+  it('says so when localStorage refuses the code, and Run’s message says to save to a file', async () => {
+    const host = mountWorkspace(async () => ({ kind: 'offline' }));
+    // A full localStorage: every write is refused.
+    vi.stubGlobal('localStorage', {
+      getItem: () => null,
+      removeItem: () => {},
+      setItem: () => {
+        throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+      },
+    });
+    type(host, '// mine\n');
+    await flush();
+    expect(warnings(host)).toHaveLength(1);
+    await act(() => button(host, 'Run')!.click());
+    await flush();
+    const message = host.querySelector('.lab-log__message')!.textContent;
+    expect(message).toBe(LAB_MESSAGES.offline.replace('Your code is saved in this browser.', BROWSER_SAVE_FAILED));
+    expect(message).not.toContain('saved in this browser');
+  });
+});
+
+describe('BB-LAB-79: On load, a listed file whose bytes are gone leaves the list, which says so', () => {
+  it('drops the file and names it', async () => {
+    await addUploads([file(PNG_A, 'sky.png'), file(INPUT, 'Input.txt')]);
+    await reloadStore();
+    await idbDel('vams-lab-file:sky.png');
+    const host = mountWorkspace();
+    await flush();
+    expect(listNames()).toEqual(['Input.txt']);
+    expect(stored().state.files.map((f) => f.name)).toEqual(['Input.txt']);
+    expect(host.querySelector('.lab-files [role="status"]')!.textContent).toBe(missingFilesMessage(['sky.png']));
+    expect(missingFilesMessage(['sky.png'])).toBe("sky.png couldn't be found in this browser, so it left the list. Add it again.");
+    expect(missingFilesMessage(['a.png', 'b.png', 'Input.txt'])).toBe(
+      "a.png, b.png and Input.txt couldn't be found in this browser, so they left the list. Add them again.",
+    );
+  });
+});
+
+describe('BB-LAB-80: In a zip, the shallowest copy of each name wins', () => {
+  it('takes Input.txt at the top over backup/input.txt, whichever comes first', async () => {
+    const zip = zipSync({
+      'backup/input.txt': strToU8('old\n'),
+      'backup/main.cpp': strToU8('// old\n'),
+      'main.cpp': strToU8('// new\n'),
+      'Input.txt': strToU8('new\n'),
+    });
+    await openWork(new File([zip], 'work.zip'));
+    expect(useLabStore.getState().source).toBe('// new\n');
+    expect(await readLabFiles()).toEqual([{ name: 'Input.txt', bytes: strToU8('new\n'), type: 'text/plain' }]);
+  });
+});
+
+describe('BB-LAB-81: A picked file that can’t be read gets a message', () => {
+  const unreadable = (name: string) => {
+    const f = file(PNG_A, name);
+    Object.defineProperty(f, 'arrayBuffer', { value: () => Promise.reject(new DOMException('The file was moved.', 'NotFoundError')) });
+    return f;
+  };
+
+  it('adds the rest, and names the one it couldn’t read', async () => {
+    expect(await addUploads([unreadable('gone.png'), file(PNG_B, 'here.png')])).toEqual(["gone.png couldn't be read. Add it again."]);
+    expect(listNames()).toEqual(['here.png']);
+  });
+
+  it('shows the message in the list', async () => {
+    const host = mount(h(FileList, { written: [] }));
+    const input = host.querySelector('input[type="file"]') as HTMLInputElement;
+    Object.defineProperty(input, 'files', { configurable: true, value: [unreadable('gone.png')] });
+    await act(() => input.dispatchEvent(new Event('change', { bubbles: true })));
+    await flush();
+    expect(host.querySelector('[role="status"]')!.textContent).toBe("gone.png couldn't be read. Add it again.");
+  });
+});
+
+describe('BB-LAB-82: The Lab page hosts the confirm dialog, the workspace does not', () => {
+  afterEach(() => Reflect.deleteProperty(window, 'crossOriginIsolated'));
+
+  it('shows one dialog on the page, and none from the workspace alone', async () => {
+    const alone = document.createElement('div');
+    document.body.appendChild(alone);
+    hosts.push(alone);
+    act(() => render(h(LabWorkspace, { compile: async () => ok() }), alone));
+    let asked = confirm({ title: 'Replace your work?' });
+    await flush();
+    expect(document.querySelectorAll('[role="alertdialog"]')).toHaveLength(0);
+    act(() => useConfirmStore.getState().handleCancel());
+    await asked;
+    act(() => render(null, alone));
+
+    Object.defineProperty(window, 'crossOriginIsolated', { value: true, configurable: true });
+    const page = mount(h(LabPage, { reload: () => {} }));
+    await flush();
+    asked = confirm({ title: 'Replace your work?' });
+    await flush();
+    expect(page.querySelectorAll('[role="alertdialog"]')).toHaveLength(1);
+    act(() => useConfirmStore.getState().handleCancel());
+    await asked;
+  });
+});
+
+describe('BB-LAB-83: Each test starts with no Lab save written', () => {
+  it('finds no vams-lab key in localStorage', () => {
+    expect(localStorage.getItem('vams-lab')).toBeNull();
+  });
+});
+
+describe('BB-LAB-84: The file features reach other slices through their public index', () => {
+  it('imports @/entities/<slice> and never a path inside it', () => {
+    const root = join(__dirname, '../../src/features/lab-files/');
+    const sources = (readdirSync(root, { recursive: true }) as string[]).filter((f) => /\.tsx?$/.test(f));
+    const deep = sources.flatMap((f) =>
+      [...readFileSync(join(root, f), 'utf8').matchAll(/from '(@\/entities\/[^']+)'/g)]
+        .map(([, spec]) => spec)
+        .filter((spec) => /^@\/entities\/[^/]+\//.test(spec))
+        .map((spec) => `${f}: ${spec}`),
+    );
+    expect(deep).toEqual([]);
+  });
+});
+
+describe('BB-LAB-85: The suite map in tests/README.md lists every Lab black-box file', () => {
+  it('names each lab-*.test.ts', () => {
+    const readme = readFileSync(join(__dirname, '../README.md'), 'utf8');
+    const files = readdirSync(__dirname).filter((f) => /^lab-.*\.test\.ts$/.test(f));
+    expect(files.filter((f) => !readme.includes(f))).toEqual([]);
   });
 });

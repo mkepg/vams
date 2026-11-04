@@ -2,9 +2,22 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { LabEditor, statusLine, type Diagnostic } from '@/features/lab-editor';
 import { compileMessage, compileSource, LAB_MESSAGES, type CompileOptions, type CompileResult } from '@/features/lab-compile';
 import { consoleLines, INPUT_STATE, runController, useLabRun, useRunState, type LabFile, type RunStatus } from '@/features/lab-run';
-import { canOpen, chooseFile, EXAMPLES, FileList, loadExample, mayReplaceWork, newWork, OPEN_TAKES, OpenError, openWork, saveWork } from '@/features/lab-files';
-import { readLabFiles, useLabStore } from '@/entities/lab-project';
-import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
+import {
+  canOpen,
+  chooseFile,
+  EXAMPLES,
+  FileList,
+  loadExample,
+  mayReplaceWork,
+  missingFilesMessage,
+  newWork,
+  OPEN_TAKES,
+  OpenError,
+  openWork,
+  saveWork,
+  withBrowserSave,
+} from '@/features/lab-files';
+import { dropMissingFiles, readLabFiles, useLabStore } from '@/entities/lab-project';
 import type { MenuEntry } from '@/shared/ui/controls';
 import { LOG_SPLIT, PANE_SPLIT, splitStyle } from '../model/split';
 import { useIsNarrow } from '../model/use-narrow';
@@ -56,7 +69,9 @@ export default function LabWorkspace({ compile = compileSource, ...actions }: La
   const [fileNotice, setFileNotice] = useState<{ text: string | null } | null>(null);
   const tellFiles = (text: string | null) => setFileNotice({ text });
   const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setCompileMessage] = useState<string | null>(null);
+  // Run's lines say the code is saved in this browser only while it is.
+  const setMessage = (said: string | null) => setCompileMessage(withBrowserSave(said, useLabStore.getState().browserSaveFailed));
   const [jumpTo, setJumpTo] = useState<{ line: number; col: number } | undefined>();
   const [pane, setPane] = useState(PANE_SPLIT.initial);
   const [log, setLog] = useState(LOG_SPLIT.initial);
@@ -75,6 +90,13 @@ export default function LabWorkspace({ compile = compileSource, ...actions }: La
   useLayoutEffect(() => {
     latest.current = { source };
   });
+
+  // A file whose bytes this browser no longer holds leaves the list, and the list says which.
+  useEffect(() => {
+    void dropMissingFiles().then((missing) => {
+      if (missing.length > 0) tellFiles(missingFilesMessage(missing));
+    });
+  }, []);
 
   // Stop the program and any compile when the page goes.
   useEffect(
@@ -247,7 +269,6 @@ export default function LabWorkspace({ compile = compileSource, ...actions }: La
           <LabStage />
         </div>
       </main>
-      <ConfirmDialog />
     </div>
   );
 }

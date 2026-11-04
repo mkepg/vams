@@ -120,11 +120,28 @@ tests/
 │   ├── lab-api.test.ts                   (BB-LAB-*: the Lab's 2D set, as the
 │   │                                        bundled headers in lab/include
 │   │                                        declare and reject it)
-│   └── lab-runtime.test.ts               (BB-LAB-20 to 31 and 60: the worker
-│                                            runtime: GLUT's main loop, events,
-│                                            menus, typed input, system(), files,
-│                                            the output ring and the Console, and
-│                                            how a program's end is reported)
+│   ├── lab-functions.test.ts             (BB-LAB-05 to 08: the Pages Functions
+│   │                                        that forward compiles and serve the
+│   │                                        runtime)
+│   ├── lab-runtime.test.ts               (BB-LAB-20 to 31 and 60: the worker
+│   │                                        runtime: GLUT's main loop, events,
+│   │                                        menus, typed input, system(), files,
+│   │                                        the output ring and the Console, and
+│   │                                        how a program's end is reported)
+│   ├── lab-page.test.ts                  (BB-LAB-32 to 36, 59 and 65: the /lab
+│   │                                        route, its header link, isolation
+│   │                                        and the dev server)
+│   ├── lab-editor.test.ts                (BB-LAB-37 to 42 and 66 to 70: the
+│   │                                        code editor, the compile client and
+│   │                                        the log)
+│   ├── lab-workspace.test.ts             (BB-LAB-43 to 51 and 71 to 77: the
+│   │                                        workspace, the stage and the
+│   │                                        program's window)
+│   ├── lab-shared-layout.test.ts         (BB-LAB-61 to 64: the rings the page
+│   │                                        and the program's worker share)
+│   └── lab-files.test.ts                 (BB-LAB-52 to 57 and 78 to 85: the
+│                                            browser save, Save, Open, New, the
+│                                            examples and the file list)
 ├── white-box/                    ← Maps to Table 13.
 │   ├── state-management.test.ts          (WB-STATE-*)
 │   ├── matrix-engine.test.ts             (WB-MATRIX-*)

@@ -20,9 +20,9 @@ beforeEach(() => {
     globalThis.crypto.randomUUID = () => `uuid-${++__idCounter}`;
   }
   // Reset persisted state between tests
-  try { localStorage.clear(); } catch { /* noop */ }
-  // The Lab's browser save, as a first visit finds it.
+  // The Lab's store as a first visit finds it; then the clear removes the save that setting it wrote.
   useLabStore.setState(labProjectDefaults());
+  try { localStorage.clear(); } catch { /* noop */ }
   // Re-initialise store to default by calling reset actions that exist.
   const s = useVamsStore.getState();
   useVamsStore.setState({

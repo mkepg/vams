@@ -65,6 +65,11 @@ interface LabProjectData {
 }
 
 interface LabProjectState extends LabProjectData {
+  /**
+   * The browser couldn't keep part of the work this visit: localStorage refused the code, or
+   * IndexedDB a file. Not saved, since it is about this visit.
+   */
+  browserSaveFailed: boolean;
   setSource: (source: string) => void;
   setLogFolded: (folded: boolean) => void;
   /** Save has written the work to a file. */
@@ -79,7 +84,18 @@ interface LabProjectState extends LabProjectData {
   removeFile: (name: string) => Promise<void>;
 }
 
-export const labProjectDefaults = (): LabProjectData => ({ source: TEMPLATE, files: [], log: { folded: false }, unsaved: false });
+export const labProjectDefaults = (): LabProjectData & Pick<LabProjectState, 'browserSaveFailed'> => ({
+  source: TEMPLATE,
+  files: [],
+  log: { folded: false },
+  unsaved: false,
+  browserSaveFailed: false,
+});
+
+/** Notes, once, that the browser couldn't keep the work. */
+function saveFailed(): void {
+  if (!useLabStore.getState().browserSaveFailed) useLabStore.setState({ browserSaveFailed: true });
+}
 
 /** A full or blocked localStorage loses the browser save; it never breaks the edit that made it. */
 const safeStorage: StateStorage = {
@@ -94,7 +110,8 @@ const safeStorage: StateStorage = {
     try {
       localStorage.setItem(name, value);
     } catch {
-      // This change is not saved in the browser.
+      // This change is not saved in the browser. It is noted after this write, not inside it.
+      queueMicrotask(saveFailed);
     }
   },
   removeItem: (name) => {
@@ -107,6 +124,13 @@ const safeStorage: StateStorage = {
 };
 
 const meta = (file: LabFile): LabFileMeta => ({ name: file.name, type: file.type, size: file.bytes.length });
+
+/** Writes each file's bytes in order. Resolves whether IndexedDB kept every one. */
+async function writeAll(files: readonly LabFile[]): Promise<boolean> {
+  let kept = true;
+  for (const file of files) if (!(await writeFileBytes(file.name, file.bytes))) kept = false;
+  return kept;
+}
 
 /** One file per name apart from case; a later file takes the place of an earlier one. */
 function oneOfEach(files: readonly LabFile[]): LabFile[] {
@@ -134,14 +158,15 @@ export const useLabStore = create<LabProjectState>()(
           return;
         }
         const next = oneOfEach(files);
-        for (const file of next) await writeFileBytes(file.name, file.bytes);
+        const kept = await writeAll(next);
         const stale = get().files.filter((old) => !next.some((file) => file.name === old.name));
         set({ source, files: next.map(meta), unsaved: false });
+        if (!kept) saveFailed();
         for (const old of stale) await deleteFileBytes(old.name);
       },
       addFiles: async (files) => {
         // In order, so a later upload replaces an earlier one, in the list and in IndexedDB.
-        for (const file of files) await writeFileBytes(file.name, file.bytes);
+        const kept = await writeAll(files);
         const list = [...get().files];
         const replaced: ReplacedFile[] = [];
         const before = new Set<string>();
@@ -156,6 +181,7 @@ export const useLabStore = create<LabProjectState>()(
           list[at] = meta(file);
         }
         set({ files: list, unsaved: true });
+        if (!kept) saveFailed();
         for (const name of before) if (!list.some((m) => m.name === name)) await deleteFileBytes(name);
         return replaced;
       },
@@ -182,4 +208,16 @@ export async function readLabFiles(): Promise<LabFile[]> {
     }),
   );
   return files.filter((f): f is LabFile => f !== null);
+}
+
+/**
+ * Takes out of the list every file whose bytes this browser no longer holds, as a page load finds
+ * it, so the list never shows a file Run or Save can't give. Resolves the names it took out.
+ */
+export async function dropMissingFiles(): Promise<string[]> {
+  const listed = useLabStore.getState().files;
+  const found = await Promise.all(listed.map(async ({ name }) => (await readFileBytes(name)) !== undefined));
+  const missing = listed.filter((_, i) => !found[i]).map((m) => m.name);
+  if (missing.length > 0) useLabStore.setState({ files: useLabStore.getState().files.filter((m) => !missing.includes(m.name)) });
+  return missing;
 }
