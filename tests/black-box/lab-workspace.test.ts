@@ -10,12 +10,13 @@
  *  - The Console's input line
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { h, render } from 'preact';
+import { h, hydrate, render } from 'preact';
+import { renderToString } from 'preact-render-to-string';
 import { act } from 'preact/test-utils';
 import { EditorView } from '@codemirror/view';
 import { LabWorkspace } from '@/widgets/lab-workspace';
 import { useLabStage } from '@/widgets/lab-workspace/model/stage-store';
-import { runController, useLabRun, type WorkerLike } from '@/features/lab-run';
+import { HIDDEN_READ_MS, runController, useLabRun, type WorkerLike } from '@/features/lab-run';
 import type { StartMessage, WorkerMessage } from '@/features/lab-run/model/protocol';
 import {
   CONTROL,
@@ -24,6 +25,7 @@ import {
   inputWaiting,
   openLayout,
   postEvent,
+  putOutput,
   takeEvents,
   takeInput,
   type LabEvent,
@@ -31,7 +33,7 @@ import {
 } from '@/features/lab-run/model/shared-layout';
 import type { CompileResult } from '@/features/lab-compile';
 import { LAB_MESSAGES } from '@/features/lab-compile';
-import { LAB_WORKER_OUTPUT, labDevServer } from '../../scripts/lab/vite-lab-dev';
+import { LAB_WORKER_OUTPUT, isLabWorkerFile, labDevServer } from '../../scripts/lab/vite-lab-dev';
 import { readFileSync } from 'node:fs';
 import { PassThrough } from 'node:stream';
 
@@ -309,9 +311,7 @@ describe('BB-LAB-46: ✕ ends the program, and Run starts a fresh worker', () =>
   });
 
   it('emits the worker under lab/, and the dev server isolates the worker script', async () => {
-    for (const name of [LAB_WORKER_OUTPUT.entryFileNames, LAB_WORKER_OUTPUT.chunkFileNames, LAB_WORKER_OUTPUT.assetFileNames]) {
-      expect(name.startsWith('lab/')).toBe(true);
-    }
+    expect(LAB_WORKER_OUTPUT.entryFileNames({ name: 'lab-worker' }).startsWith('lab/')).toBe(true);
     expect(readFileSync('vite.config.ts', 'utf8')).toMatch(/worker:\s*\{[^}]*output:\s*LAB_WORKER_OUTPUT/);
     const plugin = labDevServer('.');
     let handler!: (req: unknown, res: unknown, next: () => void) => void;
@@ -605,5 +605,160 @@ describe('BB-LAB-51: The Console shows an input line only while the program wait
     key(input, 'keydown', 'y', 'KeyY');
     key(input, 'keydown', 'Enter', 'Enter');
     expect([...takeInput(w.views, inputWaiting(w.views))]).toEqual([121, 13]);
+  });
+});
+
+describe('BB-LAB-71: The prerendered workspace hydrates into the layout the screen needs', () => {
+  /** Renders as the prerender does (no matchMedia, no saved fold), then hydrates on this screen. */
+  async function hydrateOn(narrow: boolean, folded: boolean) {
+    Object.defineProperty(window, 'matchMedia', { configurable: true, value: undefined });
+    const html = renderToString(h(LabWorkspace, { compile: async () => ok() }));
+    narrowScreen(narrow);
+    if (folded) localStorage.setItem('vams-lab-log-folded', '1');
+    const host = document.createElement('div');
+    host.innerHTML = html;
+    document.body.appendChild(host);
+    hosts.push(host);
+    act(() => hydrate(h(LabWorkspace, { compile: async () => ok() }), host));
+    await flush();
+    return host;
+  }
+
+  it('stacks a narrow screen after hydration, with no handles and every pane in its place', async () => {
+    const host = await hydrateOn(true, false);
+    expect(host.querySelector('.lab-workspace')!.getAttribute('data-layout')).toBe('stacked');
+    expect(host.querySelectorAll('[role="separator"]')).toHaveLength(0);
+    expect(areas(host).replace(/\s+/g, ' ').trim()).toBe('"stage" "code" "log"');
+    expect(host.querySelector('.lab-workspace__stage > .lab-stage')).not.toBeNull();
+    expect(host.querySelector('.lab-workspace__log > .lab-log')).not.toBeNull();
+  });
+
+  it('folds the log after hydration when the last visit left it folded', async () => {
+    const host = await hydrateOn(false, true);
+    expect(host.querySelector('.lab-log')!.getAttribute('data-folded')).toBe('true');
+    expect(host.querySelectorAll('[role="separator"]')).toHaveLength(1);
+    expect(host.querySelector('.lab-workspace__log > .lab-log')).not.toBeNull();
+  });
+});
+
+describe('BB-LAB-72: A compile message or error comes forward after a run that showed the Console', () => {
+  const tabSelected = (host: HTMLElement, tab: string) => host.querySelector(`#lab-log-tab-${tab}`)!.getAttribute('aria-selected') === 'true';
+
+  it('shows the offline, failed and busy lines, and the errors, in front of the Console', async () => {
+    const results: CompileResult[] = [
+      ok(),
+      { kind: 'offline' },
+      ok(),
+      { kind: 'failed', status: 502 },
+      ok(),
+      { kind: 'errors', diagnostics: [{ file: 'main.cpp', line: 4, col: 2, severity: 'error', message: 'expected ;' }] },
+    ];
+    const host = mount(async () => results.shift()!);
+    for (const expected of [LAB_MESSAGES.offline, LAB_MESSAGES.failed]) {
+      await run(host);
+      expect(tabSelected(host, 'console')).toBe(true);
+      await run(host);
+      expect(tabSelected(host, 'compiler')).toBe(true);
+      expect(host.querySelector('.lab-log__message')!.textContent).toBe(expected);
+    }
+    await run(host);
+    expect(tabSelected(host, 'console')).toBe(true);
+    await run(host);
+    expect(tabSelected(host, 'compiler')).toBe(true);
+    expect(host.querySelector('.lab-log__list')!.textContent).toContain('main.cpp:4:2');
+  });
+
+  it('unfolds a folded log for the message, and remembers it open', async () => {
+    const host = mount(async () => ({ kind: 'offline' }));
+    const toggle = host.querySelector('.lab-log__fold') as HTMLButtonElement;
+    await act(() => toggle.click());
+    expect(host.querySelector('.lab-log')!.getAttribute('data-folded')).toBe('true');
+    await run(host);
+    expect(host.querySelector('.lab-log')!.getAttribute('data-folded')).toBe('false');
+    expect(host.querySelector('.lab-log__message')!.textContent).toBe(LAB_MESSAGES.offline);
+    expect(localStorage.getItem('vams-lab-log-folded')).toBe('0');
+  });
+});
+
+describe('BB-LAB-73: A program with no window can be stopped', () => {
+  it('shows Stop while it runs, and Stop ends it as ✕ does', async () => {
+    const host = mount();
+    const w = await run(host);
+    putOutput(w.views, 'stdout', new TextEncoder().encode('tick\n'));
+    const stop = [...host.querySelectorAll('button')].find((b) => b.textContent === 'Stop' || b.getAttribute('aria-label') === 'Stop')!;
+    expect(stop).toBeDefined();
+    await act(() => stop.click());
+    expect(w.terminated).toBe(true);
+    expect(useLabRun.getState().status).toBe('idle');
+    expect(host.querySelector('.lab-log__console')!.textContent).toContain('tick');
+    expect([...host.querySelectorAll('button')].some((b) => b.textContent === 'Stop')).toBe(false);
+  });
+});
+
+describe('BB-LAB-74: Output reaches the Console at exit and while the tab is hidden', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    Reflect.deleteProperty(document, 'visibilityState');
+  });
+
+  it('reads what the program printed just before exit, a split character included', async () => {
+    const host = mount();
+    const w = await run(host);
+    const bytes = new TextEncoder().encode('last line\nbye é');
+    putOutput(w.views, 'stdout', bytes.subarray(0, bytes.length - 1));
+    w.emit({ type: 'exit', code: 0 });
+    const text = host.querySelector('.lab-log__console')!.textContent!;
+    expect(text).toContain('last line');
+    expect(text).toContain('bye �');
+  });
+
+  it('reads on a timer only while the tab is hidden', () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    runController.start(MODULE());
+    const w = worker();
+    putOutput(w.views, 'stdout', new TextEncoder().encode('while hidden\n'));
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    vi.advanceTimersByTime(HIDDEN_READ_MS * 3);
+    expect(useLabRun.getState().console.lines).toEqual([]);
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    vi.advanceTimersByTime(HIDDEN_READ_MS);
+    expect(useLabRun.getState().console.lines).toEqual([{ stream: 'stdout', text: 'while hidden' }]);
+  });
+});
+
+describe('BB-LAB-75: A worker that cannot start says so once', () => {
+  it('prints one plain sentence, whether the worker fails to load or to be made', async () => {
+    const host = mount();
+    const w = await run(host);
+    act(() => w.onerror?.(new Event('error')));
+    expect(useLabRun.getState().status).toBe('crashed');
+    const text = host.querySelector('.lab-log__console')!.textContent!;
+    expect(text.trim()).toBe("The program couldn't start.");
+    runController.setWorkerFactory(() => {
+      throw new Error('no workers here');
+    });
+    await run(host);
+    expect(host.querySelector('.lab-log__console')!.textContent!.trim()).toBe("The program couldn't start.");
+  });
+});
+
+describe('BB-LAB-76: Bringing the Console forward remembers the log open', () => {
+  it('stores the unfolded log when a run unfolds it', async () => {
+    const host = mount();
+    await act(() => (host.querySelector('.lab-log__fold') as HTMLButtonElement).click());
+    expect(localStorage.getItem('vams-lab-log-folded')).toBe('1');
+    await run(host);
+    expect(host.querySelector('.lab-log')!.getAttribute('data-folded')).toBe('false');
+    expect(localStorage.getItem('vams-lab-log-folded')).toBe('0');
+  });
+});
+
+describe('BB-LAB-77: Only the Lab worker goes under lab/', () => {
+  it('names the Lab worker under lab/ and any other worker under assets/, and the Lab-off build drops only the Lab worker', () => {
+    expect(LAB_WORKER_OUTPUT.entryFileNames({ name: 'lab-worker' })).toBe('lab/[name]-[hash].js');
+    expect(LAB_WORKER_OUTPUT.entryFileNames({ name: 'thumbnail-worker' })).toBe('assets/[name]-[hash].js');
+    expect(isLabWorkerFile('lab/lab-worker-DkxZQMY4.js')).toBe(true);
+    expect(isLabWorkerFile('assets/thumbnail-worker-1234.js')).toBe(false);
+    expect(isLabWorkerFile('lab/index.html')).toBe(false);
   });
 });

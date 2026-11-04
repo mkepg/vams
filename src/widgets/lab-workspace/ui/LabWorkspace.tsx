@@ -55,6 +55,7 @@ export default function LabWorkspace({ compile = compileSource, initialSource = 
   const [log, setLog] = useState(LOG_SPLIT.initial);
   const [logFolded, setLogFolded] = useState(false);
   const [consoleRequest, setConsoleRequest] = useState(0);
+  const [compilerRequest, setCompilerRequest] = useState(0);
   const narrow = useIsNarrow();
   const { status, exitCode } = useRunState();
   const consoleLog = useLabRun((s) => s.console);
@@ -101,19 +102,26 @@ export default function LabWorkspace({ compile = compileSource, initialSource = 
           if (compiling.current !== controller) return;
           runController.busy();
           setMessage(LAB_MESSAGES.busy);
+          setCompilerRequest((n) => n + 1);
         },
       });
     } catch (error) {
       if (compiling.current !== controller) return;
       compiling.current = null;
       runController.compileEnded();
-      if (!isAbort(error)) setMessage(LAB_MESSAGES.failed);
+      if (!isAbort(error)) {
+        setMessage(LAB_MESSAGES.failed);
+        setCompilerRequest((n) => n + 1);
+      }
       return;
     }
     if (compiling.current !== controller) return;
     compiling.current = null;
-    setMessage(compileMessage(result));
+    const said = compileMessage(result);
+    setMessage(said);
     if (result.kind === 'ok' || result.kind === 'errors') setDiagnostics(result.diagnostics);
+    // What the compile has to say comes forward, even over a Console the last run brought forward.
+    if (said || result.kind === 'errors') setCompilerRequest((n) => n + 1);
     if (result.kind === 'ok') runController.start(result.module, latest.current.files);
     else runController.compileEnded();
   };
@@ -155,6 +163,7 @@ export default function LabWorkspace({ compile = compileSource, initialSource = 
             onLine={(text) => runController.sendLine(text)}
             onKey={(code) => runController.sendKey(code)}
             consoleRequest={consoleRequest}
+            compilerRequest={compilerRequest}
             onFoldedChange={setLogFolded}
           />
         </div>

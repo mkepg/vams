@@ -7,7 +7,7 @@ import { buildPwaOptions } from './src/app/pwa/pwa-options'
 import { buildRobots, buildSitemap } from './src/app/seo/sitemap'
 import { LAB_LIVE } from './src/pages/lab/model/lab-live'
 import { labEnabled } from './src/pages/lab/model/lab-enabled'
-import { LAB_WORKER_OUTPUT, labDevServer } from './scripts/lab/vite-lab-dev'
+import { LAB_WORKER_OUTPUT, isLabWorkerFile, labDevServer } from './scripts/lab/vite-lab-dev'
 
 function seoFiles(siteUrl: string, labOn: boolean): Plugin {
   return {
@@ -20,14 +20,17 @@ function seoFiles(siteUrl: string, labOn: boolean): Plugin {
   }
 }
 
-/** With the Lab off nothing loads its worker, so the build leaves the worker's files under lab/ out. */
+/**
+ * With the Lab off nothing loads its program worker, so the build leaves that one file out, and
+ * dist/lab is not made at all. Only the Lab worker is matched: any other worker is kept.
+ */
 function labOffDropsWorker(labOn: boolean): Plugin {
   return {
     name: 'vams-lab-off-drops-worker',
     apply: 'build',
     generateBundle(_options, bundle) {
       if (labOn) return
-      for (const name of Object.keys(bundle)) if (name.startsWith('lab/')) delete bundle[name]
+      for (const name of Object.keys(bundle)) if (isLabWorkerFile(name)) delete bundle[name]
     },
   }
 }
@@ -58,7 +61,8 @@ export default defineConfig(({ mode, command }) => {
 
   return {
     define: { __LAB_ENABLED__: JSON.stringify(labOn) },
-    // The Lab's program worker imports its runtime at run time, so it is an ES module, served from /lab/.
+    // Workers are ES modules (the Lab's imports its runtime at run time). LAB_WORKER_OUTPUT serves
+    // the Lab's from /lab/, for its isolation headers, and leaves any other worker in /assets/.
     worker: { format: 'es', rollupOptions: { output: LAB_WORKER_OUTPUT } },
     plugins: [
       preact({

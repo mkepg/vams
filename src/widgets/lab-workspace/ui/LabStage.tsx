@@ -11,6 +11,7 @@ import {
   type ProgramWindow,
   type RunStatus,
 } from '@/features/lab-run';
+import { Button } from '@/shared/ui/controls';
 import { CanvasWindow, type ResizeEdge, type WindowControls } from '@/shared/ui/floating-window';
 import { CHROME, FRAME_BORDER, clampRect, fullscreenRect, resizedProgram, windowRect, windowScale, type Rect, type Size } from '../model/stage-geometry';
 import { useLabStage } from '../model/stage-store';
@@ -96,9 +97,18 @@ export default function LabStage() {
   }, [fullscreen, measured]);
 
   if (!win) {
+    // A program without a window has no ✕, so the stage offers Stop, which ends it the same way.
+    const running = status === 'running' || status === 'waitingInput';
     return (
       <section ref={stageRef} className="lab-stage" aria-label="Stage">
-        <p className="lab-stage__empty">{stageMessage(status, exitCode)}</p>
+        <div className="lab-stage__empty">
+          <p className="lab-stage__message">{stageMessage(status, exitCode)}</p>
+          {running && (
+            <Button variant="secondary" onClick={() => runController.stop()}>
+              Stop
+            </Button>
+          )}
+        </div>
       </section>
     );
   }

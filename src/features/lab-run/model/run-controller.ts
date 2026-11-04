@@ -167,7 +167,7 @@ class RunController {
     try {
       worker = this.createWorker();
     } catch {
-      this.ended({ type: 'crash', message: NO_START });
+      this.ended({ type: 'crash', message: NO_START }, NO_START);
       return;
     }
     this.worker = worker;
@@ -177,8 +177,9 @@ class RunController {
     worker.onerror = (event) => {
       event.preventDefault?.();
       if (run !== this.run) return;
+      // A worker script that fails to load or to run reports an error event, often with no message.
       const message = (event as ErrorEvent).message;
-      this.ended({ type: 'crash', message: message || NO_START });
+      this.ended({ type: 'crash', message: message || NO_START }, message ? undefined : NO_START);
     };
     worker.postMessage({ type: 'start', module, files, shared });
     this.startPump();
@@ -342,10 +343,11 @@ class RunController {
     }
   }
 
-  private ended(message: { type: 'exit'; code: number } | { type: 'crash'; message: string }): void {
+  /** The program has ended. A crash prints `line` in the Console, by default "The program stopped: <message>". */
+  private ended(message: { type: 'exit'; code: number } | { type: 'crash'; message: string }, line?: string): void {
     this.pump();
     this.append(this.reader?.finish() ?? []);
-    if (message.type === 'crash') this.append([{ stream: 'stderr', text: `${crashLine(message.message)}\n` }]);
+    if (message.type === 'crash') this.append([{ stream: 'stderr', text: `${line ?? crashLine(message.message)}\n` }]);
     this.end();
     useLabRun.setState({
       status: message.type === 'exit' ? 'exited' : 'crashed',

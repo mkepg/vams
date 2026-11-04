@@ -17,6 +17,8 @@ export interface LabLogProps {
   onKey?: (code: number) => void;
   /** A new value brings the Console tab forward, unfolded. */
   consoleRequest?: number;
+  /** A new value brings the Compiler tab forward, unfolded. */
+  compilerRequest?: number;
   /** Told whether the log is folded, now and whenever that changes. */
   onFoldedChange?: (folded: boolean) => void;
 }
@@ -51,8 +53,21 @@ function consoleKey(event: KeyboardEvent): number | null {
   return code <= 0xff ? code : null;
 }
 
-export default function LabLog({ diagnostics, consoleLines, onJump, message, input, onLine, onKey, consoleRequest, onFoldedChange }: LabLogProps) {
-  const [folded, setFolded] = useState(readFolded);
+export default function LabLog({
+  diagnostics,
+  consoleLines,
+  onJump,
+  message,
+  input,
+  onLine,
+  onKey,
+  consoleRequest,
+  compilerRequest,
+  onFoldedChange,
+}: LabLogProps) {
+  // Unfolded in the first render, as the prerendered page is; the saved fold is read after hydration.
+  const [folded, setFolded] = useState(false);
+  const foldRead = useRef(false);
   const [tab, setTab] = useState<Tab>('compiler');
   const [line, setLine] = useState('');
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -62,16 +77,26 @@ export default function LabLog({ diagnostics, consoleLines, onJump, message, inp
     foldedChange.current = onFoldedChange;
   });
 
+  // Every fold is remembered once the saved one has been read: the student's own, and the unfold a request makes.
   useEffect(() => {
+    if (foldRead.current) writeFolded(folded);
     foldedChange.current?.(folded);
   }, [folded]);
 
-  // A new request brings the Console forward, during the render that brings it.
-  const [request, setRequest] = useState(consoleRequest);
-  if (consoleRequest !== request) {
-    setRequest(consoleRequest);
-    if (consoleRequest) {
-      setTab('console');
+  useEffect(() => {
+    foldRead.current = true;
+    // Two-pass render: the saved fold applies after hydration.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (readFolded()) setFolded(true);
+  }, []);
+
+  // A new request brings its tab forward, unfolded, during the render that brings it.
+  const [requests, setRequests] = useState({ console: consoleRequest, compiler: compilerRequest });
+  if (consoleRequest !== requests.console || compilerRequest !== requests.compiler) {
+    setRequests({ console: consoleRequest, compiler: compilerRequest });
+    const tabNow: Tab | null = compilerRequest !== requests.compiler && compilerRequest ? 'compiler' : consoleRequest ? 'console' : null;
+    if (tabNow) {
+      setTab(tabNow);
       setFolded(false);
     }
   }
@@ -90,11 +115,7 @@ export default function LabLog({ diagnostics, consoleLines, onJump, message, inp
     inputRef.current?.focus();
   }, [input, tab]);
 
-  const toggle = () => {
-    const next = !folded;
-    setFolded(next);
-    writeFolded(next);
-  };
+  const toggle = () => setFolded(!folded);
 
   return (
     <section className="lab-log" data-folded={folded ? 'true' : 'false'} aria-label="Log">

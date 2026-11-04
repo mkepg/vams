@@ -24,16 +24,23 @@ export function isLabPage(pathname: string): boolean {
   return pathname === '/lab' || pathname.startsWith('/lab/');
 }
 
+/** The Lab's program worker, as the build names it from src/features/lab-run/worker/lab-worker.ts. */
+const LAB_WORKER = 'lab-worker';
+
 /**
- * Where the build puts the program's worker and its chunks: under /lab/, so they get the isolation
- * headers public/_headers gives /lab/*. On an isolated page a worker script served without COEP
- * doesn't start.
+ * Where the build puts each worker script. The Lab's program worker goes under /lab/, so it gets
+ * the isolation headers public/_headers gives /lab/*: on an isolated page a worker script served
+ * without COEP doesn't start. Any other worker stays in /assets/ as before. What a worker imports
+ * needs no COEP of its own, so chunks and assets keep their usual place.
  */
 export const LAB_WORKER_OUTPUT = {
-  entryFileNames: 'lab/[name]-[hash].js',
-  chunkFileNames: 'lab/[name]-[hash].js',
-  assetFileNames: 'lab/[name]-[hash][extname]',
-} as const;
+  entryFileNames: (chunk: { name: string }) => (chunk.name === LAB_WORKER ? 'lab/[name]-[hash].js' : 'assets/[name]-[hash].js'),
+};
+
+/** Whether a built file is the Lab's program worker: what a build with the Lab off leaves out. */
+export function isLabWorkerFile(fileName: string): boolean {
+  return new RegExp(`^lab/${LAB_WORKER}-[\\w-]+\\.js$`).test(fileName.replace(/\\/g, '/'));
+}
 
 /** Whether a dev request is for a worker script: the browser says so, and Vite marks its worker URLs. */
 export function isWorkerScript(req: { url?: string; headers?: Record<string, string | string[] | undefined> }): boolean {

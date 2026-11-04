@@ -110,14 +110,14 @@
     position: absolute;
     inset: 0;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    margin: 0;
+    gap: var(--space-3);
     padding: var(--space-5);
     text-align: center;
-    color: var(--ink-muted);
-    font-size: var(--text-md);
   }
+  &__message { margin: 0; color: var(--ink-muted); font-size: var(--text-md); }
 
   &__surface {
     position: absolute;
