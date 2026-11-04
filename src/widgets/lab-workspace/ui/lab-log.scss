@@ -77,3 +77,27 @@
 
 .lab-log__console { margin: 0; font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
 .lab-log__line--stderr { color: var(--danger); }
+
+// The Console's input line.
+.lab-log__input {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+.lab-log__prompt { font-family: var(--font-ui); font-size: var(--text-xs); color: var(--ink-muted); }
+.lab-log__field {
+  min-height: var(--control-h);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--field-line);
+  border-radius: var(--radius-s);
+  background: var(--field-bg);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+
+  &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+}
+
+// A program's output shows character for character: no ligature turns its ">=" into one glyph.
+.lab-log__console { font-variant-ligatures: none; }

@@ -7,7 +7,7 @@ import { buildPwaOptions } from './src/app/pwa/pwa-options'
 import { buildRobots, buildSitemap } from './src/app/seo/sitemap'
 import { LAB_LIVE } from './src/pages/lab/model/lab-live'
 import { labEnabled } from './src/pages/lab/model/lab-enabled'
-import { labDevServer } from './scripts/lab/vite-lab-dev'
+import { LAB_WORKER_OUTPUT, labDevServer } from './scripts/lab/vite-lab-dev'
 
 function seoFiles(siteUrl: string, labOn: boolean): Plugin {
   return {
@@ -16,6 +16,18 @@ function seoFiles(siteUrl: string, labOn: boolean): Plugin {
     generateBundle() {
       this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: buildSitemap(siteUrl, publishedRoutes(labOn)) })
       this.emitFile({ type: 'asset', fileName: 'robots.txt', source: buildRobots(siteUrl) })
+    },
+  }
+}
+
+/** With the Lab off nothing loads its worker, so the build leaves the worker's files under lab/ out. */
+function labOffDropsWorker(labOn: boolean): Plugin {
+  return {
+    name: 'vams-lab-off-drops-worker',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      if (labOn) return
+      for (const name of Object.keys(bundle)) if (name.startsWith('lab/')) delete bundle[name]
     },
   }
 }
@@ -46,6 +58,8 @@ export default defineConfig(({ mode, command }) => {
 
   return {
     define: { __LAB_ENABLED__: JSON.stringify(labOn) },
+    // The Lab's program worker imports its runtime at run time, so it is an ES module, served from /lab/.
+    worker: { format: 'es', rollupOptions: { output: LAB_WORKER_OUTPUT } },
     plugins: [
       preact({
         prerender: {
@@ -58,6 +72,7 @@ export default defineConfig(({ mode, command }) => {
       }),
       labDevServer(fileURLToPath(new URL('./lab/runtime/out', import.meta.url))),
       seoFiles(siteUrl, labOn),
+      labOffDropsWorker(labOn),
       notFoundPage(),
       VitePWA(buildPwaOptions()),
     ],

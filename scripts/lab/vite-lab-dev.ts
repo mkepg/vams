@@ -25,6 +25,22 @@ export function isLabPage(pathname: string): boolean {
 }
 
 /**
+ * Where the build puts the program's worker and its chunks: under /lab/, so they get the isolation
+ * headers public/_headers gives /lab/*. On an isolated page a worker script served without COEP
+ * doesn't start.
+ */
+export const LAB_WORKER_OUTPUT = {
+  entryFileNames: 'lab/[name]-[hash].js',
+  chunkFileNames: 'lab/[name]-[hash].js',
+  assetFileNames: 'lab/[name]-[hash][extname]',
+} as const;
+
+/** Whether a dev request is for a worker script: the browser says so, and Vite marks its worker URLs. */
+export function isWorkerScript(req: { url?: string; headers?: Record<string, string | string[] | undefined> }): boolean {
+  return req.headers?.['sec-fetch-dest'] === 'worker' || /[?&]worker_file(&|=|$)/.test(req.url ?? '');
+}
+
+/**
  * Dev server only: serves the runtime built in `dir` at /lab-runtime/dev/ as the production
  * function serves it from KV, and sends the isolation headers /lab gets from public/_headers.
  */
@@ -35,7 +51,8 @@ export function labDevServer(dir: string): Plugin {
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const pathname = (req.url ?? '').split(/[?#]/)[0];
-        if (isLabPage(pathname)) {
+        // The page, and the worker it starts, which must be isolated too.
+        if (isLabPage(pathname) || isWorkerScript(req)) {
           res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
           res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
           return next();

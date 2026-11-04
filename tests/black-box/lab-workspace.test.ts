@@ -1,0 +1,609 @@
+/**
+ * BLACK-BOX TEST SUITE — BB-LAB (the workspace, the stage and the program window)
+ * Test focus:
+ *  - The program's window opens at the size and place the program asks for, scaled down only to fit
+ *  - The title bar drags it and shows the program's title; the grip resizes it and sends a reshape
+ *  - ✕ ends the worker, Run starts a fresh one, and the worker is served where the isolation headers are
+ *  - Keys and the mouse reach the program only from its window, in its pixels, and releases always arrive
+ *  - The right-click menu is a DOM menu the keyboard can work
+ *  - Marey's split: two handles that move by keyboard and pointer, and a stacked layout below 760 px
+ *  - The Console's input line
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { h, render } from 'preact';
+import { act } from 'preact/test-utils';
+import { EditorView } from '@codemirror/view';
+import { LabWorkspace } from '@/widgets/lab-workspace';
+import { useLabStage } from '@/widgets/lab-workspace/model/stage-store';
+import { runController, useLabRun, type WorkerLike } from '@/features/lab-run';
+import type { StartMessage, WorkerMessage } from '@/features/lab-run/model/protocol';
+import {
+  CONTROL,
+  EVENT_SLOTS,
+  INPUT_STATE,
+  inputWaiting,
+  openLayout,
+  postEvent,
+  takeEvents,
+  takeInput,
+  type LabEvent,
+  type LayoutViews,
+} from '@/features/lab-run/model/shared-layout';
+import type { CompileResult } from '@/features/lab-compile';
+import { LAB_MESSAGES } from '@/features/lab-compile';
+import { LAB_WORKER_OUTPUT, labDevServer } from '../../scripts/lab/vite-lab-dev';
+import { readFileSync } from 'node:fs';
+import { PassThrough } from 'node:stream';
+
+class FakeWorker implements WorkerLike {
+  started: StartMessage | null = null;
+  terminated = false;
+  onmessage: ((event: MessageEvent<WorkerMessage>) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+  private opened: LayoutViews | null = null;
+  postMessage(message: StartMessage) {
+    this.started = message;
+  }
+  terminate() {
+    this.terminated = true;
+  }
+  emit(message: WorkerMessage) {
+    act(() => this.onmessage?.({ data: message } as MessageEvent<WorkerMessage>));
+  }
+  /** The worker's own view of the shared memory. */
+  get views(): LayoutViews {
+    this.opened ??= openLayout(this.started!.shared);
+    return this.opened;
+  }
+  events(): LabEvent[] {
+    return takeEvents(this.views);
+  }
+}
+
+const MODULE = () => new Uint8Array([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]).buffer;
+const ok = (): CompileResult => ({ kind: 'ok', module: MODULE(), diagnostics: [] });
+
+let workers: FakeWorker[] = [];
+const hosts: HTMLElement[] = [];
+const worker = () => workers[workers.length - 1];
+
+beforeEach(() => {
+  workers = [];
+  runController.setWorkerFactory(() => {
+    const w = new FakeWorker();
+    workers.push(w);
+    return w;
+  });
+  useLabStage.getState().reset();
+});
+
+afterEach(() => {
+  for (const host of hosts.splice(0)) {
+    act(() => render(null, host));
+    host.remove();
+  }
+  runController.reset();
+  vi.restoreAllMocks();
+  Reflect.deleteProperty(window, 'matchMedia');
+});
+
+const flush = async () => {
+  for (let i = 0; i < 5; i++) await act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
+};
+
+function mount(compile: (source: string) => Promise<CompileResult> = async () => ok()) {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  hosts.push(host);
+  act(() => render(h(LabWorkspace, { compile }), host));
+  return host;
+}
+
+const runButton = (host: HTMLElement) => [...host.querySelectorAll('button')].find((b) => b.textContent?.includes('Run'))!;
+
+async function run(host: HTMLElement) {
+  await act(() => runButton(host).click());
+  await flush();
+  return worker();
+}
+
+const DEMO = { type: 'window', title: 'Demo', width: 500, height: 500, x: 50, y: 40 } as const;
+
+async function runWithWindow(host: HTMLElement, message: WorkerMessage = DEMO) {
+  const w = await run(host);
+  w.emit(message);
+  return w;
+}
+
+const windowEl = (host: HTMLElement) => host.querySelector('.canvas-window') as HTMLElement;
+const surface = (host: HTMLElement) => host.querySelector('.lab-stage__surface') as HTMLElement;
+const px = (value: string) => Number.parseFloat(value);
+const setStage = (width: number, height: number) => act(() => useLabStage.getState().setStage({ width, height }));
+const pointer = (el: Element, type: string, x: number, y: number, button = 0, buttons = 1) =>
+  act(() => {
+    el.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, button, buttons, pointerId: 1, bubbles: true }));
+  });
+const key = (el: Element, type: 'keydown' | 'keyup', k: string, code = '', extra: KeyboardEventInit = {}) => {
+  const event = new KeyboardEvent(type, { key: k, code, bubbles: true, cancelable: true, ...extra });
+  act(() => {
+    el.dispatchEvent(event);
+  });
+  return event;
+};
+const rectOf = (el: Element, left: number, top: number, width: number, height: number) =>
+  vi.spyOn(el, 'getBoundingClientRect').mockReturnValue({ left, top, width, height, right: left + width, bottom: top + height, x: left, y: top, toJSON: () => ({}) } as DOMRect);
+
+describe('BB-LAB-43: The window opens at the size and place the program asks for', () => {
+  it('opens at glutInitWindowSize and glutInitWindowPosition on a stage with room', async () => {
+    setStage(1200, 800);
+    const host = mount();
+    await runWithWindow(host);
+    const el = windowEl(host);
+    expect(px(el.style.left)).toBe(50);
+    expect(px(el.style.top)).toBe(40);
+    // The frame's border on each side, and the title bar.
+    expect(px(el.style.width)).toBe(502);
+    expect(px(el.style.height)).toBe(530);
+    const canvas = el.querySelector('canvas')!;
+    expect(canvas.width).toBe(500);
+    expect(canvas.height).toBe(500);
+    expect(el.querySelector('.canvas-window__size')!.textContent).toBe('500 × 500');
+  });
+
+  it('never scales a window up, and centres one the program does not place', async () => {
+    setStage(1200, 800);
+    const host = mount();
+    await runWithWindow(host, { type: 'window', title: 'Small', width: 200, height: 100, x: -1, y: -1 });
+    const el = windowEl(host);
+    expect(px(el.style.width)).toBe(202);
+    expect(px(el.style.height)).toBe(130);
+    expect(px(el.style.left)).toBe(Math.round((1200 - 202) / 2));
+    expect(px(el.style.top)).toBe(Math.round((800 - 130) / 2));
+  });
+
+  it('scales down to fit a smaller stage, keeping the shape, and back up when the stage grows', async () => {
+    setStage(400, 300);
+    const host = mount();
+    await runWithWindow(host, { type: 'window', title: 'Wide', width: 800, height: 400, x: 0, y: 0 });
+    const el = windowEl(host);
+    const bodyW = px(el.style.width) - 2;
+    const bodyH = px(el.style.height) - 30;
+    expect(px(el.style.width)).toBeLessThanOrEqual(400);
+    expect(px(el.style.height)).toBeLessThanOrEqual(300);
+    expect(Math.abs(bodyW / bodyH - 2)).toBeLessThan(0.02);
+    // The program still has the window it asked for.
+    expect(el.querySelector('canvas')!.width).toBe(800);
+    expect(useLabRun.getState().window).toMatchObject({ width: 800, height: 400 });
+    setStage(1600, 1000);
+    expect(px(windowEl(host).style.width)).toBe(802);
+  });
+});
+
+describe('BB-LAB-44: The title bar drags the window and shows the program title', () => {
+  it('moves with the bar and shows glutCreateWindow and glutSetWindowTitle text', async () => {
+    setStage(1200, 800);
+    const host = mount();
+    const w = await runWithWindow(host);
+    const bar = host.querySelector('.canvas-window__bar')!;
+    expect(host.querySelector('.canvas-window__title')!.textContent).toBe('Demo');
+    pointer(bar, 'pointerdown', 100, 100);
+    pointer(bar, 'pointermove', 160, 130);
+    pointer(bar, 'pointerup', 160, 130);
+    expect(px(windowEl(host).style.left)).toBe(110);
+    expect(px(windowEl(host).style.top)).toBe(70);
+    // Moving the window is the window system's business: the program hears nothing.
+    expect(w.events()).toEqual([]);
+    w.emit({ type: 'title', title: 'Score: 3' });
+    expect(host.querySelector('.canvas-window__title')!.textContent).toBe('Score: 3');
+  });
+
+  it('keeps the bar on the stage', async () => {
+    setStage(1200, 800);
+    const host = mount();
+    await runWithWindow(host);
+    const bar = host.querySelector('.canvas-window__bar')!;
+    pointer(bar, 'pointerdown', 100, 100);
+    pointer(bar, 'pointermove', 100, -400);
+    pointer(bar, 'pointerup', 100, -400);
+    expect(px(windowEl(host).style.top)).toBe(0);
+  });
+});
+
+describe('BB-LAB-45: The grip resizes the window and the program gets a reshape', () => {
+  it('posts the new size as a reshape, and the window shows it', async () => {
+    setStage(1200, 800);
+    const host = mount();
+    const w = await runWithWindow(host);
+    const grip = host.querySelector('.canvas-window__handle--se')!;
+    pointer(grip, 'pointerdown', 600, 600);
+    pointer(grip, 'pointermove', 650, 620);
+    pointer(grip, 'pointerup', 650, 620);
+    expect(w.events()).toEqual([{ kind: 'reshape', width: 550, height: 520 }]);
+    expect(useLabRun.getState().window).toMatchObject({ width: 550, height: 520 });
+    expect(px(windowEl(host).style.width)).toBe(552);
+    expect(px(windowEl(host).style.height)).toBe(550);
+  });
+
+  it('sends a reshape for glutReshapeWindow and fills the stage for glutFullScreen', async () => {
+    setStage(1200, 800);
+    const host = mount();
+    const w = await runWithWindow(host);
+    w.emit({ ...DEMO, width: 320, height: 240 });
+    expect(w.events()).toEqual([{ kind: 'reshape', width: 320, height: 240 }]);
+    w.emit({ type: 'fullscreen' });
+    expect(w.events()).toEqual([{ kind: 'reshape', width: 1198, height: 770 }]);
+    expect(px(windowEl(host).style.width)).toBe(1200);
+    expect(px(windowEl(host).style.height)).toBe(800);
+  });
+});
+
+describe('BB-LAB-46: ✕ ends the program, and Run starts a fresh worker', () => {
+  it('terminates the worker on ✕ and starts a new one on Run', async () => {
+    setStage(1200, 800);
+    const compile = vi.fn(async () => ok());
+    const host = mount(compile);
+    const first = await runWithWindow(host);
+    expect(first.started!.type).toBe('start');
+    expect(useLabRun.getState().status).toBe('running');
+    await act(() => (host.querySelector('.canvas-window button[aria-label="Close"]') as HTMLButtonElement).click());
+    expect(first.terminated).toBe(true);
+    expect(useLabRun.getState().status).toBe('idle');
+    expect(windowEl(host)).toBeNull();
+    const second = await run(host);
+    expect(compile).toHaveBeenCalledTimes(2);
+    expect(second).not.toBe(first);
+    expect(second.started!.shared.buffer).not.toBe(first.started!.shared.buffer);
+    expect(useLabRun.getState().status).toBe('running');
+  });
+
+  it('shows how the program ended, and keeps the Console', async () => {
+    const host = mount();
+    const w = await run(host);
+    w.emit({ type: 'exit', code: 3 });
+    expect(w.terminated).toBe(true);
+    expect(useLabRun.getState()).toMatchObject({ status: 'exited', exitCode: 3 });
+    expect(host.querySelector('.lab-top-bar__status')!.textContent).toContain('exit code 3');
+    const again = await run(host);
+    again.emit({ type: 'crash', message: 'unreachable' });
+    expect(useLabRun.getState().status).toBe('crashed');
+    expect(host.querySelector('.lab-log__console')!.textContent).toContain('The program stopped: unreachable');
+  });
+
+  it('puts each compile result in Run’s status and message, with the spec’s words', async () => {
+    const results: CompileResult[] = [
+      { kind: 'offline' },
+      { kind: 'resting', until: 'month' },
+      { kind: 'limited' },
+      { kind: 'failed', status: 500 },
+      { kind: 'errors', diagnostics: [{ file: 'main.cpp', line: 2, col: 1, severity: 'error', message: 'expected ;' }] },
+    ];
+    const host = mount(async () => results.shift()!);
+    for (const expected of [LAB_MESSAGES.offline, LAB_MESSAGES.restingMonth, LAB_MESSAGES.limited, LAB_MESSAGES.failed]) {
+      await run(host);
+      expect(useLabRun.getState().status).toBe('idle');
+      expect(host.querySelector('.lab-log__message')!.textContent).toBe(expected);
+    }
+    await run(host);
+    expect(useLabRun.getState().status).toBe('idle');
+    expect(host.querySelector('.lab-top-bar__status')!.textContent).toContain('main.cpp · 1 error');
+    expect(workers).toHaveLength(0);
+  });
+
+  it('shows the busy line while the service is busy', async () => {
+    let finish!: (r: CompileResult) => void;
+    const host = mount(
+      (_source: string, opts?: { onBusy?: () => void }) =>
+        new Promise<CompileResult>((resolve) => {
+          opts?.onBusy?.();
+          finish = resolve;
+        }),
+    );
+    await act(() => runButton(host).click());
+    await flush();
+    expect(useLabRun.getState().status).toBe('busy');
+    expect(host.querySelector('.lab-log__message')!.textContent).toBe(LAB_MESSAGES.busy);
+    finish(ok());
+    await flush();
+    expect(useLabRun.getState().status).toBe('running');
+    expect(host.querySelector('.lab-log__message')).toBeNull();
+  });
+
+  it('emits the worker under lab/, and the dev server isolates the worker script', async () => {
+    for (const name of [LAB_WORKER_OUTPUT.entryFileNames, LAB_WORKER_OUTPUT.chunkFileNames, LAB_WORKER_OUTPUT.assetFileNames]) {
+      expect(name.startsWith('lab/')).toBe(true);
+    }
+    expect(readFileSync('vite.config.ts', 'utf8')).toMatch(/worker:\s*\{[^}]*output:\s*LAB_WORKER_OUTPUT/);
+    const plugin = labDevServer('.');
+    let handler!: (req: unknown, res: unknown, next: () => void) => void;
+    (plugin.configureServer as (server: unknown) => void)({ middlewares: { use: (fn: typeof handler) => (handler = fn) } });
+    const headers: Record<string, string> = {};
+    const res = Object.assign(new PassThrough(), { statusCode: 200, setHeader: (n: string, v: string) => void (headers[n.toLowerCase()] = v) });
+    let passed = false;
+    handler({ url: '/src/features/lab-run/worker/lab-worker.ts?worker_file&type=module', method: 'GET', headers: { 'sec-fetch-dest': 'worker' } }, res, () => {
+      passed = true;
+    });
+    expect(passed).toBe(true);
+    expect(headers['cross-origin-embedder-policy']).toBe('require-corp');
+  });
+});
+
+describe('BB-LAB-47: Keys and the mouse reach the program only from its window', () => {
+  it('sends keys while the window has focus, and none from anywhere else', async () => {
+    setStage(1200, 800);
+    const host = mount();
+    const w = await runWithWindow(host);
+    key(document.body, 'keydown', 'a', 'KeyA');
+    expect(w.events()).toEqual([]);
+    const s = surface(host);
+    act(() => s.focus());
+    expect(document.activeElement).toBe(s);
+    const down = key(s, 'keydown', 'a', 'KeyA');
+    key(s, 'keyup', 'a', 'KeyA');
+    const arrow = key(s, 'keydown', 'ArrowLeft', 'ArrowLeft', { shiftKey: true });
+    key(s, 'keyup', 'ArrowLeft', 'ArrowLeft');
+    expect(down.defaultPrevented).toBe(true);
+    expect(arrow.defaultPrevented).toBe(true);
+    expect(w.events()).toEqual([
+      { kind: 'key', key: 97, x: 0, y: 0, modifiers: 0 },
+      { kind: 'keyUp', key: 97, x: 0, y: 0, modifiers: 0 },
+      { kind: 'special', key: 100, x: 0, y: 0, modifiers: 1 },
+      { kind: 'specialUp', key: 100, x: 0, y: 0, modifiers: 0 },
+    ]);
+    // Tab moves focus on, as everywhere on the page.
+    expect(key(s, 'keydown', 'Tab', 'Tab').defaultPrevented).toBe(false);
+    expect(w.events()).toEqual([]);
+  });
+
+  it('releases a key held when the window loses focus', async () => {
+    setStage(1200, 800);
+    const host = mount();
+    const w = await runWithWindow(host);
+    const s = surface(host);
+    act(() => s.focus());
+    key(s, 'keydown', 'd', 'KeyD');
+    act(() => s.blur());
+    expect(w.events().map((e) => e.kind)).toEqual(['key', 'keyUp']);
+  });
+
+  it('gives mouse positions in window pixels, y down, corrected for the scale', async () => {
+    setStage(1200, 800);
+    const host = mount();
+    const w = await runWithWindow(host);
+    rectOf(surface(host), 100, 50, 500, 500);
+    pointer(surface(host), 'pointerdown', 110, 70);
+    pointer(surface(host), 'pointermove', 120, 90);
+    pointer(surface(host), 'pointerup', 120, 90, 0, 0);
+    pointer(surface(host), 'pointermove', 130, 95, 0, 0);
+    expect(w.events()).toEqual([
+      { kind: 'mouse', button: 0, state: 0, x: 10, y: 20, modifiers: 0 },
+      { kind: 'motion', x: 20, y: 40 },
+      { kind: 'mouse', button: 0, state: 1, x: 20, y: 40, modifiers: 0 },
+      { kind: 'passiveMotion', x: 30, y: 45 },
+    ]);
+    // The same window shown at half size on a small stage.
+    setStage(300, 300);
+    rectOf(surface(host), 0, 0, 250, 250);
+    pointer(surface(host), 'pointerdown', 25, 200);
+    expect(w.events()).toEqual([{ kind: 'mouse', button: 0, state: 0, x: 50, y: 400, modifiers: 0 }]);
+  });
+
+  it('never drops a release while the ring is full, and keeps only the latest motion', async () => {
+    setStage(1200, 800);
+    const host = mount();
+    const w = await runWithWindow(host);
+    // The program is busy and reads nothing: fill the ring.
+    for (let i = 0; i < EVENT_SLOTS; i++) expect(postEvent(w.views, { kind: 'entry', state: 1 })).toBe(true);
+    const s = surface(host);
+    act(() => s.focus());
+    key(s, 'keydown', 'w', 'KeyW');
+    for (let i = 0; i < 2000; i++) pointer(s, 'pointermove', i % 400, 10, 0, 0);
+    key(s, 'keyup', 'w', 'KeyW');
+    expect(w.events()).toHaveLength(EVENT_SLOTS);
+    act(() => runController.pump());
+    const later = w.events();
+    expect(later.map((e) => e.kind)).toEqual(['key', 'passiveMotion', 'keyUp']);
+  });
+
+  it('tells the student how the keyboard leaves the editor, and Esc then Tab does', async () => {
+    const host = mount();
+    const content = host.querySelector('.cm-content') as HTMLElement;
+    const hint = document.getElementById(content.getAttribute('aria-describedby')!)!;
+    expect(hint.textContent).toContain('Esc then Tab');
+    expect(hint.textContent).toContain('Ctrl+M');
+    const view = EditorView.findFromDOM(host.querySelector('.cm-editor') as HTMLElement)!;
+    expect(key(view.contentDOM, 'keydown', 'Tab', 'Tab', { keyCode: 9 } as KeyboardEventInit).defaultPrevented).toBe(true);
+    key(view.contentDOM, 'keydown', 'Escape', 'Escape', { keyCode: 27 } as KeyboardEventInit);
+    expect(key(view.contentDOM, 'keydown', 'Tab', 'Tab', { keyCode: 9 } as KeyboardEventInit).defaultPrevented).toBe(false);
+  });
+});
+
+const MENUS: WorkerMessage = {
+  type: 'menus',
+  tree: [
+    { id: 1, entries: [{ label: 'Red', value: 1 }, { label: 'Shapes', submenu: 2 }, { label: 'Quit', value: 9 }] },
+    { id: 2, entries: [{ label: 'Square', value: 4 }] },
+  ],
+  attached: [{ button: 2, menu: 1 }],
+};
+
+describe('BB-LAB-48: Right-click opens the attached menu as a DOM menu', () => {
+  it('opens on the right button, works by keyboard, and posts the choice', async () => {
+    setStage(1200, 800);
+    const host = mount();
+    const w = await runWithWindow(host);
+    w.emit(MENUS);
+    rectOf(surface(host), 100, 50, 500, 500);
+    pointer(surface(host), 'pointerdown', 150, 100, 2, 2);
+    const menu = host.querySelector('[role="menu"]') as HTMLElement;
+    expect(menu).not.toBeNull();
+    const items = [...menu.querySelectorAll('[role="menuitem"]')];
+    expect(items.map((i) => i.textContent)).toEqual(['Red', 'Shapes', 'Quit']);
+    expect(items[1].getAttribute('aria-haspopup')).toBe('menu');
+    expect(document.activeElement).toBe(items[0]);
+    // A button with a menu opens the menu, not the mouse callback.
+    expect(w.events()).toEqual([]);
+    key(document.activeElement!, 'keydown', 'ArrowDown');
+    expect(document.activeElement!.textContent).toBe('Shapes');
+    key(document.activeElement!, 'keydown', 'ArrowRight');
+    expect(document.activeElement!.textContent).toBe('Square');
+    key(document.activeElement!, 'keydown', 'Enter');
+    expect(w.events()).toEqual([{ kind: 'menu', menu: 2, value: 4 }]);
+    expect(host.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(surface(host));
+  });
+
+  it('opens from the keyboard, closes on Esc, and takes a click', async () => {
+    setStage(1200, 800);
+    const host = mount();
+    const w = await runWithWindow(host);
+    w.emit(MENUS);
+    const s = surface(host);
+    act(() => s.focus());
+    key(s, 'keydown', 'F10', 'F10', { shiftKey: true });
+    expect(host.querySelector('[role="menu"]')).not.toBeNull();
+    key(document.activeElement!, 'keydown', 'Escape');
+    expect(host.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(s);
+    key(s, 'keydown', 'ContextMenu', 'ContextMenu');
+    const quit = [...host.querySelectorAll('[role="menuitem"]')].find((i) => i.textContent === 'Quit') as HTMLElement;
+    await act(() => quit.click());
+    expect(w.events()).toEqual([{ kind: 'menu', menu: 1, value: 9 }]);
+  });
+
+  it('leaves a button without a menu to the mouse callback', async () => {
+    setStage(1200, 800);
+    const host = mount();
+    const w = await runWithWindow(host);
+    w.emit(MENUS);
+    rectOf(surface(host), 0, 0, 500, 500);
+    pointer(surface(host), 'pointerdown', 5, 6, 0, 1);
+    expect(host.querySelector('[role="menu"]')).toBeNull();
+    expect(w.events()).toEqual([{ kind: 'mouse', button: 0, state: 0, x: 5, y: 6, modifiers: 0 }]);
+  });
+});
+
+function narrowScreen(narrow: boolean) {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: (query: string) => ({
+      matches: narrow && query === '(max-width: 759px)',
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }),
+  });
+}
+
+const areas = (host: HTMLElement) => (host.querySelector('.lab-workspace__split') as HTMLElement).style.gridTemplateAreas;
+
+describe('BB-LAB-49: Below 760 px the panes stack window, code, log, with no handles', () => {
+  it('stacks with no separators on a narrow screen', () => {
+    narrowScreen(true);
+    const host = mount();
+    expect(host.querySelector('.lab-workspace')!.getAttribute('data-layout')).toBe('stacked');
+    expect(host.querySelectorAll('[role="separator"]')).toHaveLength(0);
+    expect(areas(host).replace(/\s+/g, ' ').trim()).toBe('"stage" "code" "log"');
+  });
+
+  it('splits code and log on the left of the stage on a wide screen', () => {
+    narrowScreen(false);
+    const host = mount();
+    expect(host.querySelector('.lab-workspace')!.getAttribute('data-layout')).toBe('split');
+    expect(host.querySelectorAll('[role="separator"]')).toHaveLength(2);
+    const rows = areas(host).match(/"[^"]*"/g)!;
+    expect(rows[0]).toBe('"code panes stage"');
+    expect(rows[rows.length - 1]).toBe('"log panes stage"');
+  });
+});
+
+describe('BB-LAB-50: The handles resize the panes by keyboard and pointer, within limits', () => {
+  const paneHandle = (host: HTMLElement) => host.querySelector('[role="separator"][aria-orientation="vertical"]') as HTMLElement;
+  const logHandle = (host: HTMLElement) => host.querySelector('[role="separator"][aria-orientation="horizontal"]') as HTMLElement;
+  const now = (el: HTMLElement) => Number(el.getAttribute('aria-valuenow'));
+
+  it('moves by arrow keys, Home and End, and stops at the limits', () => {
+    const host = mount();
+    const panes = paneHandle(host);
+    expect(panes.tabIndex).toBe(0);
+    expect(panes.getAttribute('aria-label')).toBeTruthy();
+    expect(now(panes)).toBe(52);
+    expect(panes.getAttribute('aria-valuemin')).toBe('20');
+    expect(panes.getAttribute('aria-valuemax')).toBe('80');
+    key(panes, 'keydown', 'ArrowRight');
+    expect(now(panes)).toBe(54);
+    key(panes, 'keydown', 'ArrowLeft');
+    key(panes, 'keydown', 'ArrowLeft');
+    expect(now(panes)).toBe(50);
+    key(panes, 'keydown', 'End');
+    expect(now(panes)).toBe(80);
+    key(panes, 'keydown', 'ArrowRight');
+    expect(now(panes)).toBe(80);
+    key(panes, 'keydown', 'Home');
+    expect(now(panes)).toBe(20);
+    const log = logHandle(host);
+    const before = now(log);
+    key(log, 'keydown', 'ArrowDown');
+    expect(now(log)).toBe(before + 2);
+    key(log, 'keydown', 'ArrowUp', '', { shiftKey: true });
+    expect(now(log)).toBe(before - 8);
+  });
+
+  it('follows the pointer and stops at the limits', () => {
+    const host = mount();
+    const split = host.querySelector('.lab-workspace__split') as HTMLElement;
+    rectOf(split, 0, 0, 1000, 600);
+    const panes = paneHandle(host);
+    pointer(panes, 'pointerdown', 520, 300);
+    pointer(panes, 'pointermove', 300, 300);
+    expect(now(panes)).toBe(30);
+    expect(split.style.gridTemplateColumns).toContain('0.3fr');
+    pointer(panes, 'pointermove', 990, 300);
+    pointer(panes, 'pointerup', 990, 300);
+    expect(now(panes)).toBe(80);
+    pointer(panes, 'pointermove', 100, 300);
+    expect(now(panes)).toBe(80);
+    const log = logHandle(host);
+    pointer(log, 'pointerdown', 300, 400);
+    pointer(log, 'pointermove', 300, 30);
+    pointer(log, 'pointerup', 300, 30);
+    expect(now(log)).toBe(30);
+  });
+});
+
+describe('BB-LAB-51: The Console shows an input line only while the program waits', () => {
+  it('shows the line while the program reads, and Enter sends it', async () => {
+    const host = mount();
+    const w = await run(host);
+    act(() => runController.pump());
+    expect(host.querySelector('.lab-log__input')).toBeNull();
+    Atomics.store(w.views.control, CONTROL.INPUT_STATE, INPUT_STATE.LINE);
+    act(() => runController.pump());
+    expect(useLabRun.getState().status).toBe('waitingInput');
+    expect(host.querySelector('#lab-log-tab-console')!.getAttribute('aria-selected')).toBe('true');
+    const input = host.querySelector('.lab-log__input input') as HTMLInputElement;
+    expect(input).not.toBeNull();
+    input.value = 'hello 42';
+    act(() => {
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    key(input, 'keydown', 'Enter', 'Enter');
+    const bytes = takeInput(w.views, inputWaiting(w.views));
+    expect(new TextDecoder().decode(bytes)).toBe('hello 42\n');
+    expect(host.querySelector('.lab-log__console')!.textContent).toContain('hello 42');
+    Atomics.store(w.views.control, CONTROL.INPUT_STATE, INPUT_STATE.NONE);
+    act(() => runController.pump());
+    expect(host.querySelector('.lab-log__input')).toBeNull();
+    expect(useLabRun.getState().status).toBe('running');
+  });
+
+  it('sends each key while the program waits for one', async () => {
+    const host = mount();
+    const w = await run(host);
+    Atomics.store(w.views.control, CONTROL.INPUT_STATE, INPUT_STATE.KEY);
+    act(() => runController.pump());
+    const input = host.querySelector('.lab-log__input input') as HTMLInputElement;
+    key(input, 'keydown', 'y', 'KeyY');
+    key(input, 'keydown', 'Enter', 'Enter');
+    expect([...takeInput(w.views, inputWaiting(w.views))]).toEqual([121, 13]);
+  });
+});

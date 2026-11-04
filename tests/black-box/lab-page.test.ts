@@ -163,7 +163,7 @@ describe('BB-LAB-36: A page that is not isolated reloads once, then asks for a r
     const host = await open(reload);
     expect(reload).not.toHaveBeenCalled();
     expect(host.querySelector('.lab__notice')).toBeNull();
-    expect(host.querySelector('.lab__placeholder')).not.toBeNull();
+    expect(host.querySelector('.lab-workspace')).not.toBeNull();
     expect(sessionStorage.getItem(ISOLATION_RELOAD_KEY)).toBeNull();
     render(null, host);
     host.remove();

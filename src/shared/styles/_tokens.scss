@@ -171,6 +171,8 @@ $header-height: 3.7rem;
   --window-btn-hover: rgba(255, 255, 255, 0.09);
   --window-close: #c42b1c;
   --window-close-ink: #ffffff;
+  /* The Lab's program window before its first frame: GL's default clear colour, in both themes. */
+  --program-bg: #000000;
 }
 
 [data-theme='dark'] {
@@ -281,6 +283,8 @@ $header-height: 3.7rem;
   --window-btn-hover: rgba(255, 255, 255, 0.09);
   --window-close: #c42b1c;
   --window-close-ink: #ffffff;
+  /* The Lab's program window before its first frame: GL's default clear colour, in both themes. */
+  --program-bg: #000000;
 }
 $bg-dark: rgb(var(--bg-dark-rgb));
 $bg-panel: rgb(var(--bg-panel-rgb));

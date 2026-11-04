@@ -1,4 +1,4 @@
-/* The Lab: an introduction, then the workspace. */
+/* The Lab page when it needs a reload: an introduction and the notice. */
 .lab {
   padding: var(--space-7) var(--site-gutter) var(--space-8);
 
@@ -18,7 +18,6 @@
     line-height: 1.55;
     color: var(--ink-muted);
   }
-  &__placeholder,
   &__notice {
     margin: 0;
     padding: var(--space-5);

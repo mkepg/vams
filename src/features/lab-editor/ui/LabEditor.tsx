@@ -17,6 +17,8 @@ export interface LabEditorProps {
   jumpTo?: { line: number; col: number };
   /** Ctrl+Enter, or Cmd+Enter on a Mac. */
   onRun?: () => void;
+  /** The id of the text that describes the editor, such as how the keyboard leaves it. Read once, when the editor is made. */
+  describedBy?: string;
 }
 
 /** Marks a change that came from the `value` prop, so it is not reported back as typing. */
@@ -47,7 +49,7 @@ const labTheme = EditorView.theme({
   '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--ink)' },
 });
 
-function extensions(callbacks: { current: Pick<LabEditorProps, 'onChange' | 'onRun'> }, sent: { current: string[] }): Extension[] {
+function extensions(callbacks: { current: Pick<LabEditorProps, 'onChange' | 'onRun'> }, sent: { current: string[] }, describedBy?: string): Extension[] {
   return [
     // Ctrl and Cmd both run, on every platform, ahead of the default "insert blank line".
     Prec.highest(
@@ -83,7 +85,13 @@ function extensions(callbacks: { current: Pick<LabEditorProps, 'onChange' | 'onR
     vamsEditorTheme(),
     labTheme,
     errorLineField,
-    EditorView.contentAttributes.of({ 'aria-label': 'C++ code, main.cpp', spellcheck: 'false', autocapitalize: 'off', autocorrect: 'off' }),
+    EditorView.contentAttributes.of({
+      'aria-label': 'C++ code, main.cpp',
+      ...(describedBy ? { 'aria-describedby': describedBy } : {}),
+      spellcheck: 'false',
+      autocapitalize: 'off',
+      autocorrect: 'off',
+    }),
     EditorView.updateListener.of((update) => {
       if (update.docChanged && !update.transactions.some((tr) => tr.annotation(fromProps))) {
         const text = update.state.doc.toString();
@@ -94,7 +102,7 @@ function extensions(callbacks: { current: Pick<LabEditorProps, 'onChange' | 'onR
   ];
 }
 
-export default function LabEditor({ value, onChange, diagnostics, jumpTo, onRun }: LabEditorProps) {
+export default function LabEditor({ value, onChange, diagnostics, jumpTo, onRun, describedBy }: LabEditorProps) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const callbacks = useRef({ onChange, onRun });
@@ -105,7 +113,7 @@ export default function LabEditor({ value, onChange, diagnostics, jumpTo, onRun 
   useEffect(() => {
     const created = new EditorView({
       parent: host.current as HTMLDivElement,
-      state: EditorState.create({ doc: value, extensions: extensions(callbacks, sent) }),
+      state: EditorState.create({ doc: value, extensions: extensions(callbacks, sent, describedBy) }),
     });
     view.current = created;
     return () => {
