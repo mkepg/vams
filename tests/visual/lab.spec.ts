@@ -56,3 +56,31 @@ test.describe('VIS-LAB: the Lab with the template running', () => {
     await expect(page).toHaveScreenshot('lab-dark-390.png');
   });
 });
+
+test.describe("VIS-LAB: the Lab's Share dialog", () => {
+  test.skip(!LAB_DOCKER, 'Needs Docker: LAB_DOCKER=1');
+  test.use({ serviceWorkers: 'block' });
+
+  let service: CompileService;
+  test.beforeAll(async () => {
+    test.setTimeout(900_000);
+    service = await startCompileService();
+  });
+  test.afterAll(() => service?.stop());
+
+  for (const theme of ['light', 'dark'] as const) {
+    test(`VIS-LAB-06: Share dialog, ${theme}, 1280`, async ({ page }) => {
+      // The store request is answered here with a fixed id, so the link is the same on every run and nothing leaves the machine.
+      await page.route('**/api/share', (route) =>
+        route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ id: 'k3x9q2Ab', expiresAt: '2027-01-14T00:00:00.000Z' }) }),
+      );
+      await routeLab(page.context(), service);
+      await openLab(page, theme);
+      await page.getByRole('button', { name: 'Share' }).click();
+      await expect(page.getByRole('textbox', { name: 'Link' })).toHaveValue(/\/s\/k3x9q2Ab$/);
+      await expect(page.getByRole('dialog')).toContainText('Stored for 90 days, until 14 Jan 2027.');
+      await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+      await expect(page).toHaveScreenshot(`lab-share-${theme}-1280.png`);
+    });
+  }
+});
