@@ -8,6 +8,7 @@
  *  - The file list takes PNG, JPEG, BMP and .txt, says what it takes, matches names in any case,
  *    and offers the files a program wrote for download
  *  - The examples cover the five programs and every gallery scene, regenerated from the editor
+ *  - The editor's Open in Lab arrives: its program, and its images under the names stbi_load gives
  */
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -52,6 +53,10 @@ import { GALLERY_BUILDERS } from '@/entities/project/model/gallery-scenes';
 import { getPreset } from '@/entities/project/model/scene-presets';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { FOX_PALETTE, FOX_SPRITE, SAMPLE_TEXTURE_SPECS } from '@/features/textures/lib/sample-textures';
+import { importedWork } from '@/features/lab-files';
+import { installFiles, type LabFS } from '@/features/lab-run/worker/lab-files';
+import { labHandoff } from '@/features/project-io/model/lab-handoff';
+import { LAB_IMPORT_KEY, type LabImport } from '@/shared/lib/lab-import';
 import { checkIncludes } from '../../lab/service/src/includes.ts';
 import { decodePng, encodePng } from '../helpers/image-compare';
 
@@ -616,5 +621,220 @@ describe('BB-LAB-86: The file list keeps up to 64 files, and no name with a cont
     expect(listNames().some((n) => n.startsWith('bad'))).toBe(false);
     expect(await openWork(new File([zipSync({ 'main.cpp': strToU8('int main() {}'), 'a.txt': strToU8('a') }) as Uint8Array<ArrayBuffer>], 'small.zip'))).toBeNull();
     expect(listNames()).toEqual(['a.txt']);
+  });
+});
+
+/** The Pixel fox gallery scene as the editor's Open in Lab hands it over, with the sample's real image. */
+function foxHandoff(): LabImport {
+  const data = getPreset('pixel-fox')!.data;
+  const samples = SAMPLE_TEXTURE_SPECS.map((spec) => ({ ...spec, isSample: true, dataUrl: EXAMPLE_IMAGES[`${spec.name}.png`] ?? 'data:image/png;base64,' }));
+  return labHandoff({
+    objects: data.objects,
+    canvasBackgroundColor: data.canvasBackgroundColor,
+    callbacks: data.callbacks,
+    viewportLimits: data.viewportLimits,
+    textures: [...samples, ...data.uploadedTextures],
+  });
+}
+
+/** The Lab page as the editor's full load reaches it: isolated, at /lab?import=1, with the work kept. */
+function arriveFromEditor(work: LabImport) {
+  sessionStorage.setItem(LAB_IMPORT_KEY, JSON.stringify(work));
+  window.history.replaceState(null, '', '/lab?import=1');
+  Object.defineProperty(window, 'crossOriginIsolated', { value: true, configurable: true });
+  return mount(h(LabPage, { reload: () => {} }));
+}
+
+/** Waits until the page is done with the import: ?import=1 leaves the address last, whatever happened. */
+const importDone = () => vi.waitFor(() => expect(window.location.search).toBe(''), { timeout: 10_000 });
+
+/** Waits for the question the page asks before replacing unsaved work. */
+const dialogShown = () => vi.waitFor(() => expect(document.querySelector('[role="alertdialog"]')).not.toBeNull(), { timeout: 10_000 });
+
+/** Emscripten's FS as far as installFiles uses it, for opening a program's paths. */
+class PathFS implements LabFS {
+  readonly files = new Map<string, Uint8Array>();
+  open(path: unknown): object {
+    if (!this.files.has(String(path))) throw Object.assign(new Error('FS error'), { errno: 44 });
+    return { path: String(path) };
+  }
+  close(): void {}
+  stat(path: unknown) {
+    return { size: this.readFile(String(path)).length };
+  }
+  mkdir(): void {}
+  writeFile(path: string, data: Uint8Array): void {
+    this.files.set(path, data);
+  }
+  readFile(path: string): Uint8Array {
+    const data = this.files.get(path);
+    if (!data) throw Object.assign(new Error('FS error'), { errno: 44 });
+    return data;
+  }
+}
+
+/** The page's URL, isolation and import as each of these tests found them. */
+function leaveLabPage() {
+  Reflect.deleteProperty(window, 'crossOriginIsolated');
+  window.history.replaceState(null, '', '/');
+  sessionStorage.clear();
+}
+
+describe('BB-LAB-88: The editor’s Open in Lab arrives as the work, and its stbi_load paths find their images', () => {
+  afterEach(leaveLabPage);
+
+  it('replaces saved work with the program and its images, clears the import and leaves /lab', async () => {
+    const work = foxHandoff();
+    expect(work.files.map((f) => f.name)).toEqual(['Pixel fox.png', 'Cloud tile.png']);
+    await addUploads([file(PNG_A, 'old.png')]);
+    useLabStore.getState().markSaved();
+    const host = arriveFromEditor(work);
+    await importDone();
+    expect(useLabStore.getState().source).toBe(work.source);
+    expect(editorOf(host).state.doc.toString()).toBe(work.source);
+    expect(useLabStore.getState().unsaved).toBe(false);
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+    const files = await readLabFiles();
+    expect(files).toEqual([
+      { name: 'Pixel fox.png', bytes: dataUrlBytes(EXAMPLE_IMAGES['Pixel fox.png']), type: 'image/png' },
+      { name: 'Cloud tile.png', bytes: dataUrlBytes(EXAMPLE_IMAGES['Cloud tile.png']), type: 'image/png' },
+    ]);
+    expect(sessionStorage.getItem(LAB_IMPORT_KEY)).toBeNull();
+    expect(window.location.pathname).toBe('/lab');
+    expect(window.location.search).toBe('');
+
+    // Each path the program gives stbi_load opens its image, as the runtime resolves it.
+    const fs = new PathFS();
+    const missing: string[] = [];
+    installFiles(fs, files, { missing: (name) => missing.push(name), written: () => {} });
+    const paths = [...work.source.matchAll(/stbi_load\("((?:[^"\\]|\\.)*)"/g)].map(([, literal]) => literal.replace(/\\(.)/g, '$1'));
+    expect(paths).toEqual(['C:\\path\\to\\your\\Pixel fox.png', 'C:\\path\\to\\your\\Cloud tile.png']);
+    for (const [i, path] of paths.entries()) expect(fs.readFile((fs.open(path, 0) as { path: string }).path)).toEqual(files[i].bytes);
+    expect(missing).toEqual([]);
+  });
+
+  it('keeps an imported image whose name was a listed file this browser had lost', async () => {
+    const work = foxHandoff();
+    // The list names Pixel fox.png, but its bytes are gone: the page load takes it out of the list.
+    useLabStore.setState({ files: [{ name: 'Pixel fox.png', type: 'image/png', size: 4 }], unsaved: false });
+    arriveFromEditor(work);
+    await importDone();
+    expect(listNames()).toEqual(['Pixel fox.png', 'Cloud tile.png']);
+    expect((await readLabFiles()).map((f) => f.name)).toEqual(['Pixel fox.png', 'Cloud tile.png']);
+  });
+
+  it('opens nothing without ?import=1, and an import opens once', async () => {
+    const work = foxHandoff();
+    sessionStorage.setItem(LAB_IMPORT_KEY, JSON.stringify(work));
+    window.history.replaceState(null, '', '/lab');
+    Object.defineProperty(window, 'crossOriginIsolated', { value: true, configurable: true });
+    mount(h(LabPage, { reload: () => {} }));
+    await flush();
+    expect(useLabStore.getState().source).toBe(TEMPLATE);
+
+    const again = arriveFromEditor(work);
+    await importDone();
+    expect(useLabStore.getState().source).toBe(work.source);
+    act(() => render(null, again));
+    useLabStore.getState().setSource('// mine\n');
+    useLabStore.getState().markSaved();
+    // A reload of /lab?import=1 finds nothing kept, so the work stays.
+    window.history.replaceState(null, '', '/lab?import=1');
+    mount(h(LabPage, { reload: () => {} }));
+    await importDone();
+    expect(useLabStore.getState().source).toBe('// mine\n');
+    expect(window.location.search).toBe('');
+  });
+});
+
+describe('BB-LAB-89: Open in Lab asks before replacing unsaved work, and keeps it when told to', () => {
+  afterEach(leaveLabPage);
+
+  it('keeps the work and drops the import on Keep my work, and replaces it on Replace', async () => {
+    const work = foxHandoff();
+    useLabStore.getState().setSource('// unsaved\n');
+    arriveFromEditor(work);
+    await dialogShown();
+    let dialog = document.querySelector('[role="alertdialog"]')!;
+    expect(dialog.textContent).toContain(REPLACE_QUESTION.title);
+    expect(dialog.textContent).toContain(REPLACE_QUESTION.message);
+    await act(() => button(dialog, 'Keep my work')!.click());
+    await importDone();
+    expect(useLabStore.getState().source).toBe('// unsaved\n');
+    expect(listNames()).toEqual([]);
+    expect(sessionStorage.getItem(LAB_IMPORT_KEY)).toBeNull();
+    expect(window.location.search).toBe('');
+
+    for (const host of hosts.splice(0)) {
+      act(() => render(null, host));
+      host.remove();
+    }
+    arriveFromEditor(work);
+    await dialogShown();
+    dialog = document.querySelector('[role="alertdialog"]')!;
+    await act(() => button(dialog, 'Replace')!.click());
+    await importDone();
+    expect(useLabStore.getState().source).toBe(work.source);
+    expect(listNames()).toEqual(['Pixel fox.png', 'Cloud tile.png']);
+  });
+});
+
+describe('BB-LAB-90: The Lab reads the import after the page has mounted, never while it renders', () => {
+  afterEach(leaveLabPage);
+
+  it('leaves the import in place through the first render and through a page that must reload first', async () => {
+    const work = foxHandoff();
+    sessionStorage.setItem(LAB_IMPORT_KEY, JSON.stringify(work));
+    window.history.replaceState(null, '', '/lab?import=1');
+    // Not isolated: the page reloads, and the work waits for the page that comes back.
+    Object.defineProperty(window, 'crossOriginIsolated', { value: false, configurable: true });
+    const reload = vi.fn();
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    hosts.push(host);
+    // Without act, the first render is all that has run: the page's effects wait for it to paint.
+    render(h(LabPage, { reload }), host);
+    expect(host.querySelector('.lab-workspace')).not.toBeNull();
+    expect(sessionStorage.getItem(LAB_IMPORT_KEY)).not.toBeNull();
+    expect(reload).not.toHaveBeenCalled();
+    await flush();
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(sessionStorage.getItem(LAB_IMPORT_KEY)).not.toBeNull();
+    expect(window.location.search).toBe('?import=1');
+    expect(useLabStore.getState().source).toBe(TEMPLATE);
+  });
+});
+
+describe('BB-LAB-91: An imported image stb_image can’t read is redrawn as PNG under the same name', () => {
+  it('keeps PNG, JPEG and BMP bytes, redraws WebP, and leaves out what the list can’t hold', async () => {
+    const png = EXAMPLE_IMAGES['checkerboard.png'];
+    const toPng = vi.fn(async () => PNG_B);
+    const work = await importedWork(
+      {
+        source: '// scene\n',
+        files: [
+          { name: 'Brick wall.png', type: 'image/png', dataUrl: png },
+          { name: 'Photo.png', type: 'image/jpeg', dataUrl: 'data:image/jpeg;base64,/9j/2w==' },
+          { name: 'Tiles.png', type: 'image/bmp', dataUrl: 'data:image/bmp;base64,Qk0=' },
+          { name: 'Sky.png', type: 'image/webp', dataUrl: 'data:image/webp;base64,UklGRg==' },
+          { name: 'sky.PNG', type: 'image/png', dataUrl: png },
+          { name: 'notes.docx', type: 'image/png', dataUrl: png },
+          { name: 'tab\there.png', type: 'image/png', dataUrl: png },
+          { name: 'Broken.png', type: 'image/png', dataUrl: 'data:image/png;base64,%%%' },
+        ],
+      },
+      toPng,
+    );
+    expect(toPng).toHaveBeenCalledTimes(1);
+    expect(toPng).toHaveBeenCalledWith('data:image/webp;base64,UklGRg==');
+    expect(work).toEqual({
+      source: '// scene\n',
+      files: [
+        { name: 'Brick wall.png', bytes: dataUrlBytes(png), type: 'image/png' },
+        { name: 'Photo.png', bytes: bytes(0xff, 0xd8, 0xff, 0xdb), type: 'image/png' },
+        { name: 'Tiles.png', bytes: bytes(0x42, 0x4d), type: 'image/png' },
+        { name: 'Sky.png', bytes: PNG_B, type: 'image/png' },
+      ],
+    });
   });
 });

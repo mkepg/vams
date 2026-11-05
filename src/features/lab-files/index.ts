@@ -4,4 +4,5 @@ export { openWork, addUploads, canOpen, chooseFile, OpenError, LAB_FILES_FULL, L
 export { TEMPLATE, newWork } from './model/template';
 export { BROWSER_SAVE_FAILED, missingFilesMessage, withBrowserSave } from './model/browser-save';
 export { mayReplaceWork, REPLACE_QUESTION, type Ask } from './model/replace';
+export { importedWork, openImport, type RedrawAsPng } from './model/import';
 export { EXAMPLES, PROGRAM_EXAMPLES, GALLERY_EXAMPLES, GALLERY_EXAMPLE_SIZE, exampleWork, loadExample, type LabExample } from './model/examples';

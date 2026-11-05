@@ -6,6 +6,7 @@ import { LabWorkspace } from '@/widgets/lab-workspace';
 import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
 import { useSiteTheme } from '@/shared/lib/theme';
 import { LAB_COPY } from '../model/copy';
+import { openEditorImport } from '../model/editor-import';
 import { ensureIsolation } from '../model/isolation';
 import './lab-page.scss';
 
@@ -29,12 +30,16 @@ export default function LabPage({ reload = () => window.location.reload() }: Lab
 
   useEffect(() => {
     // Only the browser knows whether the page is isolated, so the server's page renders the workspace.
-    setNeedsReload(ensureIsolation({ crossOriginIsolated: window.crossOriginIsolated, storage: sessionStore(), reload }) === 'needs-reload');
+    const storage = sessionStore();
+    const isolation = ensureIsolation({ crossOriginIsolated: window.crossOriginIsolated, storage, reload });
+    setNeedsReload(isolation === 'needs-reload');
+    // What the editor's Open in Lab sent waits in sessionStorage until the page that can run it.
+    if (isolation === 'ready') void openEditorImport(storage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // The workspace is a whole-window tool with its own top bar; only the reload notice is a site page.
-  // The page hosts the one confirm dialog that New, Open and the examples ask through, and the
+  // The page hosts the one confirm dialog that New, Open, the examples and Open in Lab ask through, and the
   // toasts that say Share's link was copied.
   if (!needsReload)
     return (

@@ -303,7 +303,8 @@ describe('BB-SHELL-08: A scene with only uploaded textures counts as work', () =
 
 describe('BB-SHELL-09: The File menu lists the project actions in order', () => {
   it('shows every action in Author mode and opens My scenes', async () => {
-    const host = mount(h(FileMenu, {}));
+    // The menu as a build without the Lab has it; BB-TOP-07 adds Open in Lab when the Lab is on.
+    const host = mount(h(FileMenu, { labOn: false }));
     await openMenu(host, 'File');
     expect(menuItems(host)).toEqual([
       'New workspace', 'My scenes…', 'Open project file…', 'Save project file', 'Export C++ code',
@@ -320,7 +321,7 @@ describe('BB-SHELL-09: The File menu lists the project actions in order', () => 
 describe('BB-SHELL-10: In Lesson mode the File menu only saves and exports', () => {
   it('hides the actions that replace the scene', async () => {
     useVamsStore.setState({ appMode: 'Lesson' });
-    const host = mount(h(FileMenu, {}));
+    const host = mount(h(FileMenu, { labOn: false }));
     await openMenu(host, 'File');
     expect(menuItems(host)).toEqual(['Save project file', 'Export C++ code']);
     unmount(host);

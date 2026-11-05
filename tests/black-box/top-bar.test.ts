@@ -2,12 +2,18 @@
  * BLACK-BOX TEST SUITE — BB-TOP
  * The editor's top bar: layout, the scene title, the File and settings menus.
  */
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { h, render, type VNode } from 'preact';
+import { toast } from 'sonner';
 import { useVamsStore } from '@/core/store';
 import TopBar from '@/widgets/layout/top-bar';
+import FileMenu from '@/widgets/layout/top-bar/FileMenu';
 import { SceneTitle, useSaveStatus } from '@/features/scene-library';
+import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
+import { LAB_HANDOFF_TOO_LARGE } from '@/features/project-io/model/lab-handoff';
+import { getPreset } from '@/entities/project/model/scene-presets';
 import { readThemeChoice, setThemeChoice } from '@/shared/lib/theme';
+import { LAB_ENABLED } from '@/shared/config/lab';
 
 async function settle() {
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
@@ -39,6 +45,7 @@ afterEach(() => {
   useVamsStore.setState({ appMode: 'Author', activeLessonId: null, currentStepIndex: 0, sceneName: 'Untitled scene' });
   useSaveStatus.setState({ status: 'idle' });
   setThemeChoice('system');
+  sessionStorage.clear();
 });
 
 describe('BB-TOP-01: Layout B puts File, Learn and the scene on the left', () => {
@@ -232,6 +239,102 @@ describe('BB-TOP-06: During a lesson the slot shows the lesson and its step', ()
     const host = mount(h(SceneTitle, { lessonLabel: 'Demo · Step 1 of 4' }));
     await settle();
     expect(host.querySelector('.scene-title')!.textContent).toBe('Demo · Step 1 of 4');
+    unmount(host);
+  });
+});
+
+describe('BB-TOP-07: The File menu lists Open in Lab after Export C++ code, only while the Lab is on', () => {
+  const after = (items: (string | undefined)[], label: string) => items[items.indexOf(label) + 1];
+
+  it('lists it in the editor and in a lesson', async () => {
+    // The tests run with the Lab on, as the dev server does.
+    expect(LAB_ENABLED).toBe(true);
+    const host = mount(h(TopBar, {}));
+    await settle();
+    await openMenu(host, 'File');
+    expect(after(menuItems(), 'Export C++ code')).toBe('Open in Lab');
+    unmount(host);
+
+    useVamsStore.setState({ appMode: 'Lesson', activeLessonId: 'transforms-demo-1', currentStepIndex: 0 });
+    const lesson = mount(h(TopBar, {}));
+    await settle();
+    await openMenu(lesson, 'File');
+    expect(menuItems()).toEqual(['Save project file', 'Export C++ code', 'Open in Lab']);
+    unmount(lesson);
+  });
+
+  it('leaves the File menu as it was when the Lab is off', async () => {
+    const host = mount(h(FileMenu, { labOn: false }));
+    await settle();
+    await openMenu(host, 'File');
+    expect(menuItems()).toEqual(['New workspace', 'My scenes…', 'Open project file…', 'Save project file', 'Export C++ code']);
+    unmount(host);
+  });
+});
+
+describe('BB-TOP-08: Open in Lab hands the program and its images to the Lab', () => {
+  /** The Pixel fox gallery scene in the editor, with an upload no shape wears. */
+  function foxScene() {
+    const data = getPreset('pixel-fox')!.data;
+    const unused = { id: 'up-unused', name: 'Unused', dataUrl: 'data:image/png;base64,AAAA', width: 1, height: 1 };
+    useVamsStore.setState({
+      objects: data.objects,
+      callbacks: data.callbacks,
+      canvasBackgroundColor: data.canvasBackgroundColor,
+      viewportLimits: data.viewportLimits,
+      uploadedTextures: [...data.uploadedTextures, unused],
+    });
+    return data;
+  }
+  const chooseOpenInLab = async () => {
+    const host = mount(h(TopBar, {}));
+    await settle();
+    await openMenu(host, 'File');
+    ([...document.querySelectorAll('[role="menuitem"]')].find((el) => el.textContent?.trim() === 'Open in Lab') as HTMLElement).click();
+    await settle();
+    return host;
+  };
+
+  it('keeps generateCodeFromState at 500 × 500 and every image it loads under vams-lab-import, then loads /lab?import=1', async () => {
+    const data = foxScene();
+    const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => {});
+    const host = await chooseOpenInLab();
+    const state = useVamsStore.getState();
+    const textures = state.getAllTextures();
+    const kept = JSON.parse(sessionStorage.getItem('vams-lab-import')!) as { source: string; files: { name: string; type: string; dataUrl: string }[] };
+    expect(kept.source).toBe(
+      generateCodeFromState(
+        { objects: state.objects, canvasBackgroundColor: state.canvasBackgroundColor, callbacks: state.callbacks, viewportLimits: state.viewportLimits, textures },
+        { width: 500, height: 500 },
+      ),
+    );
+    expect(kept.source).toContain('glutInitWindowSize(500, 500);');
+    const cloud = data.uploadedTextures.find((t) => t.name === 'Cloud tile')!;
+    const fox = textures.find((t) => t.name === 'Pixel fox')!;
+    expect(kept.files).toEqual([
+      { name: 'Pixel fox.png', type: 'image/png', dataUrl: fox.dataUrl },
+      { name: 'Cloud tile.png', type: 'image/png', dataUrl: cloud.dataUrl },
+    ]);
+    // Each file is named as the program's stbi_load names it.
+    const loads = [...kept.source.matchAll(/stbi_load\("([^"]+)"/g)].map(([, path]) => path.split('\\').pop());
+    expect(loads).toEqual(['Pixel fox.png', 'Cloud tile.png']);
+    expect(assign).toHaveBeenCalledWith('/lab?import=1');
+    assign.mockRestore();
+    unmount(host);
+  });
+
+  it('says the scene is too large when the browser can’t keep it, and stays in the editor', async () => {
+    foxScene();
+    const assign = vi.spyOn(window.location, 'assign').mockImplementation(() => {});
+    const setItem = vi.spyOn(sessionStorage, 'setItem').mockImplementation(() => {
+      throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+    });
+    const error = vi.spyOn(toast, 'error').mockImplementation(() => 'id');
+    const host = await chooseOpenInLab();
+    expect(error).toHaveBeenCalledWith(LAB_HANDOFF_TOO_LARGE);
+    expect(LAB_HANDOFF_TOO_LARGE).toBe('The scene is too large to open in the Lab. Export C++ code instead.');
+    expect(assign).not.toHaveBeenCalled();
+    for (const spy of [assign, setItem, error]) spy.mockRestore();
     unmount(host);
   });
 });

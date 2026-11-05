@@ -143,9 +143,10 @@ tests/
 │   │                                        program's window)
 │   ├── lab-shared-layout.test.ts         (BB-LAB-61 to 64: the rings the page
 │   │                                        and the program's worker share)
-│   ├── lab-files.test.ts                 (BB-LAB-52 to 57 and 78 to 85: the
-│   │                                        browser save, Save, Open, New, the
-│   │                                        examples and the file list)
+│   ├── lab-files.test.ts                 (BB-LAB-52 to 57, 78 to 86 and 88 to 91:
+│   │                                        the browser save, Save, Open, New,
+│   │                                        the examples, the file list and the
+│   │                                        editor's Open in Lab)
 │   └── lab-wording.test.ts               (BB-LAB-58: every message in the Lab's
 │                                            sources, the compile service and the
 │                                            runtime keeps the Language Discipline
