@@ -141,6 +141,33 @@
   .site-header__link { padding: 0 2px; font-size: var(--text-sm); }
 }
 
+/* Six pages, as when the Lab is on: the switcher holds one more segment, so from 860 px down each
+   band closes its segments up a step further. The selector matches only six links, so the five-link
+   layout above is unchanged, and its specificity outranks the bands above whatever their order. */
+$six-pages: '.site-header__pages:has(> li:nth-child(6))';
+
+@media (max-width: 860px) {
+  #{$six-pages} .site-header__link { padding: 0 var(--space-2); }
+}
+
+@media (max-width: 760px) {
+  #{$six-pages} .site-header__link { padding: 0 6px; }
+}
+
+@media (max-width: 520px) {
+  #{$six-pages} { gap: 0; }
+  #{$six-pages} .site-header__link { padding: 0 3px; font-size: var(--text-sm); }
+}
+
+@media (max-width: 400px) {
+  #{$six-pages} .site-header__link { padding: 0 2px; }
+}
+
+@media (max-width: 379px) {
+  #{$six-pages} { padding: 1px; }
+  #{$six-pages} .site-header__link { padding: 0 1px; font-size: var(--text-xs); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .site-header__theme { transition: none; }
   .site-header__cta { transition: none; }
