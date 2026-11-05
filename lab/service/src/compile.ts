@@ -12,7 +12,7 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, posix } from 'node:path';
-import { checkIncludes } from './includes.ts';
+import { checkExpanded, checkIncludes } from './includes.ts';
 import { includeTrace, MAIN_FILE, rewriteDiagnostics, type Diagnostic } from './diagnostics.ts';
 
 export interface CompileOptions {
@@ -38,6 +38,15 @@ export const LAB_PATHS = {
 
 /** Address space for each tool, in MB. */
 const MEMORY_MB = Number(process.env.LAB_MEMORY_MB ?? 1024);
+
+/**
+ * The largest file a tool may write, in MB. /tmp is in memory on Cloud Run, and
+ * clang -E writes every header it reads (about 5 MB with every header included).
+ */
+const FILE_MB = 64;
+
+/** clang -E's output: what the compile will see, once macros are expanded. */
+const EXPANDED_FILE = 'main.ii';
 
 /**
  * The side-module flags, word for word as lab/runtime/build.sh holds them in
@@ -111,7 +120,8 @@ function run(tool: string, args: string[], cwd: string, budget: Budget, signal?:
   return new Promise((resolve, reject) => {
     const child = spawn(
       '/bin/sh',
-      ['-c', 'ulimit -v "$1" && shift && exec "$@"', 'sh', String(MEMORY_MB * 1024), tool, ...args],
+      // dash counts ulimit -f in 512-byte blocks.
+      ['-c', 'ulimit -v "$1" && ulimit -f "$2" && shift 2 && exec "$@"', 'sh', String(MEMORY_MB * 1024), String(FILE_MB * 2048), tool, ...args],
       { cwd, env: {}, detached: true, stdio: ['ignore', 'pipe', 'pipe'] },
     );
     let kept = '';
@@ -222,11 +232,31 @@ export async function compile(source: string, opts: CompileOptions): Promise<Com
     const flags = sideFlags();
     const budget: Budget = { deadline: Date.now() + opts.timeoutMs, bytesLeft: opts.outCapBytes };
     const bin = (name: string) => posix.join(LAB_PATHS.llvmBin, name);
+    const outside = (): CompileResult => ({
+      ok: false, diagnostics: [fail(1, 1, 'This program reaches a file outside VAMS Lab\'s headers.')], ms: ms(),
+    });
+
+    // Preprocess first, with the compile's own flags, and look for inline assembly that macros
+    // built. The compile reads the same file and headers with the same flags, so it sees the same
+    // tokens. This step's messages come again from the compile, so they get a budget of their own.
+    const expand = await run(
+      bin('clang++'), [...flags.cc, ...REPORT_FLAGS, '-E', MAIN_FILE, '-o', EXPANDED_FILE], dir,
+      { deadline: budget.deadline, bytesLeft: opts.outCapBytes }, opts.signal,
+    );
+    if (!traceIsInside(expand.trace)) return outside();
+    const early = stopped(expand, opts);
+    if (early) return { ok: false, diagnostics: [...rewriteDiagnostics(expand.output), early], ms: ms() };
+    if (expand.code !== 0) {
+      const found = rewriteDiagnostics(expand.output);
+      if (!found.some((d) => d.severity === 'error')) found.push(fail(1, 1, 'The compiler stopped before it finished. Compile again.'));
+      return { ok: false, diagnostics: found, ms: ms() };
+    }
+    const expanded = checkExpanded(await readFile(join(dir, EXPANDED_FILE), 'utf8'), MAIN_FILE);
+    if (!expanded.ok) return { ok: false, diagnostics: [fail(expanded.line, expanded.col, expanded.message)], ms: ms() };
+    await rm(join(dir, EXPANDED_FILE), { force: true });
 
     const cc = await run(bin('clang++'), [...flags.cc, ...REPORT_FLAGS, '-c', MAIN_FILE, '-o', 'main.o'], dir, budget, opts.signal);
-    if (!traceIsInside(cc.trace)) {
-      return { ok: false, diagnostics: [fail(1, 1, 'This program reaches a file outside VAMS Lab\'s headers.')], ms: ms() };
-    }
+    if (!traceIsInside(cc.trace)) return outside();
     const diagnostics = rewriteDiagnostics(cc.output);
     const stop = stopped(cc, opts);
     if (stop) return { ok: false, diagnostics: [...diagnostics, stop], ms: ms() };

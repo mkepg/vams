@@ -40,7 +40,7 @@ const BATTERY = join(ROOT, 'tests/fixtures/lab/programs');
 /** A compile's download may be at most this many bytes, compressed. */
 export const MAX_RESPONSE_BYTES = 100 * 1024;
 
-/** The include probes of SEC-LAB-03. */
+/** The include probes of SEC-LAB-03, and the inline-assembly probes of SEC-LAB-11 and SEC-LAB-12. */
 export const PROBES = [
   '#include "/etc/passwd"\nint main() {}',
   '#include </etc/passwd>\n',
@@ -51,6 +51,13 @@ export const PROBES = [
   '#define ENV </proc/self/environ>\n#include ENV\n',
   'const char e[] = {\n#embed "/proc/self/environ"\n};\n',
   '#if __has_include("/proc/self/environ")\n#endif\n',
+  // The assembler's .incbin and .include read files. These name a canary path the checks own.
+  '__asm__(".incbin \\"/tmp/vams-canary.txt\\"");\nint main() {}\n',
+  'int main() {\n  asm(".incbin \\"/tmp/vams-canary.txt\\"");\n}\n',
+  'void f() { __asm volatile(".incbin \\"/tmp/vams-canary.txt\\""); }\n',
+  '#define CAT(a, b) a##b\nCAT(__as, m__)(".incbin \\"/tmp/vams-canary.txt\\"");\n',
+  '#define EMBED(f) __asm__(".incbin \\"" f "\\"")\nEMBED("/tmp/vams-canary.txt");\n',
+  '__asm__(".include \\"/tmp/vams-canary.txt\\"");\n',
 ];
 
 /** Constant evaluation that runs for about 30 seconds, as in SEC-LAB-03. */

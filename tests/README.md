@@ -196,8 +196,11 @@ tests/
 ├── security/                     ← What a Lab program can reach on the
 │   │                                compile server.
 │   └── lab-includes.test.ts              (SEC-LAB-*: include and directive
-│                                            checks; SEC-LAB-03 runs the built
-│                                            image when LAB_DOCKER=1)
+│                                            checks, and inline assembly refused
+│                                            in the file and in clang's
+│                                            preprocessed output; SEC-LAB-03 and
+│                                            SEC-LAB-15 run the built image when
+│                                            LAB_DOCKER=1)
 ├── visual/                       ← Not part of `npm test`.
 │   ├── editor.spec.ts                    (VIS-EDITOR-*: screenshot checks,
 │   │                                        including the rail panels,
@@ -329,7 +332,7 @@ The checks that need the compile service's image run only with `LAB_DOCKER=1`,
 and skip without it:
 
 ```bash
-LAB_DOCKER=1 npx vitest run tests/security/lab-includes.test.ts   # SEC-LAB-03
+LAB_DOCKER=1 npx vitest run tests/security/lab-includes.test.ts   # SEC-LAB-03, SEC-LAB-15
 LAB_DOCKER=1 npm run test:visual -- lab.spec lab-drawing         # VIS-LAB-01 to 05
 ```
 
