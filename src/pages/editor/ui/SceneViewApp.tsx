@@ -67,7 +67,8 @@ export default function SceneViewApp() {
     void resolveSharedScene(link)
       .then((r) => {
         if (!r.ok) {
-          setView({ status: 'error', message: r.message });
+          // Lab work: the page is loading the Lab, so the view goes on opening until it goes.
+          if ('message' in r) setView({ status: 'error', message: r.message });
           return;
         }
         loadProjectData(r.scene.data, { sceneId: '', sceneName: r.scene.name });

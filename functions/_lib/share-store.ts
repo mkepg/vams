@@ -1,5 +1,8 @@
-/** Shared-scene storage for the Pages Functions. Checks structure only; the editor sanitises a scene when it opens it. */
-import { checkShareShape, MAX_STORED_BYTES } from '../../src/shared/lib/share-schema';
+/**
+ * Share storage for the Pages Functions: a shared scene, or shared Lab work (`kind: 'lab'`). Checks
+ * structure only; the editor sanitises a scene when it opens it.
+ */
+import { checkLabShape, checkShareShape, isLabKind, MAX_STORED_BYTES } from '../../src/shared/lib/share-schema';
 
 export { isShareId } from '../../src/shared/lib/share-schema';
 
@@ -42,6 +45,10 @@ export function checkPayload(text: string): PayloadCheck {
     parsed = JSON.parse(text);
   } catch {
     return { ok: false, status: 400, error: 'The scene is not JSON.' };
+  }
+  if (isLabKind(parsed)) {
+    const reason = checkLabShape(parsed);
+    return reason ? { ok: false, status: 400, error: `The Lab work can’t be stored: ${reason}.` } : { ok: true };
   }
   const reason = checkShareShape(parsed);
   return reason ? { ok: false, status: 400, error: `The scene can’t be stored: ${reason}.` } : { ok: true };

@@ -18,8 +18,10 @@ import {
   withBrowserSave,
 } from '@/features/lab-files';
 import { dropMissingFiles, readLabFiles, useLabStore } from '@/entities/lab-project';
+import { LabShareDialog, useShareDialog } from '@/features/share/lab';
 import type { MenuEntry } from '@/shared/ui/controls';
 import { LOG_SPLIT, PANE_SPLIT, splitStyle } from '../model/split';
+import { useLabShareLink } from '../model/use-lab-share-link';
 import { useIsNarrow } from '../model/use-narrow';
 import Handle from './Handle';
 import LabLog from './LabLog';
@@ -170,6 +172,9 @@ export default function LabWorkspace({ compile = compileSource, ...actions }: La
     tellFiles(null);
   };
 
+  // A Lab link opens here, as Open does.
+  useLabShareLink(replaced, tellFiles);
+
   const fileActions: LabFileActions = {
     examples: [
       { kind: 'group', id: 'programs', label: 'Programs' },
@@ -191,6 +196,7 @@ export default function LabWorkspace({ compile = compileSource, ...actions }: La
         }
       }),
     onSave: () => void saveWork(),
+    onShare: () => useShareDialog.getState().show(),
     ...actions,
   };
 
@@ -269,6 +275,7 @@ export default function LabWorkspace({ compile = compileSource, ...actions }: La
           <LabStage />
         </div>
       </main>
+      <LabShareDialog onSaveFile={() => void saveWork()} />
     </div>
   );
 }

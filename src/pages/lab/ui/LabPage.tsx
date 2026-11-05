@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { Toaster } from 'sonner';
 import SiteHeader from '@/widgets/site-header';
 import SiteFooter from '@/widgets/site-footer';
 import { LabWorkspace } from '@/widgets/lab-workspace';
 import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
+import { useSiteTheme } from '@/shared/lib/theme';
 import { LAB_COPY } from '../model/copy';
 import { ensureIsolation } from '../model/isolation';
 import './lab-page.scss';
@@ -23,6 +25,7 @@ function sessionStore(): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> {
 
 export default function LabPage({ reload = () => window.location.reload() }: LabPageProps) {
   const [needsReload, setNeedsReload] = useState(false);
+  const theme = useSiteTheme();
 
   useEffect(() => {
     // Only the browser knows whether the page is isolated, so the server's page renders the workspace.
@@ -31,12 +34,14 @@ export default function LabPage({ reload = () => window.location.reload() }: Lab
   }, []);
 
   // The workspace is a whole-window tool with its own top bar; only the reload notice is a site page.
-  // The page hosts the one confirm dialog that New, Open and the examples ask through.
+  // The page hosts the one confirm dialog that New, Open and the examples ask through, and the
+  // toasts that say Share's link was copied.
   if (!needsReload)
     return (
       <>
         <LabWorkspace />
         <ConfirmDialog />
+        <Toaster position="bottom-center" theme={theme} />
       </>
     );
 

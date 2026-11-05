@@ -106,7 +106,8 @@ tests/
 │   │                                        pixels, FLAT colours, and the state
 │   │                                        the code sets in every mode)
 │   ├── share.test.ts                     (BB-SHARE-*: the Share dialog and
-│   │                                        choosing a link)
+│   │                                        choosing a link; Lab links from
+│   │                                        /s/<id> to /lab?share=<id>)
 │   ├── scene-view.test.ts                (BB-VIEW-*: the read-only scene view
 │   │                                        on phones)
 │   ├── help-center.test.ts               (BB-HELP-*: the Help Centre's topics

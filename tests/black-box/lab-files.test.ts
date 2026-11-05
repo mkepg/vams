@@ -281,10 +281,10 @@ describe('BB-LAB-54: New asks before replacing unsaved changes, then loads TEMPL
     expect(useLabStore.getState().unsaved).toBe(false);
   });
 
-  it('shows Examples, New, Open and Save in the top bar, and New asks in a dialog', async () => {
+  it('shows Examples, New, Open, Save and Share in the top bar, and New asks in a dialog', async () => {
     const host = mountWorkspace();
     const bar = host.querySelector('.lab-top-bar')!;
-    expect([...bar.querySelectorAll('button')].map((b) => b.textContent?.replace('▶', '').trim())).toEqual(['Examples', 'New', 'Open', 'Save', 'Run']);
+    expect([...bar.querySelectorAll('button')].map((b) => b.textContent?.replace('▶', '').trim())).toEqual(['Examples', 'New', 'Open', 'Save', 'Share', 'Run']);
     type(host, '// mine\n');
     await act(() => button(host, 'New')!.click());
     const dialog = document.querySelector('[role="alertdialog"]')!;

@@ -13,6 +13,8 @@ export interface OpenSharedDeps {
 export async function openSharedScene(link: ShareLink, deps: OpenSharedDeps): Promise<boolean> {
   const resolved = await resolveSharedScene(link, deps.fetchImpl);
   if (!resolved.ok) {
+    // Lab work: the page is loading the Lab, so the editor stays covered until it goes.
+    if ('lab' in resolved) return new Promise<boolean>(() => {});
     toast.error(resolved.message);
     return false;
   }

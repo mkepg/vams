@@ -44,7 +44,7 @@ export default function LabTopBar({ status, onRun, examples, ...actions }: LabTo
         {ACTIONS.map(({ key, label }) => {
           const action = actions[key];
           return action ? (
-            <Button key={key} variant="quiet" onClick={action}>
+            <Button key={key} variant="quiet" aria-haspopup={key === 'onShare' ? 'dialog' : undefined} onClick={action}>
               {label}
             </Button>
           ) : null;

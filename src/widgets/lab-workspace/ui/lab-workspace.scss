@@ -78,7 +78,8 @@
     font-size: var(--text-sm);
     color: var(--ink-muted);
   }
-  &__actions { display: flex; align-items: center; gap: var(--space-1); margin-left: auto; }
+  // On a phone the actions wrap onto a second line, ▶ Run last, rather than widen the page.
+  &__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--space-1); margin-left: auto; }
 }
 
 // The handles: a hairline that thickens into the accent while it is held or has focus.

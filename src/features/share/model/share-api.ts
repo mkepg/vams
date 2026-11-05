@@ -1,4 +1,5 @@
 import type { SharePayload } from '@/entities/project/model/share';
+import type { LabSharePayload } from '@/shared/lib/share-schema';
 
 export type StoreFailure = 'offline' | 'limited' | 'too-large' | 'invalid' | 'unavailable';
 export type FetchFailure = 'missing' | 'offline' | 'unavailable';
@@ -22,7 +23,7 @@ async function withTimeout<T>(work: (signal: AbortSignal) => Promise<T>, onAbort
 }
 
 export async function createStoredShare(
-  p: SharePayload,
+  p: SharePayload | LabSharePayload,
   fetchImpl: typeof fetch = fetch,
 ): Promise<{ ok: true; id: string; expiresAt: string } | { ok: false; reason: StoreFailure }> {
   return withTimeout<{ ok: true; id: string; expiresAt: string } | { ok: false; reason: StoreFailure }>(async (signal) => {
