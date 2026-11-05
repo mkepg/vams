@@ -6,7 +6,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { buildPwaOptions } from './src/app/pwa/pwa-options'
 import { buildRobots, buildSitemap } from './src/app/seo/sitemap'
 import { LAB_LIVE } from './src/pages/lab/model/lab-live'
-import { labEnabled } from './src/pages/lab/model/lab-enabled'
+import { assertLiveRuntime, labEnabled } from './src/pages/lab/model/lab-enabled'
+import { runtimeVersion } from './src/features/lab-run/model/runtime-version'
 import { LAB_WORKER_OUTPUT, isLabWorkerFile, labDevServer } from './scripts/lab/vite-lab-dev'
 
 function seoFiles(siteUrl: string, labOn: boolean): Plugin {
@@ -56,6 +57,8 @@ function notFoundPage(): Plugin {
 
 export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  // A live build must load a published runtime: only the dev server answers /lab-runtime/dev/.
+  assertLiveRuntime({ live: LAB_LIVE, build: command === 'build', runtimeVersion })
   const labOn = labEnabled({ live: LAB_LIVE, flag: env.VITE_LAB, dev: command === 'serve' })
   const siteUrl = env.VITE_SITE_URL?.trim() || DEFAULT_SITE_URL
 

@@ -15,7 +15,7 @@ import { buildSitemap } from '@/app/seo/sitemap';
 import { buildPwaOptions } from '@/app/pwa/pwa-options';
 import SiteHeader from '@/widgets/site-header';
 import { NAV_LINKS, navLinks } from '@/widgets/site-header/model/nav';
-import { labEnabled } from '@/pages/lab/model/lab-enabled';
+import { assertLiveRuntime, labEnabled, liveRuntimeProblem } from '@/pages/lab/model/lab-enabled';
 import { LAB_ENABLED } from '@/shared/config/lab';
 import LabPage from '@/pages/lab';
 import { ISOLATION_RELOAD_KEY } from '@/pages/lab/model/isolation';
@@ -339,5 +339,32 @@ describe('BB-LAB-87: Every page’s bundle leaves the Lab out; the Lab loads on 
     expect([...graph].filter((f) => f.startsWith('src/pages/lab/') || f.startsWith('src/widgets/lab-workspace/') || f.startsWith('src/entities/lab-project/'))).toEqual([]);
     expect(graph.has('package:sonner')).toBe(false);
     expect(readFileSync('src/app/SiteApp.tsx', 'utf8')).toMatch(/LAB_ENABLED \? lazy\(\(\) => import\('@\/pages\/lab'\)\)/);
+  });
+});
+
+describe('BB-LAB-92: A live build refuses the development runtime', () => {
+  it('fails a build that is live while the runtime version is dev, and names the fix', () => {
+    const problem = liveRuntimeProblem({ live: true, build: true, runtimeVersion: 'dev' });
+    expect(problem).toMatch(/LAB_LIVE/);
+    expect(problem).toMatch(/runtimeVersion/);
+    expect(problem).toMatch(/publish-runtime/);
+    expect(() => assertLiveRuntime({ live: true, build: true, runtimeVersion: 'dev' })).toThrow(problem!);
+  });
+
+  it('lets the dev server, the flagged visual build and today’s production build through', () => {
+    // The dev server serves the local runtime at /lab-runtime/dev/.
+    expect(liveRuntimeProblem({ live: true, build: false, runtimeVersion: 'dev' })).toBeNull();
+    // VITE_LAB=1 and today's production build both have LAB_LIVE false.
+    expect(liveRuntimeProblem({ live: false, build: true, runtimeVersion: 'dev' })).toBeNull();
+    expect(liveRuntimeProblem({ live: false, build: false, runtimeVersion: 'dev' })).toBeNull();
+    // A published runtime may go live.
+    expect(liveRuntimeProblem({ live: true, build: true, runtimeVersion: '4.0.10-1a2b3c4d' })).toBeNull();
+    expect(() => assertLiveRuntime({ live: false, build: true, runtimeVersion: 'dev' })).not.toThrow();
+  });
+
+  it('is checked by the build with the real switch and the real runtime version', () => {
+    const config = readFileSync('vite.config.ts', 'utf8');
+    expect(config).toContain("import { runtimeVersion } from './src/features/lab-run/model/runtime-version'");
+    expect(config).toContain("assertLiveRuntime({ live: LAB_LIVE, build: command === 'build', runtimeVersion })");
   });
 });

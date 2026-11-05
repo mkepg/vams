@@ -74,7 +74,7 @@ Run from the repository root in Git Bash (Windows) or any POSIX shell, with Dock
 
 2. **The main module.** `node scripts/lab/publish-runtime.mjs`
 
-   It builds `lab/runtime/build.sh` in the pinned `emscripten/emsdk` image into `lab/runtime/out/publish/`, uploads every file to `LAB_RUNTIME` as `<EMSDK_VERSION>-<sha8>/<file>`, and writes that version into `src/features/lab-run/model/runtime-version.ts`. Commit that file. `--dry-run` builds and prints the keys without uploading or writing anything. A version is the hash of its files, so publishing an unchanged build again uploads the same keys.
+   It builds `lab/runtime/build.sh` in the pinned `emscripten/emsdk` image into `lab/runtime/out/publish/`, uploads every file to `LAB_RUNTIME` as `<EMSDK_VERSION>-<sha8>/<file>`, and writes that version into `src/features/lab-run/model/runtime-version.ts`. Commit that file. `--dry-run` builds and prints the keys without uploading or writing anything. A version is the hash of its files, so publishing an unchanged build again uploads the same keys. `npm run build` stops while `LAB_LIVE` is `true` and the version is still `dev`, which only the dev server serves.
 
 3. **Deploy the site,** so the Pages secrets and the new version apply: push to `main`, or retry the latest production deployment in the Cloudflare dashboard. Until then `/api/compile` answers offline. Then `curl -I https://vams.pages.dev/lab-runtime/<version>/vams_main.wasm` answers 200 with `cache-control: public, max-age=31536000, immutable`.
 
