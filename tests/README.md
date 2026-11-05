@@ -31,6 +31,9 @@ tests/
 │   │                                ALG-LAB-18 can end one that never returns.
 │   ├── lab-console-worker.ts     ← The Lab's Console in a worker thread,
 │   │                                blocking on Atomics.wait, for BB-LAB-23.
+│   ├── student-text.ts           ← The text students read in a source file,
+│   │                                and the British spelling and Language
+│   │                                Discipline checks (WB-SPELL, BB-LAB-58).
 │   └── image-compare.ts          ← PNG reading and writing, and the image
 │                                    rule of the render fidelity and Lab
 │                                    batteries (edge pixels may differ, the
@@ -139,9 +142,13 @@ tests/
 │   │                                        program's window)
 │   ├── lab-shared-layout.test.ts         (BB-LAB-61 to 64: the rings the page
 │   │                                        and the program's worker share)
-│   └── lab-files.test.ts                 (BB-LAB-52 to 57 and 78 to 85: the
-│                                            browser save, Save, Open, New, the
-│                                            examples and the file list)
+│   ├── lab-files.test.ts                 (BB-LAB-52 to 57 and 78 to 85: the
+│   │                                        browser save, Save, Open, New, the
+│   │                                        examples and the file list)
+│   └── lab-wording.test.ts               (BB-LAB-58: every message in the Lab's
+│                                            sources, the compile service and the
+│                                            runtime keeps the Language Discipline
+│                                            and British spelling)
 ├── white-box/                    ← Maps to Table 13.
 │   ├── state-management.test.ts          (WB-STATE-*)
 │   ├── matrix-engine.test.ts             (WB-MATRIX-*)
@@ -215,8 +222,17 @@ tests/
 │   │                                        Texture group)
 │   ├── share.spec.ts                     (VIS-SHARE-*: the Share dialog at 1280, the phone scene
 │   │                                        view at 390 and the closing slide's QR code)
-│   └── fidelity.spec.ts                  (VIS-FID-*: the canvas against the exported
-│                                            program on the course toolchain)
+│   ├── fidelity.spec.ts                  (VIS-FID-*: the canvas against the exported
+│   │                                        program on the course toolchain)
+│   ├── lab.spec.ts                       (VIS-LAB-01 to 04: /lab with the template
+│   │                                        running, at 1280 and 390 in both
+│   │                                        themes; LAB_DOCKER=1)
+│   ├── lab-drawing.spec.ts               (VIS-LAB-05: each Lab battery program,
+│   │                                        compiled and run in the Lab, against
+│   │                                        its FreeGLUT reference; LAB_DOCKER=1)
+│   └── helpers/lab.ts                    (the compile service's image, and the
+│                                            routes that stand in for production
+│                                            in front of the preview server)
 ├── algorithm/                    ← Maps to §3.10.3 Algorithm Validation.
 │   ├── algorithm-1-global-matrix.test.ts        (ALG-1-*)
 │   ├── algorithm-2-code-generation.test.ts      (ALG-2-*)
@@ -299,6 +315,39 @@ the images they load, after which their references are recorded again.
 `checkerboard.png` is an 8 × 8 RGBA image of one-texel cells, white where x + y
 is even and red (220, 30, 30) where it is odd, written once with `encodePng`.
 
+### The Lab (`*-LAB-*`)
+
+The Lab's checks carry the module `LAB` in every suite: `BB-LAB` (the page, the
+workspace, the runtime, the 2D set and the wording), `WB-LAB` (the compile
+service, its limits, the billing guard, the scripts and the battery),
+`ALG-LAB` (the rasteriser and the OpenGL 1.5 state machine), `SEC-LAB` (what a
+program can reach on the compile server) and `VIS-LAB` (the page in the browser).
+
+The checks that need the compile service's image run only with `LAB_DOCKER=1`,
+and skip without it:
+
+```bash
+LAB_DOCKER=1 npx vitest run tests/security/lab-includes.test.ts   # SEC-LAB-03
+LAB_DOCKER=1 npm run test:visual -- lab.spec lab-drawing         # VIS-LAB-01 to 05
+```
+
+Playwright matches its filters against the whole path, so in a checkout whose
+folder name holds `lab`, the filter `lab` alone runs every spec.
+
+Both build the image from `lab/toolchain/Dockerfile`, start a container for the
+run and remove it afterwards. The visual checks also need the runtime built in
+`lab/runtime/out/` (`lab/runtime/build.sh`, run in the pinned `emscripten/emsdk`
+image). The preview server has nothing of what production puts in front of
+`/lab`, so `tests/visual/helpers/lab.ts` adds the isolation headers, serves the
+runtime from `lab/runtime/out/` and sends `/api/compile` to the container.
+VIS-LAB-01 to 04 are screenshot checks with local baselines, like the others.
+VIS-LAB-05 opens each battery program in the Lab as a `.zip` with the images it
+loads, runs it, and compares the first frame the page takes from the shared
+framebuffer with the program's reference by the battery's rule. `lines-wide`
+keeps 2 parked pixels, the ends of its 45° width-4 lines; every other program
+must match. A failure writes the frame and a diff image to
+`tests/visual/results.local/lab-drawing/`.
+
 ## Acceptance bar (per §3.10)
 
 | Criterion | Target | Current |
@@ -318,7 +367,7 @@ browsers) that the developer's CI machine cannot be assumed to have:
 * **Compilation of generated C++** — see `reports/manual-compile-procedure.md`.
 * **Cross-browser execution** — see `reports/manual-cross-browser-procedure.md`.
 * **Playwright UI scenarios** — out of scope for this iteration. The only
-  Playwright suite is the screenshot check set (VIS-EDITOR, VIS-LEARN, VIS-ABOUT, VIS-GALLERY), which needs a
+  Playwright suite is the screenshot check set (VIS-EDITOR, VIS-LEARN, VIS-ABOUT, VIS-GALLERY, VIS-LAB), which needs a
   locally created baseline and is not part of `npm test` or CI.
 
 Their results, once collected, are inserted into the corresponding

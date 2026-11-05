@@ -72,6 +72,8 @@ Students register GLUT callbacks — keyboard, special keys, mouse, motion, resh
 
 Besides the editor at `/app`, the site has a home page, the Learn page and an About page. The pages are prerendered for search engines and link previews, and the app installs as an offline-capable PWA. The home page also has a stage mode for presenting it as slides.
 
+The Lab, at `/lab`, is where students write their own OpenGL 1.x and GLUT program in C++ and run it in the browser with nothing to install: a compile service builds it, and it runs in a window on the page. It goes live with the compile service; until then it is built only with `VITE_LAB=1`.
+
 ## Quick start
 
 Requires **Node.js 20+** and a browser with WebGL support.
