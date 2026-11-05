@@ -150,12 +150,19 @@ const header = (req: IncomingMessage, name: string): string | undefined => {
 };
 
 const VISITOR = /^[A-Za-z0-9_-]{1,64}$/;
+/** What a request that failed inside the service answers, with 500. */
+const INTERNAL_ERROR = { error: 'internal' };
 
 export function createService(options: ServiceOptions): Server {
   const usage = options.usage ?? memoryStore();
   const compile = options.compile ?? compileSource;
   const limits = options.limits ?? COMPILE_LIMITS;
   const slots = new Semaphore(options.concurrency ?? CONCURRENCY);
+  // A settle that fails is logged: the response still goes out.
+  const settleQuietly = (input: { bytes: number; ms: number; now: Date }) =>
+    usage.settle(input).catch((e: unknown) => {
+      console.error('settle failed:', e instanceof Error ? e.message : e);
+    });
 
   const handle = async (req: IncomingMessage, res: ServerResponse) => {
     const path = (req.url ?? '').split('?')[0];
@@ -201,10 +208,22 @@ export function createService(options: ServiceOptions): Server {
 
     const release = await slots.acquire();
     let result: CompileResult | null = null;
+    const started = performance.now();
+    let failure: { error: unknown } | null = null;
     try {
       if (!abort.signal.aborted) result = await compile(source, { ...limits, signal: abort.signal });
+    } catch (error) {
+      failure = { error };
     } finally {
       release();
+    }
+    if (failure) {
+      // A compile that throws still used the CPU it ran for, and the 500 still goes out: the
+      // month counts both. The reserve has already charged the rate windows, so only the month
+      // is written here.
+      const bytes = abort.signal.aborted ? 0 : Buffer.byteLength(JSON.stringify(INTERNAL_ERROR));
+      await settleQuietly({ bytes, ms: performance.now() - started, now: new Date() });
+      throw failure.error;
     }
     if (!result) return;
 
@@ -232,9 +251,7 @@ export function createService(options: ServiceOptions): Server {
     }
     if (abort.signal.aborted) bytes = 0;
     // Settled before the response ends, while Cloud Run still gives the request CPU.
-    await usage.settle({ bytes, ms: result.ms, now: new Date() }).catch((e: unknown) => {
-      console.error('settle failed:', e instanceof Error ? e.message : e);
-    });
+    await settleQuietly({ bytes, ms: result.ms, now: new Date() });
     if (!abort.signal.aborted) send();
   };
 
@@ -242,7 +259,7 @@ export function createService(options: ServiceOptions): Server {
     handle(req, res).catch((e: unknown) => {
       // The message only: a stack could carry part of a student's source.
       console.error('compile request failed:', e instanceof Error ? e.message : String(e));
-      if (!res.headersSent) sendJson(res, 500, { error: 'internal' });
+      if (!res.headersSent) sendJson(res, 500, INTERNAL_ERROR);
       else res.destroy();
     });
   });

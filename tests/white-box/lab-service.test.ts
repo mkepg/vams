@@ -557,3 +557,51 @@ describe('WB-LAB-14: POST /compile follows the HTTP contract, two compiles at a 
     expect(most).toBe(2);
   });
 });
+
+describe('WB-LAB-20: A compile that throws still adds its cost to the month', () => {
+  const SECRET = 'test-secret-7f3a';
+  let server: Server | null = null;
+
+  afterEach(async () => {
+    await new Promise<void>((done) => (server ? server.close(() => done()) : done()));
+    server = null;
+  });
+
+  it('settles once with the time the compile took and the 500 it sent, and reserves once', async () => {
+    const reserves: string[] = [];
+    const settles: { bytes: number; ms: number }[] = [];
+    const usage: UsageStore = {
+      reserve: async ({ visitor, ip }) => (reserves.push(`${visitor} ${ip}`), { ok: true }),
+      settle: async ({ bytes, ms }) => void settles.push({ bytes, ms }),
+    };
+    const logged: unknown[][] = [];
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => void logged.push(args));
+    try {
+      server = createService({
+        secret: SECRET,
+        usage,
+        compile: async () => {
+          await new Promise((r) => setTimeout(r, 60));
+          throw new Error('clang could not be started.');
+        },
+      });
+      await new Promise<void>((done) => server!.listen(0, '127.0.0.1', () => done()));
+      const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/compile`;
+      const res = await labRequest(url, {
+        headers: { 'Content-Type': 'application/json', 'X-Lab-Secret': SECRET, 'X-Lab-Client-IP': '203.0.113.7' },
+        body: JSON.stringify({ source: 'int main() {}', visitor: 'v-123' }),
+      });
+
+      expect(res.status).toBe(500);
+      expect(reserves).toEqual(['v-123 203.0.113.7']);
+      expect(settles).toHaveLength(1);
+      expect(settles[0].bytes).toBe(res.body.length);
+      // Measured around the compile, which ran for about 60 ms before it threw.
+      expect(settles[0].ms).toBeGreaterThanOrEqual(50);
+      expect(settles[0].ms).toBeLessThan(5_000);
+      expect(logged).toEqual([['compile request failed:', 'clang could not be started.']]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
