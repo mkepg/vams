@@ -31,6 +31,8 @@ export function bannedInText(text: string): string[] {
 export interface Prose {
   line: number;
   text: string;
+  /** The whole string is a code-like token: spelling leaves it alone, the Language Discipline doesn't. */
+  code: boolean;
 }
 
 const SKIPPED_ATTRIBUTES = new Set(['className', 'class', 'id', 'key', 'role', 'type', 'href', 'src', 'htmlFor', 'panelId', 'focusPanel']);
@@ -46,14 +48,13 @@ function scriptKind(file: string): ts.ScriptKind {
 
 /**
  * Every string literal, template part and JSX text in a TypeScript or JavaScript file, apart from
- * imports, attributes that hold no text, and code-like tokens.
+ * imports and attributes that hold no text. Code-like tokens are marked.
  */
 export function proseInScript(text: string, file: string): Prose[] {
   const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, scriptKind(file));
   const found: Prose[] = [];
   const add = (node: ts.Node, value: string) => {
-    if (isCodeLikeToken(value)) return;
-    found.push({ line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1, text: value });
+    found.push({ line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1, text: value, code: isCodeLikeToken(value) });
   };
   const visit = (node: ts.Node): void => {
     if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) return;
@@ -70,7 +71,7 @@ export function proseInScript(text: string, file: string): Prose[] {
   return found;
 }
 
-/** Every string literal in a C file, apart from #include names and code-like tokens. Comments are skipped. */
+/** Every string literal in a C file, apart from #include names, with code-like tokens marked. Comments are skipped. */
 export function proseInC(text: string): Prose[] {
   const found: Prose[] = [];
   let line = 1;
@@ -111,7 +112,7 @@ export function proseInC(text: string): Prose[] {
         } else value += text[j++];
       }
       i = j + 1;
-      if (c === '"' && directive !== 'include' && !isCodeLikeToken(value)) found.push({ line: startLine, text: value });
+      if (c === '"' && directive !== 'include') found.push({ line: startLine, text: value, code: isCodeLikeToken(value) });
       continue;
     }
     i++;

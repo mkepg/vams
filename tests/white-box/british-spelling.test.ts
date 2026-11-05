@@ -29,8 +29,8 @@ function sourceFiles(): string[] {
 }
 
 function americanIn(file: string): string[] {
-  return proseInScript(fs.readFileSync(path.join(SRC, file), 'utf8'), file).flatMap(({ line, text }) => {
-    const words = americanInText(text);
+  return proseInScript(fs.readFileSync(path.join(SRC, file), 'utf8'), file).flatMap(({ line, text, code }) => {
+    const words = code ? [] : americanInText(text);
     return words.length ? [`${line}: ${words.join(', ')}`] : [];
   });
 }
