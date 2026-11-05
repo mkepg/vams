@@ -21,6 +21,9 @@ export default defineConfig({
     environment: 'happy-dom',
     include: ['tests/**/*.test.ts'],
     setupFiles: ['./tests/setup.ts'],
+    // The whole suite runs files in parallel, and on a busy machine a test that takes one or two
+    // seconds alone (the rasteriser's 2^20-element caps, a full page render) can pass 5 s.
+    testTimeout: 30_000,
     // Transform React-ecosystem component libraries through Vite so their `react`
     // imports resolve to preact/compat (needed when prerendering components in tests).
     server: {
