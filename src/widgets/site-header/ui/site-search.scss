@@ -124,8 +124,11 @@
   .site-search__open-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 }
 /* Phones: no keyboard shortcut to show, and every page is in the switcher, so the button goes. */
-@media (max-width: 520px) {
+/* On phones the header has no room for the button; Ctrl+K still opens search. */
+@media (max-width: 600px) {
   .site-search__open { display: none; }
+}
+@media (max-width: 520px) {
   .site-search__option { grid-template-columns: minmax(0, 1fr); gap: 0; }
 }
 

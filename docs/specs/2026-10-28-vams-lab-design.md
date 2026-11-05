@@ -153,6 +153,7 @@ Anything else outside the set is also rejected, with a message in the same form.
   - Each compile runs in a fresh temporary directory with no network.
   - The time limit is 10 seconds of wall clock, with a memory cap and an output size cap.
   - Includes are allowed only from the bundled headers and the student's own file. The service never returns the content of any other file on the server.
+  - Inline assembly is refused, because the assembler's `.incbin` and `.include` read files. The service refuses the `asm` keywords and token pasting (`##`) in the student's file before clang runs, then looks for inline assembly in clang's preprocessed program before compiling, so a header's own pasting macro can't build it either.
   - The service compiles only. The program never runs on the server.
 - **Offline:** editing and saving work offline. Run says "Run needs the internet. Your code is saved in this browser."
 - **The code editor:** CodeMirror 6, for its smaller bundle and better accessibility than Monaco. It has C++ highlighting, error marks on lines, and clicking an error in the log jumps to its line.

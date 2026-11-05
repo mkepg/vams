@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { Container } from 'pixi.js';
-import { GLYPHS, GLYPH_HEIGHT, GLYPH_WIDTH } from '@/shared/lib/glut-bitmap-9x15';
+import { GLYPHS, GLYPH_HEIGHT, GLYPH_WIDTH } from '@/shared/lib/glut-fonts/font-9x15';
 import { lineOrigin, printableLine, rasterLineYs, rasterizeLine, textLineStep } from '@/shared/lib/text-raster';
 import { BitmapTextLayout } from '@/shared/engine/pixi/primitives/rendering/bitmapText';
 

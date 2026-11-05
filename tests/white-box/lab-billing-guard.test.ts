@@ -1,0 +1,177 @@
+/**
+ * WHITE-BOX TEST SUITE — WB-LAB (the billing switch-off)
+ * The function in lab/billing-guard that turns billing off for the Lab's project
+ * when a budget notification reports the budget has been reached.
+ *
+ * Test focus:
+ *  - Spend at 0.99 of the budget leaves billing on, and 1.00 turns it off
+ *  - The request goes to the project's billingInfo with an empty account name
+ *  - It is sent once, even when the message is delivered again
+ */
+import { describe, expect, it, vi } from 'vitest';
+import { onBudget, shouldDisable } from '../../lab/billing-guard/index.ts';
+
+const b64 = (o: unknown) => Buffer.from(typeof o === 'string' ? o : JSON.stringify(o)).toString('base64');
+const cloudEvent = (m: unknown) => ({ data: { message: { data: b64(m) } } });
+const legacyEvent = (m: unknown) => ({ data: b64(m) });
+const OVER = { costAmount: 100, budgetAmount: 100 };
+
+type Call = { url: string; method: string; body?: string; headers: Record<string, string> };
+
+/** A fake fetch that answers the metadata server and the Billing API. */
+function fakeGoogle(billingEnabled = true) {
+  const state = { billingEnabled };
+  const calls: Call[] = [];
+  const fetch = vi.fn(async (url: string | URL, init?: RequestInit) => {
+    const u = String(url);
+    const call: Call = {
+      url: u,
+      method: init?.method ?? 'GET',
+      body: init?.body as string | undefined,
+      headers: (init?.headers ?? {}) as Record<string, string>,
+    };
+    calls.push(call);
+    if (u.includes('/service-accounts/default/token')) return Response.json({ access_token: 'tok' });
+    if (u.endsWith('/project/project-id')) return new Response('vams-lab-test');
+    if (call.method === 'PUT') {
+      state.billingEnabled = false;
+      return Response.json({ billingEnabled: false });
+    }
+    return Response.json({ billingEnabled: state.billingEnabled });
+  });
+  return { fetch: fetch as unknown as typeof globalThis.fetch, calls, state };
+}
+const puts = (calls: Call[]) => calls.filter((c) => c.method === 'PUT');
+const env = { GOOGLE_CLOUD_PROJECT: 'vams-lab-test' };
+
+describe('WB-LAB-10: A budget at 0.99 of its limit leaves billing on, and 1.00 turns it off', () => {
+  it('decides on cost against budget', () => {
+    expect(shouldDisable({ costAmount: 99, budgetAmount: 100 })).toBe(false);
+    expect(shouldDisable({ costAmount: 100, budgetAmount: 100 })).toBe(true);
+    expect(shouldDisable({ costAmount: 130, budgetAmount: 100 })).toBe(true);
+  });
+
+  it('sends nothing at 0.99', async () => {
+    const g = fakeGoogle();
+    await onBudget(cloudEvent({ costAmount: 99, budgetAmount: 100 }), { fetch: g.fetch, env });
+    expect(puts(g.calls)).toHaveLength(0);
+  });
+
+  it('logs one line naming the budget when it leaves billing on, and asks Google nothing', async () => {
+    const lines: string[] = [];
+    const log = vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => void lines.push(a.join(' ')));
+    const g = fakeGoogle();
+    try {
+      await onBudget(cloudEvent({ budgetDisplayName: 'vams-lab', costAmount: 0.5, budgetAmount: 1 }), { fetch: g.fetch, env });
+      await onBudget(cloudEvent({ costAmount: 90, alertThresholdExceeded: 0.9 }), { fetch: g.fetch, env });
+    } finally {
+      log.mockRestore();
+    }
+    expect(lines).toEqual([
+      'Budget vams-lab not reached (0.5 of 1): billing stays on.',
+      'Budget notification not reached (90 of an unknown budget): billing stays on.',
+    ]);
+    expect(g.calls).toHaveLength(0);
+  });
+
+  it('sends the request at 1.00', async () => {
+    const g = fakeGoogle();
+    await onBudget(cloudEvent(OVER), { fetch: g.fetch, env });
+    expect(puts(g.calls)).toHaveLength(1);
+  });
+
+  it('turns billing off for a message with no budget amount that reports a threshold of 1 or more', async () => {
+    const g = fakeGoogle();
+    await onBudget(cloudEvent({ alertThresholdExceeded: 1.0 }), { fetch: g.fetch, env });
+    expect(puts(g.calls)).toHaveLength(1);
+  });
+
+  it('leaves billing on for a message with no budget amount and a threshold below 1', async () => {
+    const g = fakeGoogle();
+    await onBudget(cloudEvent({ costAmount: 90, alertThresholdExceeded: 0.9 }), { fetch: g.fetch, env });
+    expect(puts(g.calls)).toHaveLength(0);
+  });
+
+  it('logs a malformed message and returns without turning billing off', async () => {
+    const warn = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const g = fakeGoogle();
+    for (const e of [cloudEvent('not json'), cloudEvent({ costAmount: 'x' }), cloudEvent({ costAmount: 5 }), { data: {} }, {}, legacyEvent('{')]) {
+      await expect(onBudget(e, { fetch: g.fetch, env })).resolves.toBeUndefined();
+    }
+    expect(g.calls).toHaveLength(0);
+    warn.mockRestore();
+  });
+});
+
+describe('WB-LAB-11: The request names the project, empties the account, and is sent once', () => {
+  it('PUTs an empty billingAccountName to the project billingInfo with the metadata token', async () => {
+    const g = fakeGoogle();
+    await onBudget(cloudEvent(OVER), { fetch: g.fetch, env });
+    const put = puts(g.calls)[0];
+    expect(put.url).toBe('https://cloudbilling.googleapis.com/v1/projects/vams-lab-test/billingInfo');
+    expect(JSON.parse(put.body!)).toEqual({ billingAccountName: '' });
+    expect(put.headers.Authorization).toBe('Bearer tok');
+    const token = g.calls.find((c) => c.url.includes('/service-accounts/default/token'))!;
+    expect(token.headers['Metadata-Flavor']).toBe('Google');
+  });
+
+  it('reads the older background-function shape', async () => {
+    const g = fakeGoogle();
+    await onBudget(legacyEvent(OVER), { fetch: g.fetch, env });
+    expect(puts(g.calls)).toHaveLength(1);
+  });
+
+  it('takes the project from the metadata server when the environment lacks it', async () => {
+    const g = fakeGoogle();
+    await onBudget(cloudEvent(OVER), { fetch: g.fetch, env: {} });
+    expect(puts(g.calls)[0].url).toContain('/projects/vams-lab-test/billingInfo');
+  });
+
+  it('sends nothing when billing is already off', async () => {
+    const g = fakeGoogle(false);
+    await onBudget(cloudEvent(OVER), { fetch: g.fetch, env });
+    expect(puts(g.calls)).toHaveLength(0);
+  });
+
+  it('sends once when the message is delivered again, because the lookup shows billing off', async () => {
+    const g = fakeGoogle();
+    await onBudget(cloudEvent(OVER), { fetch: g.fetch, env });
+    await onBudget(cloudEvent(OVER), { fetch: g.fetch, env });
+    expect(puts(g.calls)).toHaveLength(1);
+  });
+
+  it('turns billing off again when it was switched back on and the budget is still reached', async () => {
+    const g = fakeGoogle();
+    await onBudget(cloudEvent(OVER), { fetch: g.fetch, env });
+    g.state.billingEnabled = true;
+    await onBudget(cloudEvent(OVER), { fetch: g.fetch, env });
+    expect(puts(g.calls)).toHaveLength(2);
+  });
+
+  it('throws when the billing lookup fails', async () => {
+    const base = fakeGoogle();
+    const fetch = (async (url: string | URL, init?: RequestInit) =>
+      !init?.method && String(url).includes('billingInfo') ? new Response('no', { status: 503 }) : base.fetch(url, init)) as typeof globalThis.fetch;
+    await expect(onBudget(cloudEvent(OVER), { fetch, env })).rejects.toThrow();
+    expect(puts(base.calls)).toHaveLength(0);
+  });
+
+  it('throws when the token request fails', async () => {
+    const base = fakeGoogle();
+    const fetch = (async (url: string | URL, init?: RequestInit) =>
+      String(url).includes('/service-accounts/default/token') ? new Response('no', { status: 403 }) : base.fetch(url, init)) as typeof globalThis.fetch;
+    await expect(onBudget(cloudEvent(OVER), { fetch, env })).rejects.toThrow();
+    expect(puts(base.calls)).toHaveLength(0);
+  });
+
+  it('throws when the PUT fails, so the message is delivered again, and then retries', async () => {
+    let fail = true;
+    const base = fakeGoogle();
+    const fetch = (async (url: string | URL, init?: RequestInit) =>
+      init?.method === 'PUT' && fail ? new Response('no', { status: 500 }) : base.fetch(url, init)) as typeof globalThis.fetch;
+    await expect(onBudget(cloudEvent(OVER), { fetch, env })).rejects.toThrow();
+    fail = false;
+    await onBudget(cloudEvent(OVER), { fetch, env });
+    expect(puts(base.calls)).toHaveLength(1);
+  });
+});

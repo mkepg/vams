@@ -55,6 +55,12 @@ export const ROUTES: readonly RouteMeta[] = [
     indexable: true,
   },
   {
+    path: '/lab',
+    title: 'Lab — VAMS',
+    description: 'Write a 2D OpenGL and GLUT program in C++ and run it in your browser, with nothing to install.',
+    indexable: true,
+  },
+  {
     path: '/app',
     title: 'VAMS Editor',
     description: 'Author 2D scenes and read the generated OpenGL 1.5 code and math side by side.',
@@ -67,6 +73,16 @@ export const ROUTES: readonly RouteMeta[] = [
     indexable: false,
   },
 ];
+
+/** The routes a build publishes: the Lab's entry is left out while the Lab is off. */
+export function publishedRoutes(labOn: boolean): readonly RouteMeta[] {
+  return ROUTES.filter((route) => labOn || route.path !== '/lab');
+}
+
+/** The routes besides the home page that a build prerenders; the Lab's is left out while the Lab is off. */
+export function prerenderRoutes(labOn: boolean): string[] {
+  return ['/404', '/learn', '/gallery', '/guide', '/teach', '/about', ...(labOn ? ['/lab'] : [])];
+}
 
 export function findRouteMeta(pathname: string): RouteMeta {
   const trimmed = pathname.replace(/\/+$/, '') || '/';

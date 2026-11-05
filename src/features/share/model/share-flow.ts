@@ -10,7 +10,9 @@ export type ShareResult =
   | { kind: 'carried'; url: string }
   | { kind: 'stored'; url: string; expiresAt: string; shrunk: number }
   | { kind: 'fallback'; url: string }
-  | { kind: 'failed' };
+  | { kind: 'failed' }
+  /** Too large for a link: the message says what a link holds. Only the Lab's work gets it. */
+  | { kind: 'over-limit'; message: string };
 
 export type ShareInput = ShareSource & { lesson: { id: string; title: string } | null };
 

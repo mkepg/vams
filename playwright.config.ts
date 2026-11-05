@@ -28,6 +28,6 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 240_000,
     // The visual build includes the sample lessons the VIS-LB checks open.
-    env: { VITE_LESSON_SAMPLES: '1' },
+    env: { VITE_LESSON_SAMPLES: '1', VITE_LAB: '1' },
   },
 });

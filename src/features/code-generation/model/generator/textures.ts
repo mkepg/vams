@@ -15,6 +15,9 @@ export function sceneNeedsTextures(allObjects: SceneNode[]): boolean {
   );
 }
 
+/** The file a texture's stbi_load names: the texture's name as a PNG. */
+export const textureFileName = (asset: Pick<TextureAsset, 'name'>): string => `${asset.name}.png`;
+
 export function generateTextureGlobals(allObjects: SceneNode[]): string {
   if (!sceneNeedsTextures(allObjects)) return '';
 
@@ -61,7 +64,7 @@ export function generateTextureInitBody(
     const asset = textures.get(o.texture.textureId);
     const filter = filterMacro(o);
     const wrap = wrapMacro(o);
-    const fileHint = asset ? `${asset.name}.png` : 'image.png';
+    const fileHint = asset ? textureFileName(asset) : 'image.png';
 
     lines.push('');
     lines.push(`    // ${o.name} — texture object`);

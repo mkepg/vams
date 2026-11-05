@@ -103,20 +103,30 @@
 }
 
 /* Narrow screens: the logo links home, so the switcher drops its Home segment and its icons,
-   and the button reads Open app. */
+   and the button reads Open app.
+   Each band below holds until the next one engages, so each is sized to fit at its narrowest width:
+   760 to 701, 700 to 641, 640 to 601, 600 to 451, 450 to 401, 400 to 380, and 379 to 320. VIS-LEARN-05
+   checks every 10 px, with five links and with six. */
 @media (max-width: 760px) {
   .site-header__pages li:has(> .site-header__link[href='/']) { display: none; }
   .site-header__link svg { display: none; }
   .site-header__cta-the { display: none; }
 }
 
+/* The gaps close up first; the header keeps the page's gutter until the gutter narrows at 640 px. */
+@media (max-width: 700px) {
+  .site-header { gap: var(--space-3); }
+  .site-header__link { padding: 0 var(--space-2); }
+  .site-header__actions { gap: var(--space-2); }
+}
+
 @media (max-width: 640px) {
-  .site-header { padding: var(--space-3) var(--space-4); gap: var(--space-3); }
+  .site-header { padding: var(--space-3) var(--space-4); }
   .site-header__actions { margin-left: auto; }
 }
 
-/* On phones the header stays one row: everything tightens. */
-@media (max-width: 520px) {
+/* Phones: the header stays one row, so everything tightens, and search is left to Ctrl+K. */
+@media (max-width: 600px) {
   .site-header { padding-inline: var(--space-3); gap: 6px; }
   .site-header__home { font-size: 0.72rem; }
   .site-header__link { padding: 0 6px; font-size: var(--text-base); }
@@ -126,19 +136,53 @@
 }
 
 /* Small phones: the switcher's segments close up, and the theme follows the phone's own setting. */
-@media (max-width: 400px) {
+@media (max-width: 450px) {
   .site-header__pages { padding: 2px; gap: 0; }
-  .site-header__link { padding: 0 3px; }
   .site-header__theme { display: none; }
 }
 
-/* The smallest phones (a 360 px phone included): a smaller wordmark and button. */
+@media (max-width: 400px) {
+  .site-header__link { padding: 0 3px; }
+}
+
+/* The smallest phones (a 360 px phone included): narrower gutters, a smaller wordmark and button. */
 @media (max-width: 379px) {
-  .site-header { gap: 4px; }
+  .site-header { padding-inline: var(--space-2); gap: 4px; }
   .site-header__home { font-size: 0.6rem; }
   .site-header__actions { gap: 4px; }
-  .site-header__cta { padding: 0 var(--space-2); }
+  .site-header__cta { padding: 0 6px; }
   .site-header__link { padding: 0 2px; font-size: var(--text-sm); }
+}
+
+/* Six pages, as when the Lab is on: the switcher holds one more segment, so from 860 px down each
+   band closes its segments up a step further. The selector matches only six links, so the five-link
+   layout above is unchanged, and its specificity outranks the bands above whatever their order. */
+$six-pages: '.site-header__pages:has(> li:nth-child(6))';
+
+@media (max-width: 860px) {
+  #{$six-pages} .site-header__link { padding: 0 var(--space-2); }
+}
+
+@media (max-width: 760px) {
+  #{$six-pages} .site-header__link { padding: 0 6px; }
+}
+
+@media (max-width: 700px) {
+  #{$six-pages} .site-header__link { padding: 0 var(--space-1); }
+}
+
+@media (max-width: 600px) {
+  #{$six-pages} { gap: 0; }
+  #{$six-pages} .site-header__link { padding: 0 3px; font-size: var(--text-sm); }
+}
+
+@media (max-width: 400px) {
+  #{$six-pages} .site-header__link { padding: 0 2px; }
+}
+
+@media (max-width: 379px) {
+  #{$six-pages} { padding: 1px; }
+  #{$six-pages} .site-header__link { padding: 0 1px; font-size: var(--text-xs); }
 }
 
 @media (prefers-reduced-motion: reduce) {

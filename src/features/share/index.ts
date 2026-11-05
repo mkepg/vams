@@ -4,4 +4,4 @@ export { copyLink } from './model/copy-link';
 export { default as ShareButton } from './ui/ShareButton';
 export { default as ShareDialog } from './ui/ShareDialog';
 export { createStoredShare, fetchStoredShare } from './model/share-api';
-export { resolveSharedScene, SHARE_MESSAGES, type ShareLink } from './model/resolve-shared';
+export { resolveSharedScene, SHARE_MESSAGES, type LabRoute, type ShareLink } from './model/resolve-shared';

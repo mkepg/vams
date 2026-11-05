@@ -1,7 +1,8 @@
 /**
- * WHITE-BOX TEST SUITE — WB-FID
- * The render fidelity battery's image rule: edge pixels may differ, every other pixel must be
- * within 2 of the reference in each channel. PNGs round-trip through the battery's own codec.
+ * WHITE-BOX TEST SUITE — WB-FID, WB-LAB
+ * The image rule of the render fidelity battery and the Lab's reference battery: edge pixels may
+ * differ, every other pixel must be within 2 of the reference in each channel. PNGs round-trip
+ * through the battery's own codec.
  */
 import { describe, expect, it } from 'vitest';
 import { compareImages, decodePng, encodePng, type Image } from '../helpers/image-compare';
@@ -48,5 +49,16 @@ describe('WB-FID-02: PNGs round-trip', () => {
   it('decodes what it encodes', () => {
     const img = set(square(), 1, 2, 77);
     expect(decodePng(encodePng(img))).toEqual(img);
+  });
+});
+
+describe('WB-LAB-12: The Lab battery\'s rule: any difference on an edge pixel, at most 2 inside a polygon', () => {
+  it('accepts any difference on an edge pixel', () => {
+    for (const value of [0, 1, 128, 254]) expect(compareImages(set(square(), 8, 3, value), square()).ok).toBe(true);
+  });
+
+  it('accepts a difference of 2 inside the polygon and rejects 3', () => {
+    expect(compareImages(set(square(), 6, 6, 253), square())).toEqual({ ok: true, failures: 0, examples: [] });
+    expect(compareImages(set(square(), 6, 6, 252), square())).toEqual({ ok: false, failures: 1, examples: [[6, 6, 3]] });
   });
 });

@@ -18,7 +18,7 @@
 
 ## Product Overview
 
-VAMS is a **GUI-only, 2D OpenGL teaching simulator**. Students interact with a visual canvas to author scenes, and VAMS shows them the corresponding OpenGL code in real time. There is no code editor, no interpreter, and no runtime — the student never writes or executes code. Everything the student does in the GUI is reflected immediately in a synchronized, read-only code view and a synchronized math panel.
+VAMS is a **GUI-only, 2D OpenGL teaching simulator**. Students interact with a visual canvas to author scenes, and VAMS shows them the corresponding OpenGL code in real time. The editor has no code editor, no interpreter, and no runtime — in the editor the student never writes or executes code. The Lab (`/lab`, see [The Lab](#the-lab)) is the one page where students write and run code. Everything the student does in the GUI is reflected immediately in a synchronized, read-only code view and a synchronized math panel.
 
 ```
 ┌──────────────────────────────────────────────────┐
@@ -134,7 +134,19 @@ A first-visit tour, started from the welcome dialog or the Help Centre, spotligh
 
 ### Sharing
 
-A scene is shared as a short link and a QR code. Share in the top bar stores every scene, with or without uploaded images, in Workers KV through one Cloudflare Pages Function, for 90 days (`/s/<id>`); uploaded images are shrunk to 512 px in the shared copy only. If storing fails (offline, or the service is busy or unavailable), the link carries the scene itself (`/app#s=...`) and never expires; a scene with uploaded images loses them in that fallback link, and if even that link would be too long the dialog offers Save project file instead. During a lesson, Share gives the lesson's link. A link opens in the editor on a computer, after backing up the visitor's current scene to My scenes, and as a read-only scene view on a phone (narrower than 960 px): the scene in its window and its C++, which never reads or writes the visitor's saved editor, with a link to open the full editor. Offline, a stored link opens the editor with a message that it needs the internet. The site has no server beyond that one Pages Function and its one KV namespace. Pages offers no rate-limit binding, so the free plan's daily write limit caps storage.
+A scene is shared as a short link and a QR code. Share in the top bar stores every scene, with or without uploaded images, in Workers KV through one Cloudflare Pages Function, for 90 days (`/s/<id>`); uploaded images are shrunk to 512 px in the shared copy only. If storing fails (offline, or the service is busy or unavailable), the link carries the scene itself (`/app#s=...`) and never expires; a scene with uploaded images loses them in that fallback link, and if even that link would be too long the dialog offers Save project file instead. During a lesson, Share gives the lesson's link. A link opens in the editor on a computer, after backing up the visitor's current scene to My scenes, and as a read-only scene view on a phone (narrower than 960 px): the scene in its window and its C++, which never reads or writes the visitor's saved editor, with a link to open the full editor. Offline, a stored link opens the editor with a message that it needs the internet. Apart from the Lab, the site has no server beyond that one Pages Function and its one KV namespace. Pages offers no rate-limit binding, so the free plan's daily write limit caps storage.
+
+### The Lab
+
+The Lab is a separate page, `/lab`, where a student writes a whole OpenGL 1.x and GLUT program in C++, as on a lab PC with MinGW g++, GLEW and FreeGLUT, and runs it in the browser with nothing to install. The editor stays GUI-only; the Lab is the one place where students write and run code.
+
+- **Code:** one `main.cpp`, which starts as the course template, in a code editor with the compiler's messages on their lines. Beside it is a file list for the images and `.txt` files the program opens. The work saves in this browser as it is typed, and Save and Open take a `.cpp` file or a `.zip` of the code and its files. Examples include the gallery's scenes.
+- **Compile:** Run sends the code through a second Pages Function, `/api/compile`, to a compile service on Google Cloud Run's always-free tier, which builds it with clang (Emscripten). Errors are clang's own messages. The service refuses includes other than the bundled and standard headers before clang runs, and caps each compile's time and output. A monthly counter stops Run before the month's free allowance is spent, and a budget switch-off turns billing off if it is ever reached, so the Lab cannot charge the owner. Run then says when it will be back; the code stays saved.
+- **Run:** the program runs in a worker on the page, drawing through a software rasteriser written to OpenGL 1.5's rules into a window on a stage, with keyboard, mouse, menus, timers and typed input in a Console. A program that never returns cannot freeze the page, and ✕ stops it. A battery of 21 programs checks the drawing against FreeGLUT's on the course toolchain.
+- **The 2D set:** the bundled headers declare what the Lab accepts. It rejects Appendix C's deferred symbols at compile time, with `gluLookAt` and GLUT's solid and wire shapes: a call to one of those functions stops the build on its line with a message naming what to use instead, and constants outside the set, such as `GL_LIGHTING`, are not declared.
+- **Isolation:** `/lab` is served with cross-origin isolation headers, which the worker's shared memory needs, and everything it loads is same-origin. The page reloads once if it arrives without isolation.
+
+The `/lab` route, its header link and its sitemap entry appear once the compile service is live (`LAB_LIVE`); a build with `VITE_LAB=1` turns them on for development and the visual checks. How the service is set up and run is in [docs/lab-operations.md](lab-operations.md).
 
 ### Code Generation
 
@@ -654,7 +666,7 @@ The rule tests (BB-LRULE) check that every GL and GLUT name the generator can em
 
 ### Deferred Symbols
 
-VAMS never exposes these in the UI and never emits them in generated code:
+VAMS never exposes these in the UI and never emits them in generated code. The Lab rejects them at compile time: each function is declared unavailable, with a message naming what to use instead, and `GL_LIGHTING` is not declared. `glShadeModel` stays in the Lab, as in the editor, for flat and smooth colour:
 
 | Symbol | Reason |
 |---|---|

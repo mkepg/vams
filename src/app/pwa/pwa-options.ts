@@ -51,13 +51,15 @@ export function buildPwaOptions(): Partial<VitePWAOptions> {
     },
     workbox: {
       // The plugin adds manifest.webmanifest itself.
+      // The Lab page and its runtime come from the network: the page needs its isolation headers, and the
+      // runtime is not part of the site's files.
       globPatterns: ['**/*.{html,js,css,woff,woff2,ttf,svg,png,ico}'],
-      globIgnores: ['og/**', '404.html'],
+      globIgnores: ['og/**', '404.html', 'lab/**'],
       // /app?scene=triangle and /?stage resolve to their cached pages.
       ignoreURLParametersMatching: [/.*/],
       manifestTransforms: [routeDocumentsTransform],
       navigateFallback: '/404/index.html',
-      navigateFallbackDenylist: [/^\/api\//, /^\/sitemap\.xml$/, /^\/robots\.txt$/],
+      navigateFallbackDenylist: [/^\/api\//, /^\/lab/, /^\/sitemap\.xml$/, /^\/robots\.txt$/],
       cleanupOutdatedCaches: true,
       maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
     },

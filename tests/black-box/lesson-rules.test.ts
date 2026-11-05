@@ -13,8 +13,6 @@
  *  - Every section's last lesson is a capstone: an exercise with a code step that ends with a recap
  */
 import { describe, it, expect, afterEach } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
 import type { CurriculumSection } from '@/core/store/types';
 import type { Lesson } from '@/core/types/lesson';
 import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
@@ -22,6 +20,7 @@ import { SAMPLE_LESSONS } from '@/features/lesson-engine/model/sample-lessons';
 import { waitsForStudent } from '@/features/lesson-engine/model/step-rules';
 import { useVamsStore } from '@/core/store';
 import { solvedStepScene } from '../helpers/lesson-scene';
+import { generatorNames } from '../helpers/generator-names';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
 import { outlineCode, findCallLine } from '@/features/code-generation/model/code-outline';
 import { templateParts } from '@/features/lesson-engine/model/code-blanks';
@@ -69,24 +68,6 @@ function allText(lesson: Lesson): string {
     }
   }
   return parts.join('\n');
-}
-
-const GL_NAME = /\b(gl[A-Z]\w*|glut[A-Z]\w*|GL_[A-Z0-9_]+|GLUT_[A-Z0-9_]+)\b/g;
-
-function generatorNames(): string[] {
-  const dir = join(process.cwd(), 'src/features/code-generation/model');
-  const files = [
-    join(dir, 'code-generator.ts'),
-    ...readdirSync(join(dir, 'generator'))
-      .filter((f) => f.endsWith('.ts'))
-      .map((f) => join(dir, 'generator', f)),
-  ];
-  const names = new Set<string>();
-  for (const f of files) {
-    for (const m of readFileSync(f, 'utf8').matchAll(GL_NAME)) names.add(m[0]);
-  }
-  names.delete('GLUT_FUNCS');
-  return [...names].sort();
 }
 
 function isTaught(name: string, text: string): boolean {

@@ -64,23 +64,48 @@ test('VIS-LEARN-04: An index link brings its section below the sticky header', a
   expect(top).toBeGreaterThanOrEqual(headerBottom);
 });
 
-test('VIS-LEARN-05: The header page switcher fits 320–760 px screens on every site page', async ({ page }) => {
-  for (const width of [320, 360, 375, 390, 480, 520, 640, 760]) {
-    await page.setViewportSize({ width, height: 844 });
-    for (const path of ['/', '/learn', '/gallery', '/about', '/404']) {
-      const label = `${width} ${path}`;
-      await page.goto(path);
-      await page.waitForSelector('.site-header');
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-      expect(overflow, label).toBeLessThanOrEqual(0);
-      const home = page.locator('.site-header__link', { hasText: 'Home' });
-      // The logo links home, so on narrow screens the switcher drops its Home segment.
-      await expect(home, label).toBeHidden();
-      await expect(page.locator('.site-header__link', { hasText: 'Learn' }), label).toBeVisible();
-      await expect(page.locator('.site-header__link', { hasText: 'Gallery' }), label).toBeVisible();
-      await expect(page.locator('.site-header__link', { hasText: 'About' }), label).toBeVisible();
-      await expect(page.locator('.site-header__cta'), label).toHaveText('Open app', { useInnerText: true });
-      await expect(page.locator('.site-header__cta'), label).toBeVisible();
+test('VIS-LEARN-05: The header page switcher fits every width from 320 to 760 px, with five links and with six, on every site page', async ({ page }) => {
+  const widths = Array.from({ length: 45 }, (_, i) => 320 + i * 10);
+  const problems: string[] = [];
+  for (const path of ['/', '/learn', '/gallery', '/guide', '/about', '/404']) {
+    await page.setViewportSize({ width: 760, height: 844 });
+    await page.goto(path);
+    await page.waitForSelector('.site-header');
+    await page.evaluate(() => document.fonts.ready);
+    // The visual build has the Lab on, so its header has six links. The five-link header (the Lab
+    // off, as production has it) differs only by the Lab item, and its styles key on the count.
+    const layouts = (await page.locator('.site-header__link[href="/lab"]').count()) ? [6, 5] : [5];
+    for (const links of layouts) {
+      if (links === 5) await page.evaluate(() => document.querySelector('.site-header__link[href="/lab"]')?.closest('li')?.remove());
+      expect(await page.locator('.site-header__pages > li').count(), `${path} ${links} links`).toBe(links);
+      for (const width of widths) {
+        await page.setViewportSize({ width, height: 844 });
+        const seen = await page.evaluate(() => {
+          const root = document.documentElement;
+          const header = document.querySelector('.site-header')!;
+          const shown = (el: Element | null) => !!el && el.checkVisibility() && el.getClientRects().length > 0;
+          const link = (label: string) => [...document.querySelectorAll('.site-header__link')].find((a) => a.textContent?.trim() === label) ?? null;
+          const right = Math.max(...[...header.querySelectorAll('.site-header__home, .site-header__pages, .site-header__actions > *')].filter(shown).map((el) => el.getBoundingClientRect().right));
+          return {
+            page: root.scrollWidth - root.clientWidth,
+            header: header.scrollWidth - header.clientWidth,
+            // Inside the header's padding, so the gutters either side stay even.
+            past: right - (header.getBoundingClientRect().right - parseFloat(getComputedStyle(header).paddingRight)),
+            overlap: document.querySelector('.site-header__pages')!.getBoundingClientRect().right - document.querySelector('.site-header__actions')!.getBoundingClientRect().left,
+            home: shown(link('Home')),
+            pages: ['Learn', 'Gallery', 'Guide', 'About'].filter((l) => !shown(link(l))),
+            cta: (document.querySelector('.site-header__cta') as HTMLElement).innerText,
+          };
+        });
+        const label = `${width} ${path} ${links} links`;
+        if (seen.page > 0 || seen.header > 0 || seen.past > 0) problems.push(`${label}: runs ${Math.max(seen.page, seen.header, Math.ceil(seen.past))} px past its edge`);
+        // The logo links home, so on narrow screens the switcher drops its Home segment.
+        if (seen.overlap > 0) problems.push(`${label}: the switcher runs ${Math.ceil(seen.overlap)} px into the buttons`);
+        if (seen.home) problems.push(`${label}: Home is shown`);
+        if (seen.pages.length) problems.push(`${label}: ${seen.pages.join(', ')} hidden`);
+        if (seen.cta !== 'Open app') problems.push(`${label}: the button reads ${seen.cta}`);
+      }
     }
   }
+  expect(problems).toEqual([]);
 });

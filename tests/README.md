@@ -20,16 +20,35 @@ tests/
 │   ├── store.ts                  ← Test helpers around useVamsStore.
 │   ├── mini-cpp.ts               ← A small interpreter for generated handler
 │   │                                bodies, used to check the Run runtime.
-│   └── image-compare.ts          ← PNG reading and writing, and the render
-│                                    fidelity rule (edge pixels may differ,
-│                                    the rest within 2 per channel).
+│   ├── generator-names.ts        ← Every GL and GLUT name the code
+│   │                                generator's source can emit.
+│   ├── lab-http.ts               ← A plain HTTP request for the Lab
+│   │                                compile service's tests.
+│   ├── fake-firestore.ts         ← Firestore's REST API and the metadata
+│   │                                token as a fake fetch, for the Lab's
+│   │                                limits.
+│   ├── raster-worker.ts          ← Runs raster calls in a worker thread, so
+│   │                                ALG-LAB-18 can end one that never returns.
+│   ├── lab-console-worker.ts     ← The Lab's Console in a worker thread,
+│   │                                blocking on Atomics.wait, for BB-LAB-23.
+│   ├── student-text.ts           ← The text students read in a source file,
+│   │                                and the British spelling and Language
+│   │                                Discipline checks (WB-SPELL, BB-LAB-58).
+│   └── image-compare.ts          ← PNG reading and writing, and the image
+│                                    rule of the render fidelity and Lab
+│                                    batteries (edge pixels may differ, the
+│                                    rest within 2 per channel).
 ├── fixtures/
 │   ├── no-callbacks-program.cpp  ← The program generated for a scene with
 │   │                                no callbacks, pinned by BB-CB-12.
 │   │                                Rewrite it with WRITE_CALLBACK_FIXTURE=1.
-│   └── fidelity/                 ← The render fidelity battery: scenes.ts,
-│                                    the capture shim and the FreeGLUT
-│                                    reference images VIS-FID compares with.
+│   ├── fidelity/                 ← The render fidelity battery: scenes.ts,
+│   │                                the capture shim and the FreeGLUT
+│   │                                reference images VIS-FID compares with.
+│   └── lab/                      ← The Lab's drawing battery: programs/
+│                                    (C++ and the images they load), the
+│                                    capture shim and the FreeGLUT reference
+│                                    images the Lab is compared with.
 ├── black-box/                    ← Maps to Table 12.
 │   ├── primitive-creation.test.ts        (BB-PRIM-*)
 │   ├── transformation-operations.test.ts (BB-XFORM-*)
@@ -87,7 +106,8 @@ tests/
 │   │                                        pixels, FLAT colours, and the state
 │   │                                        the code sets in every mode)
 │   ├── share.test.ts                     (BB-SHARE-*: the Share dialog and
-│   │                                        choosing a link)
+│   │                                        choosing a link; Lab links from
+│   │                                        /s/<id> to /lab?share=<id>)
 │   ├── scene-view.test.ts                (BB-VIEW-*: the read-only scene view
 │   │                                        on phones)
 │   ├── help-center.test.ts               (BB-HELP-*: the Help Centre's topics
@@ -98,9 +118,39 @@ tests/
 │   ├── texture-controls.test.ts          (BB-TEX-*: the samples, Quick
 │   │                                        Gradients, UV presets and the
 │   │                                        Texture group)
-│   └── lesson-rules.test.ts              (BB-LRULE-*: generator-name coverage,
-│                                            wording, hints, recaps, code blanks
-│                                            and capstones across the lessons)
+│   ├── lesson-rules.test.ts              (BB-LRULE-*: generator-name coverage,
+│   │                                        wording, hints, recaps, code blanks
+│   │                                        and capstones across the lessons)
+│   ├── lab-api.test.ts                   (BB-LAB-*: the Lab's 2D set, as the
+│   │                                        bundled headers in lab/include
+│   │                                        declare and reject it)
+│   ├── lab-functions.test.ts             (BB-LAB-05 to 08: the Pages Functions
+│   │                                        that forward compiles and serve the
+│   │                                        runtime)
+│   ├── lab-runtime.test.ts               (BB-LAB-20 to 31 and 60: the worker
+│   │                                        runtime: GLUT's main loop, events,
+│   │                                        menus, typed input, system(), files,
+│   │                                        the output ring and the Console, and
+│   │                                        how a program's end is reported)
+│   ├── lab-page.test.ts                  (BB-LAB-32 to 36, 59 and 65: the /lab
+│   │                                        route, its header link, isolation
+│   │                                        and the dev server)
+│   ├── lab-editor.test.ts                (BB-LAB-37 to 42 and 66 to 70: the
+│   │                                        code editor, the compile client and
+│   │                                        the log)
+│   ├── lab-workspace.test.ts             (BB-LAB-43 to 51 and 71 to 77: the
+│   │                                        workspace, the stage and the
+│   │                                        program's window)
+│   ├── lab-shared-layout.test.ts         (BB-LAB-61 to 64: the rings the page
+│   │                                        and the program's worker share)
+│   ├── lab-files.test.ts                 (BB-LAB-52 to 57, 78 to 86 and 88 to 91:
+│   │                                        the browser save, Save, Open, New,
+│   │                                        the examples, the file list and the
+│   │                                        editor's Open in Lab)
+│   └── lab-wording.test.ts               (BB-LAB-58: every message in the Lab's
+│                                            sources, the compile service and the
+│                                            runtime keeps the Language Discipline
+│                                            and British spelling)
 ├── white-box/                    ← Maps to Table 13.
 │   ├── state-management.test.ts          (WB-STATE-*)
 │   ├── matrix-engine.test.ts             (WB-MATRIX-*)
@@ -127,9 +177,30 @@ tests/
 │   ├── bitmap-text.test.ts               (WB-TEXT-*: GLUT's 9×15 glyphs, line
 │   │                                        spacing, glBitmap placement and the
 │   │                                        canvas layout)
-│   ├── image-compare.test.ts             (WB-FID-*: the battery's image rule)
-│   └── british-spelling.test.ts          (WB-SPELL-*: British spelling in every
-│                                            string students read)
+│   ├── image-compare.test.ts             (WB-FID-*, WB-LAB-12: the batteries'
+│   │                                        image rule)
+│   ├── british-spelling.test.ts          (WB-SPELL-*: British spelling in every
+│   │                                        string students read)
+│   ├── lab-service.test.ts               (WB-LAB-*: the Lab compile service's
+│   │                                        diagnostics, flags and HTTP contract)
+│   ├── lab-limits.test.ts                (WB-LAB-03 to 09: the compile service's
+│   │                                        rate limits, daily ceiling and
+│   │                                        monthly counter)
+│   ├── lab-billing-guard.test.ts         (WB-LAB-10 and 11: the function that
+│   │                                        turns billing off at the budget)
+│   ├── lab-scripts.test.ts               (WB-LAB-15 to 18: the setup, publish
+│   │                                        and live-check scripts, offline)
+│   └── lab-battery.test.ts               (WB-LAB-19: each Lab battery program is
+│                                            the one its reference was captured
+│                                            from)
+├── security/                     ← What a Lab program can reach on the
+│   │                                compile server.
+│   └── lab-includes.test.ts              (SEC-LAB-*: include and directive
+│                                            checks, and inline assembly refused
+│                                            in the file and in clang's
+│                                            preprocessed output; SEC-LAB-03 and
+│                                            SEC-LAB-15 run the built image when
+│                                            LAB_DOCKER=1)
 ├── visual/                       ← Not part of `npm test`.
 │   ├── editor.spec.ts                    (VIS-EDITOR-*: screenshot checks,
 │   │                                        including the rail panels,
@@ -156,15 +227,33 @@ tests/
 │   │                                        Texture group)
 │   ├── share.spec.ts                     (VIS-SHARE-*: the Share dialog at 1280, the phone scene
 │   │                                        view at 390 and the closing slide's QR code)
-│   └── fidelity.spec.ts                  (VIS-FID-*: the canvas against the exported
-│                                            program on the course toolchain)
+│   ├── fidelity.spec.ts                  (VIS-FID-*: the canvas against the exported
+│   │                                        program on the course toolchain)
+│   ├── lab.spec.ts                       (VIS-LAB-01 to 04: /lab with the template
+│   │                                        running, at 1280 and 390 in both
+│   │                                        themes; LAB_DOCKER=1)
+│   ├── lab-drawing.spec.ts               (VIS-LAB-05: each Lab battery program,
+│   │                                        compiled and run in the Lab, against
+│   │                                        its FreeGLUT reference; LAB_DOCKER=1)
+│   └── helpers/lab.ts                    (the compile service's image, and the
+│                                            routes that stand in for production
+│                                            in front of the preview server)
 ├── algorithm/                    ← Maps to §3.10.3 Algorithm Validation.
 │   ├── algorithm-1-global-matrix.test.ts        (ALG-1-*)
 │   ├── algorithm-2-code-generation.test.ts      (ALG-2-*)
 │   ├── algorithm-3-lesson-step.test.ts          (ALG-3-*)
-│   └── gl-geometry.test.ts                      (ALG-FID-*: points, lines,
-│                                                  stipple and FLAT colours by the
-│                                                  OpenGL 1.5 multisample rules)
+│   ├── gl-geometry.test.ts                      (ALG-FID-*: points, lines,
+│   │                                              stipple and FLAT colours by the
+│   │                                              OpenGL 1.5 multisample rules)
+│   ├── gl-raster.test.ts                        (ALG-LAB-01 to 08, 17 and 18: the Lab's
+│   │                                              rasteriser, pixel by pixel, by the
+│   │                                              OpenGL 1.5 rules with and without
+│   │                                              multisampling)
+│   └── gl-context.test.ts                       (ALG-LAB-09 to 16 and 19 to 37: the Lab's
+│                                                  OpenGL 1.5 state machine, display lists,
+│                                                  textures and GLUT's bitmap fonts, and
+│                                                  the reference GPU's choices where the
+│                                                  rules leave one)
 └── reports/                      ← Per-run output; consumed by Chapter 4.
     ├── algorithm-1-results.json
     ├── algorithm-2-results.json
@@ -207,6 +296,63 @@ frame saved. `stb_image.h` is read from `VAMS_STB_IMAGE`, or from the
 `Application` folder beside `mingw32`. Look at every image that changes before
 committing it.
 
+The Lab's references in `tests/fixtures/lab/reference/` are recorded the same
+way, from the programs in `tests/fixtures/lab/programs/`. Record every reference,
+or the ones named:
+
+```bash
+VAMS_GLUT_TOOLCHAIN=<path to the toolchain's mingw32 folder> node scripts/lab/capture-reference.mjs [name ...]
+```
+
+`VAMS_CAPTURE_FRAME` picks the frame to save (default 1). The capture shim asks
+for the discrete GPU, and a program fails unless the renderer it ran on names
+`VAMS_CAPTURE_RENDERER` (default `NVIDIA`). The committed references came from an
+NVIDIA GeForce RTX 3060 Laptop GPU (OpenGL 4.6, driver 592.82). Each capture
+writes the program's SHA-256 and the renderer to
+`tests/fixtures/lab/reference/manifest.json`, and `WB-LAB-19` fails when a
+program no longer matches its entry.
+
+The programs that come from the editor (S-1 to S-7 and five gallery scenes) are
+its export at 500 × 500, with the image paths shortened to the file name. They
+are frozen; `LAB_EXPORT_CHECK=1 npx vitest run tests/white-box/lab-battery.test.ts`
+checks that they still equal the export, and `LAB_EXPORT=1` rewrites them and
+the images they load, after which their references are recorded again.
+`checkerboard.png` is an 8 × 8 RGBA image of one-texel cells, white where x + y
+is even and red (220, 30, 30) where it is odd, written once with `encodePng`.
+
+### The Lab (`*-LAB-*`)
+
+The Lab's checks carry the module `LAB` in every suite: `BB-LAB` (the page, the
+workspace, the runtime, the 2D set and the wording), `WB-LAB` (the compile
+service, its limits, the billing guard, the scripts and the battery),
+`ALG-LAB` (the rasteriser and the OpenGL 1.5 state machine), `SEC-LAB` (what a
+program can reach on the compile server) and `VIS-LAB` (the page in the browser).
+
+The checks that need the compile service's image run only with `LAB_DOCKER=1`,
+and skip without it:
+
+```bash
+LAB_DOCKER=1 npx vitest run tests/security/lab-includes.test.ts   # SEC-LAB-03, SEC-LAB-15
+LAB_DOCKER=1 npm run test:visual -- lab.spec lab-drawing         # VIS-LAB-01 to 05
+```
+
+Playwright matches its filters against the whole path, so in a checkout whose
+folder name holds `lab`, the filter `lab` alone runs every spec.
+
+Both build the image from `lab/toolchain/Dockerfile`, start a container for the
+run and remove it afterwards. The visual checks also need the runtime built in
+`lab/runtime/out/` (`lab/runtime/build.sh`, run in the pinned `emscripten/emsdk`
+image). The preview server has nothing of what production puts in front of
+`/lab`, so `tests/visual/helpers/lab.ts` adds the isolation headers, serves the
+runtime from `lab/runtime/out/` and sends `/api/compile` to the container.
+VIS-LAB-01 to 04 are screenshot checks with local baselines, like the others.
+VIS-LAB-05 opens each battery program in the Lab as a `.zip` with the images it
+loads, runs it, and compares the first frame the page takes from the shared
+framebuffer with the program's reference by the battery's rule. `lines-wide`
+keeps 2 parked pixels, the ends of its 45° width-4 lines; every other program
+must match. A failure writes the frame and a diff image to
+`tests/visual/results.local/lab-drawing/`.
+
 ## Acceptance bar (per §3.10)
 
 | Criterion | Target | Current |
@@ -226,7 +372,7 @@ browsers) that the developer's CI machine cannot be assumed to have:
 * **Compilation of generated C++** — see `reports/manual-compile-procedure.md`.
 * **Cross-browser execution** — see `reports/manual-cross-browser-procedure.md`.
 * **Playwright UI scenarios** — out of scope for this iteration. The only
-  Playwright suite is the screenshot check set (VIS-EDITOR, VIS-LEARN, VIS-ABOUT, VIS-GALLERY), which needs a
+  Playwright suite is the screenshot check set (VIS-EDITOR, VIS-LEARN, VIS-ABOUT, VIS-GALLERY, VIS-LAB), which needs a
   locally created baseline and is not part of `npm test` or CI.
 
 Their results, once collected, are inserted into the corresponding

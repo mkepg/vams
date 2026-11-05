@@ -1,0 +1,161 @@
+@use '../../../shared/styles/tokens' as *;
+
+// The Lab fills the window: its top bar, then Marey's split. The grid itself (columns, rows and
+// areas) is set inline from the handles' ratios; see model/split.ts.
+.lab-workspace {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--paper);
+  color: var(--ink);
+
+  &__split {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+  }
+
+  &__code { grid-area: code; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  &__editor { flex: 1; min-height: 0; overflow: hidden; }
+  &__hint {
+    margin: 0;
+    padding: var(--space-1) var(--space-3);
+    border-top: 1px solid var(--hairline);
+    background: var(--code-bg);
+    color: var(--ink-dim);
+    font-size: var(--text-xs);
+    line-height: var(--lh-xs);
+  }
+  &__log { grid-area: log; display: flex; flex-direction: column; min-width: 0; min-height: 0; > .lab-log { flex: 1; } }
+  &__log-handle { grid-area: log-handle; }
+  &__pane-handle { grid-area: panes; }
+  &__stage { grid-area: stage; display: flex; min-width: 0; min-height: 0; }
+
+  // Below 760 px the page scrolls: the stage, then the code, then the log, each its own height.
+  &[data-layout='stacked'] {
+    height: auto;
+    min-height: 100dvh;
+
+    .lab-workspace__split { flex: none; }
+    .lab-workspace__stage { height: min(70vh, 520px); }
+    .lab-workspace__code { height: 60vh; }
+    .lab-workspace__log { min-height: 30vh; }
+  }
+}
+
+.lab-top-bar {
+  @include ink-chrome;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: 0 10px 0 14px;
+  flex-wrap: wrap;
+
+  &__home {
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--radius-m);
+    text-decoration: none;
+    &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+  }
+  &__name {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-md);
+    font-weight: 600;
+    color: var(--ink);
+  }
+  &__status {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--ink-muted);
+  }
+  // On a phone the actions wrap onto a second line, ▶ Run last, rather than widen the page.
+  &__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--space-1); margin-left: auto; }
+}
+
+// The handles: a hairline that thickens into the accent while it is held or has focus.
+.lab-handle {
+  position: relative;
+  background: var(--rule);
+  touch-action: none;
+  outline: none;
+
+  &--vertical { cursor: col-resize; }
+  &--horizontal { cursor: row-resize; }
+  &:hover,
+  &:active { background: var(--rule-strong); }
+  &:focus-visible { background: var(--accent); box-shadow: 0 0 0 2px var(--focus-ring); }
+}
+
+// The stage stands for the lab PC's screen.
+.lab-stage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background-color: var(--stage-bg);
+  background-image: radial-gradient(var(--stage-dot) 1px, transparent 1px);
+  background-size: 16px 16px;
+
+  &__empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    padding: var(--space-5);
+    text-align: center;
+  }
+  &__message { margin: 0; color: var(--ink-muted); font-size: var(--text-md); }
+
+  &__surface {
+    position: absolute;
+    inset: 0;
+    background: var(--program-bg);
+    outline: none;
+    &:focus-visible { box-shadow: inset 0 0 0 2px var(--focus-ring); }
+  }
+  &__canvas { display: block; width: 100%; height: 100%; }
+}
+
+// A GLUT menu over the program window: the program's own labels, in a plain desktop list.
+.lab-menu {
+  position: absolute;
+  z-index: 20;
+
+  &__list {
+    min-width: 160px;
+    padding: 4px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-m);
+    background: var(--paper-raised);
+    box-shadow: 0 10px 28px rgba(var(--shadow-rgb), 0.22);
+    font-size: var(--text-base);
+
+    &--sub { position: absolute; left: calc(100% - 4px); top: -5px; }
+  }
+  &__entry { position: relative; }
+  &__item {
+    padding: 6px 10px;
+    border-radius: var(--radius-s);
+    color: var(--ink);
+    white-space: nowrap;
+    cursor: default;
+
+    &[aria-haspopup='menu']::after { content: '▸'; float: right; margin-left: var(--space-4); color: var(--ink-muted); }
+    &:hover,
+    &:focus { outline: none; background: var(--accent-tint); color: var(--accent-text); }
+  }
+}

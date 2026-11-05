@@ -1,0 +1,103 @@
+.lab-log {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--code-bg);
+  color: var(--code-ink);
+  border-top: 1px solid rgba(var(--border-rgb), 1);
+  font-size: var(--text-sm);
+}
+
+.lab-log__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-2);
+}
+
+.lab-log__fold,
+.lab-log__tab,
+.lab-log__jump {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.lab-log__fold {
+  display: inline-flex;
+  gap: var(--space-1);
+  padding: var(--space-2);
+}
+
+.lab-log__tabs { display: flex; }
+
+.lab-log__tab {
+  padding: var(--space-2) var(--space-3);
+  color: var(--ink-muted);
+  border-bottom: 2px solid transparent;
+}
+
+.lab-log__tab[aria-selected='true'] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+.lab-log__fold:focus-visible,
+.lab-log__tab:focus-visible,
+.lab-log__jump:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.lab-log__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-mono);
+}
+
+.lab-log__message { margin: 0 0 var(--space-2); font-family: var(--font-ui); }
+
+.lab-log__list { margin: 0; padding: 0; list-style: none; }
+.lab-log__item { padding: 2px 0; }
+
+.lab-log__jump {
+  padding: 0;
+  color: var(--accent-text);
+  font-family: var(--font-mono);
+  text-decoration: underline;
+}
+
+.lab-log__item--error .lab-log__severity { color: var(--danger); }
+.lab-log__item--warning .lab-log__severity { color: var(--warning-text); }
+.lab-log__item--note .lab-log__severity { color: var(--ink-muted); }
+
+.lab-log__console { margin: 0; font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
+.lab-log__line--stderr { color: var(--danger); }
+
+// The Console's input line.
+.lab-log__input {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+.lab-log__prompt { font-family: var(--font-ui); font-size: var(--text-xs); color: var(--ink-muted); }
+.lab-log__field {
+  min-height: var(--control-h);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--field-line);
+  border-radius: var(--radius-s);
+  background: var(--field-bg);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+
+  &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+}
+
+// A program's output shows character for character: no ligature turns its ">=" into one glyph.
+.lab-log__console { font-variant-ligatures: none; }

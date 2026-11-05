@@ -1,0 +1,31 @@
+// The editor fills the pane it is given; the shared theme does the rest.
+.lab-editor {
+  height: 100%;
+  min-height: 0;
+  background: var(--code-bg);
+  color: var(--code-ink);
+}
+
+.lab-editor .cm-editor { height: 100%; }
+
+.lab-editor .lab-error-line { background: rgba(var(--accent-red-rgb), 0.12); }
+
+.lab-editor .cm-lintRange-error { background-image: none; text-decoration: underline wavy var(--danger); text-underline-offset: 3px; }
+.lab-editor .cm-lintRange-warning { background-image: none; text-decoration: underline wavy var(--warning); text-underline-offset: 3px; }
+
+.lab-editor .cm-tooltip {
+  background: var(--code-bg);
+  color: var(--code-ink);
+  border: 1px solid rgba(var(--border-rgb), 1);
+  border-radius: var(--radius-s);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.lab-editor .cm-panels {
+  background: var(--code-bg);
+  color: var(--code-ink);
+  border-color: rgba(var(--border-rgb), 1);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+}

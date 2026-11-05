@@ -1,3 +1,5 @@
+import type { ResizeEdge } from '@/shared/ui/floating-window';
+
 /** Geometry for the program window on the stage. All values are in CSS pixels, in stage coordinates. */
 export interface Size {
   width: number;
@@ -7,7 +9,7 @@ export interface Rect extends Size {
   x: number;
   y: number;
 }
-export type ResizeEdge = 'e' | 's' | 'se';
+export type { ResizeEdge };
 
 /** The gap the floating window leaves around itself on the stage. */
 export const STAGE_MARGIN = 24;

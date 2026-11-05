@@ -107,7 +107,7 @@ describe('BB-SITE-05: Site themes are the editor store values', () => {
   });
 });
 
-import { ROUTES, findRouteMeta, DEFAULT_SITE_URL } from '@/app/routes/route-meta';
+import { ROUTES, findRouteMeta, DEFAULT_SITE_URL, prerenderRoutes } from '@/app/routes/route-meta';
 import { buildHead, absoluteUrl } from '@/app/seo/head';
 import { buildSitemap, buildRobots } from '@/app/seo/sitemap';
 
@@ -511,11 +511,12 @@ describe('BB-SITE-29: /learn is a finished, linked, prerendered page', () => {
       { href: '/', label: 'Home' },
       { href: '/learn', label: 'Learn' },
       { href: '/gallery', label: 'Gallery' },
+      { href: '/lab', label: 'Lab' },
       { href: '/guide', label: 'Guide' },
       { href: '/about', label: 'About' },
     ]);
     expect(buildSitemap(SITE)).toContain('<loc>https://example.test/learn/</loc>');
-    expect(readFileSync('vite.config.ts', 'utf8')).toMatch(/additionalPrerenderRoutes:\s*\[[^\]]*'\/learn'/);
+    expect(prerenderRoutes(false)).toContain('/learn');
     const result = await prerenderAt('/learn');
     expect(result.html).toContain('class="learn"');
     expect(currentNavHref(result.html)).toEqual(['/learn']);

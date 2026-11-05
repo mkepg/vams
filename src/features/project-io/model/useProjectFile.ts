@@ -10,7 +10,9 @@ import {
 } from '@/entities/project/model/project-io';
 import { isSceneEmpty } from '@/entities/project/model/scene-empty';
 import { generateCodeFromState } from '@/features/code-generation/model/generate-from-state';
+import { LAB_IMPORT_URL } from '@/shared/lib/lab-import';
 import { confirm } from '@/shared/ui/confirm-dialog/confirm-store';
+import { keepForLab, labHandoff } from './lab-handoff';
 
 export interface ProjectFileActions {
   /** Asks first when the scene has work in it, then opens the file picker. */
@@ -19,6 +21,8 @@ export interface ProjectFileActions {
   save: () => void;
   /** Downloads the generated C++ program. */
   exportCpp: () => void;
+  /** Opens the generated program, with the images it loads, in the Lab: a full page load. */
+  openInLab: () => void;
   /** Spread onto a hidden <input>; FileMenu renders it. */
   inputProps: {
     ref: { current: HTMLInputElement | null };
@@ -80,6 +84,32 @@ export function useProjectFile(
     }
   }, []);
 
+  const openInLab = useCallback(() => {
+    const state = useVamsStore.getState();
+    let failed: string | null;
+    try {
+      failed = keepForLab(
+        labHandoff({
+          objects: state.objects,
+          canvasBackgroundColor: state.canvasBackgroundColor,
+          callbacks: state.callbacks,
+          viewportLimits: state.viewportLimits,
+          textures: state.getAllTextures(),
+        }),
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to open the scene in the Lab');
+      return;
+    }
+    if (failed) {
+      toast.error(failed);
+      return;
+    }
+    // A full load, so the Lab starts with the headers its worker needs.
+    window.location.assign(LAB_IMPORT_URL);
+  }, []);
+
   const requestOpen = useCallback(async () => {
     if (!isSceneEmpty(useVamsStore.getState())) {
       const proceed = await confirm({
@@ -123,6 +153,7 @@ export function useProjectFile(
     requestOpen,
     save,
     exportCpp,
+    openInLab,
     inputProps: {
       ref: fileInputRef,
       type: 'file',

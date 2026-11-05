@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useVamsStore } from '@/core/store';
 import { useMyScenesDialog } from '@/features/scene-library';
 import { applyEditorLink, parseEditorLink, stripEditorLinkParams } from './editor-link';
 import { openSharedScene } from './open-shared';
@@ -45,7 +44,7 @@ export function useEditorLink(): boolean {
       const path = share ? '/app' : pathname;
       window.history.replaceState(window.history.state, '', `${path}${stripEditorLinkParams(search)}${share ? '' : hash}`);
       if (share) {
-        useVamsStore.getState().markWelcomeSeen();
+        // openSharedScene marks the welcome seen, and leaves it as it was for a Lab link.
         track(openSharedScene(share, { openLibrary }));
         return;
       }
