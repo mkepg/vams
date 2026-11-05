@@ -1,8 +1,7 @@
 import { decodeShare, readSharePayload, type SharedScene } from '@/entities/project/model/share';
 import { LAB_ENABLED } from '@/shared/config/lab';
 import type { ShareLink } from '@/shared/lib/scene-view-load';
-import { checkLabShape, isLabKind, isShareId } from '@/shared/lib/share-schema';
-import { labShareUrl } from './lab-share';
+import { checkLabShape, isLabKind, isShareId, labShareUrl } from '@/shared/lib/share-schema';
 import { fetchStoredShare } from './share-api';
 
 export type { ShareLink };

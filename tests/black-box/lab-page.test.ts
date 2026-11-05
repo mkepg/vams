@@ -298,3 +298,46 @@ describe('BB-LAB-59: A production build without the flag leaves the Lab out', ()
     expect(readFileSync('playwright.config.ts', 'utf8')).toContain("VITE_LAB: '1'");
   });
 });
+
+describe('BB-LAB-87: Every page’s bundle leaves the Lab out; the Lab loads on its own', () => {
+  /** The modules main.tsx reaches through static imports: `import type` and import() are left out. */
+  function staticGraph(entry: string): Set<string> {
+    const seen = new Set<string>();
+    const resolve = (from: string, spec: string): string | null => {
+      const base = spec.startsWith('@/') ? join('src', spec.slice(2)) : spec.startsWith('.') ? join(from, '..', spec) : null;
+      if (base === null) return `package:${spec.split('/')[0]}`;
+      for (const ext of ['', '.ts', '.tsx', '/index.ts', '/index.tsx']) {
+        try {
+          if (!(base + ext).match(/\.(ts|tsx)$/)) continue;
+          readFileSync(base + ext);
+          return (base + ext).replace(/\\/g, '/');
+        } catch {
+          // Try the next form.
+        }
+      }
+      return null;
+    };
+    const visit = (file: string) => {
+      if (seen.has(file)) return;
+      seen.add(file);
+      if (file.startsWith('package:')) return;
+      const text = readFileSync(file, 'utf8');
+      for (const [, spec] of text.matchAll(/^\s*(?:import|export)\s+(?!type\b)(?:[^'";]*?\sfrom\s+)?'([^']+)'/gm)) {
+        if (/\.(s?css)$/.test(spec)) continue;
+        const next = resolve(file, spec);
+        if (next) visit(next);
+      }
+    };
+    visit(entry);
+    return seen;
+  }
+
+  it('keeps the Lab page, its store and sonner out of the modules every page loads', () => {
+    const graph = staticGraph('src/app/main.tsx');
+    expect(graph.has('src/app/SiteApp.tsx')).toBe(true);
+    expect(graph.has('src/pages/home/index.ts')).toBe(true);
+    expect([...graph].filter((f) => f.startsWith('src/pages/lab/') || f.startsWith('src/widgets/lab-workspace/') || f.startsWith('src/entities/lab-project/'))).toEqual([]);
+    expect(graph.has('package:sonner')).toBe(false);
+    expect(readFileSync('src/app/SiteApp.tsx', 'utf8')).toMatch(/LAB_ENABLED \? lazy\(\(\) => import\('@\/pages\/lab'\)\)/);
+  });
+});

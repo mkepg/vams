@@ -16,7 +16,8 @@ import { act } from 'preact/test-utils';
 import { fetchStoredShare } from '@/features/share/model/share-api';
 import { resolveSharedScene, SHARE_MESSAGES } from '@/features/share';
 import { imageSize, LAB_SHARE_COPY, LAB_SHARE_MESSAGES, labShareUrl, prepareLabShare, readLabShare } from '@/features/share/lab';
-import { checkLabShape, MAX_LAB_SOURCE, MAX_STORED_BYTES, type LabSharePayload } from '@/shared/lib/share-schema';
+import { checkLabShape, MAX_LAB_FILES, MAX_LAB_SOURCE, MAX_STORED_BYTES, type LabSharePayload } from '@/shared/lib/share-schema';
+import { openSharedScene } from '@/pages/editor/model/open-shared';
 import { TEMPLATE, useLabStore } from '@/entities/lab-project';
 import { REPLACE_QUESTION } from '@/features/lab-files';
 import { runController, type WorkerLike } from '@/features/lab-run';
@@ -389,6 +390,10 @@ describe('Lab work', () => {
         lab({ source: 'x'.repeat(MAX_LAB_SOURCE + 1) }),
         lab({ source: 42 }),
         lab({ v: 2 }),
+        lab({ files: [{ name: 'a.png', dataUrl: 'data:image/png;base64,A' }] }),
+        lab({ files: [{ name: 'a.png', dataUrl: 'data:image/png;base64,A=AA' }] }),
+        lab({ files: [{ name: 'a.png', dataUrl: 'data:image/png;base64,' }] }),
+        lab({ files: [{ name: 'a.png', text: 5, dataUrl: 'data:image/png;base64,AAAA' }] }),
       ]) {
         expect((await postShare(kv, body)).status, body.slice(0, 120)).toBe(400);
       }
@@ -401,6 +406,25 @@ describe('Lab work', () => {
       expect(checkLabShape({ kind: 'lab', v: 1, source: '', files: [{ name: 'a.png', dataUrl: 'data:image/webp;base64,AAAA' }] })).toBe(
         'an image is not a PNG, JPEG or BMP data URL',
       );
+      for (const dataUrl of ['data:image/png;base64,AA==', 'data:image/png;base64,AAA=', 'data:image/png;base64,AAAAAAAA']) {
+        expect(checkLabShape({ kind: 'lab', v: 1, source: '', files: [{ name: 'a.png', dataUrl }] })).toBeNull();
+      }
+    });
+
+    it('opens nothing from a malformed image or text in the Lab, says the link is damaged and clears ?share=', async () => {
+      const bad = [
+        { name: 'a.png', dataUrl: 'data:image/png;base64,A' },
+        { name: 'a.png', dataUrl: 'data:image/png;base64,A=AA' },
+        { name: 'a.png', text: 5, dataUrl: 'data:image/png;base64,AAAA' },
+      ];
+      for (const file of bad) expect(readLabShare({ kind: 'lab', v: 1, source: 'x', files: [file] })).toBeNull();
+      vi.mocked(fetchStoredShare).mockResolvedValue({ ok: true, payload: { kind: 'lab', v: 1, source: '// shared\n', files: [bad[0]] } });
+      window.history.replaceState(null, '', '/lab?share=k3x9q2Ab');
+      const host = mountLab();
+      await flushLab();
+      expect(host.querySelector('.lab-files [role="status"]')!.textContent).toBe(LAB_SHARE_MESSAGES.damaged);
+      expect(useLabStore.getState().source).toBe(TEMPLATE);
+      expect(window.location.search).toBe('');
     });
   });
 
@@ -601,6 +625,45 @@ describe('Lab work', () => {
       expect(dialog.textContent).toContain(LAB_SHARE_MESSAGES.codeTooLong);
       expect(labButton(dialog, LAB_SHARE_COPY.save)).toBeDefined();
       await act(() => labButton(dialog, 'Done')!.click());
+    });
+  });
+
+  describe('BB-SHARE-20: A Lab link opened in the editor leaves the editor’s welcome as it was', () => {
+    it('puts back a welcome not yet seen when the link goes to the Lab, and marks it seen for a scene', async () => {
+      const go = vi.fn();
+      vi.mocked(fetchStoredShare).mockResolvedValue({ ok: true, payload: await storedLabPayload() });
+      useVamsStore.setState({ hasSeenWelcome: false });
+      void openSharedScene({ kind: 'stored', id: 'k3x9q2Ab' }, { openLibrary: () => {}, lab: { enabled: true, go } });
+      // While the link opens, the welcome stays away.
+      expect(useVamsStore.getState().hasSeenWelcome).toBe(true);
+      await flushLab();
+      expect(go).toHaveBeenCalledWith('/lab?share=k3x9q2Ab');
+      expect(useVamsStore.getState().hasSeenWelcome).toBe(false);
+
+      useVamsStore.setState({ hasSeenWelcome: true });
+      void openSharedScene({ kind: 'stored', id: 'k3x9q2Ab' }, { openLibrary: () => {}, lab: { enabled: true, go } });
+      await flushLab();
+      expect(useVamsStore.getState().hasSeenWelcome).toBe(true);
+
+      useVamsStore.setState({ hasSeenWelcome: false });
+      vi.mocked(fetchStoredShare).mockResolvedValue({ ok: true, payload: buildSharePayload(input()) });
+      expect(await openSharedScene({ kind: 'stored', id: 'k3x9q2Ab' }, { openLibrary: () => {}, lab: { enabled: true, go } })).toBe(true);
+      expect(useVamsStore.getState().hasSeenWelcome).toBe(true);
+    });
+  });
+
+  describe('BB-SHARE-21: A Lab share holds at most 64 files, with no control characters in their names', () => {
+    it('refuses a 65th file and a name with a control character, on the server and in the Lab', async () => {
+      const kv = new MemoryKv();
+      const files = (n: number) => Array.from({ length: n }, (_, i) => ({ name: `f${i}.txt`, text: '' }));
+      const lab = (list: unknown[]) => ({ kind: 'lab', v: 1, source: 'int main() {}', files: list });
+      expect(MAX_LAB_FILES).toBe(64);
+      expect((await postShare(kv, JSON.stringify(lab(files(64))))).status).toBe(201);
+      for (const body of [lab(files(65)), lab([{ name: 'a\u0001.txt', text: '' }]), lab([{ name: 'a\tb.txt', text: '' }]), lab([{ name: 'a\u007f.txt', text: '' }])]) {
+        expect((await postShare(kv, JSON.stringify(body))).status).toBe(400);
+        expect(readLabShare(body)).toBeNull();
+      }
+      expect(kv.entries.size).toBe(1);
     });
   });
 });

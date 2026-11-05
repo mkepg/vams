@@ -14,11 +14,7 @@ import { createStoredShare, fetchStoredShare } from './share-api';
 import type { ShareResult } from './share-flow';
 import { fitWithin } from './shrink-image';
 
-/** The address bar's name for a Lab share: /lab?share=<id>. */
-export const LAB_SHARE_PARAM = 'share';
-
-/** Where a Lab link opened at /s/<id> lands. */
-export const labShareUrl = (id: string): string => `/lab?${LAB_SHARE_PARAM}=${encodeURIComponent(id)}`;
+export { LAB_SHARE_PARAM, labShareUrl } from '@/shared/lib/share-schema';
 
 /** What the Lab's Share dialog says. */
 export const LAB_SHARE_COPY = {
@@ -158,15 +154,20 @@ export async function prepareLabShare(work: LabWork, deps: LabShareDeps = {}): P
   return { kind: 'stored', url: storedLink(stored.id), expiresAt: stored.expiresAt, shrunk };
 }
 
-/** The work a Lab share carries, ready for the store; null when the payload isn't Lab work. */
+/** The work a Lab share carries, ready for the store; null when the payload isn't Lab work or a file won't decode. */
 export function readLabShare(raw: unknown): LabWork | null {
   if (checkLabShape(raw) !== null) return null;
   const files: LabFile[] = [];
-  for (const file of (raw as LabSharePayload).files) {
-    const type = labFileType(file.name);
-    if (!type) continue;
-    const bytes = 'text' in file ? new TextEncoder().encode(file.text) : fromBase64(file.dataUrl.slice(file.dataUrl.indexOf(',') + 1));
-    files.push({ name: file.name, bytes, type });
+  try {
+    for (const file of (raw as LabSharePayload).files) {
+      const type = labFileType(file.name);
+      if (!type) continue;
+      const text = (file as { text?: unknown }).text;
+      const bytes = typeof text === 'string' ? new TextEncoder().encode(text) : fromBase64((file as { dataUrl: string }).dataUrl.split(',')[1]);
+      files.push({ name: file.name, bytes, type });
+    }
+  } catch {
+    return null;
   }
   return { source: (raw as LabSharePayload).source, files };
 }

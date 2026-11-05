@@ -45,6 +45,8 @@ import type { CompileResult } from '@/features/lab-compile';
 import { confirm, useConfirmStore } from '@/shared/ui/confirm-dialog/confirm-store';
 import { LAB_MESSAGES } from '@/features/lab-compile';
 import LabPage from '@/pages/lab';
+import { LAB_FILES_FULL, labFileNameMessage } from '@/features/lab-files';
+import { MAX_LAB_FILES } from '@/shared/lib/share-schema';
 import ConfirmDialog from '@/shared/ui/confirm-dialog/ConfirmDialog';
 import { GALLERY_BUILDERS } from '@/entities/project/model/gallery-scenes';
 import { getPreset } from '@/entities/project/model/scene-presets';
@@ -580,5 +582,39 @@ describe('BB-LAB-85: The suite map in tests/README.md lists every Lab black-box 
     const readme = readFileSync(join(__dirname, '../README.md'), 'utf8');
     const files = readdirSync(__dirname).filter((f) => /^lab-.*\.test\.ts$/.test(f));
     expect(files.filter((f) => !readme.includes(f))).toEqual([]);
+  });
+});
+
+describe('BB-LAB-86: The file list keeps up to 64 files, and no name with a control character', () => {
+  const txt = (i: number) => file(`${i}`, `f${i}.txt`);
+
+  it('takes uploads up to 64 files, still replaces a file already in the list, and says what it keeps', async () => {
+    expect(MAX_LAB_FILES).toBe(64);
+    expect(LAB_FILES_FULL).toBe('The Lab keeps up to 64 files.');
+    expect(await addUploads(Array.from({ length: 60 }, (_, i) => txt(i)))).toEqual([]);
+    const said = await addUploads([...Array.from({ length: 6 }, (_, i) => txt(60 + i)), file('new', 'F0.TXT')]);
+    expect(listNames()).toHaveLength(64);
+    expect(listNames()).toContain('F0.TXT');
+    expect(listNames()).not.toContain('f64.txt');
+    expect(said).toEqual(['F0.TXT replaced f0.txt. The program finds a file by its name in any case.', LAB_FILES_FULL]);
+  });
+
+  it('leaves out an upload whose name has a control character, and says which', async () => {
+    const said = await addUploads([file('x', 'tab\there.txt'), file('y', 'ok.txt')]);
+    expect(listNames()).toEqual(['ok.txt']);
+    expect(said).toEqual([labFileNameMessage('tab\there.txt')]);
+    expect(labFileNameMessage('tab\there.txt')).toBe("tab?here.txt has a character a file name can't hold. Rename it, then add it again.");
+  });
+
+  it('opens a .zip with its first 64 files and no control-character names, and says so', async () => {
+    const entries: Record<string, Uint8Array> = { 'main.cpp': strToU8('int main() {}') };
+    for (let i = 0; i < 70; i++) entries[`f${String(i).padStart(2, '0')}.txt`] = strToU8(`${i}`);
+    entries['bad\u0001.txt'] = strToU8('x');
+    const zip = zipSync(entries) as Uint8Array<ArrayBuffer>;
+    expect(await openWork(new File([zip], 'work.zip'))).toBe(LAB_FILES_FULL);
+    expect(listNames()).toHaveLength(64);
+    expect(listNames().some((n) => n.startsWith('bad'))).toBe(false);
+    expect(await openWork(new File([zipSync({ 'main.cpp': strToU8('int main() {}'), 'a.txt': strToU8('a') }) as Uint8Array<ArrayBuffer>], 'small.zip'))).toBeNull();
+    expect(listNames()).toEqual(['a.txt']);
   });
 });

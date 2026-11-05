@@ -1,20 +1,32 @@
 import { toast } from 'sonner';
 import { useVamsStore } from '@/core/store';
-import { resolveSharedScene, type ShareLink } from '@/features/share';
+import { resolveSharedScene, type LabRoute, type ShareLink } from '@/features/share';
 import { leaveRunningLesson } from '@/features/lesson-engine/model/leave-lesson';
 import { backupLabel, replaceScene } from '@/features/scene-library';
 
 export interface OpenSharedDeps {
   openLibrary: () => void;
   fetchImpl?: typeof fetch;
+  /** Where Lab work goes; the tests replace it. */
+  lab?: LabRoute;
 }
 
-/** Opens a shared scene as the working scene, as a prepared scene link does. Returns whether it opened. */
+/**
+ * Opens a shared scene as the working scene, as a prepared scene link does. Returns whether it opened.
+ * The welcome is marked seen at once, so it never shows over the opening scene.
+ */
 export async function openSharedScene(link: ShareLink, deps: OpenSharedDeps): Promise<boolean> {
-  const resolved = await resolveSharedScene(link, deps.fetchImpl);
+  const welcomeSeen = useVamsStore.getState().hasSeenWelcome;
+  useVamsStore.getState().markWelcomeSeen();
+  const resolved = await resolveSharedScene(link, deps.fetchImpl, deps.lab);
   if (!resolved.ok) {
-    // Lab work: the page is loading the Lab, so the editor stays covered until it goes.
-    if ('lab' in resolved) return new Promise<boolean>(() => {});
+    if ('lab' in resolved) {
+      // Lab work: the visitor never saw the editor, so its welcome is left as it was. The page is
+      // loading the Lab, so this never settles and the editor stays covered until it goes;
+      // useEditorLink's OPENING_COVER_MS timer is the backstop.
+      useVamsStore.setState({ hasSeenWelcome: welcomeSeen });
+      return new Promise<boolean>(() => {});
+    }
     toast.error(resolved.message);
     return false;
   }

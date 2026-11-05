@@ -189,8 +189,9 @@ export default function LabWorkspace({ compile = compileSource, ...actions }: La
         if (!canOpen(file.name)) return tellFiles(OPEN_TAKES);
         if (!(await mayReplaceWork())) return;
         try {
-          await openWork(file);
+          const notice = await openWork(file);
           replaced();
+          if (notice) tellFiles(notice);
         } catch (error) {
           tellFiles(error instanceof OpenError ? error.message : OPEN_TAKES);
         }
