@@ -1,4 +1,4 @@
-# VAMS — Visual Animation Modeling Simulator
+# VAMS: Visual Animation Modeling Simulator
 
 **A GUI-only teaching simulator for OpenGL 1.5.**
 
@@ -17,7 +17,7 @@ them write itself, line by line, with the math underneath.
 
 ## The problem
 
-Students learning OpenGL 1.5 hit two walls at once. They have to reason about an invisible state machine — what is bound, what is on the matrix stack, what the current colour is — while also fighting a C++ toolchain that punishes every typo with a linker error. The graphics concept and the plumbing are tangled together, so a student who misunderstands `glOrtho` looks exactly like a student who forgot to link GLEW.
+Students learning OpenGL 1.5 hit two walls at once. They have to reason about an invisible state machine (what is bound, what is on the matrix stack, what the current colour is) while also fighting a C++ toolchain that punishes every typo with a linker error. The graphics concept and the plumbing are tangled together, so a student who misunderstands `glOrtho` looks exactly like a student who forgot to link GLEW.
 
 VAMS separates them. The student never writes code and never compiles anything. They manipulate a scene through a GUI, and VAMS keeps three views of it in step:
 
@@ -25,7 +25,7 @@ VAMS separates them. The student never writes code and never compiles anything. 
 | --- | --- |
 | **Canvas** | The scene, drawn live inside a window like the one the real program would open. The window keeps the viewing volume's shape, and the drawing follows OpenGL's rules for points, lines and bitmap text, checked against FreeGLUT. |
 | **Code** | The read-only C++ OpenGL 1.5 program that would produce it, shown in a [CodeMirror 6](https://codemirror.net/) view with folds, change marks and notes. Click any line to see what it does. |
-| **Math** | One vertex followed through the pipeline — stored, transformed, projected, assembled, rasterised, coloured — with the student's own numbers. |
+| **Math** | One vertex followed through the pipeline (stored, transformed, projected, assembled, rasterised, coloured) with the student's own numbers. |
 
 Every change flows one way: student action → application state → all three views recompute. The views never write back. Because the code is *generated* from scene state rather than typed, it is always correct and always in sync, which makes it a reliable thing to read and learn from.
 
@@ -33,25 +33,25 @@ Every change flows one way: student action → application state → all three v
 
 VAMS follows the OpenGL pipeline in five curriculum sections. The editor's tools are the same in every section; the section is the student's place in the course.
 
-**Pipeline** — a step-through diagram of the seven stages from vertex to pixel, a normalized-device-coordinate playground, a raster-versus-vector comparison, and the anatomy of a GLUT program.
+**Pipeline**: a step-through diagram of the seven stages from vertex to pixel, a normalized-device-coordinate playground, a raster-versus-vector comparison, and the anatomy of a GLUT program.
 
 ![The From Vertex to Pixel lesson: the seven stages drawn from the student's own triangle, with Vertex processing open and its glTranslatef line from the program](docs/images/04-pipeline.png)
 
-**Primitives** — place all ten GL primitive types vertex by vertex, colour them with `glColor3f` or `glColor3ub`, style lines with width and stipple, and draw bitmap text.
+**Primitives**: place all ten GL primitive types vertex by vertex, colour them with `glColor3f` or `glColor3ub`, style lines with width and stipple, and draw bitmap text.
 
 ![The primitives tour: points, a line strip, a triangle fan and a quad, with the GL_POINTS drawing code for the selected Points](docs/images/02-primitives.png)
 
-**Buffers** — immediate mode, vertex arrays and VBOs, usage hints, indexed drawing and in-place updates, with GLEW-backed buffer code.
+**Buffers**: immediate mode, vertex arrays and VBOs, usage hints, indexed drawing and in-place updates, with GLEW-backed buffer code.
 
-**Transforms** — translate, rotate and scale objects, group them into a hierarchy, and watch `T · R · S` build the matrix that moves every vertex. The viewing-volume editor makes `glOrtho` tangible.
+**Transforms**: translate, rotate and scale objects, group them into a hierarchy, and watch `T · R · S` build the matrix that moves every vertex. The viewing-volume editor makes `glOrtho` tangible.
 
-**Textures** — attach images to geometry, edit UV rectangles directly, and see how `GL_LINEAR` versus `GL_NEAREST` and `GL_REPEAT` versus clamping change the result.
+**Textures**: attach images to geometry, edit UV rectangles directly, and see how `GL_LINEAR` versus `GL_NEAREST` and `GL_REPEAT` versus clamping change the result.
 
 ![A quad tiled with a brick texture, with the glBindTexture and glTexCoord2f calls in the generated code](docs/images/03-textures.png)
 
 ### Callbacks and Run
 
-Students register GLUT callbacks — keyboard, special keys, mouse, motion, reshape and idle — and give each one rules built from menus, such as "the right arrow moves the house right". Each rule becomes real lines in the handler's body. **Run** then plays the program on the canvas: keys, clicks and drags go to the handlers, and the scene is restored when the program stops.
+Students register GLUT callbacks (keyboard, special keys, mouse, motion, reshape and idle) and give each one rules built from menus, such as "the right arrow moves the house right". Each rule becomes real lines in the handler's body. **Run** then plays the program on the canvas: keys, clicks and drags go to the handlers, and the scene is restored when the program stops.
 
 ### Lessons and exercises
 
@@ -165,16 +165,16 @@ npm run test:coverage    # regenerate tests/reports/coverage/
 npm run test:visual      # screenshot checks (not part of npm test)
 ```
 
-Algorithm validation deliberately avoids testing the implementation against itself: `tests/helpers/matrix.ts` is a separate reference implementation of the affine-matrix engine, used as the gold standard for ALG-1. Manual verification procedures that cannot be automated — compiling the exported C++, cross-browser checks — are written up in `tests/reports/`.
+Algorithm validation deliberately avoids testing the implementation against itself: `tests/helpers/matrix.ts` is a separate reference implementation of the affine-matrix engine, used as the gold standard for ALG-1. Manual verification procedures that cannot be automated (compiling the exported C++, cross-browser checks) are written up in `tests/reports/`.
 
 See [tests/README.md](tests/README.md) for the full suite breakdown.
 
 ## Documentation
 
-- [docs/product-plan.md](docs/product-plan.md) — the authoritative product plan: what VAMS is, the core constraints, and the curriculum.
-- [docs/specs/](docs/specs/) — design specs, one per project.
-- [docs/plans/](docs/plans/) — the implementation plans that carried them out.
-- [tests/README.md](tests/README.md) — test suite layout and identifier scheme.
+- [docs/product-plan.md](docs/product-plan.md): the authoritative product plan (what VAMS is, the core constraints, and the curriculum).
+- [docs/specs/](docs/specs/): design specs, one per project.
+- [docs/plans/](docs/plans/): the implementation plans that carried them out.
+- [tests/README.md](tests/README.md): test suite layout and identifier scheme.
 
 ## Academic context
 
@@ -183,7 +183,7 @@ This project is the software artifact of an undergraduate thesis.
 - **Degree programme:** Bachelor of Science in Computer Science, with Specialization in Software Engineering
 - **Institution:** FEU Institute of Technology
 - **Adviser:** Elisa V. Malasaga
-- **Academic year:** 2025–2026
+- **Academic year:** 2025 to 2026
 
 **Authors**
 
