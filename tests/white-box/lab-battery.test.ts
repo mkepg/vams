@@ -142,7 +142,9 @@ describe('WB-LAB-19: Each battery program is the one its reference was captured 
   });
 
   it.each(programs)('%s matches the manifest', (name) => {
-    const sha = createHash('sha256').update(readFileSync(`${PROGRAMS}${name}.cpp`)).digest('hex');
+    // Hash the text with LF line endings, so a Windows checkout (CRLF) and CI (LF) agree.
+    const text = readFileSync(`${PROGRAMS}${name}.cpp`, 'utf8').replaceAll('\r\n', '\n');
+    const sha = createHash('sha256').update(text).digest('hex');
     expect(sha, `${name} changed since its reference: run node scripts/lab/capture-reference.mjs ${name}`).toBe(manifest.programs[name]);
   });
 });

@@ -105,7 +105,9 @@ try {
     const { png, renderer } = capture(name, toolchain, stb, work);
     writeFileSync(join(REFERENCE, `${name}.png`), png);
     manifest.renderer = renderer;
-    manifest.programs[name] = createHash('sha256').update(readFileSync(join(PROGRAMS, `${name}.cpp`))).digest('hex');
+    // LF line endings, so the hash is the same on a Windows checkout (CRLF) and on CI (LF).
+    const text = readFileSync(join(PROGRAMS, `${name}.cpp`), 'utf8').replaceAll('\r\n', '\n');
+    manifest.programs[name] = createHash('sha256').update(text).digest('hex');
     const programs = Object.fromEntries(Object.entries(manifest.programs).sort(([a], [b]) => (a < b ? -1 : 1)));
     writeFileSync(MANIFEST, `${JSON.stringify({ renderer: manifest.renderer, programs }, null, 2)}\n`.replaceAll('\n', '\r\n'));
     console.log(`${name}.png  ${png.length} bytes  (${renderer})`);
