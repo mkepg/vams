@@ -247,12 +247,13 @@ describe('BB-CANVAS-09: The header has a View menu beside Run', () => {
     expect(host.querySelector('.canvas-header__numbers')).toBeNull();
     expect(trigger(host).textContent).toContain('View');
     expect(trigger(host).closest('.vmenu')!.nextElementSibling?.classList.contains('run-control')).toBe(true);
-    // Beside the Pipeline switch View is an icon, still named View.
-    useVamsStore.setState({ activeSection: 'Pipeline' });
+    // Beside a Pipeline lesson's switch View is an icon, still named View.
+    useVamsStore.setState({ activeSection: 'Pipeline', activeLessonId: 'pipeline-demo-1' });
     await settle();
     expect(trigger(host).getAttribute('aria-label')).toBe('View');
     expect(trigger(host).closest('.vmenu')!.nextElementSibling?.classList.contains('run-control')).toBe(true);
     unmount(host);
+    useVamsStore.setState({ activeLessonId: null });
   });
   it('lists the four checkboxes in order and each toggles its setting', async () => {
     useVamsStore.getState().setAxisVisibility({ showOriginMarker: true, showGridlines: true, showGridNumbers: true });

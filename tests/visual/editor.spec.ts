@@ -307,8 +307,11 @@ test('VIS-EDITOR-29: Lesson bar under the canvas, drawer beside it, 960', async 
 for (const width of [1280, 960]) {
   test(`VIS-EDITOR-30: Run stays whole in the header beside the Pipeline switch, ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 800 });
-    await openEmpty(page, 'light');
+    // The switch belongs to a running Pipeline lesson; in Playground, Run sits beside it.
+    await open(page, '/app?lesson=pipeline-demo-1');
     await expect(page.locator('.canvas-header .pipeline-mode-switch')).toBeVisible();
+    await page.locator('.canvas-header .pipeline-mode-switch').getByRole('radio', { name: 'Playground' }).click();
+    await expect(page.locator('.canvas-header .run-control')).toBeVisible();
     const header = (await page.locator('.canvas-header').boundingBox())!;
     const run = (await page.locator('.canvas-header .run-control').boundingBox())!;
     expect(run.x + run.width).toBeLessThanOrEqual(header.x + header.width);

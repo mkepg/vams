@@ -1,4 +1,5 @@
 import { useVamsStore } from '@/core/store';
+import { pipelineLessonRunning } from '@/core/store/illustration';
 import { RunControl } from '@/features/callbacks';
 import ViewMenu from '@/features/editor-preferences/ui/ViewMenu';
 import { fmt, short } from '@/shared/lib/format-number';
@@ -10,8 +11,9 @@ export default function CanvasHeader() {
   const placing = useVamsStore((s) => s.interactionMode === 'VERTEX_PLACE');
   const tracker = useVamsStore((s) => s.showCoordinateTracker);
   const cursor = useVamsStore((s) => s.cursorWorld);
-  // A "Which Stage?" picture fixes the canvas, so the choice of view waits until it is answered.
-  const switchShown = useVamsStore((s) => s.activeSection === 'Pipeline' && s.quizPipelineStage === null);
+  // Only a running Pipeline lesson offers the choice of view. A "Which Stage?" picture fixes the
+  // canvas, so the choice waits until it is answered.
+  const switchShown = useVamsStore((s) => pipelineLessonRunning(s) && s.quizPipelineStage === null);
   return (
     <div className={`canvas-header${placing ? ' canvas-header--placing' : ''}`}>
       <span className="canvas-header__title">Canvas</span>
