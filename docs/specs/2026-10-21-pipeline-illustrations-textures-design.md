@@ -231,7 +231,7 @@ These rewordings are made on this branch, since they follow the pictures it ship
 - **Samples:** each generator returns its stated size; the ids are stable; the old ids still resolve.
 - **Gradients and UV presets:** the colours each preset sets on 3-, 4- and 6-vertex shapes; Fit, Tile 2 × 2, Flip U and Flip V on a quad, and each one being a single undo step.
 - **Switch and focus:**
-  - the switch shows only in Pipeline, in both modes;
+  - the switch shows only in Pipeline, in both modes (since 2026-11-06, only while a Pipeline lesson runs, as the product plan says: outside one the canvas shows the scene);
   - a `texture-library` focus lands on the Texture group;
   - Settings has no texture group.
 - **Lessons:** the existing Pipeline and Textures lessons still run, and the lesson rule tests still pass.

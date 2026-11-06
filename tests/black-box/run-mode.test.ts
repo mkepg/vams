@@ -299,14 +299,14 @@ describe('BB-RUN-12: The code panel flashes the branch that fired', () => {
 
 describe('BB-RUN-14: Run is unavailable while a Pipeline illustration replaces the canvas', () => {
   const showIllustration = () =>
-    useVamsStore.setState({ appMode: 'Lesson', activeSection: 'Pipeline', pipelineMode: 'Diagram' });
+    useVamsStore.setState({ appMode: 'Lesson', activeLessonId: 'pipeline-demo-1', activeSection: 'Pipeline', pipelineMode: 'Diagram' });
   afterEach(() => {
-    useVamsStore.setState({ appMode: 'Author', pipelineMode: 'Playground' });
+    useVamsStore.setState({ appMode: 'Author', activeLessonId: null, pipelineMode: 'Playground' });
   });
 
   it('canRun is false for an illustration mode and true again in Playground', () => {
     setup();
-    useVamsStore.setState({ appMode: 'Lesson', activeSection: 'Pipeline', pipelineMode: 'Playground' });
+    useVamsStore.setState({ appMode: 'Lesson', activeLessonId: 'pipeline-demo-1', activeSection: 'Pipeline', pipelineMode: 'Playground' });
     expect(canRun(getState())).toBe(true);
     showIllustration();
     expect(canRun(getState())).toBe(false);
@@ -316,10 +316,10 @@ describe('BB-RUN-14: Run is unavailable while a Pipeline illustration replaces t
     expect(canRun(getState())).toBe(true);
   });
 
-  it('canRun is false in Author mode too, while the Pipeline section shows an illustration', () => {
+  it('canRun stays true in the plain editor, where no illustration replaces the canvas', () => {
     setup();
-    useVamsStore.setState({ appMode: 'Author', activeSection: 'Pipeline', pipelineMode: 'Diagram' });
-    expect(canRun(getState())).toBe(false);
+    useVamsStore.setState({ appMode: 'Author', activeLessonId: null, activeSection: 'Pipeline', pipelineMode: 'Diagram' });
+    expect(canRun(getState())).toBe(true);
     useVamsStore.setState({ pipelineMode: 'Playground' });
     expect(canRun(getState())).toBe(true);
   });
@@ -340,7 +340,7 @@ describe('BB-RUN-14: Run is unavailable while a Pipeline illustration replaces t
 
   it('a running Run stops when the Pipeline mode changes to an illustration', () => {
     setup();
-    useVamsStore.setState({ appMode: 'Lesson', activeSection: 'Pipeline', pipelineMode: 'Playground' });
+    useVamsStore.setState({ appMode: 'Lesson', activeLessonId: 'pipeline-demo-1', activeSection: 'Pipeline', pipelineMode: 'Playground' });
     expect(runController.start({ loop: false })).toBe(true);
     expect(runController.getSnapshot().running).toBe(true);
     useVamsStore.setState({ pipelineMode: 'Diagram' });

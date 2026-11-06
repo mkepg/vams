@@ -25,6 +25,8 @@ import { createMemoryLibrary, getSceneLibrary, setSceneLibraryForTests } from '@
 import { MAX_RULES } from '@/core/callbacks/callbacks-model';
 import { AddPanel, CallbacksRailPanel, ScenePanel, SettingsPanel } from '@/widgets/layout/editor-column';
 import { DEFAULT_OPEN_GROUPS } from '@/core/inspector';
+import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
+import { startLesson } from '@/features/lesson-engine/model/start-lesson';
 import { addPrimitive, addQuad, addTriangle } from '../helpers/store';
 
 async function settle() {
@@ -345,7 +347,9 @@ function loadTexturedQuad() {
 
 describe('BB-PANEL-14: Viewport mode is an arrow-key radiogroup', () => {
   it('moves between modes with the arrow keys in the canvas header', async () => {
-    useVamsStore.setState({ activeSection: 'Pipeline', pipelineMode: 'Diagram' });
+    const demo = Object.values(LESSON_REGISTRY).find((l) => l.section === 'Pipeline' && l.type === 'demo')!;
+    startLesson(demo.id, 'Pipeline');
+    useVamsStore.setState({ pipelineMode: 'Diagram' });
     const host = mount(h(CanvasHeader, {}));
     await settle();
     const group = host.querySelector('.canvas-header [role="radiogroup"]') as HTMLElement;
@@ -358,7 +362,8 @@ describe('BB-PANEL-14: Viewport mode is an arrow-key radiogroup', () => {
     await settle();
     expect(checked()).toBe('Playground');
     unmount(host);
-    useVamsStore.setState({ pipelineMode: 'Playground' });
+    useVamsStore.getState().clearLessonState();
+    useVamsStore.setState({ appMode: 'Author', pipelineMode: 'Playground' });
   });
 });
 

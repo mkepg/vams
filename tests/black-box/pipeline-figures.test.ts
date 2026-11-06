@@ -8,6 +8,8 @@ import { useVamsStore } from '@/core/store';
 import { showsIllustration } from '@/core/store/illustration';
 import { VISUAL_ARTIFACTS } from '@/core/types/lesson';
 import { LESSON_REGISTRY } from '@/features/lesson-engine/model/lesson-registry';
+import { startLesson } from '@/features/lesson-engine/model/start-lesson';
+import { leaveRunningLesson } from '@/features/lesson-engine/model/leave-lesson';
 import LessonBar from '@/features/lesson-engine/ui/LessonBar';
 import CanvasPane from '@/widgets/canvas/CanvasPane';
 import CanvasHeader from '@/widgets/canvas/ui/CanvasHeader';
@@ -384,23 +386,27 @@ describe('switch in the canvas header', () => {
     useVamsStore.setState({ appMode: 'Author', activeSection: 'Primitives', pipelineMode: 'Playground', quizPipelineStage: null });
   });
 
-  describe('BB-PFIG-17: The switch shows in the canvas header only in the Pipeline section', () => {
+  const pipelineDemo = () => Object.values(LESSON_REGISTRY).find((l) => l.section === 'Pipeline' && l.type === 'demo')!;
+
+  describe('BB-PFIG-17: The switch shows in the canvas header only in a Pipeline lesson', () => {
     const switchIn = (host: HTMLElement) => host.querySelector('.canvas-header [data-panel-id="pipeline-mode-controls"] [role="radiogroup"]');
-    it('is present in Author and Lesson mode in Pipeline and absent elsewhere', async () => {
+    it('is present in a Pipeline lesson and absent in the plain editor and other sections', async () => {
       useVamsStore.setState({ appMode: 'Author', activeSection: 'Pipeline' });
       const host = mount(h(CanvasHeader, {}));
       await settle();
-      expect(switchIn(host)).not.toBeNull();
-      useVamsStore.setState({ appMode: 'Lesson' });
+      expect(switchIn(host)).toBeNull();
+      startLesson(pipelineDemo().id, 'Pipeline');
       await settle();
       expect(switchIn(host)).not.toBeNull();
+      useVamsStore.getState().clearLessonState();
       useVamsStore.setState({ appMode: 'Author', activeSection: 'Primitives' });
       await settle();
       expect(switchIn(host)).toBeNull();
       unmount(host);
     });
     it('is marked when a lesson step focuses it, and the lesson bar no longer holds it', async () => {
-      useVamsStore.setState({ activeSection: 'Pipeline', lessonFocusPanel: 'pipeline-mode-controls' });
+      startLesson(pipelineDemo().id, 'Pipeline');
+      useVamsStore.setState({ lessonFocusPanel: 'pipeline-mode-controls' });
       const host = mount(h(CanvasHeader, {}));
       await settle();
       expect(host.querySelector('[data-panel-id="pipeline-mode-controls"]')!.classList.contains('is-lesson-focus')).toBe(true);
@@ -419,10 +425,11 @@ describe('switch in the canvas header', () => {
   describe('BB-PFIG-33: With the Pipeline switch in the header, Run keeps its room', () => {
     it('shows View as an icon beside the switch, lets the volume shrink and never shrinks Run', async () => {
       const { readFileSync } = await import('node:fs');
-      useVamsStore.setState({ appMode: 'Author', activeSection: 'Pipeline', pipelineMode: 'Playground' });
+      startLesson(pipelineDemo().id, 'Pipeline');
       const host = mount(h(CanvasHeader, {}));
       await settle();
       expect(host.querySelector('.canvas-header .vmenu .vbtn--icon')).not.toBeNull();
+      useVamsStore.getState().clearLessonState();
       useVamsStore.setState({ activeSection: 'Primitives' });
       await settle();
       expect(host.querySelector('.canvas-header .vmenu .vbtn--icon')).toBeNull();
@@ -435,7 +442,8 @@ describe('switch in the canvas header', () => {
 
   describe('BB-PFIG-18: A quiz step hides the switch and shows its stage', () => {
     it('hides the switch and keeps the illustration up even in Playground', async () => {
-      useVamsStore.setState({ activeSection: 'Pipeline', pipelineMode: 'Playground' });
+      startLesson(pipelineDemo().id, 'Pipeline');
+      useVamsStore.setState({ pipelineMode: 'Playground' });
       const host = mount(h(CanvasHeader, {}));
       await settle();
       expect(host.querySelector('[data-panel-id="pipeline-mode-controls"]')).not.toBeNull();
@@ -771,5 +779,33 @@ describe('BB-PFIG-32: The stage sentence counts one corner in the singular', () 
   it('says "1 corner" for a single point', () => {
     const point = { ...demoSubject(), stored: [{ x: 0, y: 0 }], world: [{ x: 0, y: 0 }], colours: ['#ffffff'], type: 'POINTS' as const };
     expect(stageSentence(0, point, { width: 500, height: 500 })).toContain('lists 1 corner,');
+  });
+});
+
+describe('BB-PFIG-34: The view switch belongs to a running Pipeline lesson', () => {
+  const switchShown = (host: HTMLElement) => host.querySelector('.canvas-header [data-panel-id="pipeline-mode-controls"]') !== null;
+
+  it('goes away when the lesson ends, and the canvas shows the scene', async () => {
+    const pipeline = Object.values(LESSON_REGISTRY).find((l) => l.section === 'Pipeline' && l.type === 'demo')!;
+    startLesson(pipeline.id, 'Pipeline');
+    const host = mount(h(CanvasHeader, {}));
+    await settle();
+    expect(switchShown(host)).toBe(true);
+    leaveRunningLesson();
+    await settle();
+    expect(useVamsStore.getState().activeSection).toBe('Pipeline');
+    expect(switchShown(host)).toBe(false);
+    expect(showsIllustration(useVamsStore.getState())).toBe(false);
+    unmount(host);
+  });
+
+  it('is absent in the plain editor, where a chosen illustration does not replace the scene', async () => {
+    useVamsStore.setState({ activeSection: 'Pipeline', activeLessonId: null, pipelineMode: 'Diagram' });
+    const host = mount(h(CanvasHeader, {}));
+    await settle();
+    expect(switchShown(host)).toBe(false);
+    expect(showsIllustration(useVamsStore.getState())).toBe(false);
+    unmount(host);
+    useVamsStore.setState({ pipelineMode: 'Playground' });
   });
 });
