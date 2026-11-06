@@ -76,11 +76,16 @@
 @container (max-width: 559px) {
   .canvas-header:has(> .pipeline-mode-switch) .canvas-header__volume { display: none; }
 }
-// The narrowest canvas keeps the view switch and View whole: the title goes, and the options tighten.
-@container (max-width: 359px) {
+// Title, the view switch, View and Run need about 440 px on one line. A narrower canvas (a Pipeline
+// lesson at 960 px leaves about 300) gives the switch its own row, so Run is never pushed out.
+@container (max-width: 439px) {
   .canvas-header:has(> .pipeline-mode-switch) {
-    .canvas-header__title { display: none; }
-    > .pipeline-mode-switch .vseg__option { padding: 0 6px; }
+    flex-wrap: wrap;
+    height: auto;
+    row-gap: var(--space-1);
+    padding-block: var(--space-1);
+
+    > .pipeline-mode-switch { order: 1; flex-basis: 100%; }
   }
 }
 
