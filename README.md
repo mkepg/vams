@@ -1,4 +1,4 @@
-# VAMS — Visual Animation Modeling Simulator
+# VAMS: Visual Animation Modeling Simulator
 
 **A GUI-only teaching simulator for OpenGL 1.5.**
 
@@ -7,26 +7,25 @@ them write itself, line by line, with the math underneath.
 
 [![CI](https://github.com/mkepg/vams/actions/workflows/ci.yml/badge.svg)](https://github.com/mkepg/vams/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Tests](https://img.shields.io/badge/tests-1%2C024%20passing-brightgreen)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
 
-**[Try it live →](https://vams.pages.dev/)** · [Open the editor](https://vams.pages.dev/app) · [Browse the lessons](https://vams.pages.dev/learn)
+**[Try it live →](https://vams.pages.dev/)** · [Open the editor](https://vams.pages.dev/app) · [Browse the lessons](https://vams.pages.dev/learn) · [See the gallery](https://vams.pages.dev/gallery)
 
-![The VAMS editor: the scene tree and inspector, the canvas drawn as the program's window, and the generated OpenGL code](docs/images/01-editor.png)
+![The VAMS editor: the Transforms scene with Walls selected in the scene tree, the canvas drawn as the program's square window, and the generated OpenGL code with its folds open at draw_Walls](docs/images/01-editor.png)
 
 ---
 
 ## The problem
 
-Students learning OpenGL 1.5 hit two walls at once. They have to reason about an invisible state machine — what is bound, what is on the matrix stack, what the current colour is — while also fighting a C++ toolchain that punishes every typo with a linker error. The graphics concept and the plumbing are tangled together, so a student who misunderstands `glOrtho` looks exactly like a student who forgot to link GLEW.
+Students learning OpenGL 1.5 hit two walls at once. They have to reason about an invisible state machine (what is bound, what is on the matrix stack, what the current colour is) while also fighting a C++ toolchain that punishes every typo with a linker error. The graphics concept and the plumbing are tangled together, so a student who misunderstands `glOrtho` looks exactly like a student who forgot to link GLEW.
 
 VAMS separates them. The student never writes code and never compiles anything. They manipulate a scene through a GUI, and VAMS keeps three views of it in step:
 
 | View | What it shows |
 | --- | --- |
-| **Canvas** | The scene, drawn live inside a window like the one the real program would open. |
-| **Code** | The read-only C++ OpenGL 1.5 program that would produce it. Click any line to see what it does. |
-| **Math** | One vertex followed through the pipeline — stored, transformed, projected, assembled, rasterised, coloured — with the student's own numbers. |
+| **Canvas** | The scene, drawn live inside a window like the one the real program would open. The window keeps the viewing volume's shape, and the drawing follows OpenGL's rules for points, lines and bitmap text, checked against FreeGLUT. |
+| **Code** | The read-only C++ OpenGL 1.5 program that would produce it, shown in a [CodeMirror 6](https://codemirror.net/) view with folds, change marks and notes. Click any line to see what it does. |
+| **Math** | One vertex followed through the pipeline (stored, transformed, projected, assembled, rasterised, coloured) with the student's own numbers. |
 
 Every change flows one way: student action → application state → all three views recompute. The views never write back. Because the code is *generated* from scene state rather than typed, it is always correct and always in sync, which makes it a reliable thing to read and learn from.
 
@@ -34,31 +33,33 @@ Every change flows one way: student action → application state → all three v
 
 VAMS follows the OpenGL pipeline in five curriculum sections. The editor's tools are the same in every section; the section is the student's place in the course.
 
-**Pipeline** — a step-through diagram of the seven stages from vertex to pixel, a normalized-device-coordinate playground, a raster-versus-vector comparison, and the anatomy of a GLUT program.
+**Pipeline**: a step-through diagram of the seven stages from vertex to pixel, a normalized-device-coordinate playground, a raster-versus-vector comparison, and the anatomy of a GLUT program.
 
-![A pipeline lesson with the Vertex Processing stage open](docs/images/04-pipeline.png)
+![The From Vertex to Pixel lesson: the seven stages drawn from the student's own triangle, with Vertex processing open and its glTranslatef line from the program](docs/images/04-pipeline.png)
 
-**Primitives** — place all ten GL primitive types vertex by vertex, colour them with `glColor3f` or `glColor3ub`, style lines with width and stipple, and draw bitmap text.
+**Primitives**: place all ten GL primitive types vertex by vertex, colour them with `glColor3f` or `glColor3ub`, style lines with width and stipple, and draw bitmap text.
 
-![The primitives tour: points, a line strip, a triangle fan and a quad, with the generated drawing code](docs/images/02-primitives.png)
+![The primitives tour: points, a line strip, a triangle fan and a quad, with the GL_POINTS drawing code for the selected Points](docs/images/02-primitives.png)
 
-**Buffers** — immediate mode, vertex arrays and VBOs, usage hints, indexed drawing and in-place updates, with GLEW-backed buffer code.
+**Buffers**: immediate mode, vertex arrays and VBOs, usage hints, indexed drawing and in-place updates, with GLEW-backed buffer code.
 
-**Transforms** — translate, rotate and scale objects, group them into a hierarchy, and watch `T · R · S` build the matrix that moves every vertex. The viewing-volume editor makes `glOrtho` tangible.
+**Transforms**: translate, rotate and scale objects, group them into a hierarchy, and watch `T · R · S` build the matrix that moves every vertex. The viewing-volume editor makes `glOrtho` tangible.
 
-**Textures** — attach images to geometry, edit UV rectangles directly, and see how `GL_LINEAR` versus `GL_NEAREST` and `GL_REPEAT` versus clamping change the result.
+**Textures**: attach images to geometry, edit UV rectangles directly, and see how `GL_LINEAR` versus `GL_NEAREST` and `GL_REPEAT` versus clamping change the result.
 
-![A textured quad, with the glBindTexture and glTexCoord2f calls in the generated code](docs/images/03-textures.png)
+![A quad tiled with a brick texture, with the glBindTexture and glTexCoord2f calls in the generated code](docs/images/03-textures.png)
 
 ### Callbacks and Run
 
-Students register GLUT callbacks — keyboard, special keys, mouse, motion, reshape and idle — and give each one rules built from menus, such as "the right arrow moves the house right". Each rule becomes real lines in the handler's body. **Run** then plays the program on the canvas: keys, clicks and drags go to the handlers, and the scene is restored when the program stops.
+Students register GLUT callbacks (keyboard, special keys, mouse, motion, reshape and idle) and give each one rules built from menus, such as "the right arrow moves the house right". Each rule becomes real lines in the handler's body. **Run** then plays the program on the canvas: keys, clicks and drags go to the handlers, and the scene is restored when the program stops.
 
 ### Lessons and exercises
 
-46 lessons — 25 demos and 21 exercises — are spread across the five sections and listed on the [Learn page](https://vams.pages.dev/learn), which remembers each student's progress. Lessons are authored as data and drive the scene through the same store actions the GUI uses, so every lesson step is something a student could also have done by hand. Exercises add a `successCheck`, a pure function over scene state that decides whether the student met the goal.
+59 lessons (30 demos and 29 exercises) are spread across the five sections and listed on the [Learn page](https://vams.pages.dev/learn), which remembers each student's progress. Lessons are authored as data and drive the scene through the same store actions the GUI uses, so every lesson step is something a student could also have done by hand. A step that waits for the student lists its goals, each a pure check over scene state, with hints and a Skip that solves it.
 
-![A Transforms lesson, with the math pane following one vertex through the translation](docs/images/05-lesson.png)
+Lessons ask the student to predict before a change, check each goal as it is met, and close with a recap. Each section ends in a capstone exercise where the student builds a scene and then writes its key calls by hand: **Write main()** (Pipeline), **Draw It Yourself** (Primitives), **Build a VBO by Hand** (Buffers), **Write the Transform Calls** (Transforms) and **Write the Texture Calls** (Textures).
+
+![The Matrix Representation lesson asks where 0.3 and 0.4 will appear in the matrix, while the math pane follows one corner of the square through the transform](docs/images/05-lesson.png)
 
 ### Saving and sharing
 
@@ -66,11 +67,22 @@ Students register GLUT callbacks — keyboard, special keys, mouse, motion, resh
 - **Files.** Save and open a project file, or export the generated program as a `.cpp` file.
 - **Share.** Share gives a short link and a QR code. On a computer the link opens a copy of the scene in the editor; on a phone it opens a read-only view. Shared scenes are stored for 90 days.
 
-![The Share dialog with the short link and its QR code](docs/images/06-share.png)
+![The Share dialog for the Transforms scene, with the short link, its QR code and the 90-day storage note](docs/images/06-share.png)
 
 ### The site
 
-Besides the editor at `/app`, the site has a home page, the Learn page and an About page. The pages are prerendered for search engines and link previews, and the app installs as an offline-capable PWA. The home page also has a stage mode for presenting it as slides.
+Besides the editor at `/app`, the site has:
+
+- a **home page**, with a stage mode for presenting it as slides;
+- **Learn** (`/learn`), the course map;
+- **Gallery** (`/gallery`), seven finished scenes, from a jeepney street to a solar system. Each one opens in the editor, runs, and shows the OpenGL that draws it;
+- **Guide** (`/guide`), how the editor works, what each section teaches, the keyboard shortcuts and a glossary of the OpenGL terms the course uses. Ctrl+K searches the site from any site page;
+- **Teach** (`/teach`), for instructors: how the course lines up with an OpenGL class, links that open a lesson or scene, running a lab, and a one-hour session plan;
+- **About** (`/about`), the thesis behind VAMS, with a citation to copy.
+
+The pages are prerendered for search engines and link previews, and the app installs as an offline-capable PWA.
+
+![The Gallery page, with the jeepney street scene first](docs/images/07-gallery.png)
 
 The Lab, at `/lab`, is where students write their own OpenGL 1.x and GLUT program in C++ and run it in the browser with nothing to install: a compile service builds it, and it runs in a window on the page. It goes live with the compile service; until then it is built only with `VITE_LAB=1`.
 
@@ -102,20 +114,23 @@ The dev server does not run the share storage, so Share falls back to a longer l
 
 ## Architecture
 
-VAMS follows [Feature-Sliced Design](https://feature-sliced.design/). New code imports only from the layers below it, which keeps the 27 features independent of one another and makes each one readable on its own.
+VAMS follows [Feature-Sliced Design](https://feature-sliced.design/). New code imports only from the layers below it, which keeps the 31 features independent of one another and makes each one readable on its own.
 
 ```
 src/
 ├── app/        Entry points, routes and page metadata, prerendering, the PWA, global styles
-├── pages/      home, learn, about, the editor, and the not-found page
+├── pages/      home, learn, gallery, guide, teach, about, the editor, the Lab,
+│               and the not-found page
 ├── widgets/    Composite UI: the canvas, the editor layout (top bar, rail, panels,
 │               code and math column), the site header and footer
-├── features/   27 self-contained capabilities — code-generation, lesson-engine,
+├── features/   31 self-contained capabilities: code-generation, lesson-engine,
 │               callbacks, math-panel, share, textures, scene-library, …
 ├── entities/   Domain models: the scene (objects, viewport, interaction) and the project
 ├── core/       The Zustand store and its slices, shared types, callback and inspector models
 └── shared/     The matrix engine, hooks, utilities, reusable UI controls, design tokens
-functions/      Cloudflare Pages Functions that store and serve shared scenes
+functions/      Cloudflare Pages Functions that store and serve shared scenes,
+                and pass Lab programs to the compile service
+lab/            The Lab's compile service, wasm runtime and toolchain image
 ```
 
 The pieces worth knowing about:
@@ -123,6 +138,7 @@ The pieces worth knowing about:
 - **State** is a single [Zustand](https://zustand.docs.pmnd.rs/) store composed from slices (scene, viewport, interaction, history, lesson, runtime, callbacks, textures, settings and more), with [Immer](https://immerjs.github.io/immer/) for immutable updates and snapshot-throttled undo and redo. It persists to `localStorage`.
 - **Code generation** (`features/code-generation`) is a pure function from scene state to a C++ source string, split into per-concern emitters for state, buffers, textures, callback handlers and render calls. Being pure is what makes it exhaustively testable.
 - **Rendering** uses [PixiJS 8](https://pixijs.com/) on the canvas. The renderer draws the scene; it never owns it.
+- **The code view** is a read-only [CodeMirror 6](https://codemirror.net/) editor (`shared/ui/code-editor`), with C++ highlighting, folds, marks for changed lines, notes under lines, and a click on any line to explain it.
 - **UI** is [Preact](https://preactjs.com/) with `preact/compat` aliased over React, so the React ecosystem works while the bundle stays small. Styles are SCSS on shared design tokens, with a light and a dark theme.
 - **Sharing** compresses the scene with [fflate](https://github.com/101arrowz/fflate) and stores it through a Pages Function backed by Workers KV. The QR codes come from [uqr](https://github.com/unjs/uqr).
 
@@ -134,13 +150,14 @@ The site runs on [Cloudflare Pages](https://pages.cloudflare.com/), built from `
 
 ## Tests
 
-1,024 tests across 51 files, all passing. The suite implements the verification programme in **Chapter 3, §3.10** of the manuscript, and each test carries a stable identifier of the form `{SUITE}-{MODULE}-{NN}` so results map back to the thesis tables.
+As of 6 Nov 2026, 2,592 tests across 78 files pass, and 31 more run only when their setup is present (the Lab's compile image in Docker, or the battery export check). The suite implements the verification programme in **Chapter 3, §3.10** of the manuscript, and each test carries a stable identifier of the form `{SUITE}-{MODULE}-{NN}` so results map back to the thesis tables.
 
 | Suite | Files | Maps to | Covers |
 | --- | --- | --- | --- |
-| `tests/black-box/` | 32 | Table 12 | Behaviour through the public store API and the rendered UI — primitives, transforms, hierarchy, code generation, C++ validity, lessons, persistence, callbacks and Run, the site pages, sharing. |
-| `tests/white-box/` | 16 | Table 13 | Internals — store slices, the matrix engine, scene-graph traversal, lesson internals, the callbacks runtime, the share payload and function, error handling. |
-| `tests/algorithm/` | 3 | §3.10.3 | The three core algorithms, checked against independent reference implementations. |
+| `tests/black-box/` | 47 | Table 12 | Behaviour through the public store API and the rendered UI: primitives, transforms, hierarchy, code generation, C++ validity, the code panel, lessons and their rules, persistence, callbacks and Run, the program window, render fidelity, the site pages (Gallery, Guide, Teach included), sharing, and the Lab's page, files, editor and runtime. |
+| `tests/white-box/` | 24 | Table 13 | Internals: store slices, the matrix engine, scene-graph traversal, lesson internals, the callbacks runtime, bitmap text, British spelling in student text, the share payload and function, error handling, and the Lab's compile service, limits, billing guard and drawing battery. |
+| `tests/algorithm/` | 6 | §3.10.3 | The three core algorithms, checked against independent reference implementations, and the Lab's GL geometry, context and rasteriser. |
+| `tests/security/` | 1 | | The Lab's compile sandbox: includes and inline assembly that try to read the server's files are refused. |
 
 ```bash
 npm test                 # run everything
@@ -148,16 +165,16 @@ npm run test:coverage    # regenerate tests/reports/coverage/
 npm run test:visual      # screenshot checks (not part of npm test)
 ```
 
-Algorithm validation deliberately avoids testing the implementation against itself: `tests/helpers/matrix.ts` is a separate reference implementation of the affine-matrix engine, used as the gold standard for ALG-1. Manual verification procedures that cannot be automated — compiling the exported C++, cross-browser checks — are written up in `tests/reports/`.
+Algorithm validation deliberately avoids testing the implementation against itself: `tests/helpers/matrix.ts` is a separate reference implementation of the affine-matrix engine, used as the gold standard for ALG-1. Manual verification procedures that cannot be automated (compiling the exported C++, cross-browser checks) are written up in `tests/reports/`.
 
 See [tests/README.md](tests/README.md) for the full suite breakdown.
 
 ## Documentation
 
-- [docs/product-plan.md](docs/product-plan.md) — the authoritative product plan: what VAMS is, the core constraints, and the curriculum.
-- [docs/specs/](docs/specs/) — design specs, one per project.
-- [docs/plans/](docs/plans/) — the implementation plans that carried them out.
-- [tests/README.md](tests/README.md) — test suite layout and identifier scheme.
+- [docs/product-plan.md](docs/product-plan.md): the authoritative product plan (what VAMS is, the core constraints, and the curriculum).
+- [docs/specs/](docs/specs/): design specs, one per project.
+- [docs/plans/](docs/plans/): the implementation plans that carried them out.
+- [tests/README.md](tests/README.md): test suite layout and identifier scheme.
 
 ## Academic context
 
@@ -166,7 +183,7 @@ This project is the software artifact of an undergraduate thesis.
 - **Degree programme:** Bachelor of Science in Computer Science, with Specialization in Software Engineering
 - **Institution:** FEU Institute of Technology
 - **Adviser:** Elisa V. Malasaga
-- **Academic year:** 2025–2026
+- **Academic year:** 2025 to 2026
 
 **Authors**
 
@@ -178,7 +195,7 @@ The thesis manuscript is not distributed in this repository.
 
 ## Status
 
-Capstone project (CS0033 / CS0039, FEU Institute of Technology). All five curriculum sections are implemented, the lesson and exercise systems work end to end, and the evaluation study is complete. Work continues on the interface and the lesson content.
+Capstone project (CS0033 / CS0039, FEU Institute of Technology). All five curriculum sections are implemented, the 59 lessons and their capstones work end to end, and the evaluation study is complete. The Lab is built and stays switched off until its compile service is deployed. Work continues on the interface and the lesson content.
 
 ## License
 
