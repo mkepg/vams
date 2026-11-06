@@ -4,15 +4,22 @@
 //   node scripts/lab/setup-helpers.mjs check-service       read `gcloud run services describe --format=json`
 //                                                          on stdin and check the service's limits
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { stripTypeScriptTypes } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import ts from 'typescript';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const GUARD = join(ROOT, 'lab/billing-guard');
 
-/** The billing guard as plain JavaScript: Cloud Run functions load a .js entry. */
-export const guardSource = () => stripTypeScriptTypes(readFileSync(join(GUARD, 'index.ts'), 'utf8'), { mode: 'strip' });
+/**
+ * The billing guard as plain JavaScript: Cloud Run functions load a .js entry. It uses TypeScript's
+ * own transpiler, so it runs on every Node the project supports (node:module's stripTypeScriptTypes
+ * needs Node 22.13 or later).
+ */
+export const guardSource = () =>
+  ts.transpileModule(readFileSync(join(GUARD, 'index.ts'), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
 
 /** The guard's package.json, pointed at index.js. The runtime's own Node version applies, so engines goes. */
 export function guardPackage() {

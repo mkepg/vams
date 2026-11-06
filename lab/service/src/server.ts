@@ -195,8 +195,10 @@ export function createService(options: ServiceOptions): Server {
     res.on('close', () => {
       if (!res.writableFinished) abort.abort();
     });
-    // A client that left as its body ended closes on the next turn of the event loop,
-    // before the listener hears it. Waiting that turn means it costs no reserve.
+    // A client that left as its body ended closes on a later turn of the event loop. On
+    // Linux its close is only read in the next poll phase, so this waits through one (the
+    // timer) before the check (the immediate). Waiting means a client gone costs no reserve.
+    await new Promise((go) => setTimeout(go, 0));
     await new Promise((go) => setImmediate(go));
     if (req.socket.destroyed || abort.signal.aborted) return;
     const reservation = await usage.reserve({ visitor, ip, now: new Date() });
