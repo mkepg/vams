@@ -63,7 +63,7 @@ function run(command, args) {
 }
 
 function build() {
-  const emsdk = readFileSync(join(ROOT, 'lab/toolchain/EMSDK_VERSION'), 'utf8').trim();
+  const emsdk = readFileSync(join(ROOT, 'lab/runtime/EMSDK_VERSION'), 'utf8').trim();
   const out = join(ROOT, OUT);
   rmSync(out, { recursive: true, force: true });
   mkdirSync(out, { recursive: true });

@@ -37,7 +37,7 @@ export async function startCompileService(): Promise<CompileService> {
   if (!existsSync(join(RUNTIME, 'vams_main.mjs')) || !existsSync(join(RUNTIME, 'vams_main.wasm'))) {
     throw new Error('Build the runtime first: lab/runtime/build.sh, run in the pinned emscripten/emsdk image, writes lab/runtime/out/vams_main.{mjs,wasm}.');
   }
-  const version = readFileSync('lab/toolchain/EMSDK_VERSION', 'utf8').trim();
+  const version = readFileSync('lab/runtime/EMSDK_VERSION', 'utf8').trim();
   docker('build', '-q', '-f', 'lab/toolchain/Dockerfile', '--build-arg', `EMSDK_VERSION=${version}`, '-t', IMAGE, '.');
   const secret = `lab-${randomBytes(12).toString('hex')}`;
   const container = docker('run', '-d', '--rm', '-p', '127.0.0.1::8080', '-e', `LAB_SECRET=${secret}`, IMAGE);
