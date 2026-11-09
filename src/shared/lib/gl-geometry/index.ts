@@ -1,8 +1,9 @@
 /**
  * Points, lines and filled primitives as triangles, by the OpenGL 1.5 rules for a multisampled
- * window (specification 3.3 to 3.5): a point is a size × size square, a line segment is a
- * rectangle as long as the segment with no caps or joins, stipple follows the counter of 3.4.2,
- * and FLAT shading takes the provoking vertex of Table 2.12.
+ * window (specification 3.3 to 3.5): a point is a circle as wide as its size, a line segment is
+ * a rectangle as long as the segment with no caps or joins, stipple reads the pattern of 3.4.2 in
+ * distance along the line, as the reference driver does, and FLAT shading takes the provoking
+ * vertex of Table 2.12.
  *
  * Coordinates are whatever space the caller works in. Width, size and stipple are in window
  * pixels, so lines and points are built from window coordinates. Nothing here imports from
@@ -51,17 +52,29 @@ function lerp(a: Rgba, b: Rgba, t: number): Rgba {
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t];
 }
 
-/** Each point as a size × size square centred on it, in its own colour. */
+/**
+ * The sides of the polygon a point's circle is drawn as. A multiple of 4, so the polygon reaches
+ * the circle's left, right, top and bottom; at 96 it covers all but 0.07% of the circle's area.
+ */
+const CIRCLE_SIDES = 96;
+
+/** Each point as a circle as wide as `size`, centred on it, in its own colour (3.3.3). */
 export function pointTriangles(vertices: readonly GeoVertex[], size: number): Triangles {
   const out = empty();
-  const h = size / 2;
+  const r = size / 2;
+  const rim = Array.from({ length: CIRCLE_SIDES }, (_, i) => {
+    const a = (2 * Math.PI * i) / CIRCLE_SIDES;
+    // Snap the quarter turns, so the extremes sit exactly r away and sin(π) leaves no 1e-16.
+    return i % (CIRCLE_SIDES / 4) === 0 ? [[1, 0], [0, 1], [-1, 0], [0, -1]][(4 * i) / CIRCLE_SIDES] : [Math.cos(a), Math.sin(a)];
+  });
   for (const { x, y, color } of vertices) {
-    push(out, x - h, y - h, color);
-    push(out, x + h, y - h, color);
-    push(out, x + h, y + h, color);
-    push(out, x - h, y - h, color);
-    push(out, x + h, y + h, color);
-    push(out, x - h, y + h, color);
+    for (let i = 0; i < CIRCLE_SIDES; i++) {
+      const [c0, s0] = rim[i];
+      const [c1, s1] = rim[(i + 1) % CIRCLE_SIDES];
+      push(out, x, y, color);
+      push(out, x + r * c0, y + r * s0, color);
+      push(out, x + r * c1, y + r * s1, color);
+    }
   }
   return out;
 }
@@ -122,14 +135,17 @@ export function lineTriangles(
   for (const seg of lineSegments(mode, vertices.length)) {
     if (seg.resetsStipple) counter = 0;
     const flat = shade === 'FLAT' ? vertices[seg.provoking].color : null;
-    counter += segmentTriangles(out, vertices[seg.a], vertices[seg.b], width, flat, stipple, counter);
+    const moved = segmentTriangles(out, vertices[seg.a], vertices[seg.b], width, flat, stipple, counter);
+    if (stipple) counter = advanceStipple(counter, moved, stipple.factor);
   }
   return out;
 }
 
 /**
  * One segment's rectangle, or its stipple pieces with the counter starting at `counter`, added to
- * `out` in `flat` or, when it is null, the end colours blended. Returns how far the counter moves.
+ * `out` in `flat` or, when it is null, the end colours blended. The counter is measured in window
+ * units of distance along the line, as the reference driver measures it, so a 45° line repeats
+ * every 16 × factor / √2 pixels of x. Returns how far the counter moves: the segment's length.
  */
 export function segmentTriangles(
   out: Triangles,
@@ -146,9 +162,8 @@ export function segmentTriangles(
   if (len === 0) return 0;
   const nx = (-dy / len) * (width / 2);
   const ny = (dx / len) * (width / 2);
-  const frags = fragmentColumns(A, B);
   const spans: [number, number][] = stipple
-    ? stippleRuns(counter, frags.count, stipple.factor, stipple.pattern).map(([s0, s1]) => frags.span(s0 - counter, s1 - counter))
+    ? stippleRuns(counter, len, stipple.factor, stipple.pattern).map(([s0, s1]) => [(s0 - counter) / len, (s1 - counter) / len])
     : [[0, 1]];
   for (const [t0, t1] of spans) {
     const c0 = flat ?? lerp(A.color, B.color, t0);
@@ -164,30 +179,16 @@ export function segmentTriangles(
     push(out, x1 + nx, y1 + ny, c1);
     push(out, x0 + nx, y0 + ny, c0);
   }
-  return frags.count;
+  return len;
 }
 
 /**
- * A segment's window fragments: one per pixel along the major axis whose centre lies on the
- * segment, first end included and last end left out. `span` turns fragments `k0` up to `k1` into
- * the stretch of the segment, as 0 to 1, that their pixels cover. A fragment's whole pixel column
- * is covered even where it reaches past the segment's end, as on the reference driver, so the
- * stretch can run a little below 0 or above 1.
+ * Where the stipple counter stands after moving `by` from `counter`. Only its place in the
+ * pattern matters, so it is kept within one repeat of 16 × factor, and never grows large enough
+ * to lose precision.
  */
-function fragmentColumns(A: GeoVertex, B: GeoVertex): { count: number; span: (k0: number, k1: number) => [number, number] } {
-  const xMajor = Math.abs(B.x - A.x) >= Math.abs(B.y - A.y);
-  const m0 = xMajor ? A.x : A.y;
-  const m1 = xMajor ? B.x : B.y;
-  const forward = m1 >= m0;
-  // The first and last pixel whose centre (c + 0.5) is on the segment.
-  const first = forward ? Math.ceil(m0 - 0.5) : Math.floor(m0 - 0.5);
-  const last = forward ? Math.ceil(m1 - 0.5) - 1 : Math.floor(m1 - 0.5) + 1;
-  const count = Math.max(0, forward ? last - first + 1 : first - last + 1);
-  const t = (m: number) => (m - m0) / (m1 - m0);
-  return {
-    count,
-    span: (k0, k1) => (forward ? [t(first + k0), t(first + k1)] : [t(first + 1 - k0), t(first + 1 - k1)]),
-  };
+export function advanceStipple(counter: number, by: number, factor: number): number {
+  return (counter + by) % (PATTERN_BITS * Math.min(256, Math.max(1, Math.round(factor))));
 }
 
 /** The triangles of a filled primitive, each with the vertex that provokes its FLAT colour. */

@@ -6,6 +6,8 @@
  * Record the references on the reference machine (Windows) with
  *   FIDELITY_RECORD=1 VAMS_GLUT_TOOLCHAIN=<path to the toolchain's mingw32 folder> npx playwright test fidelity
  * which exports each scene's C++, builds it with the capture shim, runs it and saves its first frame.
+ * A recording fails unless the program ran on a renderer naming VAMS_CAPTURE_RENDERER (default
+ * NVIDIA), the GPU the Lab's references are recorded on too.
  * stb_image.h is read from VAMS_STB_IMAGE, or from the Application folder beside mingw32.
  */
 import { expect, test, type Page } from '@playwright/test';
@@ -99,8 +101,11 @@ async function record(page: Page, scene: FidelityScene, size: { width: number; h
     '-lglew32', '-lfreeglut', '-lopengl32', '-lglu32', '-lwinmm', '-lgdi32', '-o', join(dir, 'scene.exe'),
   ], { env, encoding: 'utf8' });
   if (build.status !== 0) throw new Error(`The program didn't build:\n${build.stderr}`);
-  const run = spawnSync(join(dir, 'scene.exe'), [], { cwd: dir, env, timeout: 20_000 });
+  const run = spawnSync(join(dir, 'scene.exe'), [], { cwd: dir, env, timeout: 20_000, encoding: 'utf8' });
   if (run.status !== 0 || !existsSync(join(dir, 'frame.rgba'))) throw new Error(`The program didn't save a frame (exit ${run.status}).`);
+  const renderer = run.stderr.trim().split(/\r?\n/).pop() ?? '';
+  const want = process.env.VAMS_CAPTURE_RENDERER ?? 'NVIDIA';
+  if (!renderer.includes(want)) throw new Error(`The program ran on "${renderer}"; the references are recorded on ${want}.`);
 
   const frame = readFileSync(join(dir, 'frame.rgba'));
   const width = frame.readInt32LE(0);

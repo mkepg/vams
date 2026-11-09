@@ -141,3 +141,9 @@ The battery (20 scenes, `tests/fixtures/fidelity/scenes.ts`) ran against the cou
 - How rebuilt geometry reaches PixiJS: a reused `MeshGeometry` with updated buffers, or new meshes.
 - Where hit areas come from once lines live in window space. They must pick at least as well as today's padded boxes.
 - The exact file split inside `gl-geometry`.
+
+## Note, 10 November 2026: the references move to the NVIDIA GPU
+
+The editor drew a point as a square and the Lab as a circle. The capture shim here never asked for the discrete GPU, so on the owner's laptop these references were recorded on its integrated Intel Iris Xe, while the Lab's are recorded on the NVIDIA RTX 3060 (`NvOptimusEnablement`). Built with the course toolchain and run on each, one multisampled program draws an 8-pixel point as a circle on NVIDIA, as OpenGL 1.5 asks (3.3.3), and as a square on Intel. The two GPUs also read line stipple differently: NVIDIA measures the pattern in distance along the line, Intel in pixel columns.
+
+The project now has one reference GPU, NVIDIA. The shim asks for it, and recording fails on any other renderer. These references were recorded again on it. `gl-geometry` draws a point as a circle and reads stipple in distance along the line, the rule the Lab already followed; the Lab's lines now call the same code. Every other scene matched NVIDIA without a change. The sections above describe the Intel references they were first matched against.

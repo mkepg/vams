@@ -1,4 +1,4 @@
-import { segmentTriangles, type Triangles } from '@/shared/lib/gl-geometry';
+import { advanceStipple, segmentTriangles, type Triangles } from '@/shared/lib/gl-geometry';
 import { fragmentBox } from './clip';
 import type { Framebuffer } from './framebuffer';
 import { drawable, emitFragment, type RasterState, type RGBA, type WinVertex } from './fragment';
@@ -109,39 +109,14 @@ function along(state: RasterState, a: WinVertex, b: WinVertex, t: number): Pick<
 }
 
 /**
- * The "on" stretches of a multisampled stippled segment, as 0 to 1 along it, with the stipple
- * counter at `counter` window units of distance at a. The reference driver measures the pattern in
- * distance along the line, carried on through a strip or loop, so a 45° line repeats every
- * 16 × factor / √2 pixels of x.
- */
-function stipplePieces(len: number, factor: number, pattern: number, counter: number): [number, number][] {
-  const r = Math.min(256, Math.max(1, Math.round(factor)));
-  const out: [number, number][] = [];
-  let s = counter;
-  const end = counter + len;
-  while (s < end) {
-    const step = Math.floor(s / r);
-    const next = Math.min(end, (step + 1) * r);
-    if ((pattern >> (step % 16)) & 1) {
-      const last = out[out.length - 1];
-      const t0 = (s - counter) / len;
-      const t1 = (next - counter) / len;
-      if (last && last[1] === t0) last[1] = t1;
-      else out.push([t0, t1]);
-    }
-    s = next;
-  }
-  return out;
-}
-
-/**
  * Segment a → b. Without multisampling: width rounded to an integer up to MAX_LINE_WIDTH, the
  * segment moved (w − 1)/2 down (x-major) or left (y-major), and each diamond-exit fragment of the moved segment
  * the first of w in the minor direction, the whole column kept or dropped by the stipple bit (3.4.2);
  * the stipple counter moves on once per fragment of the major axis. Data are perspective-correct
- * (eq. 3.4) at each fragment's centre. With multisampling, the rectangle gl-geometry builds, or
- * the stipple pieces of stipplePieces, cover samples (3.4.4), and the counter moves on by the
- * segment's length. Either way the counter is carried in `state.stipple.counter`.
+ * (eq. 3.4) at each fragment's centre. With multisampling, the rectangle or stipple pieces
+ * gl-geometry builds, the pattern read in distance along the line as the editor reads it, cover
+ * samples (3.4.4), and the counter moves on by the segment's length. Either way the counter is
+ * carried in `state.stipple.counter`.
  */
 export function rasterLine(fb: Framebuffer, a: WinVertex, b: WinVertex, state: RasterState): void {
   if (!drawable(a) || !drawable(b)) return;
@@ -154,16 +129,9 @@ export function rasterLine(fb: Framebuffer, a: WinVertex, b: WinVertex, state: R
     const len2 = dx * dx + dy * dy;
     if (!enabled) {
       segmentTriangles(out, a, b, state.lineWidth, null, null, 0);
-    } else if (len2 > 0) {
-      const len = Math.sqrt(len2);
-      const nx = (-dy / len) * (state.lineWidth / 2);
-      const ny = (dx / len) * (state.lineWidth / 2);
-      for (const [t0, t1] of stipplePieces(len, factor, pattern, state.stipple.counter)) {
-        const [x0, y0, x1, y1] = [a.x + dx * t0, a.y + dy * t0, a.x + dx * t1, a.y + dy * t1];
-        out.positions.push(x0 - nx, y0 - ny, x1 - nx, y1 - ny, x1 + nx, y1 + ny, x0 - nx, y0 - ny, x1 + nx, y1 + ny, x0 + nx, y0 + ny);
-      }
-      // Only the counter's place in the pattern matters; keep it within one repeat.
-      state.stipple.counter = (state.stipple.counter + len) % (16 * Math.min(256, Math.max(1, Math.round(factor))));
+    } else {
+      const moved = segmentTriangles(out, a, b, state.lineWidth, null, { factor, pattern }, state.stipple.counter);
+      state.stipple.counter = advanceStipple(state.stipple.counter, moved, factor);
     }
     const corner = (i: number): WinVertex => {
       const x = out.positions[i * 2];
