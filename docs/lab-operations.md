@@ -10,7 +10,7 @@ In short, a runtime version holds three things:
 - **The compiler:** clang and wasm-ld built for WebAssembly, from the pinned `@yowasp/clang`.
 - **The headers the compiler reads.**
 
-The Lab page downloads none of the compiler until Run or Download now asks for it. It then keeps the compiler in Cache Storage, so later visits download nothing. A browser that can't keep it there (no Cache Storage, or a full quota) keeps it in the compiler worker's memory for the visit, and downloads it again on the next. A download that sends nothing for 30 seconds fails, and Run says so. Nothing in the Lab costs money to run, and nothing counts compiles.
+The Lab page downloads none of the compiler until Run or Download now asks for it. It then keeps the compiler in Cache Storage, so later visits download nothing. Every file of it, the entry point `bundle.js` too, is read from that cache, never from the browser's HTTP cache. The download's progress counts bytes as stored, the size the notice gives. Under the dev server (runtime version `dev`) the manifest is fetched on every start and lists each file's modified time, so a rebuilt file is fetched again. A browser that can't keep it there (no Cache Storage, or a full quota) keeps it in the compiler worker's memory for the visit, and downloads it again on the next. A download that sends nothing for 30 seconds fails, and Run says so. Nothing in the Lab costs money to run, and nothing counts compiles.
 
 ## What exists where
 

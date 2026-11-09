@@ -153,6 +153,11 @@ test.describe('VIS-LAB: the compiler in the page', () => {
     await runUntilDone(page);
     await expect(page.locator('.lab-top-bar__status')).toContainText('Stopped on an error');
     await expect(page.locator('.lab-top-bar__status')).not.toContainText('42');
+    // The Console says why, in the words of a program that stopped.
+    await page.getByRole('tab', { name: 'Console' }).click();
+    const console = page.getByRole('tabpanel');
+    await expect(console).toContainText('The program stopped:');
+    await expect(console).not.toContainText('42');
   });
 
   test("VIS-LAB-10: A program can't reach the site's storage through the main module's IndexedDB functions", async ({ page }) => {
