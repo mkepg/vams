@@ -1,5 +1,18 @@
 @use '../../../shared/styles/tokens' as *;
 
+// Text kept for screen readers and left out of the picture.
+@mixin hidden-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 // The Lab fills the window: its top bar, then Marey's split. The grid itself (columns, rows and
 // areas) is set inline from the handles' ratios; see model/split.ts.
 .lab-workspace {
@@ -18,14 +31,16 @@
 
   &__code { grid-area: code; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   &__editor { flex: 1; min-height: 0; overflow: hidden; }
-  &__hint {
-    margin: 0;
-    padding: var(--space-1) var(--space-3);
+  // The files, then the keyboard help at the strip's end: one slim row under the code.
+  &__strip {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding-right: var(--space-2);
     border-top: 1px solid var(--hairline);
     background: var(--code-bg);
-    color: var(--ink-dim);
-    font-size: var(--text-xs);
-    line-height: var(--lh-xs);
+    > .lab-files { flex: 1; min-width: 0; }
   }
   &__log { grid-area: log; display: flex; flex-direction: column; min-width: 0; min-height: 0; > .lab-log { flex: 1; } }
   &__log-handle { grid-area: log-handle; }
@@ -41,6 +56,59 @@
     .lab-workspace__stage { height: min(70vh, 520px); }
     .lab-workspace__code { height: 60vh; }
     .lab-workspace__log { min-height: 30vh; }
+    .lab-workspace__log[data-shut='true'] { min-height: 0; }
+  }
+}
+
+// How the keyboard leaves the editor: a quiet button, and the hint in a small panel above it.
+.editor-help {
+  flex: none;
+  padding-top: 3px;
+
+  &__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 24px;
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-s);
+    background: none;
+    color: var(--ink-muted);
+    font: inherit;
+    font-size: var(--text-xs);
+    cursor: pointer;
+
+    svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
+    &:hover,
+    &[aria-expanded='true'] { color: var(--ink); background: var(--accent-tint); }
+    &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+  }
+
+  &__text {
+    @include hidden-text;
+  }
+
+  &[data-open='true'] &__text {
+    position: absolute;
+    right: var(--space-2);
+    bottom: calc(100% + var(--space-2));
+    z-index: 10;
+    width: auto;
+    max-width: min(46ch, calc(100% - 2 * var(--space-2)));
+    height: auto;
+    margin: 0;
+    padding: var(--space-3) var(--space-4);
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-m);
+    background: var(--paper-raised);
+    box-shadow: 0 10px 28px rgba(var(--shadow-rgb), 0.18);
+    color: var(--ink);
+    font-size: var(--text-sm);
+    line-height: 1.5;
   }
 }
 
@@ -48,11 +116,12 @@
   @include ink-chrome;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  min-height: 44px;
+  gap: var(--space-4);
+  min-height: 48px;
   padding: 0 10px 0 14px;
   flex-wrap: wrap;
 
+  &__brand { display: flex; align-items: center; gap: var(--space-3); flex: none; }
   &__home {
     display: inline-flex;
     align-items: center;
@@ -60,14 +129,29 @@
     text-decoration: none;
     &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
   }
+  // "LAB" beside VAMS as one lockup: the same pixel face and lean, white, on the same cyan depth.
   &__name {
-    margin: 0;
-    font-family: var(--font-display);
-    font-size: var(--text-md);
-    font-weight: 600;
-    color: var(--ink);
+    margin: 0 0 0 -2px;
+    font-size: inherit;
+    line-height: 1;
   }
-  // A small amber outline beside the name: it marks the page without competing with ▶ Run.
+  &__word {
+    display: inline-block;
+    height: 1em;
+    font-family: var(--font-logo);
+    font-size: var(--text-lg);
+    font-style: italic;
+    font-weight: normal;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    color: var(--chrome-ink);
+    -webkit-text-stroke: 1.5px var(--logo-stroke);
+    paint-order: stroke fill;
+    text-shadow: 2px 2px 0 var(--logo-depth);
+  }
+  &__hidden { @include hidden-text; }
+  // A small amber outline beside the name: it marks the page without competing with Run.
   &__tag {
     flex: none;
     padding: 1px 7px;
@@ -80,19 +164,81 @@
     letter-spacing: 0.02em;
     white-space: nowrap;
   }
+  // The file, quiet, then Run's state in its chip.
   &__status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
     flex: 1;
     min-width: 0;
     margin: 0;
+    white-space: nowrap;
+  }
+  &__file {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
     font-family: var(--font-mono);
     font-size: var(--text-sm);
-    color: var(--ink-muted);
+    color: var(--chrome-muted);
   }
-  // On a phone the actions wrap onto a second line, ▶ Run last, rather than widen the page.
-  &__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--space-1); margin-left: auto; }
+  // On a phone the actions wrap onto a second line, Run last, rather than widen the page.
+  &__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--space-3); margin-left: auto; }
+  // The file actions sit together, set off from Run by a rule.
+  &__files {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    padding-right: var(--space-3);
+    border-right: 1px solid var(--chrome-sep);
+  }
+  &__run { gap: 6px; padding-inline: var(--space-4); }
+  &__run-icon { width: 11px; height: 11px; fill: currentColor; }
+
+  // Narrow, the status takes a row of its own under the brand, and the actions wrap under it.
+  @media (max-width: 759px) {
+    row-gap: var(--space-2);
+    padding-block: var(--space-2);
+    &__status { flex-basis: 100%; }
+    &__files { padding-right: 0; border-right: 0; }
+  }
+}
+
+// Run's state: a dot and a word in the state's colour, on a wash of it.
+.lab-status {
+  --tone: var(--chrome-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 2px 10px 2px 8px;
+  border: 1px solid color-mix(in srgb, var(--tone) 40%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tone) 12%, transparent);
+  color: var(--tone);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &__dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+  &[data-tone='busy'] { --tone: var(--chrome-busy); }
+  &[data-tone='running'] { --tone: var(--chrome-ok); }
+  &[data-tone='error'] { --tone: var(--chrome-danger); }
+  &[data-tone='ended'] { --tone: var(--chrome-ink); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lab-status[data-tone='busy'] .lab-status__dot { animation: lab-status-pulse 1.1s ease-in-out infinite; }
+  .lab-status[data-tone='running'] .lab-status__dot { animation: lab-status-pulse 2.4s ease-in-out infinite; }
+}
+
+@keyframes lab-status-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.7); }
 }
 
 // The handles: a hairline that thickens into the accent while it is held or has focus.
@@ -109,7 +255,8 @@
   &:focus-visible { background: var(--accent); box-shadow: 0 0 0 2px var(--focus-ring); }
 }
 
-// The stage stands for the lab PC's screen.
+// The stage stands for the lab PC's screen: a calm desktop, lit a little from above, with the
+// Lab's mark faint in its corner and the program's window standing off it.
 .lab-stage {
   position: relative;
   flex: 1;
@@ -117,8 +264,24 @@
   min-height: 0;
   overflow: hidden;
   background-color: var(--stage-bg);
-  background-image: radial-gradient(var(--stage-dot) 1px, transparent 1px);
-  background-size: 16px 16px;
+  background-image: radial-gradient(120% 75% at 50% 0%, color-mix(in srgb, var(--paper) 60%, transparent), transparent 72%);
+
+  // Bottom left, where a window the program places, or one centred, seldom reaches.
+  &__mark {
+    position: absolute;
+    left: var(--space-5);
+    bottom: var(--space-4);
+    font-family: var(--font-logo);
+    font-size: var(--text-2xl);
+    font-style: italic;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--ink);
+    opacity: 0.06;
+    pointer-events: none;
+    user-select: none;
+  }
 
   &__empty {
     position: absolute;
@@ -127,11 +290,44 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: var(--space-3);
+    gap: var(--space-2);
     padding: var(--space-5);
     text-align: center;
   }
-  &__message { margin: 0; color: var(--ink-muted); font-size: var(--text-md); }
+  &__message {
+    max-width: 34ch;
+    margin: 0;
+    color: var(--ink);
+    font-size: var(--text-md);
+    font-weight: 500;
+    text-wrap: balance;
+  }
+  &__keys {
+    margin: 0 0 var(--space-2);
+    color: var(--ink-muted);
+    font-size: var(--text-sm);
+
+    kbd {
+      display: inline-block;
+      min-width: 1.6em;
+      padding: 1px 6px;
+      border: 1px solid var(--rule);
+      border-bottom-width: 2px;
+      border-radius: var(--radius-s);
+      background: var(--paper-raised);
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      line-height: var(--lh-xs);
+    }
+  }
+
+  // The window stands off the desktop: a close shadow for its edge, a wide one for its height.
+  .canvas-window--floating {
+    box-shadow:
+      0 1px 3px rgba(var(--shadow-rgb), 0.14),
+      0 18px 44px rgba(var(--shadow-rgb), 0.24);
+  }
 
   &__surface {
     position: absolute;

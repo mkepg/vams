@@ -141,9 +141,11 @@ tests/
 │   ├── lab-compiler-worker.test.ts       (BB-LAB-106 and 107: the compiler
 │   │                                        worker's messages, and its entry
 │   │                                        point run from its own cache)
-│   ├── lab-workspace.test.ts             (BB-LAB-43 to 51, 71 to 77, 94, 95 and
-│   │                                        101: the workspace, the stage, the
-│   │                                        program's window and the top bar)
+│   ├── lab-workspace.test.ts             (BB-LAB-43 to 51, 71 to 77, 94, 95,
+│   │                                        101 and 108 to 111: the workspace,
+│   │                                        the stage, the program's window, the
+│   │                                        top bar, the log's bar and the
+│   │                                        keyboard help)
 │   ├── lab-shared-layout.test.ts         (BB-LAB-61 to 64: the rings the page
 │   │                                        and the program's worker share)
 │   ├── lab-files.test.ts                 (BB-LAB-52 to 57, 78 to 86 and 88 to 91:

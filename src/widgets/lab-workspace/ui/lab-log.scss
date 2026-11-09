@@ -12,7 +12,20 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  min-height: 36px;
   padding: 0 var(--space-2);
+}
+
+// While the log has nothing in it, the bar says what will appear there.
+.lab-log__idle {
+  min-width: 0;
+  margin: 0 0 0 auto;
+  padding-right: var(--space-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-dim);
+  font-size: var(--text-xs);
 }
 
 .lab-log__fold,
@@ -27,8 +40,29 @@
 
 .lab-log__fold {
   display: inline-flex;
+  align-items: center;
   gap: var(--space-1);
   padding: var(--space-2);
+  color: var(--ink-muted);
+
+  &:hover:not(:disabled) { color: var(--ink); }
+  &:disabled { cursor: default; opacity: 0.5; }
+}
+
+.lab-log__chevron {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.lab-log[data-folded='false'] .lab-log__chevron { transform: rotate(90deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .lab-log__chevron { transition: none; }
 }
 
 .lab-log__tabs { display: flex; }

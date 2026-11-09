@@ -27,7 +27,8 @@ import CompilerNotice from './CompilerNotice';
 import Handle from './Handle';
 import LabLog from './LabLog';
 import LabStage from './LabStage';
-import LabTopBar, { type LabFileActions } from './LabTopBar';
+import EditorHelp from './EditorHelp';
+import LabTopBar, { type LabFileActions, type StatusTone } from './LabTopBar';
 import './lab-workspace.scss';
 
 export interface LabWorkspaceProps extends LabFileActions {
@@ -62,6 +63,25 @@ export function runPhase(status: RunStatus, exitCode?: number): string | null {
       return 'Stopped on an error';
     default:
       return null;
+  }
+}
+
+/** The top bar's chip: what Run is doing, or at rest, Ready, or Errors when the last compile found some. */
+export function runChip(status: RunStatus, exitCode: number | undefined, diagnostics: readonly Diagnostic[]): { label: string; tone: StatusTone } {
+  const label = runPhase(status, exitCode);
+  switch (status) {
+    case 'compiling':
+    case 'downloading':
+      return { label: label!, tone: 'busy' };
+    case 'running':
+    case 'waitingInput':
+      return { label: label!, tone: 'running' };
+    case 'exited':
+      return { label: label!, tone: 'ended' };
+    case 'crashed':
+      return { label: label!, tone: 'error' };
+    default:
+      return diagnostics.some((d) => d.severity === 'error') ? { label: 'Errors', tone: 'error' } : { label: 'Ready', tone: 'idle' };
   }
 }
 
@@ -233,22 +253,19 @@ export default function LabWorkspace({ compile = compileHere, download = downloa
     }));
   }
 
-  const phase = runPhase(status, exitCode);
-  const statusText = phase ? `${statusLine(diagnostics)} · ${phase}` : statusLine(diagnostics);
-
   return (
     <div className="lab-workspace" data-layout={narrow ? 'stacked' : 'split'}>
-      <LabTopBar status={statusText} onRun={() => void run()} {...fileActions} />
+      <LabTopBar file={statusLine(diagnostics)} phase={runChip(status, exitCode, diagnostics)} onRun={() => void run()} {...fileActions} />
       <main id="main" ref={splitRef} className="lab-workspace__split" style={splitStyle({ narrow, pane, log, logFolded })}>
         <div id="lab-code" className="lab-workspace__code">
           <CompilerNotice onDownload={download} />
           <div className="lab-workspace__editor">
             <LabEditor value={source} onChange={useLabStore.getState().setSource} diagnostics={diagnostics} jumpTo={jumpTo} onRun={() => void run()} describedBy={EDITOR_HINT_ID} />
           </div>
-          <FileList written={written} notice={fileNotice} />
-          <p id={EDITOR_HINT_ID} className="lab-workspace__hint">
-            {EDITOR_HINT}
-          </p>
+          <div className="lab-workspace__strip">
+            <FileList written={written} notice={fileNotice} />
+            <EditorHelp id={EDITOR_HINT_ID} text={EDITOR_HINT} />
+          </div>
         </div>
         {!narrow && !logFolded && (
           <Handle
@@ -262,7 +279,7 @@ export default function LabWorkspace({ compile = compileHere, download = downloa
             className="lab-workspace__log-handle"
           />
         )}
-        <div className="lab-workspace__log">
+        <div className="lab-workspace__log" data-shut={logFolded ? 'true' : 'false'}>
           <LabLog
             diagnostics={diagnostics}
             consoleLines={consoleLines(consoleLog)}

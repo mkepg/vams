@@ -100,10 +100,17 @@ export default function LabStage() {
   if (!win) {
     // A program without a window has no ✕, so the stage offers Stop, which ends it the same way.
     const running = status === 'running' || status === 'waitingInput';
+    const resting = status === 'idle';
     return (
       <section ref={stageRef} className="lab-stage" aria-label="Stage">
-        <div className="lab-stage__empty">
+        <StageMark />
+        <div className="lab-stage__empty" data-status={status}>
           <p className="lab-stage__message">{stageMessage(status, exitCode)}</p>
+          {resting && (
+            <p className="lab-stage__keys">
+              or press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> in the code
+            </p>
+          )}
           {running && (
             <Button variant="secondary" onClick={() => runController.stop()}>
               Stop
@@ -259,6 +266,7 @@ export default function LabStage() {
 
   return (
     <section ref={stageRef} className="lab-stage" aria-label="Stage">
+      <StageMark />
       <CanvasWindow
         size={{ width: win.width, height: win.height }}
         title={win.title}
@@ -291,6 +299,15 @@ export default function LabStage() {
         />
       )}
     </section>
+  );
+}
+
+/** The desktop's mark, faint in the corner behind every window, as a lab PC's wallpaper has one. */
+function StageMark() {
+  return (
+    <span className="lab-stage__mark" aria-hidden="true">
+      VAMS LAB
+    </span>
   );
 }
 

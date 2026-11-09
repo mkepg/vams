@@ -5,3 +5,8 @@
 
 .cm-editor .cm-content ::selection,
 .cm-editor .cm-content::selection { background: var(--accent-tint); }
+
+// The two syntax colours the code panel uses: GL and GLUT calls in cobalt, comments dim.
+// Here as well as in code-viewer.scss, so every page with a code editor has them, the Lab too.
+.cm-editor .tk-glfn { color: var(--code-fn); }
+.cm-editor .tk-comment { color: var(--ink-dim); }

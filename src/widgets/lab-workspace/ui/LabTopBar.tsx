@@ -11,9 +11,14 @@ export interface LabFileActions {
   onShare?: () => void;
 }
 
+/** The status chip's colour: at rest, busy, running, ended, or stopped on an error. */
+export type StatusTone = 'idle' | 'busy' | 'running' | 'ended' | 'error';
+
 interface LabTopBarProps extends LabFileActions {
-  /** The status line: the file, what the compiler found, and what Run is doing. */
-  status: string;
+  /** The file and what the compiler found, such as "main.cpp · 2 errors". */
+  file: string;
+  /** What Run is doing, in the chip. */
+  phase: { label: string; tone: StatusTone };
   onRun: () => void;
 }
 
@@ -24,34 +29,54 @@ const ACTIONS: { key: Exclude<keyof LabFileActions, 'examples'>; label: string }
   { key: 'onShare', label: 'Share' },
 ];
 
-/** The wordmark, "Lab" and its Experimental tag, the status line, the file actions and ▶ Run, in that order. */
-export default function LabTopBar({ status, onRun, examples, ...actions }: LabTopBarProps) {
+/**
+ * The VAMS LAB lockup and its Experimental tag, the file with Run's state in a chip, the file
+ * actions as one group, and ▶ Run on its own at the end.
+ */
+export default function LabTopBar({ file, phase, onRun, examples, ...actions }: LabTopBarProps) {
   return (
     <header className="lab-top-bar">
-      <a className="lab-top-bar__home" href="/" aria-label="VAMS home">
-        <Logo />
-      </a>
-      <h1 className="lab-top-bar__name">Lab</h1>
-      <span className="lab-top-bar__tag">Experimental</span>
+      <div className="lab-top-bar__brand">
+        <a className="lab-top-bar__home" href="/" aria-label="VAMS home">
+          <Logo />
+        </a>
+        <h1 className="lab-top-bar__name">
+          <span className="lab-top-bar__word" aria-hidden="true">
+            LAB
+          </span>
+          <span className="lab-top-bar__hidden">Lab</span>
+        </h1>
+        <span className="lab-top-bar__tag">Experimental</span>
+      </div>
       <p className="lab-top-bar__status" role="status">
-        {status}
+        <span className="lab-top-bar__file">{file}</span>
+        <span className="lab-top-bar__hidden"> · </span>
+        <span className="lab-status" data-tone={phase.tone}>
+          <span className="lab-status__dot" aria-hidden="true" />
+          {phase.label}
+        </span>
       </p>
       <div className="lab-top-bar__actions">
-        {examples ? (
-          <MenuButton label="Examples" entries={examples} variant="quiet">
-            Examples
-          </MenuButton>
-        ) : null}
-        {ACTIONS.map(({ key, label }) => {
-          const action = actions[key];
-          return action ? (
-            <Button key={key} variant="quiet" aria-haspopup={key === 'onShare' ? 'dialog' : undefined} onClick={action}>
-              {label}
-            </Button>
-          ) : null;
-        })}
+        <div className="lab-top-bar__files" role="group" aria-label="File">
+          {examples ? (
+            <MenuButton label="Examples" entries={examples} variant="quiet">
+              Examples
+            </MenuButton>
+          ) : null}
+          {ACTIONS.map(({ key, label }) => {
+            const action = actions[key];
+            return action ? (
+              <Button key={key} variant="quiet" aria-haspopup={key === 'onShare' ? 'dialog' : undefined} onClick={action}>
+                {label}
+              </Button>
+            ) : null;
+          })}
+        </div>
         <Button variant="primary" className="lab-top-bar__run" title="Run (Ctrl+Enter)" onClick={onRun}>
-          <span aria-hidden="true">▶</span> Run
+          <svg className="lab-top-bar__run-icon" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+            <path d="M3 1.8v8.4a.6.6 0 0 0 .9.5l6.6-4.2a.6.6 0 0 0 0-1L3.9 1.3a.6.6 0 0 0-.9.5Z" />
+          </svg>
+          Run
         </Button>
       </div>
     </header>
