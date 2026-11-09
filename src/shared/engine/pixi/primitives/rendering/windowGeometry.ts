@@ -30,7 +30,7 @@ interface Source {
  * Points and lines, built in window pixels the way glPointSize, glLineWidth and glLineStipple
  * measure them, then carried back into the parent's own coordinates. Whenever the parent's
  * place in the window changes (a drag, a group, a Run rule, the view), `place` builds them again,
- * so no scale ever stretches a line's width or a point's square.
+ * so no scale ever stretches a line's width or a point's circle.
  */
 export class WindowGeometryMesh extends Mesh<MeshGeometry, Shader> {
   private readonly source: Source;
