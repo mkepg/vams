@@ -953,13 +953,18 @@ describe('BB-LAB-110: How the keyboard leaves the editor is one button away, and
   });
 });
 
-describe('BB-LAB-111: The VAMS LAB lockup reads as the page\'s heading, Lab', () => {
-  it('draws LAB for the eye and says Lab to a screen reader', () => {
+describe('BB-LAB-111: The page\'s heading draws LAB in pixels and reads Lab', () => {
+  it('draws LAB for the eye, with open bowls in its B, and says Lab to a screen reader', () => {
     const host = mount();
     const heading = host.querySelector('h1.lab-top-bar__name')!;
-    expect(heading.querySelector('.lab-top-bar__word')!.getAttribute('aria-hidden')).toBe('true');
-    expect(heading.querySelector('.lab-top-bar__word')!.textContent).toBe('LAB');
-    expect(heading.querySelector('.lab-top-bar__hidden')!.textContent).toBe('Lab');
+    expect(heading.textContent).toBe('Lab');
+    const word = heading.querySelector('svg.lab-top-bar__word')!;
+    expect(word.getAttribute('aria-hidden')).toBe('true');
+    // Seven rows of 22 pixels; the B's two bowls are each a two-by-two hole.
+    expect(word.getAttribute('viewBox')).toBe('0 0 22 7');
+    const face = word.querySelector('.lab-top-bar__word-face')!.getAttribute('d')!;
+    expect(face).toContain('M16 1h2v1h-2z');
+    expect(face).toContain('M20 1h2v1h-2z');
     expect(host.querySelector('.lab-top-bar__home')!.getAttribute('aria-label')).toBe('VAMS home');
   });
 });

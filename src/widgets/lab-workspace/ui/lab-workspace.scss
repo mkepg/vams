@@ -129,12 +129,22 @@
     text-decoration: none;
     &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
   }
-  // "LAB" beside VAMS as one lockup: the same pixel face and lean, white, on the same cyan depth.
+  // "LAB" in pixels beside the wordmark, white on the same cyan depth and with the same lean, as
+  // one lockup. Drawn, not set in the font, so its B stays a B at this size.
   &__name {
-    margin: 0 0 0 -2px;
-    font-size: inherit;
+    display: flex;
+    margin: 0;
     line-height: 1;
   }
+  &__word {
+    display: block;
+    width: auto;
+    height: 17px;
+    overflow: visible;
+    transform: skewX(-10deg);
+  }
+  &__word-face { fill: var(--chrome-ink); }
+  &__word-depth { fill: var(--logo-depth); }
   &__hidden { @include hidden-text; }
   // A small amber outline beside the name: it marks the page without competing with Run.
   &__tag {
