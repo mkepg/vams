@@ -15,6 +15,7 @@ import { renderToString } from 'preact-render-to-string';
 import { act } from 'preact/test-utils';
 import { EditorView } from '@codemirror/view';
 import { LabWorkspace } from '@/widgets/lab-workspace';
+import LabTopBar from '@/widgets/lab-workspace/ui/LabTopBar';
 import { useLabStore } from '@/entities/lab-project';
 import { useLabStage } from '@/widgets/lab-workspace/model/stage-store';
 import { HIDDEN_READ_MS, runController, useLabRun, type WorkerLike } from '@/features/lab-run';
@@ -835,5 +836,17 @@ describe('BB-LAB-95: Two Runs during the first download compile once, with the n
     await flush();
     expect(workers).toHaveLength(1);
     expect(useLabRun.getState().status).toBe('running');
+  });
+});
+
+describe('BB-LAB-101: The top bar labels the Lab experimental, beside its name', () => {
+  it('shows one Experimental tag straight after the Lab heading', () => {
+    const host = document.createElement('div');
+    render(h(LabTopBar, { status: 'main.cpp', onRun: () => {} }), host);
+    const tags = host.querySelectorAll('.lab-top-bar__tag');
+    expect(tags).toHaveLength(1);
+    expect(tags[0].textContent).toBe('Experimental');
+    expect(host.querySelector('.lab-top-bar__name')?.nextElementSibling).toBe(tags[0]);
+    render(null, host);
   });
 });

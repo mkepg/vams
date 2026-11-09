@@ -24,7 +24,7 @@ const ACTIONS: { key: Exclude<keyof LabFileActions, 'examples'>; label: string }
   { key: 'onShare', label: 'Share' },
 ];
 
-/** The wordmark and "Lab", the status line, the file actions and ▶ Run, in that order. */
+/** The wordmark, "Lab" and its Experimental tag, the status line, the file actions and ▶ Run, in that order. */
 export default function LabTopBar({ status, onRun, examples, ...actions }: LabTopBarProps) {
   return (
     <header className="lab-top-bar">
@@ -32,6 +32,7 @@ export default function LabTopBar({ status, onRun, examples, ...actions }: LabTo
         <Logo />
       </a>
       <h1 className="lab-top-bar__name">Lab</h1>
+      <span className="lab-top-bar__tag">Experimental</span>
       <p className="lab-top-bar__status" role="status">
         {status}
       </p>

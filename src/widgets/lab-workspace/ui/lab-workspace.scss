@@ -67,6 +67,19 @@
     font-weight: 600;
     color: var(--ink);
   }
+  // A small amber outline beside the name: it marks the page without competing with ▶ Run.
+  &__tag {
+    flex: none;
+    padding: 1px 7px;
+    border: 1px solid var(--chrome-caution);
+    border-radius: 999px;
+    color: var(--chrome-caution);
+    font-size: var(--text-xs);
+    line-height: var(--lh-xs);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
   &__status {
     flex: 1;
     min-width: 0;
