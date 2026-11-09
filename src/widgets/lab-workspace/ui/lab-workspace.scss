@@ -135,21 +135,6 @@
     font-size: inherit;
     line-height: 1;
   }
-  &__word {
-    display: inline-block;
-    height: 1em;
-    font-family: var(--font-logo);
-    font-size: var(--text-lg);
-    font-style: italic;
-    font-weight: normal;
-    line-height: 1;
-    letter-spacing: 0.08em;
-    white-space: nowrap;
-    color: var(--chrome-ink);
-    -webkit-text-stroke: 1.5px var(--logo-stroke);
-    paint-order: stroke fill;
-    text-shadow: 2px 2px 0 var(--logo-depth);
-  }
   &__hidden { @include hidden-text; }
   // A small amber outline beside the name: it marks the page without competing with Run.
   &__tag {
