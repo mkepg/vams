@@ -1734,3 +1734,72 @@ describe('ALG-LAB-38: An open glBegin or glNewList holds at most MAX_DRAW_ELEMEN
     expect(covered(gl.fb)).toEqual(['1,2']);
   });
 });
+
+describe('ALG-LAB-39: A multisampled frame is the same whether each pixel is averaged per fragment or when the frame is read', () => {
+  /** Shapes over shapes in one colour and in gradients, blended and not, with a scissored clear, lines, points and a read part way. */
+  function scene(gl: GLContext, midway: () => void) {
+    gl.matrixMode(GL.PROJECTION);
+    gl.loadIdentity();
+    gl.ortho(0, 64, 0, 48, -1, 1);
+    gl.matrixMode(GL.MODELVIEW);
+    gl.clearColor(0.1, 0.2, 0.3, 1);
+    gl.clear(GL.COLOR_BUFFER_BIT);
+    gl.begin(GL.QUADS);
+    gl.color3f(0.9, 0.6, 0.1);
+    for (const [x, y] of [[3, 2], [40, 5], [37.5, 30.25], [6, 28]]) gl.vertex2f(x, y);
+    gl.end();
+    gl.pushMatrix();
+    gl.translatef(32, 24, 0);
+    gl.rotatef(17, 0, 0, 1);
+    gl.begin(GL.TRIANGLE_FAN);
+    gl.color3f(1, 1, 1);
+    gl.vertex2f(0, 0);
+    for (let k = 0; k <= 12; k++) {
+      gl.color3f(k / 12, 0.3, 1 - k / 12);
+      gl.vertex2f(Math.cos((k / 12) * 2 * Math.PI) * 14, Math.sin((k / 12) * 2 * Math.PI) * 9);
+    }
+    gl.end();
+    gl.popMatrix();
+    midway();
+    gl.enable(GL.BLEND);
+    gl.blendFunc(GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA);
+    gl.begin(GL.TRIANGLES);
+    gl.color4f(0.2, 0.9, 0.4, 0.5);
+    gl.vertex2f(10, 40);
+    gl.vertex2f(60.3, 12.7);
+    gl.vertex2f(50, 46);
+    gl.end();
+    gl.disable(GL.BLEND);
+    gl.enable(GL.SCISSOR_TEST);
+    gl.scissor(20, 10, 9, 7);
+    gl.clear(GL.COLOR_BUFFER_BIT);
+    gl.disable(GL.SCISSOR_TEST);
+    gl.lineWidth(2);
+    gl.begin(GL.LINES);
+    gl.color3f(1, 0, 0);
+    gl.vertex2f(1, 1);
+    gl.vertex2f(62, 45);
+    gl.end();
+    gl.pointSize(3);
+    gl.begin(GL.POINTS);
+    gl.color3f(0, 1, 1);
+    gl.vertex2f(12.3, 33.6);
+    gl.end();
+  }
+
+  it('gives the same bytes, with the colour buffer read part way through or not', () => {
+    const deferred = new GLContext(64, 48, { multisample: true });
+    scene(deferred, () => void deferred.fb);
+    const once = new GLContext(64, 48, { multisample: true });
+    scene(once, () => {});
+    // The same drawing with each fragment's pixel averaged at once, as a framebuffer without pending does.
+    const immediate = new GLContext(64, 48, { multisample: true });
+    (immediate as unknown as { frame: Framebuffer }).frame.pending = null;
+    scene(immediate, () => {});
+    const bytes = (gl: GLContext) => Array.from(gl.fb.color);
+    expect(bytes(deferred)).toEqual(bytes(immediate));
+    expect(bytes(once)).toEqual(bytes(immediate));
+    // Something of every kind was drawn: the clear, the shapes and the averaged edges between them.
+    expect(new Set(bytes(immediate).map((_, i, a) => (i % 4 === 0 ? a.slice(i, i + 3).join() : ''))).size).toBeGreaterThan(50);
+  });
+});

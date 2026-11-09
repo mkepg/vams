@@ -12,7 +12,7 @@ import {
   type ArraySource,
   type BufferObject,
 } from './arrays';
-import { clearFramebuffer, createFramebuffer, type Framebuffer } from './framebuffer';
+import { clearFramebuffer, createFramebuffer, deferResolve, resolvePending, type Framebuffer } from './framebuffer';
 import { defaultRasterState, type BlendFactor, type EnvMode, type Filter, type RasterState, type RGBA, type TextureUnit, type Wrap } from './fragment';
 import { drawPrimitive, GL_MODE, insideVolume, toWindow, type ClipVertex, type Target, type Viewport } from './assembly';
 import { drawBitmap, initialRasterPos } from './bitmap';
@@ -212,7 +212,8 @@ export interface GLContextOptions {
  * allow there sets GL_INVALID_OPERATION and does nothing (2.6.3).
  */
 export class GLContext {
-  fb: Framebuffer;
+  /** The framebuffer drawing goes to. A multisampled one averages its pixels when `fb` is read. */
+  private frame: Framebuffer;
   /** The error flag (2.5): the first error since glGetError last read it, or GL_NO_ERROR. */
   error: number = GL.NO_ERROR;
 
@@ -238,17 +239,29 @@ export class GLContext {
   private readonly arrays = { vertex: createPointer(4), color: createPointer(4), tex: createPointer(4) };
 
   constructor(width: number, height: number, options: GLContextOptions = {}) {
-    this.fb = createFramebuffer(width, height, options.buffer);
-    this.memory = options.memory;
     this.raster = defaultRasterState();
     this.raster.multisample = !!options.multisample;
+    this.frame = this.newFramebuffer(width, height, options.buffer);
+    this.memory = options.memory;
     this.raster.scissor = { enabled: false, x: 0, y: 0, width, height };
     this.vp = { x: 0, y: 0, width, height };
   }
 
+  /** The framebuffer, every pixel's colour up to date. */
+  get fb(): Framebuffer {
+    resolvePending(this.frame);
+    return this.frame;
+  }
+
+  private newFramebuffer(width: number, height: number, buffer?: SharedArrayBuffer): Framebuffer {
+    const fb = createFramebuffer(width, height, buffer);
+    if (this.raster.multisample) deferResolve(fb);
+    return fb;
+  }
+
   /** A new window size: a fresh framebuffer, cleared to 0. The viewport stays as the program set it. */
   resize(width: number, height: number, buffer?: SharedArrayBuffer): void {
-    this.fb = createFramebuffer(width, height, buffer);
+    this.frame = this.newFramebuffer(width, height, buffer);
   }
 
   // Errors and command dispatch.
@@ -304,7 +317,7 @@ export class GLContext {
   // Vertices and their attributes (2.6, 2.7).
 
   private target(): Target {
-    return { fb: this.fb, state: this.raster, viewport: this.vp, texture: this.textureView() };
+    return { fb: this.frame, state: this.raster, viewport: this.vp, texture: this.textureView() };
   }
 
   /** The bound texture for a level of detail, when GL_TEXTURE_2D is on and the texture is complete. */
@@ -487,7 +500,7 @@ export class GLContext {
       if (width < 0 || height < 0) return this.fail(GL.INVALID_VALUE);
       const view = this.textureView();
       const state = view ? { ...this.raster, texture: view(-Infinity) } : this.raster;
-      drawBitmap(this.fb, state, this.pos, width, height, xorig, yorig, xmove, ymove, copy);
+      drawBitmap(this.frame, state, this.pos, width, height, xorig, yorig, xmove, ymove, copy);
     });
   }
 
@@ -601,7 +614,7 @@ export class GLContext {
       const all = GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT | GL.STENCIL_BUFFER_BIT | GL.ACCUM_BUFFER_BIT;
       if (mask & ~all) return this.fail(GL.INVALID_VALUE);
       // Only the colour buffer exists; the scissor test limits the clear when it is on (4.2.3).
-      if (mask & GL.COLOR_BUFFER_BIT) clearFramebuffer(this.fb, this.clearValue, this.raster.scissor);
+      if (mask & GL.COLOR_BUFFER_BIT) clearFramebuffer(this.frame, this.clearValue, this.raster.scissor);
     });
   }
 

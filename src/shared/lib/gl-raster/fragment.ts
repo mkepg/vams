@@ -1,6 +1,6 @@
 import type { Rgba, Shade } from '@/shared/lib/gl-geometry';
 import { inBox, type Box, type Scissor } from './clip';
-import { SAMPLES, resolvePixel, sampleStore, storePixel, toByte, type Framebuffer } from './framebuffer';
+import { SAMPLES, sampleStore, storePixel, toByte, touchPixel, type Framebuffer } from './framebuffer';
 
 export type RGBA = Rgba;
 
@@ -227,6 +227,32 @@ function blendInto(state: RasterState, s: Rgba, buf: Uint8Array, at: number): vo
 const scratch = new Uint8Array(4);
 
 /**
+ * The bytes an untextured fragment of `color` leaves when blending is off, or null when it is on.
+ * fillSolid writes them as emitFragment would write that fragment, wholly covered, so a run of
+ * pixels inside one shape of one colour is worked out once.
+ */
+export function solidBytes(state: RasterState, color: Rgba): Uint8Array | null {
+  if (state.blend.enabled) return null;
+  return Uint8Array.of(toByte(clamp01(color[0])), toByte(clamp01(color[1])), toByte(clamp01(color[2])), toByte(clamp01(color[3])));
+}
+
+/** emitFragment for pixel `x`, `y`, inside the box, wholly covered, with solidBytes' `bytes`. */
+export function fillSolid(fb: Framebuffer, state: RasterState, x: number, y: number, bytes: Uint8Array): void {
+  if (!state.multisample) {
+    storePixel(fb, x, y, bytes[0], bytes[1], bytes[2], bytes[3]);
+    return;
+  }
+  const samples = sampleStore(fb);
+  for (let at = (y * fb.width + x) * 4 * SAMPLES, end = at + SAMPLES * 4; at < end; at += 4) {
+    samples[at] = bytes[0];
+    samples[at + 1] = bytes[1];
+    samples[at + 2] = bytes[2];
+    samples[at + 3] = bytes[3];
+  }
+  touchPixel(fb, x, y);
+}
+
+/**
  * One fragment through texturing, the scissor and window test and blending, into pixel `x`, `y`.
  * In multisample mode only the samples set in `coverage` take it, and the pixel is their average.
  */
@@ -245,12 +271,36 @@ export function emitFragment(
   const s: Rgba = [clamp01(t[0]), clamp01(t[1]), clamp01(t[2]), clamp01(t[3])];
   const p = (y * fb.width + x) * 4;
   if (!state.multisample) {
-    scratch.set(fb.color.subarray(p, p + 4));
+    if (!state.blend.enabled) {
+      storePixel(fb, x, y, toByte(s[0]), toByte(s[1]), toByte(s[2]), toByte(s[3]));
+      return;
+    }
+    const color = fb.color;
+    scratch[0] = color[p];
+    scratch[1] = color[p + 1];
+    scratch[2] = color[p + 2];
+    scratch[3] = color[p + 3];
     blendInto(state, s, scratch, 0);
     storePixel(fb, x, y, scratch[0], scratch[1], scratch[2], scratch[3]);
     return;
   }
   const samples = sampleStore(fb);
-  for (let k = 0; k < SAMPLES; k++) if (coverage & (1 << k)) blendInto(state, s, samples, p * SAMPLES + k * 4);
-  resolvePixel(fb, x, y);
+  if (state.blend.enabled) {
+    for (let k = 0; k < SAMPLES; k++) if (coverage & (1 << k)) blendInto(state, s, samples, p * SAMPLES + k * 4);
+  } else {
+    // Unblended, every covered sample takes the same bytes, so they are worked out once.
+    const r = toByte(s[0]);
+    const g = toByte(s[1]);
+    const b = toByte(s[2]);
+    const a = toByte(s[3]);
+    for (let k = 0; k < SAMPLES; k++) {
+      if (!(coverage & (1 << k))) continue;
+      const at = p * SAMPLES + k * 4;
+      samples[at] = r;
+      samples[at + 1] = g;
+      samples[at + 2] = b;
+      samples[at + 3] = a;
+    }
+  }
+  touchPixel(fb, x, y);
 }
