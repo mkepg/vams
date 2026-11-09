@@ -19,7 +19,7 @@ import { assertLiveRuntime, labEnabled, liveRuntimeProblem } from '@/pages/lab/m
 import { LAB_ENABLED } from '@/shared/config/lab';
 import LabPage from '@/pages/lab';
 import { ISOLATION_RELOAD_KEY } from '@/pages/lab/model/isolation';
-import { isLabPage, labDevServer, labRuntimeFile } from '../../scripts/lab/vite-lab-dev';
+import { devManifest, isLabPage, labDevServer, labRuntimeFile } from '../../scripts/lab/vite-lab-dev';
 
 describe('BB-LAB-32: /lab is a route, and the header lists Lab after Gallery', () => {
   it('has indexable metadata, a nav link after Gallery and a prerender entry', () => {
@@ -266,6 +266,47 @@ describe('BB-LAB-65: The dev server serves the local runtime build and isolates 
     const r = await request(runtimeDir(), '/lab-runtime/dev/vams_main.mjs', 'POST');
     expect(r.status).toBe(405);
     expect(r.body).toBe('');
+  });
+
+  const compilerDir = () => {
+    const dir = mkdtempSync(join(tmpdir(), 'vams-lab-compiler-'));
+    dirs.push(dir);
+    writeFileSync(join(dir, 'bundle.js'), 'export {};');
+    writeFileSync(join(dir, 'llvm.core.wasm'), new Uint8Array([0, 97, 115, 109, 1]));
+    writeFileSync(join(dir, 'llvm-resources.tar'), new Uint8Array(3));
+    return dir;
+  };
+
+  it('finds the compiler files after the runtime build, the runtime build first', () => {
+    const dir = runtimeDir();
+    const compiler = compilerDir();
+    writeFileSync(join(compiler, 'vams_main.mjs'), 'not this one');
+    expect(labRuntimeFile('/lab-runtime/dev/llvm-resources.tar', dir, compiler)).toMatchObject({ path: join(compiler, 'llvm-resources.tar'), type: 'application/x-tar' });
+    expect(labRuntimeFile('/lab-runtime/dev/bundle.js', dir, compiler)?.type).toBe('text/javascript; charset=utf-8');
+    expect(labRuntimeFile('/lab-runtime/dev/vams_main.mjs', dir, compiler)?.path).toBe(join(dir, 'vams_main.mjs'));
+  });
+
+  it('makes the compiler manifest from the files on disk, the headers pack last, and none without the pack', () => {
+    const dir = runtimeDir();
+    const compiler = compilerDir();
+    expect(devManifest(dir, compiler)).toBeNull();
+    writeFileSync(join(dir, 'lab-headers.json'), '{"include/GL/gl.h":""}');
+    expect(devManifest(dir, compiler)).toEqual({
+      files: [
+        { name: 'bundle.js', bytes: 10, stored: 10 },
+        { name: 'llvm-resources.tar', bytes: 3, stored: 3 },
+        { name: 'llvm.core.wasm', bytes: 5, stored: 5 },
+        { name: 'lab-headers.json', bytes: 22, stored: 22 },
+      ],
+    });
+  });
+
+  it('serves the manifest at /lab-runtime/dev/compiler-manifest.json', async () => {
+    const r = await request(runtimeDir(), '/lab-runtime/dev/compiler-manifest.json');
+    expect(r.headers['content-type']).toBe('application/json; charset=utf-8');
+    expect(r.passed).toBe(false);
+    // The temporary runtime has no headers pack, so there is no manifest to give.
+    expect(r.status).toBe(404);
   });
 });
 

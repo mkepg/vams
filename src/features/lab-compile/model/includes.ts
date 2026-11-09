@@ -4,10 +4,8 @@
  * paths, no includes built from macros, and no directive or operator that
  * reads or probes a file.
  *
- * Inline assembly is refused too, since the assembler's .incbin and .include
- * read files. The file may not name it (asm, __asm, __asm__) or paste tokens
- * (##), and checkExpanded then looks for it in clang's preprocessed output,
- * which is where a header's own pasting macro would build it.
+ * Inline assembly is refused too, as it was when a server compiled the Lab's
+ * programs: the file may not name it (asm, __asm, __asm__) or paste tokens (##).
  *
  * The scan follows clang's lexer where it matters: line splices (a backslash,
  * optional spaces, then a newline), comments, string and character literals,
@@ -55,7 +53,7 @@ export const STANDARD_HEADERS = [
 /** The header the course's programs include in quotes. Other bundled headers in quotes are written in <>. */
 export const QUOTED_HEADER = 'stb_image.h';
 
-/** MSVC pragmas a lab PC's MinGW ignores. The service blanks them, as if they were not there. */
+/** MSVC pragmas a lab PC's MinGW ignores. They are blanked, as if they were not there. */
 const IGNORED_PRAGMAS = new Set(['comment', 'warning']);
 
 const BUNDLED = new Set<string>(BUNDLED_HEADERS);
@@ -69,11 +67,8 @@ const DIRECTIVES = new Set([
 /** Operators that read or probe a file, or run a pragma from inside a macro. */
 const OPERATORS = new Set(['__has_include', '__has_include_next', '__has_embed', '_Pragma', '__pragma']);
 
-/** The keywords that open inline assembly, whose .incbin and .include would read the server's files. */
+/** The keywords that open inline assembly. */
 const INLINE_ASSEMBLY = new Set(['asm', '__asm', '__asm__', '_asm']);
-
-/** A line marker in clang's -E output: # <line> "<file>" <flags>. It holds no identifier. */
-const LINE_MARKER = /^#[ \t]*(\d+)[ \t]+"((?:[^"\\\n]|\\.)*)"(?:[ \t]+\d+)*[ \t]*$/;
 
 const HEADERS = new Map<string, string>(
   [...BUNDLED_HEADERS, ...STANDARD_HEADERS].map((h) => [h.toLowerCase(), h]),
@@ -165,12 +160,8 @@ interface Include {
   quotes?: [number, number];
 }
 
-/**
- * Lexes a file as clang does. A student's file has its directives checked;
- * clang's -E output (`expanded`) has no directives left, only line markers,
- * so there every token is read and only inline assembly is refused.
- */
-function scan(src: string, expanded = false): { includes: Include[]; blanks: [number, number][] } {
+/** Lexes a student's file as clang does, and checks its directives. */
+function scan(src: string): { includes: Include[]; blanks: [number, number][] } {
   const r = new Reader(src);
   const includes: Include[] = [];
   const blanks: [number, number][] = [];
@@ -387,19 +378,6 @@ function scan(src: string, expanded = false): { includes: Include[]; blanks: [nu
     // # or its digraph %: opens a directive at the start of a line.
     if (c === '#' || (c === '%' && r.ch(p + 1) === ':')) {
       const after = c === '#' ? p + 1 : r.next(p + 1);
-      if (expanded) {
-        // A line marker is skipped; any other # is read as a token, and the line after it as tokens.
-        if (wasLineStart && c === '#') {
-          const nl = src.indexOf('\n', p);
-          const end = nl < 0 ? src.length : nl;
-          if (LINE_MARKER.test(src.slice(p, end).replace(/\r$/, ''))) {
-            p = end;
-            continue;
-          }
-        }
-        p = after;
-        continue;
-      }
       if (wasLineStart) {
         p = directive(p, after);
         continue;
@@ -440,7 +418,7 @@ function scan(src: string, expanded = false): { includes: Include[]; blanks: [nu
       if (INLINE_ASSEMBLY.has(id.name)) {
         throw new Refusal(p, `Inline assembly (${id.name}) isn't available in VAMS Lab.`, id.name);
       }
-      if (!expanded && OPERATORS.has(id.name)) throw new Refusal(p, `${id.name} isn't available in VAMS Lab.`);
+      if (OPERATORS.has(id.name)) throw new Refusal(p, `${id.name} isn't available in VAMS Lab.`);
       const q = r.at(id.end);
       if (src[q] === '"' && /^(?:u8|u|U|L)?R$/.test(id.name)) {
         p = raw(q) ?? q;
@@ -450,7 +428,7 @@ function scan(src: string, expanded = false): { includes: Include[]; blanks: [nu
       continue;
     }
     // A header may hold such characters; in a student's file the scan has already refused them.
-    if (c.charCodeAt(0) > 127 && !expanded) throw new Refusal(p, 'This character can be used only in a string or a comment.');
+    if (c.charCodeAt(0) > 127) throw new Refusal(p, 'This character can be used only in a string or a comment.');
     p++;
   }
   return { includes, blanks };
@@ -472,7 +450,7 @@ export function position(src: string, offset: number): { line: number; col: numb
       start = i + 1;
     }
   }
-  const col = Buffer.byteLength(src.slice(start, offset), 'utf8') + 1;
+  const col = new TextEncoder().encode(src.slice(start, offset)).length + 1;
   return { line, col };
 }
 
@@ -505,49 +483,5 @@ export function checkIncludes(source: string): IncludeCheck {
   } catch (e) {
     if (!(e instanceof Refusal)) throw e;
     return { ok: false, ...position(source, e.pos), message: e.message };
-  }
-}
-
-export type ExpandedCheck = { ok: true } | { ok: false; line: number; col: number; message: string };
-
-/** The main.cpp line that a place in clang's -E output came from, read from its line markers. */
-function expandedLine(text: string, offset: number, mainFile: string): number | null {
-  let file = mainFile;
-  let line = 1;
-  let start = 0;
-  while (start <= text.length) {
-    const nl = text.indexOf('\n', start);
-    const end = nl < 0 ? text.length : nl;
-    const marker = LINE_MARKER.exec(text.slice(start, end).replace(/\r$/, ''));
-    if (marker) {
-      file = marker[2];
-      line = Number(marker[1]);
-    } else {
-      if (offset <= end) return file === mainFile ? line : null;
-      line++;
-    }
-    if (nl < 0) break;
-    start = nl + 1;
-  }
-  return null;
-}
-
-/**
- * Checks clang's preprocessed output (clang -E, with the flags the compile
- * uses) for inline assembly that macros built: the scan of the student's file
- * can't see what a header's pasting macro, such as _LIBCPP_CONCAT, makes. The
- * place is the main.cpp line that held the macro, or line 1.
- */
-export function checkExpanded(text: string, mainFile = 'main.cpp'): ExpandedCheck {
-  try {
-    scan(text, true);
-    return { ok: true };
-  } catch (e) {
-    if (!(e instanceof Refusal)) throw e;
-    const line = expandedLine(text, e.pos, mainFile) ?? 1;
-    const message = e.assembly
-      ? `A macro on this line makes inline assembly (${e.assembly}), which isn't available in VAMS Lab.`
-      : e.message;
-    return { ok: false, line, col: 1, message };
   }
 }

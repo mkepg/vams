@@ -10,7 +10,7 @@ export interface LabLogProps {
   consoleLines: readonly ConsoleLine[];
   /** Called with a 1-based line and column when a diagnostic is clicked. */
   onJump: (line: number, col: number) => void;
-  /** A line for the Compiler tab: the busy line, or why Run cannot go ahead. */
+  /** A line for the Compiler tab: why Run cannot go ahead. */
   message?: string | null;
   /** What the program waits for in the Console: a line, sent on Enter, or a key, sent as it is pressed. */
   input?: 'line' | 'key' | null;

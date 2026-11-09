@@ -1,8 +1,16 @@
 # VAMS Lab operations
 
-How the Lab's compile service is set up and kept running: what exists on Cloudflare and Google Cloud, the one step only the owner can take, the scripts that do the rest, and what to do when the secret has to change or billing has been switched off.
+How the Lab's runtime is built and published, and what exists on Cloudflare for it.
 
-The design is in [specs/2026-10-28-vams-lab-design.md](specs/2026-10-28-vams-lab-design.md). In short, the page posts a student's file to the Pages Function `/api/compile`. The function caps it at 200 KB, adds the shared secret and the client's IP, and forwards it to the Cloud Run service `lab-compile`. The service counts every compile in Firestore and rests at 80% of the month's free allowance. A $1 budget is the last stop: if it is ever reached, the billing guard unlinks the project's billing account and the Lab goes offline.
+The Lab compiles a student's program in their own browser. The design is in [specs/2026-11-08-lab-browser-compile-design.md](specs/2026-11-08-lab-browser-compile-design.md), and the rest of the Lab in [specs/2026-10-28-vams-lab-design.md](specs/2026-10-28-vams-lab-design.md).
+
+In short, a runtime version holds three things:
+
+- **The main module:** libc, libc++, stb_image and the GL and GLUT bridges, built with Emscripten.
+- **The compiler:** clang and wasm-ld built for WebAssembly, from the pinned `@yowasp/clang`.
+- **The headers the compiler reads.**
+
+The Lab page downloads none of the compiler until Run or Download now asks for it. It then keeps the compiler in Cache Storage, so later visits download nothing. A browser that can't keep it there (no Cache Storage, or a full quota) keeps it in the compiler worker's memory for the visit, and downloads it again on the next. A download that sends nothing for 30 seconds fails, and Run says so. Nothing in the Lab costs money to run, and nothing counts compiles.
 
 ## What exists where
 
@@ -11,119 +19,151 @@ The design is in [specs/2026-10-28-vams-lab-design.md](specs/2026-10-28-vams-lab
 | Thing | Name | Where it is set |
 | --- | --- | --- |
 | KV namespace | `SHARES`, id `7d85439fec8247699fb6cbef54207f94` | `wrangler.toml` |
-| KV namespace | `LAB_RUNTIME`, id `03554bbf6ea4458bba35732e7e1f43db`: the main module under `<version>/<file>` | `wrangler.toml` |
-| Secret | `LAB_COMPILE_URL`: the Cloud Run service's base URL. While it is unset, `/api/compile` answers `503 { offline: true }` | `npx wrangler pages secret put` |
-| Secret | `LAB_COMPILE_SECRET`: the same value as `lab-secret` in Secret Manager | `npx wrangler pages secret put` |
-| Functions | `/api/compile` (`functions/api/compile.ts`), `/lab-runtime/<version>/<file>` (`functions/lab-runtime/[[path]].ts`) | the repository |
+| KV namespace | `LAB_RUNTIME`, id `03554bbf6ea4458bba35732e7e1f43db`: the runtime under `<version>/<file>` | `wrangler.toml` |
+| Function | `/lab-runtime/<version>/<file>` (`functions/lab-runtime/[[path]].ts`) | the repository |
 
-`wrangler.toml` holds the KV bindings and declares no `[vars]`. The service's address is a Pages secret, like the shared secret, so it never appears in the repository; a `[vars]` entry of the same name would clash with it.
+The function sends each file with a year-long immutable cache and `Cross-Origin-Resource-Policy: same-origin`. It sends a value stored with the metadata `{"encoding":"br"}` as it is stored, with `Content-Encoding: br`, and the browser unpacks it as it arrives.
 
-A Pages secret takes effect at the site's next deployment, not at once. After setting one, push to `main`, or open Workers & Pages > vams > Deployments in the Cloudflare dashboard and retry the latest production deployment.
+### In the repository
 
-### Google Cloud (region `us-central1`)
-
-| Thing | Name |
+| Thing | Where |
 | --- | --- |
-| Project | `vams-lab`, or the first free `vams-lab-N`, labelled `vams=lab` (see Recorded values) |
-| Billing | the owner's single open billing account, linked to the project |
-| Cloud Run service | `lab-compile`: 3 instances at most, 0 at least, 2 compiles an instance, 2 vCPUs, 2 GiB, a 30 s timeout. It takes unauthenticated requests; the `X-Lab-Secret` header is the gate |
-| Its environment | `GOOGLE_CLOUD_PROJECT` (without it the service counts in memory, per instance), `LAB_SECRET` from Secret Manager |
-| Its service account | `lab-compile@<project>.iam.gserviceaccount.com`: `roles/datastore.user` on the project, `roles/secretmanager.secretAccessor` on `lab-secret` |
-| Image | Artifact Registry `lab` (docker), image `compile:<commit>`, built from `lab/toolchain/Dockerfile`. A cleanup policy keeps the two newest, inside the free 0.5 GB |
-| Firestore | `(default)`, Native mode. `usage/<yyyy-mm>` holds the month's totals and each day's compiles; `rate/<visitor>` and `rate/ip-<sha256>` hold the rate windows, which a TTL policy on `expires` deletes |
-| Secret | `lab-secret` in Secret Manager: 64 hex characters from `openssl rand -hex 32` |
-| Pub/Sub topic | `budget` |
-| Budget | `vams-lab`: $1 (or its equivalent in the account's currency) on this project, alerts at 50%, 90% and 100%, published to `budget` |
-| Billing guard | Cloud Run function `billing-guard` (gen2, Node 22, entry point `onBudget`), triggered by `budget`, with retries. Its source is `lab/billing-guard/index.ts` with the types stripped. It runs as `billing-guard@<project>.iam.gserviceaccount.com`, which has `roles/billing.projectManager` on the project and may invoke the function. For a message below the budget it logs `Budget <name> not reached (<cost> of <budget>): billing stays on.` |
+| The pinned Emscripten release | `lab/runtime/EMSDK_VERSION` |
+| The main module's build, and the side-module flags | `lab/runtime/build.sh` |
+| The headers pack | `lab/runtime/pack-headers.mjs`, run by `build.sh` |
+| The pinned compiler | `@yowasp/clang` in `package.json` (devDependency, exact version) |
+| The version the site loads | `src/features/lab-run/model/runtime-version.ts` |
+| The notice's download size | `COMPILER_DOWNLOAD_MB` in `src/features/lab-compile/model/messages.ts` |
 
-### Recorded values
+## Building the runtime
 
-Filled in from the summary `setup-gcp.sh` prints at the end. The billing account and the service URL are not recorded here, so neither appears in the repository; `gcloud billing projects describe <project>` and `gcloud run services describe lab-compile --region=us-central1 --project=<project> --format='value(status.url)'` read them.
-
-| What | Value |
-| --- | --- |
-| Project | |
-| Region | `us-central1` |
-| Image | |
-| Compile service account | |
-| Guard service account | |
-| Budget | |
-| Runtime version | |
-
-## The owner's step
-
-This is the only part that needs the owner, and it comes before anything else:
-
-1. Create a Google Cloud billing account at <https://console.cloud.google.com/billing> and add the card.
-2. Install the Google Cloud CLI if `gcloud --version` doesn't answer: <https://cloud.google.com/sdk/docs/install>.
-3. Sign in with `gcloud auth login`.
-
-Nothing else is asked of the owner. The scripts below never change the card, and the budget guard only ever removes the billing link.
-
-## Setting up
-
-Run from the repository root in Git Bash (Windows) or any POSIX shell, with Docker running and `npx wrangler` signed in to the Cloudflare account (`npx wrangler whoami`).
-
-1. **Google Cloud and the Pages secrets.** `bash scripts/lab/setup-gcp.sh`
-
-   It creates or finds everything in the tables above. The protection comes first: the project, the billing link, the APIs and the two service accounts with their roles, then the topic, the budget and the guard. Only then does it make anything that can be reached or charged: Artifact Registry, Firestore, the secret, the image (built locally for `linux/amd64` and pushed) and the Cloud Run service. A step that fails later still leaves the budget and its guard in place. Last, it stores `LAB_COMPILE_SECRET` and `LAB_COMPILE_URL` as Pages secrets. Run again, it changes only what is missing, and it deploys a new guard build and a new revision.
-
-   It stops with a message when there is more than one open billing account (set `BILLING_ACCOUNT=<id>`), and when the account bills in a currency other than US dollars (set `BUDGET_AMOUNT`, for example `BUDGET_AMOUNT=60PHP`). `PROJECT=<id>` picks the project id.
-
-   It checks that the deployed service has the limits above, with CPU billed per request (`--cpu-throttling`), and that a request without the secret gets 401. Copy the printed summary into Recorded values. Nothing else needs committing.
-
-2. **The main module.** `node scripts/lab/publish-runtime.mjs`
-
-   It builds `lab/runtime/build.sh` in the pinned `emscripten/emsdk` image into `lab/runtime/out/publish/`, uploads every file to `LAB_RUNTIME` as `<EMSDK_VERSION>-<sha8>/<file>`, and writes that version into `src/features/lab-run/model/runtime-version.ts`. Commit that file. `--dry-run` builds and prints the keys without uploading or writing anything. A version is the hash of its files, so publishing an unchanged build again uploads the same keys. `npm run build` stops while `LAB_LIVE` is `true` and the version is still `dev`, which only the dev server serves.
-
-3. **Deploy the site,** so the Pages secrets and the new version apply: push to `main`, or retry the latest production deployment in the Cloudflare dashboard. Until then `/api/compile` answers offline. Then `curl -I https://vams.pages.dev/lab-runtime/<version>/vams_main.wasm` answers 200 with `cache-control: public, max-age=31536000, immutable`.
-
-4. **The live checks.** `node --experimental-strip-types scripts/lab/load-test.mjs --project <project> --record`
-
-   It reads the URL and the secret with `gcloud` (or `LAB_COMPILE_URL` and `LAB_SECRET` from the environment; the secret is never a command-line argument), runs SEC-LAB-04 to SEC-LAB-10 and adds a row for each to the table below. Add `--site https://vams.pages.dev` to send SEC-LAB-09 through the site, so its 40 compiles come from this machine's IP. `--only SEC-LAB-07` runs one check.
-
-   SEC-LAB-07 raises the month's counter to 80% and lowers it again once the raise has committed, even when the check fails; the instance that answered keeps resting for up to 60 s. If the lowering itself fails, the check says so, with how many bytes the counter is left high (the Lab rests until it is fixed) and the command that fixes it: `node --experimental-strip-types scripts/lab/load-test.mjs --project <project> --lower-egress <bytes>`.
-
-   SEC-LAB-10 checks the deployed wiring without touching billing. It first runs the guard's source in the script's own process with a stand-in for Google: at 100% it must send the one switch-off request, and below the budget none. It then publishes a message to the real `budget` topic in Cloud Billing's shape, at a cost of 0.5 against a budget of 1, and named for this run. It passes only when the deployed guard's log shows `Budget vams-lab live check <run> not reached (0.5 of 1): billing stays on.` within 3 minutes. By hand, the same message is `gcloud pubsub topics publish budget --project=<project> --attribute=schemaVersion=1.0 --message='{"budgetDisplayName":"vams-lab live check manual","alertThresholdExceeded":0.5,"costAmount":0.5,"budgetAmount":1,"budgetAmountType":"SPECIFIED_AMOUNT","currencyCode":"USD"}'`, and its line appears in `gcloud functions logs read billing-guard --gen2 --region=us-central1 --project=<project>`.
-
-## Rotating the secret
-
-The secret is in three places: Secret Manager, the Cloud Run revision, and Pages. From the second step until the site's next deployment, compiles get 401 and the Lab shows offline, so rotate when nobody is using it.
+Docker runs the pinned Emscripten image:
 
 ```bash
-P=<project>
-openssl rand -hex 32 | tr -d '\r\n' | gcloud secrets versions add lab-secret --project=$P --data-file=-
-gcloud run services update lab-compile --region=us-central1 --project=$P --update-secrets=LAB_SECRET=lab-secret:latest
-gcloud secrets versions access latest --secret=lab-secret --project=$P | npx wrangler pages secret put LAB_COMPILE_SECRET --project-name vams
+MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W):/src" -w /src \
+  emscripten/emsdk:$(tr -d '\r\n' < lab/runtime/EMSDK_VERSION) sh lab/runtime/build.sh
 ```
 
-Then deploy the site (push to `main`, or retry the latest production deployment), so Pages uses the new value.
+Run this from the repository root. On Linux and macOS, use `$(pwd)` and drop `MSYS_NO_PATHCONV=1`.
 
-Six active secret versions are free. Destroy the old one once the new one works: `gcloud secrets versions list lab-secret --project=$P`, then `gcloud secrets versions destroy <n> --secret=lab-secret --project=$P`.
+It writes three files to `lab/runtime/out/`, which git leaves out:
 
-## Turning billing back on
+- `vams_main.mjs` and `vams_main.wasm`, the main module;
+- `lab-headers.json`, the headers pack.
 
-When the budget is reached, the guard unlinks the billing account. Cloud Run, Firestore and the function stop, and the Lab shows offline. The guard's log says `Billing turned off for <project>.`
+The pack holds the sysroot's `include` folder, without its graphics, audio and browser headers, and `lab/include`. Each file is keyed by its path under `/lab`, where the compiler's file tree mounts it.
 
-1. Find out why in the Billing reports (<https://console.cloud.google.com/billing>) and the logs below.
-2. Link the account again: `gcloud billing projects link <project> --billing-account=<id>`, or run `setup-gcp.sh`, which does the same.
-3. The budget counts the whole month. If the month's cost is still at or over the budget, the next budget message turns billing off again, so raise the budget first or wait for the 1st: `gcloud billing budgets list --billing-account=<id>`, then `gcloud billing budgets update <budget> --billing-account=<id> --budget-amount=<amount>`.
+The main module is built with `-sDYNAMIC_EXECUTION=0`, so a program can't run JavaScript. Every path that would evaluate it aborts instead: `emscripten_run_script`, and the `EM_ASM` and `EM_JS` code a side module carries. VIS-LAB-08 checks this.
 
-## Reading the logs
+The main module also exports every other function of Emscripten's JavaScript library, and a program can declare any of them and call it. Some reach past the program: `emscripten_idb_*` open IndexedDB, `emscripten_wget` fetches, and `emscripten_create_worker` starts a worker from any URL, which would run a script of the program's own. So the program's worker takes away its storage, network and worker globals (`indexedDB`, `caches`, `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `BroadcastChannel`, `Worker`, `SharedWorker`, `importScripts`, `WebTransport` and `navigator.storage`) once the main module has loaded and just before the program's main runs (`src/features/lab-run/worker/seal-scope.ts`). The runtime needs none of them by then. SEC-LAB-16 checks the seal and when it happens, and VIS-LAB-10 and 11 run programs that try both paths.
+
+`npm run dev` serves the local build and the compiler at `/lab-runtime/dev/`. It also makes the compiler's manifest from the files on disk.
+
+## Publishing the runtime
 
 ```bash
-P=<project>
-gcloud run services logs read lab-compile --region=us-central1 --project=$P --limit=100
-gcloud functions logs read billing-guard --region=us-central1 --project=$P --gen2 --limit=50
+node scripts/lab/publish-runtime.mjs --dry-run   # build, compress and check; uploads nothing
+node scripts/lab/publish-runtime.mjs             # the same, then upload and write the version
 ```
 
-The compile service logs one line when it starts (`compile service on :8080, counting in Firestore (<project>)`), `compile request failed: <message>` for a request that ended in 500, and `settle failed: <message>` when a compile couldn't be counted. It never logs a student's source or a stack. The guard logs `Budget <name> not reached (<cost> of <budget>): billing stays on.` for each budget message below the budget, and `Billing turned off for <project>.` when it switches billing off. A start line that says `counting in memory` means `GOOGLE_CLOUD_PROJECT` is missing from the service.
+Publishing needs Docker and a signed-in wrangler (`npx wrangler login`).
 
-The month's usage is the document `usage/<yyyy-mm>` in the Firestore console (<https://console.cloud.google.com/firestore>).
+The script works in this order:
 
-## Live checks
+1. It builds the runtime into `lab/runtime/out/publish/`.
+2. It copies in every file of `node_modules/@yowasp/clang/gen/`.
+3. It names the version `<EMSDK_VERSION>-<sha8>`, where `sha8` comes from a SHA-256 over every file. A changed compiler, header or main module therefore always makes a new version.
+4. It compresses each file with brotli at its highest setting, into `lab/runtime/out/publish-br/`.
+5. It writes `compiler-manifest.json`. The manifest lists every file but the main module, each with its size unpacked and as stored.
 
-`scripts/lab/load-test.mjs --record` adds a row per check.
+It refuses to publish in these cases:
 
-| Check | Result | Detail | Run |
-| --- | --- | --- | --- |
+- a stored file is over KV's 25 MiB value limit;
+- the compiler's download, rounded to megabytes, differs from `COMPILER_DOWNLOAD_MB`, which the notice states;
+- `bundle.js` or `lab-headers.json` is missing.
+
+It then uploads each file with `wrangler kv key put --remote --metadata '{"encoding":"br"}'`. Last, it writes the version into `runtime-version.ts`, which is committed.
+
+The first published version measured 14.6 MB for `llvm.core.wasm`, 2.5 MB for `llvm-resources.tar` and 1.2 MB for the headers: about 18 MB in all.
+
+A build with `LAB_LIVE = true` refuses the version `dev`, so the version must be published before the Lab goes live.
+
+After the next deployment, check the live files:
+
+```bash
+curl -sI https://vams.pages.dev/lab-runtime/<version>/llvm.core.wasm   # HEAD: 200, content-encoding: br
+```
+
+A new version leaves the older ones in KV, and each browser deletes its cache of an older compiler the next time it opens the Lab.
+
+## Checking the Lab with the real compiler
+
+`npm test` never runs the real compiler. These visual specs run it in the page, against the local build:
+
+```bash
+LAB_RUNTIME_LOCAL=1 npx playwright test lab.spec lab-drawing lab-compiler
+```
+
+| Check | What it shows |
+| --- | --- |
+| VIS-LAB-01 to 04, 06 | The Lab's look, with the template running, and the Share dialog |
+| VIS-LAB-05 | Each of the 21 battery programs draws as FreeGLUT draws it |
+| VIS-LAB-07 | Nothing of the compiler downloads until Run or Download now; a reload asks only the cache |
+| VIS-LAB-08 | A program that calls `emscripten_run_script` stops on an error, and its script never runs |
+| VIS-LAB-09 | Every name the code generator emits compiles; every rejected name gives the VAMS message on its line |
+| VIS-LAB-10 | A program that stores to IndexedDB through `emscripten_idb_async_store` stops, and no database appears |
+| VIS-LAB-11 | A program that starts a worker through `emscripten_create_worker` stops on an error, and the worker's script never runs |
+
+## Browsers
+
+The gate is Chromium (Chrome and Edge), which the lab PCs run, and where the visual specs run.
+
+Firefox gets one manual smoke run on the live site before the Lab goes on: download, compile and run one program.
+
+| Date | Browser | Result |
+| --- | --- | --- |
+| | Firefox | pending |
+
+## Where the browser's compile differs from the service's
+
+The browser runs the service's include check (`checkIncludes`), diagnostics rewriter, source and message caps and flags unchanged. Two steps that only protected the server are gone:
+
+- **Inline assembly built by a header's macro** now reaches clang. The service found it in `clang++ -E` output. Inline assembly written in the student's file, and `##`, are still refused before clang runs.
+- **An include that reaches a file outside the headers through a path clang resolves** now reaches clang. The service found it in the `-H` trace. The compiler's tree holds only the headers pack, so clang finds a header or nothing.
+
+Either kind can now compile, or fail with clang's own message. Neither can read anything but the compiler's own files.
+
+The time limit is 30 seconds, from the compile's start; the service allowed 10 s on Cloud Run.
+
+## Third-party code in the runtime
+
+| Code | Licence |
+| --- | --- |
+| clang, LLVM and lld, built for WebAssembly | Apache 2.0 with LLVM exceptions |
+| `@yowasp/clang`, which packages them | ISC |
+| Emscripten's sysroot headers (musl, libc++, libc++abi), in the headers pack and the main module | MIT, and Apache 2.0 with LLVM exceptions for libc++ |
+| stb_image | MIT or public domain |
+
+## The earlier compile service
+
+The Lab first compiled on a Cloud Run service, behind a $1 budget that switched billing off. It was never deployed: opening a Google Cloud billing account asked for a US$30 prepayment. The service was removed, and its last commit is tagged `lab-compile-service` (`e5b64f2`).
+
+These paths held it:
+
+- `lab/service/`: the service (server, compile, include check, diagnostics, usage counters, limits)
+- `lab/toolchain/`: its Docker image and the pinned `EMSDK_VERSION`, now `lab/runtime/EMSDK_VERSION`
+- `lab/billing-guard/`: the Cloud Function that unlinked billing at the budget
+- `functions/api/compile.ts`: the Pages Function that forwarded to it, with its secrets in `functions/_lib/lab-env.ts`
+- `scripts/lab/setup-gcp.sh`, `setup-helpers.mjs`, `load-test.mjs` and `toolchain-check.sh`
+- `tests/white-box/lab-service.test.ts`, `lab-limits.test.ts`, `lab-scripts.test.ts` and `lab-billing-guard.test.ts`, with `tests/helpers/fake-firestore.ts` and `lab-http.ts`
+- `tsconfig.lab.json`
+- `src/features/lab-compile/model/compile-client.ts` and `visitor.ts`: the page's side of it
+- this file, as it was then
+
+To bring any of it back:
+
+```bash
+git checkout lab-compile-service -- lab/service lab/toolchain lab/billing-guard functions/api/compile.ts
+```
+
+Add the other paths above as needed. The service read the Pages secrets `LAB_COMPILE_URL` and `LAB_COMPILE_SECRET`, which are no longer set.

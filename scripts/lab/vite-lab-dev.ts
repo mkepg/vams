@@ -1,4 +1,4 @@
-import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { Plugin } from 'vite';
 
@@ -6,17 +6,53 @@ const TYPES: Record<string, string> = {
   mjs: 'text/javascript; charset=utf-8',
   js: 'text/javascript; charset=utf-8',
   wasm: 'application/wasm',
+  json: 'application/json; charset=utf-8',
+  tar: 'application/x-tar',
 };
 const DEV_FILE = /^\/lab-runtime\/dev\/([A-Za-z0-9][A-Za-z0-9._-]*)$/;
 
-/** The file `/lab-runtime/dev/<file>` names in the local runtime build, or null when there isn't one. */
-export function labRuntimeFile(pathname: string, dir: string): { path: string; type: string } | null {
+/** Where the pinned @yowasp/clang keeps the compiler's files. */
+export const COMPILER_DIR = 'node_modules/@yowasp/clang/gen';
+/** The compiler's file list, which a published runtime stores and the dev server makes. */
+export const MANIFEST = 'compiler-manifest.json';
+/** The headers pack lab/runtime/build.sh writes beside the main module. */
+export const HEADERS_PACK = 'lab-headers.json';
+
+const isFile = (path: string) => existsSync(path) && statSync(path).isFile();
+const typeOf = (name: string) => TYPES[name.slice(name.lastIndexOf('.') + 1).toLowerCase()] ?? 'application/octet-stream';
+
+/**
+ * The file `/lab-runtime/dev/<file>` names: in the local runtime build, then among the compiler's
+ * files, or null when there isn't one.
+ */
+export function labRuntimeFile(pathname: string, dir: string, compilerDir = COMPILER_DIR): { path: string; type: string } | null {
   const match = DEV_FILE.exec(pathname);
   if (!match || match[1].includes('..')) return null;
-  const path = join(resolve(dir), match[1]);
-  if (!existsSync(path) || !statSync(path).isFile()) return null;
-  const type = TYPES[match[1].slice(match[1].lastIndexOf('.') + 1).toLowerCase()] ?? 'application/octet-stream';
-  return { path, type };
+  for (const root of [dir, compilerDir]) {
+    const path = join(resolve(root), match[1]);
+    if (isFile(path)) return { path, type: typeOf(match[1]) };
+  }
+  return null;
+}
+
+/**
+ * The compiler's file list for the local files: every file of the compiler, then the headers
+ * pack, each stored as it is (the dev server compresses nothing).
+ */
+export function devManifest(dir: string, compilerDir = COMPILER_DIR): { files: { name: string; bytes: number; stored: number }[] } | null {
+  const compiler = resolve(compilerDir);
+  const pack = join(resolve(dir), HEADERS_PACK);
+  if (!existsSync(compiler) || !isFile(pack)) return null;
+  const entries = readdirSync(compiler)
+    .filter((name) => isFile(join(compiler, name)))
+    .sort()
+    .map((name) => ({ name, path: join(compiler, name) }));
+  return {
+    files: [...entries, { name: HEADERS_PACK, path: pack }].map(({ name, path }) => {
+      const bytes = statSync(path).size;
+      return { name, bytes, stored: bytes };
+    }),
+  };
 }
 
 /** Whether a path is the Lab page, which needs the isolation headers. */
@@ -24,22 +60,26 @@ export function isLabPage(pathname: string): boolean {
   return pathname === '/lab' || pathname.startsWith('/lab/');
 }
 
-/** The Lab's program worker, as the build names it from src/features/lab-run/worker/lab-worker.ts. */
-const LAB_WORKER = 'lab-worker';
+/**
+ * The Lab's workers, as the build names them: the program worker from
+ * src/features/lab-run/worker/lab-worker.ts and the compiler worker from
+ * src/features/lab-compile/worker/lab-compiler.ts.
+ */
+const LAB_WORKERS = ['lab-worker', 'lab-compiler'];
 
 /**
- * Where the build puts each worker script. The Lab's program worker goes under /lab/, so it gets
+ * Where the build puts each worker script. The Lab's workers go under /lab/, so they get
  * the isolation headers public/_headers gives /lab/*: on an isolated page a worker script served
  * without COEP doesn't start. Any other worker stays in /assets/ as before. What a worker imports
  * needs no COEP of its own, so chunks and assets keep their usual place.
  */
 export const LAB_WORKER_OUTPUT = {
-  entryFileNames: (chunk: { name: string }) => (chunk.name === LAB_WORKER ? 'lab/[name]-[hash].js' : 'assets/[name]-[hash].js'),
+  entryFileNames: (chunk: { name: string }) => (LAB_WORKERS.includes(chunk.name) ? 'lab/[name]-[hash].js' : 'assets/[name]-[hash].js'),
 };
 
-/** Whether a built file is the Lab's program worker: what a build with the Lab off leaves out. */
+/** Whether a built file is one of the Lab's workers: what a build with the Lab off leaves out. */
 export function isLabWorkerFile(fileName: string): boolean {
-  return new RegExp(`^lab/${LAB_WORKER}-[\\w-]+\\.js$`).test(fileName.replace(/\\/g, '/'));
+  return new RegExp(`^lab/(?:${LAB_WORKERS.join('|')})-[\\w-]+\\.js$`).test(fileName.replace(/\\/g, '/'));
 }
 
 /** Whether a dev request is for a worker script: the browser says so, and Vite marks its worker URLs. */
@@ -48,10 +88,10 @@ export function isWorkerScript(req: { url?: string; headers?: Record<string, str
 }
 
 /**
- * Dev server only: serves the runtime built in `dir` at /lab-runtime/dev/ as the production
+ * Dev server only: serves the runtime built in `dir`, and the compiler, at /lab-runtime/dev/ as the production
  * function serves it from KV, and sends the isolation headers /lab gets from public/_headers.
  */
-export function labDevServer(dir: string): Plugin {
+export function labDevServer(dir: string, compilerDir = COMPILER_DIR): Plugin {
   return {
     name: 'vams-lab-dev-server',
     apply: 'serve',
@@ -71,7 +111,16 @@ export function labDevServer(dir: string): Plugin {
           res.end();
           return;
         }
-        const file = labRuntimeFile(pathname, dir);
+        if (pathname === `/lab-runtime/dev/${MANIFEST}`) {
+          const manifest = devManifest(dir, compilerDir);
+          res.statusCode = manifest ? 200 : 404;
+          res.setHeader('Content-Type', TYPES.json);
+          res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+          res.setHeader('Cache-Control', 'no-store');
+          res.end(manifest && req.method === 'GET' ? JSON.stringify(manifest) : undefined);
+          return;
+        }
+        const file = labRuntimeFile(pathname, dir, compilerDir);
         if (!file) {
           res.statusCode = 404;
           res.end();

@@ -11,6 +11,7 @@ export {
   type WorkerFactory,
   type LabRunState,
 } from './model/run-controller';
+export { runtimeVersion } from './model/runtime-version';
 export { default as FramebufferCanvas } from './ui/FramebufferCanvas';
 export { glutKey, glutModifiers, glutButton, GLUT_KEY, GLUT_STATE } from './model/glut-input';
 export { EventOutbox, OUTBOX_LIMIT, mustDeliver } from './model/event-outbox';

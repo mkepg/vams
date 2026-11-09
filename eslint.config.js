@@ -6,7 +6,7 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
   // tests/reports holds generated coverage output kept as thesis evidence.
-  globalIgnores(['dist', 'tests/reports']),
+  globalIgnores(['dist', 'tests/reports', 'lab/runtime/out']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

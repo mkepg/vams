@@ -1,4 +1,5 @@
-# Cloudflare Pages: the site's build output and the store behind shared scene links.
+# Cloudflare Pages: the site's build output, the store behind shared scene links, and the
+# Lab's runtime (its main module, its compiler and the headers the compiler reads).
 # This file is the project's configuration source; the dashboard shows these fields read-only.
 name = "vams"
 pages_build_output_dir = "dist"
@@ -11,7 +12,3 @@ id = "7d85439fec8247699fb6cbef54207f94"
 [[kv_namespaces]]
 binding = "LAB_RUNTIME"
 id = "03554bbf6ea4458bba35732e7e1f43db"
-
-# The compile service's address and shared secret, LAB_COMPILE_URL and LAB_COMPILE_SECRET,
-# are Pages secrets set with `wrangler pages secret put`, never in this file: a [vars]
-# entry of the same name would clash with them. Until they are set, /api/compile answers offline.

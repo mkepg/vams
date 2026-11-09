@@ -32,8 +32,9 @@ import {
   type LabEvent,
   type LayoutViews,
 } from '@/features/lab-run/model/shared-layout';
-import type { CompileResult } from '@/features/lab-compile';
-import { LAB_MESSAGES } from '@/features/lab-compile';
+import type { CompileOptions, CompileResult } from '@/features/lab-compile';
+import { LAB_MESSAGES, setCompilerEnv, useCompiler } from '@/features/lab-compile';
+import { NOTICE_KEY } from '@/widgets/lab-workspace/ui/CompilerNotice';
 import { LAB_WORKER_OUTPUT, isLabWorkerFile, labDevServer } from '../../scripts/lab/vite-lab-dev';
 import { readFileSync } from 'node:fs';
 import { PassThrough } from 'node:stream';
@@ -78,6 +79,8 @@ beforeEach(() => {
     return w;
   });
   useLabStage.getState().reset();
+  setCompilerEnv({ caches: () => undefined });
+  localStorage.removeItem(NOTICE_KEY);
 });
 
 afterEach(() => {
@@ -94,11 +97,11 @@ const flush = async () => {
   for (let i = 0; i < 5; i++) await act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
 };
 
-function mount(compile: (source: string) => Promise<CompileResult> = async () => ok()) {
+function mount(compile: (source: string, options?: CompileOptions) => Promise<CompileResult> = async () => ok(), download: () => void = () => {}) {
   const host = document.createElement('div');
   document.body.appendChild(host);
   hosts.push(host);
-  act(() => render(h(LabWorkspace, { compile }), host));
+  act(() => render(h(LabWorkspace, { compile, download }), host));
   return host;
 }
 
@@ -277,13 +280,12 @@ describe('BB-LAB-46: ✕ ends the program, and Run starts a fresh worker', () =>
   it('puts each compile result in Run’s status and message, with the spec’s words', async () => {
     const results: CompileResult[] = [
       { kind: 'offline' },
-      { kind: 'resting', until: 'month' },
-      { kind: 'limited' },
-      { kind: 'failed', status: 500 },
+      { kind: 'download' },
+      { kind: 'failed' },
       { kind: 'errors', diagnostics: [{ file: 'main.cpp', line: 2, col: 1, severity: 'error', message: 'expected ;' }] },
     ];
     const host = mount(async () => results.shift()!);
-    for (const expected of [LAB_MESSAGES.offline, LAB_MESSAGES.restingMonth, LAB_MESSAGES.limited, LAB_MESSAGES.failed]) {
+    for (const expected of [LAB_MESSAGES.offline, LAB_MESSAGES.download, LAB_MESSAGES.failed]) {
       await run(host);
       expect(useLabRun.getState().status).toBe('idle');
       expect(host.querySelector('.lab-log__message')!.textContent).toBe(expected);
@@ -294,19 +296,22 @@ describe('BB-LAB-46: ✕ ends the program, and Run starts a fresh worker', () =>
     expect(workers).toHaveLength(0);
   });
 
-  it('shows the busy line while the service is busy', async () => {
+  it('says Run is downloading the compiler while it does, then compiling, then runs', async () => {
     let finish!: (r: CompileResult) => void;
     const host = mount(
-      (_source: string, opts?: { onBusy?: () => void }) =>
+      () =>
         new Promise<CompileResult>((resolve) => {
-          opts?.onBusy?.();
+          useCompiler.setState({ state: 'downloading', received: 1, total: 2 });
           finish = resolve;
         }),
     );
     await act(() => runButton(host).click());
     await flush();
-    expect(useLabRun.getState().status).toBe('busy');
-    expect(host.querySelector('.lab-log__message')!.textContent).toBe(LAB_MESSAGES.busy);
+    expect(useLabRun.getState().status).toBe('downloading');
+    expect(host.querySelector('.lab-top-bar__status')!.textContent).toContain('Downloading the compiler…');
+    expect(host.querySelector('.lab-stage__message')!.textContent).toBe('Downloading the compiler…');
+    await act(() => useCompiler.setState({ state: 'ready' }));
+    expect(useLabRun.getState().status).toBe('compiling');
     finish(ok());
     await flush();
     expect(useLabRun.getState().status).toBe('running');
@@ -315,6 +320,7 @@ describe('BB-LAB-46: ✕ ends the program, and Run starts a fresh worker', () =>
 
   it('emits the worker under lab/, and the dev server isolates the worker script', async () => {
     expect(LAB_WORKER_OUTPUT.entryFileNames({ name: 'lab-worker' }).startsWith('lab/')).toBe(true);
+    expect(LAB_WORKER_OUTPUT.entryFileNames({ name: 'lab-compiler' }).startsWith('lab/')).toBe(true);
     expect(readFileSync('vite.config.ts', 'utf8')).toMatch(/worker:\s*\{[^}]*output:\s*LAB_WORKER_OUTPUT/);
     const plugin = labDevServer('.');
     let handler!: (req: unknown, res: unknown, next: () => void) => void;
@@ -647,12 +653,12 @@ describe('BB-LAB-71: The prerendered workspace hydrates into the layout the scre
 describe('BB-LAB-72: A compile message or error comes forward after a run that showed the Console', () => {
   const tabSelected = (host: HTMLElement, tab: string) => host.querySelector(`#lab-log-tab-${tab}`)!.getAttribute('aria-selected') === 'true';
 
-  it('shows the offline, failed and busy lines, and the errors, in front of the Console', async () => {
+  it('shows the offline and failed lines, and the errors, in front of the Console', async () => {
     const results: CompileResult[] = [
       ok(),
       { kind: 'offline' },
       ok(),
-      { kind: 'failed', status: 502 },
+      { kind: 'failed' },
       ok(),
       { kind: 'errors', diagnostics: [{ file: 'main.cpp', line: 4, col: 2, severity: 'error', message: 'expected ;' }] },
     ];
@@ -763,5 +769,71 @@ describe('BB-LAB-77: Only the Lab worker goes under lab/', () => {
     expect(isLabWorkerFile('lab/lab-worker-DkxZQMY4.js')).toBe(true);
     expect(isLabWorkerFile('assets/thumbnail-worker-1234.js')).toBe(false);
     expect(isLabWorkerFile('lab/index.html')).toBe(false);
+  });
+});
+
+describe('BB-LAB-94: The notice offers the compiler, shows its download, and goes once it is here', () => {
+  const notice = (host: HTMLElement) => host.querySelector('.compiler-notice');
+  const button = (host: HTMLElement, text: string) => [...host.querySelectorAll('.compiler-notice button')].find((b) => b.textContent === text || b.getAttribute('aria-label') === text) as HTMLButtonElement | undefined;
+
+  it('offers Download now when the compiler is not in this browser, and asks only the cache', async () => {
+    const download = vi.fn();
+    const host = mount(undefined, download);
+    await flush();
+    expect(useCompiler.getState().state).toBe('absent');
+    expect(notice(host)!.textContent).toContain('Run uses a compiler that downloads once (about 18 MB).');
+    expect(LAB_MESSAGES.notice).toBe('Run uses a compiler that downloads once (about 18 MB).');
+    await act(() => button(host, 'Download now')!.click());
+    expect(download).toHaveBeenCalledTimes(1);
+  });
+
+  it('is dismissed and stays dismissed, but shows the download whenever one runs', async () => {
+    const host = mount();
+    await flush();
+    await act(() => button(host, 'Dismiss')!.click());
+    expect(notice(host)).toBeNull();
+    expect(localStorage.getItem(NOTICE_KEY)).toBe('dismissed');
+    const again = mount();
+    await flush();
+    expect(notice(again)).toBeNull();
+    await act(() => useCompiler.setState({ state: 'downloading', received: 30, total: 60 }));
+    const bar = again.querySelector('.compiler-notice [role="progressbar"]')!;
+    expect(bar.getAttribute('aria-valuenow')).toBe('9');
+    expect(bar.getAttribute('aria-valuemax')).toBe('18');
+    expect(notice(again)!.textContent).toContain('Downloading the compiler… 9 of 18 MB');
+  });
+
+  it('offers the download again after a failed one, and shows nothing once the compiler is here', async () => {
+    const host = mount();
+    await flush();
+    await act(() => useCompiler.setState({ state: 'failed' }));
+    expect(notice(host)!.textContent).toContain("The compiler couldn't download. Your code is saved in this browser. Try Run again.");
+    expect(button(host, 'Download now')).toBeTruthy();
+    await act(() => useCompiler.setState({ state: 'ready' }));
+    expect(notice(host)).toBeNull();
+  });
+});
+
+describe('BB-LAB-95: Two Runs during the first download compile once, with the newest code', () => {
+  it('drops the first Run when the second starts, and runs what the second compiled', async () => {
+    const calls: { source: string; signal?: AbortSignal; finish: (r: CompileResult) => void }[] = [];
+    const host = mount(
+      (source, options) =>
+        new Promise<CompileResult>((resolve, reject) => {
+          options?.signal?.addEventListener('abort', () => reject(new DOMException('stopped', 'AbortError')));
+          calls.push({ source, signal: options?.signal, finish: resolve });
+        }),
+    );
+    await act(() => runButton(host).click());
+    act(() => useLabStore.getState().setSource('int main() { return 2; }'));
+    await act(() => runButton(host).click());
+    await flush();
+    expect(calls).toHaveLength(2);
+    expect(calls[0].signal!.aborted).toBe(true);
+    expect(calls[1].source).toBe('int main() { return 2; }');
+    calls[1].finish(ok());
+    await flush();
+    expect(workers).toHaveLength(1);
+    expect(useLabRun.getState().status).toBe('running');
   });
 });

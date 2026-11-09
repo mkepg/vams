@@ -1,0 +1,50 @@
+// The compiler's download: one strip over the code, in the code column's own surface, so it reads
+// as part of the editor and never pushes the stage.
+.compiler-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--hairline);
+  background: var(--paper-raised);
+  color: var(--ink);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+
+  &__text {
+    flex: 1 1 16rem;
+    margin: 0;
+    min-width: 0;
+  }
+
+  &__dismiss { margin-left: calc(-1 * var(--space-1)); }
+
+  &--failed .compiler-notice__text { color: var(--accent-red-text); }
+
+  &--progress { flex-wrap: nowrap; }
+  &--progress .compiler-notice__text { flex: none; font-variant-numeric: tabular-nums; }
+
+  &__bar {
+    flex: 1;
+    min-width: 4rem;
+    height: 6px;
+    border-radius: var(--radius-s);
+    background: var(--accent-tint);
+    overflow: hidden;
+  }
+
+  &__fill {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    transition: width 120ms linear;
+
+    @media (prefers-reduced-motion: reduce) { transition: none; }
+  }
+}
+
+@media (max-width: 420px) {
+  .compiler-notice--progress { flex-wrap: wrap; }
+  .compiler-notice--progress .compiler-notice__bar { flex-basis: 100%; }
+}

@@ -84,7 +84,7 @@ The pages are prerendered for search engines and link previews, and the app inst
 
 ![The Gallery page, with the jeepney street scene first](docs/images/07-gallery.png)
 
-The Lab, at `/lab`, is where students write their own OpenGL 1.x and GLUT program in C++ and run it in the browser with nothing to install: a compile service builds it, and it runs in a window on the page. It goes live with the compile service; until then it is built only with `VITE_LAB=1`.
+The Lab, at `/lab`, is where students write their own OpenGL 1.x and GLUT program in C++ and run it in the browser with nothing to install: the browser compiles it with clang built for WebAssembly, downloaded once on the first Run, and it runs in a window on the page. It goes live once its runtime is published; until then it is built only with `VITE_LAB=1`.
 
 ## Quick start
 
@@ -129,8 +129,8 @@ src/
 ├── core/       The Zustand store and its slices, shared types, callback and inspector models
 └── shared/     The matrix engine, hooks, utilities, reusable UI controls, design tokens
 functions/      Cloudflare Pages Functions that store and serve shared scenes,
-                and pass Lab programs to the compile service
-lab/            The Lab's compile service, wasm runtime and toolchain image
+                and serve the Lab's runtime
+lab/            The Lab's wasm runtime, its build and the bundled headers
 ```
 
 The pieces worth knowing about:
@@ -150,14 +150,14 @@ The site runs on [Cloudflare Pages](https://pages.cloudflare.com/), built from `
 
 ## Tests
 
-As of 6 Nov 2026, 2,592 tests across 78 files pass, and 31 more run only when their setup is present (the Lab's compile image in Docker, or the battery export check). The suite implements the verification programme in **Chapter 3, §3.10** of the manuscript, and each test carries a stable identifier of the form `{SUITE}-{MODULE}-{NN}` so results map back to the thesis tables.
+As of 9 Nov 2026, 2,552 tests across 78 files pass, and 12 more run only with the battery export check. The suite implements the verification programme in **Chapter 3, §3.10** of the manuscript, and each test carries a stable identifier of the form `{SUITE}-{MODULE}-{NN}` so results map back to the thesis tables.
 
 | Suite | Files | Maps to | Covers |
 | --- | --- | --- | --- |
 | `tests/black-box/` | 47 | Table 12 | Behaviour through the public store API and the rendered UI: primitives, transforms, hierarchy, code generation, C++ validity, the code panel, lessons and their rules, persistence, callbacks and Run, the program window, render fidelity, the site pages (Gallery, Guide, Teach included), sharing, and the Lab's page, files, editor and runtime. |
-| `tests/white-box/` | 24 | Table 13 | Internals: store slices, the matrix engine, scene-graph traversal, lesson internals, the callbacks runtime, bitmap text, British spelling in student text, the share payload and function, error handling, and the Lab's compile service, limits, billing guard and drawing battery. |
+| `tests/white-box/` | 23 | Table 13 | Internals: store slices, the matrix engine, scene-graph traversal, lesson internals, the callbacks runtime, bitmap text, British spelling in student text, the share payload and function, error handling, and the Lab's compile, runtime build, publish script and drawing battery. |
 | `tests/algorithm/` | 6 | §3.10.3 | The three core algorithms, checked against independent reference implementations, and the Lab's GL geometry, context and rasteriser. |
-| `tests/security/` | 1 | | The Lab's compile sandbox: includes and inline assembly that try to read the server's files are refused. |
+| `tests/security/` | 2 | | The Lab's include check: includes, file probes and inline assembly are refused before clang runs; and the program's worker loses its storage, network and worker globals before main runs. |
 
 ```bash
 npm test                 # run everything
@@ -195,7 +195,7 @@ The thesis manuscript is not distributed in this repository.
 
 ## Status
 
-Capstone project (CS0033 / CS0039, FEU Institute of Technology). All five curriculum sections are implemented, the 59 lessons and their capstones work end to end, and the evaluation study is complete. The Lab is built and stays switched off until its compile service is deployed. Work continues on the interface and the lesson content.
+Capstone project (CS0033 / CS0039, FEU Institute of Technology). All five curriculum sections are implemented, the 59 lessons and their capstones work end to end, and the evaluation study is complete. The Lab compiles in the browser and stays switched off until its runtime is published. Work continues on the interface and the lesson content.
 
 ## License
 

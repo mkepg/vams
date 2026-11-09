@@ -17,7 +17,7 @@ export type { LabFile };
 /** Page to worker: run this side module with these files. */
 export interface StartMessage {
   type: 'start';
-  /** The side module the compile service returned. */
+  /** The side module the compiler built. */
   module: ArrayBuffer;
   files: LabFile[];
   shared: SharedLayout;

@@ -5,18 +5,13 @@
  * - An undeclared GL, GLU, GLUT or GLEW name gets the same message form.
  * - Anything reported inside a header moves to the line of main.cpp that led
  *   there; notes inside headers are dropped.
- * - No message names a path on the server.
+ * - No message names a path in the compiler's file tree.
  */
 
-export type Severity = 'error' | 'warning' | 'note';
+import type { Diagnostic } from '@/shared/lib/lab-diagnostic';
 
-export interface Diagnostic {
-  file: 'main.cpp';
-  line: number;
-  col: number;
-  severity: Severity;
-  message: string;
-}
+export type { Diagnostic };
+export type Severity = Diagnostic['severity'];
 
 export const MAIN_FILE = 'main.cpp';
 
@@ -27,8 +22,6 @@ const LOCATED = /^(.+?):(\d+):(\d+): (fatal error|error|warning|note): (.*)$/;
 const UNLOCATED = /^(?:(?:clang(?:\+\+)?|wasm-ld|llvm-objcopy)(?:-\d+)?: )?(fatal error|error|warning): (.*)$/;
 const INCLUDED_FROM = /^In file included from (.+?):(\d+):$/;
 const ALSO_INCLUDED_FROM = /^\s+from (.+?):(\d+):$/;
-/** A line of clang's -H list, whatever path it names. */
-const TRACE = /^\.+ (.*)$/;
 
 const UNAVAILABLE = /^'([A-Za-z_]\w*)' is unavailable: (\1 isn't part of VAMS Lab's OpenGL\..*)$/;
 const UNDECLARED = /^use of undeclared identifier '([A-Za-z_]\w*)'(?:; did you mean .*)?$/;
@@ -44,7 +37,7 @@ function isMain(file: string): boolean {
 }
 
 /**
- * Removes server paths from a message: a path under a known root loses the
+ * Removes the compiler's paths from a message: a path under a known root loses the
  * root (/lab/include/GL/gl.h becomes GL/gl.h) and any other absolute path
  * keeps only its file name.
  */
@@ -55,16 +48,6 @@ export function scrubPaths(message: string): string {
     .replace(/\/lab\/include\//g, '')
     .replace(/(^|[\s'"(=:<])\/(?:[\w.+@-]+\/)+([\w.+@-]+)/g, '$1$2')
     .replace(/(^|[\s'"(=:<])\/[\w.+@-]+(?=$|[\s'")>:,])/g, (m, pre: string) => `${pre}${m.slice(pre.length + 1)}`);
-}
-
-/** The headers clang's -H trace lists, in the order clang entered them. */
-export function includeTrace(stderr: string): string[] {
-  const out: string[] = [];
-  for (const line of stderr.split(/\r?\n/)) {
-    const m = TRACE.exec(line);
-    if (m) out.push(m[1]);
-  }
-  return out;
 }
 
 function rewriteMessage(message: string): string {
