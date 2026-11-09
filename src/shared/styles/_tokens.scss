@@ -81,6 +81,8 @@ $header-height: 3.7rem;
   --chrome-faint: #959eb5;
   --chrome-accent: #4762f5;
   --chrome-accent-text: #9cadff;
+  /* A caution mark on the ink chrome, such as the Lab's Experimental tag: amber, readable on both themes' chrome. */
+  --chrome-caution: #fbbf24;
   --chrome-glow: 0 0 12px rgba(0, 240, 255, 0.30);
 
   /* The pixel wordmark is the same everywhere. It always sits on ink: the bar, a dark page,
