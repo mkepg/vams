@@ -18,7 +18,7 @@ import { isCompilerFile, LAB_RUNTIME_LOCAL, openLab, requireRuntime, routeLab } 
 const REJECTED_TEXT = " isn't part of VAMS Lab's OpenGL.";
 
 /** Puts a program in the Lab's browser save and reloads, so the page opens with it. */
-async function useProgram(page: Page, source: string) {
+async function putProgram(page: Page, source: string) {
   await page.evaluate((text) => {
     const saved = JSON.parse(localStorage.getItem('vams-lab') ?? '{}');
     saved.state = { ...(saved.state ?? {}), source: text };
@@ -87,7 +87,7 @@ test.describe('VIS-LAB: the compiler in the page', () => {
     await routeLab(page.context());
     await openLab(page, 'light');
     // Run, the script would end the program with exit code 42; it must not get that far.
-    await useProgram(
+    await putProgram(
       page,
       [
         'extern "C" void emscripten_run_script(const char *script);',
@@ -108,7 +108,7 @@ test.describe('VIS-LAB: the compiler in the page', () => {
     await openLab(page, 'light');
 
     const uses = generatorNames().map((name) => (/^(GL|GLUT)_/.test(name) ? `  (void)(${name});` : `  (void)&${name};`));
-    await useProgram(page, ['#include <GL/glut.h>', 'int main() {', ...uses, '  return 0;', '}', ''].join('\n'));
+    await putProgram(page, ['#include <GL/glut.h>', 'int main() {', ...uses, '  return 0;', '}', ''].join('\n'));
     await runUntilDone(page);
     await expect(page.locator('.lab-top-bar__status')).toContainText('Ended with exit code 0');
 
@@ -119,7 +119,7 @@ test.describe('VIS-LAB: the compiler in the page', () => {
     for (let i = 0; i < rejected.length; i += 15) {
       const group = rejected.slice(i, i + 15);
       const FIRST = 3;
-      await useProgram(page, ['#include <GL/glut.h>', 'int main() {', ...group.map((n) => `  (void)&${n};`), '  return 0;', '}', ''].join('\n'));
+      await putProgram(page, ['#include <GL/glut.h>', 'int main() {', ...group.map((n) => `  (void)&${n};`), '  return 0;', '}', ''].join('\n'));
       await runUntilDone(page);
       const list = page.locator('.lab-log__list');
       for (let j = 0; j < group.length; j++) await expect(list).toContainText(`main.cpp:${FIRST + j}:`);
