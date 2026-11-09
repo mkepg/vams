@@ -51,7 +51,7 @@ function reachable(entry: string): string[] {
 
 describe('BB-GUIDE-01: /guide and /teach are finished, linked, prerendered pages', () => {
   it('have indexable metadata, sitemap and prerender entries, and links from the header or footer', async () => {
-    for (const [path, title, cls] of [['/guide', 'Guide — VAMS', 'class="guide"'], ['/teach', 'Teaching with VAMS', 'class="teach"']]) {
+    for (const [path, title, cls] of [['/guide', 'Guide | VAMS', 'class="guide"'], ['/teach', 'Teaching with VAMS', 'class="teach"']]) {
       const meta = findRouteMeta(path);
       expect(meta.path).toBe(path);
       expect(meta.indexable).toBe(true);

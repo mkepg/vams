@@ -154,7 +154,7 @@ describe('BB-GALLERY-07: /gallery is a finished, linked, prerendered page', () =
     const meta = findRouteMeta('/gallery');
     expect(meta.path).toBe('/gallery');
     expect(meta.indexable).toBe(true);
-    expect(meta.title).toBe('Gallery — VAMS');
+    expect(meta.title).toBe('Gallery | VAMS');
     expect(NAV_LINKS.map((l) => l.href)).toEqual(['/', '/learn', '/gallery', '/lab', '/guide', '/about']);
     expect(buildSitemap('https://example.test')).toContain('<loc>https://example.test/gallery/</loc>');
     expect(prerenderRoutes(false)).toContain('/gallery');
@@ -169,7 +169,7 @@ describe('BB-GALLERY-07: /gallery is a finished, linked, prerendered page', () =
 describe('BB-GALLERY-08: The page shows a card per scene, the jeepney street first and wide', () => {
   it('prerenders each card with its image, alt text, sections, Run hint and editor link', async () => {
     const result = await prerenderAt('/gallery');
-    expect(result.head.title).toBe('Gallery — VAMS');
+    expect(result.head.title).toBe('Gallery | VAMS');
     const host = document.createElement('div');
     host.innerHTML = result.html;
     expect(host.querySelector('h1')?.textContent).toBe('Gallery');

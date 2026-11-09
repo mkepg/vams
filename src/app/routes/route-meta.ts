@@ -14,28 +14,28 @@ export const DEFAULT_SITE_URL = 'https://vams.pages.dev';
 export const ROUTES: readonly RouteMeta[] = [
   {
     path: '/',
-    title: 'VAMS — See the OpenGL behind every shape',
+    title: 'VAMS | See the OpenGL behind every shape',
     description:
       'Build 2D scenes by hand and watch VAMS write the OpenGL 1.5 code that draws them, with the math underneath, live in your browser.',
     indexable: true,
   },
   {
     path: '/learn',
-    title: 'Learn — VAMS',
+    title: 'Learn | VAMS',
     description:
       'The VAMS course map: five sections of short OpenGL 1.5 lessons, from the rendering pipeline to textures. Open any lesson in the editor.',
     indexable: true,
   },
   {
     path: '/gallery',
-    title: 'Gallery — VAMS',
+    title: 'Gallery | VAMS',
     description:
       'Finished scenes made in VAMS, from a jeepney street to a solar system. Open one in the editor, press Run, and read the OpenGL that draws it.',
     indexable: true,
   },
   {
     path: '/guide',
-    title: 'Guide — VAMS',
+    title: 'Guide | VAMS',
     description:
       'How the VAMS editor works, what each section teaches, the keyboard shortcuts, and a glossary of the OpenGL terms the course uses.',
     indexable: true,
@@ -49,14 +49,14 @@ export const ROUTES: readonly RouteMeta[] = [
   },
   {
     path: '/about',
-    title: 'About — VAMS',
+    title: 'About | VAMS',
     description:
       'Why VAMS exists, what it teaches, where your work is kept, and the undergraduate thesis behind it, with a citation to copy.',
     indexable: true,
   },
   {
     path: '/lab',
-    title: 'Lab — VAMS',
+    title: 'Lab | VAMS',
     description: 'Write a 2D OpenGL and GLUT program in C++ and run it in your browser, with nothing to install.',
     indexable: true,
   },
@@ -68,7 +68,7 @@ export const ROUTES: readonly RouteMeta[] = [
   },
   {
     path: '/404',
-    title: 'Page not found — VAMS',
+    title: 'Page not found | VAMS',
     description: 'The page you were looking for is not here.',
     indexable: false,
   },

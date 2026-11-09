@@ -41,7 +41,7 @@ export default function LabTopBar({ file, phase, onRun, examples, ...actions }: 
           <Logo />
         </a>
         <h1 className="lab-top-bar__name">
-          <span className="lab-top-bar__word" aria-hidden="true">
+          <span className="lab-top-bar__word vams-logo-suffix" aria-hidden="true">
             LAB
           </span>
           <span className="lab-top-bar__hidden">Lab</span>
