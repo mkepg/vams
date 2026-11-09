@@ -2,7 +2,8 @@
  * BLACK-BOX TEST SUITE — BB-LAB (what the Lab says)
  * Every message the Lab can show passes the Language Discipline list and the British spelling
  * guard (WB-SPELL): the strings and JSX text of the Lab's sources (src/**\/lab-* and src/pages/lab),
- * and the messages of the compile service (lab/service/src) and of the runtime (lab/runtime).
+ * and the messages of the runtime (lab/runtime). The browser's compile, src/features/lab-compile, is
+ * among the Lab's sources.
  *
  * Scope: messages, not code. The example programs (.cpp) and the bundled headers in lab/include are
  * C++ the student reads as code, where GL_LIGHTING is an API name, so they are not scanned. Nor are
@@ -37,21 +38,18 @@ function labSources(): string[] {
     .filter((r) => r.startsWith('src/pages/lab/') || r.split('/').some((part) => part.startsWith('lab-')));
 }
 
-/** The compile service's sources, and the runtime's own C and JavaScript. */
-function serviceAndRuntime(): string[] {
-  const service = walk(join(ROOT, 'lab/service/src')).map(fromRoot).filter((r) => r.endsWith('.ts'));
-  const runtime = readdirSync(join(ROOT, 'lab/runtime'), { withFileTypes: true })
+/** The runtime's own C and JavaScript. */
+function runtimeSources(): string[] {
+  return readdirSync(join(ROOT, 'lab/runtime'), { withFileTypes: true })
     .filter((e) => e.isFile() && /\.(c|js)$/.test(e.name))
     .map((e) => `lab/runtime/${e.name}`);
-  return [...service, ...runtime];
 }
 
-const FILES = [...labSources(), ...serviceAndRuntime()].sort();
+const FILES = [...labSources(), ...runtimeSources()].sort();
 
 /** Strings that hold a banned word and are code, not messages, each in the one file that has it. */
 const CODE_NAMES: Record<string, string[]> = {
   // The C++17 header <future>, in the list of standard headers a program may include.
-  'lab/service/src/includes.ts': ['future'],
   'src/features/lab-compile/model/includes.ts': ['future'],
 };
 
@@ -72,7 +70,7 @@ function violations(messages: Prose[]): string[] {
 }
 
 describe('BB-LAB-58: What the Lab says passes the Language Discipline list and the British spelling guard', () => {
-  it('scans the page, the Lab slices, the compile service and the runtime', () => {
+  it('scans the page, the Lab slices, the compile and the runtime', () => {
     for (const file of [
       'src/pages/lab/model/copy.ts',
       'src/pages/lab/ui/LabPage.tsx',
@@ -82,9 +80,10 @@ describe('BB-LAB-58: What the Lab says passes the Language Discipline list and t
       'src/widgets/lab-workspace/ui/LabWorkspace.tsx',
       'src/entities/lab-project/model/lab-store.ts',
       'src/shared/lib/lab-diagnostic.ts',
-      'lab/service/src/diagnostics.ts',
-      'lab/service/src/includes.ts',
-      'lab/service/src/server.ts',
+      'src/features/lab-compile/model/diagnostics.ts',
+      'src/features/lab-compile/model/includes.ts',
+      'src/features/lab-compile/model/compile.ts',
+      'src/widgets/lab-workspace/ui/CompilerNotice.tsx',
       'lab/runtime/library_vams.js',
       'lab/runtime/vams_main.c',
     ]) {

@@ -1,5 +1,7 @@
 # VAMS Lab: write, compile and run GLUT programs
 
+> **Superseded in part (2026-11-08).** Everything this design says about the compile service (Cloud Run, its budget and counters, the second Pages Function, the visitor id, and the busy and resting messages) was replaced by compiling in the browser: see [2026-11-08-lab-browser-compile-design.md](2026-11-08-lab-browser-compile-design.md). The page, the editor, the runtime, the 2D set, saving, sharing and the drawing checks stand as written here.
+
 ## Intent
 
 VAMS teaches OpenGL through a GUI and shows the C++ that each action makes. A student's lab work is different: they write a whole GLUT program from a blank file, on a lab PC set up with MinGW g++, GLEW and FreeGLUT (Dev-C++ or Code::Blocks). Today that needs the toolchain installed, and a student without it cannot do the exercise.
@@ -51,7 +53,7 @@ The owner's bar is that it **must be usable**: a finished tool a student can rel
 The Lab changes three statements in [docs/product-plan.md](../product-plan.md). They are amended in the same change that ships the Lab:
 
 1. "There is no code editor, no interpreter, and no runtime — the student never writes or executes code." becomes true **of the editor**. The Lab is the one page where students write and run code.
-2. "The site has no server beyond that one Pages Function and its one KV namespace." now also covers the compile service on Cloud Run, which is reached through a second Pages Function.
+2. "The site has no server beyond that one Pages Function and its one KV namespace." now also covers the compile service on Cloud Run, which is reached through a second Pages Function. *(Withdrawn 2026-11-08: the Lab compiles in the browser, and the site again has no server beyond its Pages Functions and KV namespaces. See [2026-11-08-lab-browser-compile-design.md](2026-11-08-lab-browser-compile-design.md).)*
 3. Appendix C's deferred symbols are also what the Lab rejects at compile time.
 
 Also add an entry to the roadmap's list of differences from the manuscript: the site gains a Lab page where students write and run their own GLUT programs.

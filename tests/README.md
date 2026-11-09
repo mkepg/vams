@@ -22,11 +22,8 @@ tests/
 │   │                                bodies, used to check the Run runtime.
 │   ├── generator-names.ts        ← Every GL and GLUT name the code
 │   │                                generator's source can emit.
-│   ├── lab-http.ts               ← A plain HTTP request for the Lab
-│   │                                compile service's tests.
-│   ├── fake-firestore.ts         ← Firestore's REST API and the metadata
-│   │                                token as a fake fetch, for the Lab's
-│   │                                limits.
+│   ├── shell-vars.ts             ← The assignments of a shell script, so a
+│   │                                test can read lab/runtime/build.sh.
 │   ├── raster-worker.ts          ← Runs raster calls in a worker thread, so
 │   │                                ALG-LAB-18 can end one that never returns.
 │   ├── lab-console-worker.ts     ← The Lab's Console in a worker thread,
@@ -148,7 +145,7 @@ tests/
 │   │                                        the examples, the file list and the
 │   │                                        editor's Open in Lab)
 │   └── lab-wording.test.ts               (BB-LAB-58: every message in the Lab's
-│                                            sources, the compile service and the
+│                                            sources, its compile and its
 │                                            runtime keeps the Language Discipline
 │                                            and British spelling)
 ├── white-box/                    ← Maps to Table 13.
@@ -181,26 +178,23 @@ tests/
 │   │                                        image rule)
 │   ├── british-spelling.test.ts          (WB-SPELL-*: British spelling in every
 │   │                                        string students read)
-│   ├── lab-service.test.ts               (WB-LAB-*: the Lab compile service's
-│   │                                        diagnostics, flags and HTTP contract)
-│   ├── lab-limits.test.ts                (WB-LAB-03 to 09: the compile service's
-│   │                                        rate limits, daily ceiling and
-│   │                                        monthly counter)
-│   ├── lab-billing-guard.test.ts         (WB-LAB-10 and 11: the function that
-│   │                                        turns billing off at the budget)
-│   ├── lab-scripts.test.ts               (WB-LAB-15 to 18: the setup, publish
-│   │                                        and live-check scripts, offline)
+│   ├── lab-compile.test.ts               (WB-LAB-01, 02, 13, 23 and 24: the
+│   │                                        browser's compile: diagnostics, the
+│   │                                        flags build.sh holds, the section
+│   │                                        strip and one compile's steps)
+│   ├── lab-runtime-build.test.ts         (WB-LAB-21 and 22: the main module
+│   │                                        without dynamic execution, and the
+│   │                                        headers pack)
+│   ├── lab-publish.test.ts               (WB-LAB-15 and 25: the runtime version,
+│   │                                        the compressed files, the manifest
+│   │                                        and the publish checks, offline)
 │   └── lab-battery.test.ts               (WB-LAB-19: each Lab battery program is
 │                                            the one its reference was captured
 │                                            from)
-├── security/                     ← What a Lab program can reach on the
-│   │                                compile server.
-│   └── lab-includes.test.ts              (SEC-LAB-*: include and directive
-│                                            checks, and inline assembly refused
-│                                            in the file and in clang's
-│                                            preprocessed output; SEC-LAB-03 and
-│                                            SEC-LAB-15 run the built image when
-│                                            LAB_DOCKER=1)
+├── security/                     ← What a Lab program may include and use.
+│   └── lab-includes.test.ts              (SEC-LAB-01, 02 and 11 to 13: include
+│                                            and directive checks, and inline
+│                                            assembly refused in the file)
 ├── visual/                       ← Not part of `npm test`.
 │   ├── editor.spec.ts                    (VIS-EDITOR-*: screenshot checks,
 │   │                                        including the rail panels,
@@ -231,13 +225,18 @@ tests/
 │   │                                        program on the course toolchain)
 │   ├── lab.spec.ts                       (VIS-LAB-01 to 04: /lab with the template
 │   │                                        running, at 1280 and 390 in both
-│   │                                        themes; LAB_DOCKER=1)
+│   │                                        themes; LAB_RUNTIME_LOCAL=1)
 │   ├── lab-drawing.spec.ts               (VIS-LAB-05: each Lab battery program,
 │   │                                        compiled and run in the Lab, against
-│   │                                        its FreeGLUT reference; LAB_DOCKER=1)
-│   └── helpers/lab.ts                    (the compile service's image, and the
-│                                            routes that stand in for production
-│                                            in front of the preview server)
+│   │                                        its FreeGLUT reference; LAB_RUNTIME_LOCAL=1)
+│   ├── lab-compiler.spec.ts              (VIS-LAB-07 to 09: the compiler's
+│   │                                        download, no JavaScript from a
+│   │                                        program, and the 2D set compiled in
+│   │                                        the page; LAB_RUNTIME_LOCAL=1)
+│   └── helpers/lab.ts                    (the routes that stand in for
+│                                            production in front of the preview
+│                                            server: the local runtime and the
+│                                            compiler)
 ├── algorithm/                    ← Maps to §3.10.3 Algorithm Validation.
 │   ├── algorithm-1-global-matrix.test.ts        (ALG-1-*)
 │   ├── algorithm-2-code-generation.test.ts      (ALG-2-*)
@@ -323,28 +322,32 @@ is even and red (220, 30, 30) where it is odd, written once with `encodePng`.
 ### The Lab (`*-LAB-*`)
 
 The Lab's checks carry the module `LAB` in every suite: `BB-LAB` (the page, the
-workspace, the runtime, the 2D set and the wording), `WB-LAB` (the compile
-service, its limits, the billing guard, the scripts and the battery),
+workspace, the runtime, the 2D set and the wording), `WB-LAB` (the
+browser's compile, the runtime build, the publish script and the battery),
 `ALG-LAB` (the rasteriser and the OpenGL 1.5 state machine), `SEC-LAB` (what a
-program can reach on the compile server) and `VIS-LAB` (the page in the browser).
+program may include and use) and `VIS-LAB` (the page in the browser).
 
-The checks that need the compile service's image run only with `LAB_DOCKER=1`,
-and skip without it:
+The checks that run the real compiler need the runtime built in
+`lab/runtime/out/`, and skip without `LAB_RUNTIME_LOCAL=1`:
 
 ```bash
-LAB_DOCKER=1 npx vitest run tests/security/lab-includes.test.ts   # SEC-LAB-03, SEC-LAB-15
-LAB_DOCKER=1 npm run test:visual -- lab.spec lab-drawing         # VIS-LAB-01 to 05
+LAB_RUNTIME_LOCAL=1 npm run test:visual -- lab.spec lab-drawing lab-compiler   # VIS-LAB-01 to 09
 ```
+
+The IDs the compile service's checks held (BB-LAB-05 to 07, WB-LAB-03 to 11,
+WB-LAB-14, 16 to 18 and 20, and SEC-LAB-03 to 10, 14 and 15) went with it and
+are not reused.
 
 Playwright matches its filters against the whole path, so in a checkout whose
 folder name holds `lab`, the filter `lab` alone runs every spec.
 
-Both build the image from `lab/toolchain/Dockerfile`, start a container for the
-run and remove it afterwards. The visual checks also need the runtime built in
-`lab/runtime/out/` (`lab/runtime/build.sh`, run in the pinned `emscripten/emsdk`
-image). The preview server has nothing of what production puts in front of
-`/lab`, so `tests/visual/helpers/lab.ts` adds the isolation headers, serves the
-runtime from `lab/runtime/out/` and sends `/api/compile` to the container.
+The runtime is built by `lab/runtime/build.sh`, run in the pinned
+`emscripten/emsdk` image. The preview server has nothing of what production
+puts in front of `/lab`, so `tests/visual/helpers/lab.ts` adds the isolation
+headers, and serves the runtime from `lab/runtime/out/`, the compiler from
+`node_modules/@yowasp/clang/gen/`, and the compiler's manifest made from the
+files on disk. Every browser context starts with an empty cache, so each check
+downloads the compiler, from this machine.
 VIS-LAB-01 to 04 are screenshot checks with local baselines, like the others.
 VIS-LAB-05 opens each battery program in the Lab as a `.zip` with the images it
 loads, runs it, and compares the first frame the page takes from the shared

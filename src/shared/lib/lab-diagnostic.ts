@@ -1,4 +1,4 @@
-/** One compiler message on the student's file, as the compile service reports it. */
+/** One compiler message on the student's file, as the compiler reports it. */
 export interface Diagnostic {
   file: 'main.cpp';
   line: number;
