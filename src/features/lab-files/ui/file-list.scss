@@ -1,12 +1,11 @@
 // The file list: one strip under the code, the student's files then the program's, as chips.
+// The strip it sits in draws the rule above it and the code's background.
 .lab-files {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1) var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  border-top: 1px solid var(--hairline);
-  background: var(--code-bg);
+  padding: 5px var(--space-3);
   color: var(--code-ink);
   font-size: var(--text-xs);
   line-height: var(--lh-xs);

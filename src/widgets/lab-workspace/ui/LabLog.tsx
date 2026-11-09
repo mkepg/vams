@@ -64,11 +64,17 @@ export default function LabLog({
     foldedChange.current = onFoldedChange;
   });
 
+  // Until the compiler or the program has something to say, the log is only its bar.
+  const empty = diagnostics.length === 0 && !message && consoleLines.length === 0 && !input;
+  const shut = folded || empty;
+
   // Every fold is remembered once the saved one has been read: the student's own, and the unfold a request makes.
   useEffect(() => {
     if (foldRead.current) writeFolded(folded);
-    foldedChange.current?.(folded);
   }, [folded]);
+  useEffect(() => {
+    foldedChange.current?.(shut);
+  }, [shut]);
 
   useEffect(() => {
     foldRead.current = true;
@@ -105,11 +111,13 @@ export default function LabLog({
   const toggle = () => setFolded(!folded);
 
   return (
-    <section className="lab-log" data-folded={folded ? 'true' : 'false'} aria-label="Log">
+    <section className="lab-log" data-folded={shut ? 'true' : 'false'} data-empty={empty ? 'true' : 'false'} aria-label="Log">
       <div className="lab-log__bar">
-        <button type="button" className="lab-log__fold" aria-expanded={!folded} aria-controls="lab-log-body" onClick={toggle}>
-          <span aria-hidden="true">{folded ? '▸' : '▾'}</span>
-          <span className="lab-log__fold-text">{folded ? 'Show log' : 'Hide log'}</span>
+        <button type="button" className="lab-log__fold" aria-expanded={!shut} aria-controls="lab-log-body" disabled={empty} onClick={toggle}>
+          <svg className="lab-log__chevron" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+            <path d="M4.5 2.5 8 6l-3.5 3.5" />
+          </svg>
+          <span className="lab-log__fold-text">{shut ? 'Show log' : 'Hide log'}</span>
         </button>
         <div role="tablist" aria-label="Log" className="lab-log__tabs">
           {(['compiler', 'console'] as const).map((t) => (
@@ -133,8 +141,9 @@ export default function LabLog({
             </button>
           ))}
         </div>
+        {empty ? <p className="lab-log__idle">The compiler's messages and your program's output appear here.</p> : null}
       </div>
-      {!folded && (
+      {!shut && (
         <div id="lab-log-body" ref={bodyRef} className="lab-log__body" role="tabpanel" aria-labelledby={`lab-log-tab-${tab}`}>
           {tab === 'compiler' ? (
             <>

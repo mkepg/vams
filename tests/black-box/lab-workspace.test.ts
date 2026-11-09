@@ -14,7 +14,7 @@ import { h, hydrate, render } from 'preact';
 import { renderToString } from 'preact-render-to-string';
 import { act } from 'preact/test-utils';
 import { EditorView } from '@codemirror/view';
-import { LabWorkspace } from '@/widgets/lab-workspace';
+import { EDITOR_HINT, LabWorkspace, runChip } from '@/widgets/lab-workspace';
 import LabTopBar from '@/widgets/lab-workspace/ui/LabTopBar';
 import { useLabStore } from '@/entities/lab-project';
 import { useLabStage } from '@/widgets/lab-workspace/model/stage-store';
@@ -113,6 +113,9 @@ async function run(host: HTMLElement) {
   await flush();
   return worker();
 }
+
+/** A compile that finds one error: it fills the log, which opens with its handle. */
+const oneError = async (): Promise<CompileResult> => ({ kind: 'errors', diagnostics: [{ file: 'main.cpp', line: 1, col: 1, severity: 'error', message: 'expected ;' }] });
 
 const DEMO = { type: 'window', title: 'Demo', width: 500, height: 500, x: 50, y: 40 } as const;
 
@@ -515,10 +518,13 @@ describe('BB-LAB-49: Below 760 px the panes stack window, code, log, with no han
     expect(areas(host).replace(/\s+/g, ' ').trim()).toBe('"stage" "code" "log"');
   });
 
-  it('splits code and log on the left of the stage on a wide screen', () => {
+  it('splits code and log on the left of the stage on a wide screen', async () => {
     narrowScreen(false);
-    const host = mount();
+    const host = mount(oneError);
     expect(host.querySelector('.lab-workspace')!.getAttribute('data-layout')).toBe('split');
+    // An empty log is only its bar, with no handle to size it; what the compiler says opens it.
+    expect(host.querySelectorAll('[role="separator"]')).toHaveLength(1);
+    await run(host);
     expect(host.querySelectorAll('[role="separator"]')).toHaveLength(2);
     const rows = areas(host).match(/"[^"]*"/g)!;
     expect(rows[0]).toBe('"code panes stage"');
@@ -531,8 +537,9 @@ describe('BB-LAB-50: The handles resize the panes by keyboard and pointer, withi
   const logHandle = (host: HTMLElement) => host.querySelector('[role="separator"][aria-orientation="horizontal"]') as HTMLElement;
   const now = (el: HTMLElement) => Number(el.getAttribute('aria-valuenow'));
 
-  it('moves by arrow keys, Home and End, and stops at the limits', () => {
-    const host = mount();
+  it('moves by arrow keys, Home and End, and stops at the limits', async () => {
+    const host = mount(oneError);
+    await run(host);
     const panes = paneHandle(host);
     expect(panes.tabIndex).toBe(0);
     expect(panes.getAttribute('aria-label')).toBeTruthy();
@@ -558,8 +565,9 @@ describe('BB-LAB-50: The handles resize the panes by keyboard and pointer, withi
     expect(now(log)).toBe(before - 8);
   });
 
-  it('follows the pointer and stops at the limits', () => {
-    const host = mount();
+  it('follows the pointer and stops at the limits', async () => {
+    const host = mount(oneError);
+    await run(host);
     const split = host.querySelector('.lab-workspace__split') as HTMLElement;
     rectOf(split, 0, 0, 1000, 600);
     const panes = paneHandle(host);
@@ -679,9 +687,9 @@ describe('BB-LAB-72: A compile message or error comes forward after a run that s
   });
 
   it('unfolds a folded log for the message, and remembers it open', async () => {
+    useLabStore.getState().setLogFolded(true);
     const host = mount(async () => ({ kind: 'offline' }));
-    const toggle = host.querySelector('.lab-log__fold') as HTMLButtonElement;
-    await act(() => toggle.click());
+    await flush();
     expect(host.querySelector('.lab-log')!.getAttribute('data-folded')).toBe('true');
     await run(host);
     expect(host.querySelector('.lab-log')!.getAttribute('data-folded')).toBe('false');
@@ -754,12 +762,16 @@ describe('BB-LAB-75: A worker that cannot start says so once', () => {
 
 describe('BB-LAB-76: Bringing the Console forward remembers the log open', () => {
   it('stores the unfolded log when a run unfolds it', async () => {
+    useLabStore.getState().setLogFolded(true);
     const host = mount();
-    await act(() => (host.querySelector('.lab-log__fold') as HTMLButtonElement).click());
+    await flush();
     expect(storedFold()).toBe(true);
-    await run(host);
-    expect(host.querySelector('.lab-log')!.getAttribute('data-folded')).toBe('false');
+    const w = await run(host);
     expect(storedFold()).toBe(false);
+    // The Console is in front, and opens once the program prints.
+    putOutput(w.views, 'stdout', new TextEncoder().encode('hello\n'));
+    act(() => runController.pump());
+    expect(host.querySelector('.lab-log')!.getAttribute('data-folded')).toBe('false');
   });
 });
 
@@ -842,11 +854,112 @@ describe('BB-LAB-95: Two Runs during the first download compile once, with the n
 describe('BB-LAB-101: The top bar labels the Lab experimental, beside its name', () => {
   it('shows one Experimental tag straight after the Lab heading', () => {
     const host = document.createElement('div');
-    render(h(LabTopBar, { status: 'main.cpp', onRun: () => {} }), host);
+    render(h(LabTopBar, { file: 'main.cpp', phase: { label: 'Ready', tone: 'idle' }, onRun: () => {} }), host);
     const tags = host.querySelectorAll('.lab-top-bar__tag');
     expect(tags).toHaveLength(1);
     expect(tags[0].textContent).toBe('Experimental');
     expect(host.querySelector('.lab-top-bar__name')?.nextElementSibling).toBe(tags[0]);
     render(null, host);
+  });
+});
+
+describe('BB-LAB-108: The log is a slim bar until the compiler or the program has something to say', () => {
+  it('starts as its bar, with nothing to unfold, and says what will appear there', () => {
+    const host = mount();
+    const log = host.querySelector('.lab-log')!;
+    expect(log.getAttribute('data-folded')).toBe('true');
+    expect(log.getAttribute('data-empty')).toBe('true');
+    expect((host.querySelector('.lab-log__fold') as HTMLButtonElement).disabled).toBe(true);
+    expect(host.querySelector('#lab-log-body')).toBeNull();
+    expect(host.querySelector('.lab-log__idle')!.textContent).toBe("The compiler's messages and your program's output appear here.");
+  });
+
+  it('opens for the compiler\'s errors, and the student can fold it again', async () => {
+    const host = mount(oneError);
+    await run(host);
+    const log = host.querySelector('.lab-log')!;
+    expect(log.getAttribute('data-folded')).toBe('false');
+    expect(host.querySelector('.lab-log__idle')).toBeNull();
+    const fold = host.querySelector('.lab-log__fold') as HTMLButtonElement;
+    expect(fold.disabled).toBe(false);
+    await act(() => fold.click());
+    expect(log.getAttribute('data-folded')).toBe('true');
+  });
+
+  it('opens when the program asks for input, though it printed nothing', async () => {
+    const host = mount();
+    const w = await run(host);
+    expect(host.querySelector('.lab-log')!.getAttribute('data-folded')).toBe('true');
+    Atomics.store(w.views.control, CONTROL.INPUT_STATE, INPUT_STATE.LINE);
+    act(() => runController.pump());
+    expect(host.querySelector('.lab-log')!.getAttribute('data-folded')).toBe('false');
+    expect(host.querySelector('.lab-log__input input')).not.toBeNull();
+  });
+});
+
+describe('BB-LAB-109: The top bar shows Run\'s state in a coloured chip beside the file', () => {
+  const error = [{ file: 'main.cpp', line: 1, col: 1, severity: 'error' as const, message: 'x' }];
+  const warning = [{ ...error[0], severity: 'warning' as const }];
+
+  it.each([
+    ['idle', undefined, [], 'Ready', 'idle'],
+    ['idle', undefined, warning, 'Ready', 'idle'],
+    ['idle', undefined, error, 'Errors', 'error'],
+    ['compiling', undefined, [], 'Compiling…', 'busy'],
+    ['downloading', undefined, [], 'Downloading the compiler…', 'busy'],
+    ['running', undefined, [], 'Running', 'running'],
+    ['waitingInput', undefined, [], 'Waiting for input in the Console', 'running'],
+    ['exited', 3, [], 'Ended with exit code 3', 'ended'],
+    ['crashed', undefined, [], 'Stopped on an error', 'error'],
+  ] as const)('%s with exit code %s and %j: %s', (status, code, diagnostics, label, tone) => {
+    expect(runChip(status, code, diagnostics)).toEqual({ label, tone });
+  });
+
+  it('keeps the file and the chip in one status line', async () => {
+    const host = mount(oneError);
+    await run(host);
+    const status = host.querySelector('.lab-top-bar__status')!;
+    expect(status.getAttribute('role')).toBe('status');
+    expect(status.querySelector('.lab-top-bar__file')!.textContent).toBe('main.cpp · 1 error');
+    const chip = status.querySelector('.lab-status')!;
+    expect(chip.getAttribute('data-tone')).toBe('error');
+    expect(chip.textContent).toBe('Errors');
+  });
+});
+
+describe('BB-LAB-110: How the keyboard leaves the editor is one button away, and always in its description', () => {
+  it('names the hint in the editor\'s description, shows it on the button, and Escape closes it', async () => {
+    const host = mount();
+    const hint = host.querySelector('#lab-editor-hint')!;
+    expect(hint.textContent).toBe(EDITOR_HINT);
+    expect(host.querySelector('.cm-content')!.getAttribute('aria-describedby')).toContain('lab-editor-hint');
+    const button = host.querySelector('.editor-help__button') as HTMLButtonElement;
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(button.getAttribute('aria-controls')).toBe('lab-editor-hint');
+    await act(() => button.click());
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(host.querySelector('.editor-help')!.getAttribute('data-open')).toBe('true');
+    await act(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(button);
+  });
+
+  it('closes on a click elsewhere', async () => {
+    const host = mount();
+    const button = host.querySelector('.editor-help__button') as HTMLButtonElement;
+    await act(() => button.click());
+    await act(() => document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+  });
+});
+
+describe('BB-LAB-111: The VAMS LAB lockup reads as the page\'s heading, Lab', () => {
+  it('draws LAB for the eye and says Lab to a screen reader', () => {
+    const host = mount();
+    const heading = host.querySelector('h1.lab-top-bar__name')!;
+    expect(heading.querySelector('.lab-top-bar__word')!.getAttribute('aria-hidden')).toBe('true');
+    expect(heading.querySelector('.lab-top-bar__word')!.textContent).toBe('LAB');
+    expect(heading.querySelector('.lab-top-bar__hidden')!.textContent).toBe('Lab');
+    expect(host.querySelector('.lab-top-bar__home')!.getAttribute('aria-label')).toBe('VAMS home');
   });
 });
