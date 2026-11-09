@@ -506,7 +506,7 @@ describe('BB-SITE-29: /learn is a finished, linked, prerendered page', () => {
     const meta = findRouteMeta('/learn');
     expect(meta.path).toBe('/learn');
     expect(meta.indexable).toBe(true);
-    expect(meta.title).toBe('Learn — VAMS');
+    expect(meta.title).toBe('Learn | VAMS');
     expect(NAV_LINKS.map(({ href, label }) => ({ href, label }))).toEqual([
       { href: '/', label: 'Home' },
       { href: '/learn', label: 'Learn' },
@@ -520,7 +520,7 @@ describe('BB-SITE-29: /learn is a finished, linked, prerendered page', () => {
     const result = await prerenderAt('/learn');
     expect(result.html).toContain('class="learn"');
     expect(currentNavHref(result.html)).toEqual(['/learn']);
-    expect(result.head.title).toBe('Learn — VAMS');
+    expect(result.head.title).toBe('Learn | VAMS');
   });
 
   it('marks Home current on the home page and nothing current on the not-found page', async () => {

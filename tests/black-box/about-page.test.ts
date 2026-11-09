@@ -279,14 +279,14 @@ describe('BB-ABOUT-01: /about is a finished, indexable, prerendered route', () =
     const meta = findRouteMeta('/about');
     expect(meta.path).toBe('/about');
     expect(meta.indexable).toBe(true);
-    expect(meta.title).toBe('About — VAMS');
+    expect(meta.title).toBe('About | VAMS');
     expect(meta.description).toBe(
       'Why VAMS exists, what it teaches, where your work is kept, and the undergraduate thesis behind it, with a citation to copy.',
     );
     expect(buildSitemap('https://example.test')).toContain('<loc>https://example.test/about/</loc>');
     expect(prerenderRoutes(false)).toContain('/about');
     const { result } = await prerenderAbout();
-    expect(result.head.title).toBe('About — VAMS');
+    expect(result.head.title).toBe('About | VAMS');
   });
 });
 

@@ -26,7 +26,7 @@ describe('BB-LAB-32: /lab is a route, and the header lists Lab after Gallery', (
     const meta = ROUTES.find((r) => r.path === '/lab')!;
     expect(meta).toBeDefined();
     expect(meta.indexable).toBe(true);
-    expect(findRouteMeta('/lab').title).toBe('Lab — VAMS');
+    expect(findRouteMeta('/lab').title).toBe('Lab | VAMS');
     expect(meta.description).toBe('Write a 2D OpenGL and GLUT program in C++ and run it in your browser, with nothing to install.');
     // The tests run with the Lab on, as the dev server does.
     expect(LAB_ENABLED).toBe(true);

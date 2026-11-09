@@ -30,7 +30,7 @@ describe('BB-PWA-01: Updates wait for the user and the app is installable', () =
     expect(options.devOptions?.enabled).toBe(false);
     const manifest = manifestOf();
     expect(manifest).toMatchObject({
-      name: 'VAMS — Visual OpenGL 1.5 simulator',
+      name: 'VAMS: Visual OpenGL 1.5 simulator',
       short_name: 'VAMS',
       start_url: '/app',
       scope: '/',

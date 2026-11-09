@@ -35,7 +35,7 @@ export function buildPwaOptions(): Partial<VitePWAOptions> {
     registerType: 'prompt',
     injectRegister: false,
     manifest: {
-      name: 'VAMS — Visual OpenGL 1.5 simulator',
+      name: 'VAMS: Visual OpenGL 1.5 simulator',
       short_name: 'VAMS',
       description: 'See the OpenGL behind every shape.',
       start_url: '/app',
