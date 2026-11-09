@@ -1,20 +1,40 @@
 /**
- * BLACK-BOX TEST SUITE — BB-LAB (the editor, the compile client and the log)
+ * BLACK-BOX TEST SUITE — BB-LAB (the editor, the browser's compiler and the log)
  * Test focus:
  *  - A compile error marks its line, and the Compiler tab jumps to line and column
- *  - The retry schedule, and the three messages the spec words
+ *  - One download for every Run that waits on it; the download, offline, failed and time-limit messages
+ *  - The page knows the compiler is in this browser from Cache Storage alone
  *  - Ctrl+Enter and Cmd+Enter run; the status line counts errors
  *  - The log folds, and the fold is remembered
  */
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { h, render } from 'preact';
 import { useState } from 'preact/hooks';
 import { act } from 'preact/test-utils';
 import { EditorView } from '@codemirror/view';
 import { LabEditor, statusLine, type Diagnostic } from '@/features/lab-editor';
-import { compileSource, compileMessage, visitorId, LAB_MESSAGES } from '@/features/lab-compile';
-import { decodeDiagnostics } from '@/features/lab-compile/model/compile-client';
-import { encodeDiagnostics } from '../../lab/service/src/server';
+import {
+  checkCompiler,
+  compileMessage,
+  compileSource,
+  COMPILE_TIME_LIMIT_MS,
+  downloadCompiler,
+  downloadingMessage,
+  LAB_MESSAGES,
+  setCompilerEnv,
+  TIME_LIMIT_MESSAGE,
+  useCompiler,
+  type CompilerWorker,
+} from '@/features/lab-compile';
+import type { CompilerReply, CompilerRequest } from '@/features/lab-compile/model/compiler-protocol';
+import {
+  cachedFetch,
+  compilerCached,
+  DownloadError,
+  fillCompilerCache,
+  headersTree,
+  type CachesLike,
+} from '@/features/lab-compile/model/compiler-files';
 import LabLog from '@/widgets/lab-workspace/ui/LabLog';
 import { labProjectDefaults, useLabStore } from '@/entities/lab-project';
 
@@ -42,10 +62,6 @@ function viewOf(root: HTMLElement): EditorView {
   const view = EditorView.findFromDOM(root.querySelector('.cm-editor') as HTMLElement);
   if (!view) throw new Error('no editor');
   return view;
-}
-
-function json(body: unknown, status: number, headers: Record<string, string> = {}): Response {
-  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
 }
 
 describe('BB-LAB-37: A compile error marks its line, and the Compiler tab jumps to it', () => {
@@ -82,90 +98,148 @@ describe('BB-LAB-37: A compile error marks its line, and the Compiler tab jumps 
   });
 });
 
-describe('BB-LAB-38: Busy retries follow the schedule', () => {
-  it('waits 1, 2, 4, 8, 16 and 29 s, calls onBusy once, and then compiles', async () => {
-    const waits: number[] = [];
-    const answers = [429, 503, 429, 429, 503, 429];
-    const fetchFn = vi.fn(async () => {
-      const next = answers.shift();
-      if (next) return new Response('busy', { status: next });
-      return new Response(new Uint8Array([0, 97, 115, 109]), { status: 200, headers: { 'content-type': 'application/wasm' } });
-    });
-    const onBusy = vi.fn();
-    const result = await compileSource('int main(){}', { fetch: fetchFn, sleep: async (ms) => void waits.push(ms), onBusy });
-    expect(waits).toEqual([1000, 2000, 4000, 8000, 16000, 29000]);
-    expect(onBusy).toHaveBeenCalledTimes(1);
-    expect(fetchFn).toHaveBeenCalledTimes(7);
-    expect(result.kind).toBe('ok');
-    expect(result.kind === 'ok' && result.module.byteLength).toBe(4);
+/** A compiler worker the test answers by hand. */
+class FakeCompilerWorker implements CompilerWorker {
+  sent: CompilerRequest[] = [];
+  terminated = false;
+  onmessage: ((event: MessageEvent<CompilerReply>) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+  postMessage(message: CompilerRequest) {
+    this.sent.push(message);
+  }
+  terminate() {
+    this.terminated = true;
+  }
+  reply(message: CompilerReply) {
+    this.onmessage?.({ data: message } as MessageEvent<CompilerReply>);
+  }
+  compiles() {
+    return this.sent.filter((m): m is Extract<CompilerRequest, { type: 'compile' }> => m.type === 'compile');
+  }
+}
+
+/** Starts the compiler with workers the test holds, newest last. */
+function fakeCompiler(options: { online?: () => boolean; timeoutMs?: number } = {}) {
+  const workers: FakeCompilerWorker[] = [];
+  setCompilerEnv({
+    createWorker: () => {
+      const w = new FakeCompilerWorker();
+      workers.push(w);
+      return w;
+    },
+    caches: () => undefined,
+    online: options.online ?? (() => true),
+    timeoutMs: options.timeoutMs ?? 30_000,
+  });
+  return workers;
+}
+
+const flush = () => new Promise((r) => setTimeout(r, 0));
+const WASM = new Uint8Array([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]).buffer;
+
+describe('BB-LAB-38: Run downloads the compiler once, and a second Run waits for the same download', () => {
+  afterEach(() => setCompilerEnv());
+
+  it('starts one worker for two Runs, shows the progress, and compiles each source after the download', async () => {
+    const workers = fakeCompiler();
+    const first = compileSource('v1', 'int a;');
+    const second = compileSource('v1', 'int b;');
+    expect(workers).toHaveLength(1);
+    expect(workers[0].sent).toEqual([{ type: 'prepare', version: 'v1' }]);
+    workers[0].reply({ type: 'progress', received: 50, total: 100 });
+    expect(useCompiler.getState()).toMatchObject({ state: 'downloading', received: 50, total: 100 });
+    expect(downloadingMessage(50, 100)).toBe('Downloading the compiler… 11 of 22 MB');
+    workers[0].reply({ type: 'ready' });
+    await flush();
+    expect(useCompiler.getState().state).toBe('ready');
+    expect(workers[0].compiles().map((m) => m.source)).toEqual(['int a;', 'int b;']);
+    const [a, b] = workers[0].compiles();
+    workers[0].reply({ type: 'result', id: b.id, result: { kind: 'errors', diagnostics: [diag(1, 5)] } });
+    workers[0].reply({ type: 'result', id: a.id, result: { kind: 'ok', module: WASM, diagnostics: [] } });
+    expect((await first).kind).toBe('ok');
+    expect(await second).toEqual({ kind: 'errors', diagnostics: [diag(1, 5)] });
   });
 
-  it('gives up after the schedule', async () => {
-    const waits: number[] = [];
-    const result = await compileSource('x', { fetch: async () => new Response('busy', { status: 429 }), sleep: async (ms) => void waits.push(ms) });
-    expect(waits.reduce((a, b) => a + b, 0)).toBe(60000);
-    expect(result.kind).toBe('limited');
+  it('lets Download now start the same download Run then waits for', async () => {
+    const workers = fakeCompiler();
+    const early = downloadCompiler('v1');
+    const run = compileSource('v1', 'int a;');
+    expect(workers).toHaveLength(1);
+    workers[0].reply({ type: 'ready' });
+    expect(await early).toBe('ready');
+    await flush();
+    expect(workers[0].compiles()).toHaveLength(1);
+    workers[0].reply({ type: 'result', id: workers[0].compiles()[0].id, result: { kind: 'ok', module: WASM, diagnostics: [] } });
+    expect((await run).kind).toBe('ok');
   });
 
-  it('shows the spec’s busy line in the Compiler tab', () => {
-    expect(LAB_MESSAGES.busy).toBe('Compiling… the Lab is busy, this can take a few seconds');
-    const root = mount(h(LabLog, { diagnostics: [], consoleLines: [], onJump: () => {}, message: LAB_MESSAGES.busy }));
-    expect(root.textContent).toContain('Compiling… the Lab is busy, this can take a few seconds');
-  });
-
-  it('does not retry a rate limit the service names, and stops when the caller does', async () => {
-    const fetchFn = vi.fn(async () => json({ limit: 'visitor' }, 429));
-    expect((await compileSource('x', { fetch: fetchFn, sleep: async () => {} })).kind).toBe('limited');
-    expect(fetchFn).toHaveBeenCalledTimes(1);
+  it('rejects a stopped Run and lets the download it started finish', async () => {
+    const workers = fakeCompiler();
     const controller = new AbortController();
+    const run = compileSource('v1', 'int a;', { signal: controller.signal });
     controller.abort();
-    await expect(compileSource('x', { fetch: async () => json({}, 429), signal: controller.signal })).rejects.toThrow();
+    await expect(run).rejects.toMatchObject({ name: 'AbortError' });
+    expect(workers[0].terminated).toBe(false);
+    workers[0].reply({ type: 'ready' });
+    expect(useCompiler.getState().state).toBe('ready');
+    expect(workers[0].compiles()).toHaveLength(0);
   });
 });
 
-describe('BB-LAB-39: Resting shows the spec message', () => {
-  it('maps a rested month and a rested day', async () => {
-    const month = await compileSource('x', { fetch: async () => json({ resting: 'month' }, 503) });
-    const day = await compileSource('x', { fetch: async () => json({ resting: 'day' }, 503) });
-    expect(month).toEqual({ kind: 'resting', until: 'month' });
-    expect(day).toEqual({ kind: 'resting', until: 'day' });
-    expect(compileMessage(month)).toBe('Run is resting until the 1st. Your code is saved in this browser.');
-    expect(compileMessage(day)).toBe('Run is resting until tomorrow. Your code is saved in this browser.');
+describe('BB-LAB-39: A download that fails says so, and the next Run tries again', () => {
+  afterEach(() => setCompilerEnv());
+
+  it('shows the download message, ends the worker, and starts a fresh one on the next Run', async () => {
+    const workers = fakeCompiler();
+    const run = compileSource('v1', 'int a;');
+    workers[0].reply({ type: 'download-failed', network: true });
+    const result = await run;
+    expect(result).toEqual({ kind: 'download' });
+    expect(compileMessage(result)).toBe("The compiler couldn't download. Your code is saved in this browser. Try Run again.");
+    expect(useCompiler.getState().state).toBe('failed');
+    expect(workers[0].terminated).toBe(true);
+    expect(LAB_MESSAGES.download).toBe(compileMessage(result));
+    void compileSource('v1', 'int a;');
+    expect(workers).toHaveLength(2);
+  });
+
+  it('says the Lab could not compile when the files came but the compiler did not start', async () => {
+    const workers = fakeCompiler();
+    const run = compileSource('v1', 'int a;');
+    workers[0].reply({ type: 'download-failed', network: false });
+    expect(await run).toEqual({ kind: 'failed' });
   });
 });
 
-describe('BB-LAB-40: Offline shows the spec message without a request', () => {
-  it('does not fetch when the browser is offline', async () => {
-    const fetchFn = vi.fn();
-    const result = await compileSource('x', { fetch: fetchFn, online: () => false });
+describe('BB-LAB-40: With no connection before the first download, Run says it needs the internet', () => {
+  afterEach(() => setCompilerEnv());
+
+  it('starts no worker and gives the offline message', async () => {
+    const workers = fakeCompiler({ online: () => false });
+    const result = await compileSource('v1', 'int a;');
     expect(result).toEqual({ kind: 'offline' });
-    expect(fetchFn).not.toHaveBeenCalled();
-    expect(compileMessage(result)).toBe('Run needs the internet. Your code is saved in this browser.');
+    expect(workers).toHaveLength(0);
+    expect(compileMessage(result)).toBe('Run needs the internet the first time, to download the compiler. Your code is saved in this browser.');
   });
 
-  it('reads navigator.onLine by default', async () => {
-    const fetchFn = vi.fn();
-    const spy = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-    try {
-      expect((await compileSource('x', { fetch: fetchFn })).kind).toBe('offline');
-      expect(fetchFn).not.toHaveBeenCalled();
-    } finally {
-      spy.mockRestore();
-    }
+  it('gives the offline message when the connection went during the download', async () => {
+    let online = true;
+    const workers = fakeCompiler({ online: () => online });
+    const run = compileSource('v1', 'int a;');
+    online = false;
+    workers[0].reply({ type: 'download-failed', network: true });
+    expect(await run).toEqual({ kind: 'offline' });
   });
 
-  it('maps the function’s offline answer and a failed request', async () => {
-    expect((await compileSource('x', { fetch: async () => json({ offline: true }, 503), sleep: async () => {} })).kind).toBe('offline');
-    expect(
-      (
-        await compileSource('x', {
-          online: () => false,
-          fetch: async () => {
-            throw new TypeError('network');
-          },
-        })
-      ).kind,
-    ).toBe('offline');
+  it('compiles offline once the compiler is in this browser', async () => {
+    const workers = fakeCompiler({ online: () => false });
+    useCompiler.setState({ state: 'ready' });
+    const run = compileSource('v1', 'int a;');
+    expect(workers).toHaveLength(1);
+    workers[0].reply({ type: 'ready' });
+    await flush();
+    workers[0].reply({ type: 'result', id: workers[0].compiles()[0].id, result: { kind: 'ok', module: WASM, diagnostics: [] } });
+    expect((await run).kind).toBe('ok');
   });
 });
 
@@ -203,12 +277,6 @@ describe('BB-LAB-41: Ctrl+Enter runs, and the status line counts errors', () => 
     expect(statusLine([])).toBe('main.cpp');
   });
 
-  it('keeps a visitor id for the browser', () => {
-    const first = visitorId();
-    expect(first.length).toBeGreaterThan(4);
-    expect(visitorId()).toBe(first);
-    expect(localStorage.getItem('vams-lab-visitor')).toBe(first);
-  });
 });
 
 describe('BB-LAB-42: The log folds and remembers it', () => {
@@ -285,89 +353,170 @@ describe('BB-LAB-66: A keystroke typed before the parent catches up survives', (
   });
 });
 
-describe('BB-LAB-67: Only a program counts as a program', () => {
-  it('rejects a 200 that is not wasm', async () => {
-    const html = await compileSource('x', { fetch: async () => new Response('<html></html>', { status: 200, headers: { 'content-type': 'text/html' } }) });
-    expect(html).toEqual({ kind: 'failed', status: 200 });
+describe('BB-LAB-67: A compiler that dies fails the compile, and the next Run starts a fresh one', () => {
+  afterEach(() => setCompilerEnv());
+
+  it('fails every compile waiting on a worker that errors, and keeps the compiler marked ready', async () => {
+    const workers = fakeCompiler();
+    const run = compileSource('v1', 'int a;');
+    workers[0].reply({ type: 'ready' });
+    await flush();
+    workers[0].onerror?.(new Event('error'));
+    const result = await run;
+    expect(result).toEqual({ kind: 'failed' });
+    expect(compileMessage(result)).toBe("The Lab couldn't compile this time. Your code is saved in this browser. Try Run again.");
+    expect(workers[0].terminated).toBe(true);
+    expect(useCompiler.getState().state).toBe('ready');
+    void compileSource('v1', 'int b;');
+    expect(workers).toHaveLength(2);
+    expect(workers[1].sent[0]).toEqual({ type: 'prepare', version: 'v1' });
   });
 
-  it('accepts the wasm magic bytes when the content type is missing', async () => {
-    const bytes = new Uint8Array([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]);
-    const result = await compileSource('x', { fetch: async () => new Response(bytes, { status: 200 }) });
-    expect(result.kind).toBe('ok');
-  });
-
-  it('says failed for a broken service, not busy', async () => {
-    for (const status of [400, 401, 404, 405, 500]) {
-      const result = await compileSource('x', { fetch: async () => new Response('no', { status }), sleep: async () => {} });
-      expect(result).toEqual({ kind: 'failed', status });
-      expect(compileMessage(result)).toBe("The Lab couldn't compile this time. Your code is saved in this browser. Try Run again.");
-    }
-    expect(LAB_MESSAGES.failed).toBe("The Lab couldn't compile this time. Your code is saved in this browser. Try Run again.");
-  });
-
-  it('says failed with status 0 for a network error while online', async () => {
-    const result = await compileSource('x', {
-      online: () => true,
-      fetch: async () => {
-        throw new TypeError('network');
-      },
-    });
-    expect(result).toEqual({ kind: 'failed', status: 0 });
+  it('marks the download failed when the worker dies while downloading', async () => {
+    const workers = fakeCompiler();
+    const run = compileSource('v1', 'int a;');
+    workers[0].reply({ type: 'progress', received: 1, total: 10 });
+    workers[0].onerror?.(new Event('error'));
+    expect(await run).toEqual({ kind: 'failed' });
+    expect(useCompiler.getState().state).toBe('failed');
   });
 });
 
-describe('BB-LAB-68: The retry wait and the time guard', () => {
-  it('clears the timer and rejects when the caller stops during a wait', async () => {
+describe('BB-LAB-68: A compile that passes 30 s is stopped, with its worker', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    setCompilerEnv();
+  });
+
+  it('gives the time-limit message at 30 s, terminates the worker, and starts afresh after', async () => {
     vi.useFakeTimers();
-    try {
-      const controller = new AbortController();
-      const done = compileSource('x', { fetch: async () => new Response('busy', { status: 429 }), signal: controller.signal });
-      const outcome = done.then(
-        () => 'settled',
-        (e: Error) => e.name,
-      );
-      await vi.advanceTimersByTimeAsync(0);
-      expect(vi.getTimerCount()).toBe(1);
-      controller.abort();
-      expect(await outcome).toBe('AbortError');
-      expect(vi.getTimerCount()).toBe(0);
-    } finally {
-      vi.useRealTimers();
-    }
+    const workers = fakeCompiler();
+    const run = compileSource('v1', 'while (1) {}');
+    workers[0].reply({ type: 'ready' });
+    await vi.advanceTimersByTimeAsync(29_999);
+    expect(workers[0].terminated).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await run).toEqual({ kind: 'errors', diagnostics: [diag(1, 1, 'error', 'The compile took longer than 30 seconds, so it was stopped.')] });
+    expect(TIME_LIMIT_MESSAGE).toBe('The compile took longer than 30 seconds, so it was stopped.');
+    expect(COMPILE_TIME_LIMIT_MS).toBe(30_000);
+    expect(workers[0].terminated).toBe(true);
+    void compileSource('v1', 'int a;');
+    expect(workers).toHaveLength(2);
   });
 
-  it('stops retrying once more than 61 s have passed', async () => {
-    const times = [0, 62000, 62000, 62000];
-    const fetchFn = vi.fn(async () => new Response('busy', { status: 429 }));
-    const onBusy = vi.fn();
-    const result = await compileSource('x', { fetch: fetchFn, sleep: async () => {}, now: () => times.shift() ?? 62000, onBusy });
-    expect(result.kind).toBe('limited');
-    expect(fetchFn).toHaveBeenCalledTimes(1);
-    expect(onBusy).not.toHaveBeenCalled();
+  it('counts the time from the compile, not from the download', async () => {
+    vi.useFakeTimers();
+    const workers = fakeCompiler();
+    const run = compileSource('v1', 'int a;');
+    await vi.advanceTimersByTimeAsync(60_000);
+    workers[0].reply({ type: 'ready' });
+    await vi.advanceTimersByTimeAsync(10_000);
+    workers[0].reply({ type: 'result', id: workers[0].compiles()[0].id, result: { kind: 'ok', module: WASM, diagnostics: [] } });
+    expect((await run).kind).toBe('ok');
+    expect(workers[0].terminated).toBe(false);
   });
 });
 
-describe('BB-LAB-69: Diagnostics are read from the wire and checked', () => {
-  it('decodes the header the service writes, with non-ASCII text', () => {
-    const sent: Diagnostic[] = [diag(3, 5, 'error', 'expected “;” after é'), diag(4, 1, 'warning', 'unused')];
-    expect(decodeDiagnostics(encodeDiagnostics(sent))).toEqual(sent);
+/** Cache Storage, in memory: each cache maps a path to its body. */
+function memoryCaches(initial: Record<string, Record<string, string>> = {}): CachesLike & { names: () => string[] } {
+  const store = new Map(Object.entries(initial).map(([name, files]) => [name, new Map(Object.entries(files))]));
+  return {
+    names: () => [...store.keys()],
+    has: async (name) => store.has(name),
+    keys: async () => [...store.keys()],
+    delete: async (name) => store.delete(name),
+    open: async (name) => {
+      if (!store.has(name)) store.set(name, new Map());
+      const files = store.get(name)!;
+      return {
+        match: async (path: string) => (files.has(path) ? new Response(files.get(path)) : undefined),
+        put: async (path: string, response: Response) => void files.set(path, await response.text()),
+      };
+    },
+  };
+}
+
+const MANIFEST_BODY = JSON.stringify({ files: [{ name: 'bundle.js', bytes: 3, stored: 2 }, { name: 'llvm.core.wasm', bytes: 5, stored: 4 }] });
+
+describe('BB-LAB-69: The page knows the compiler is here only when every file is in its cache', () => {
+  afterEach(() => setCompilerEnv());
+
+  it('is ready with the manifest and every file it lists, and absent otherwise, without the network', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const whole = { '/lab-runtime/v1/compiler-manifest.json': MANIFEST_BODY, '/lab-runtime/v1/bundle.js': 'abc', '/lab-runtime/v1/llvm.core.wasm': 'abcde' };
+    expect(await compilerCached(memoryCaches({ 'vams-lab-compiler-v1': whole }), 'v1')).toBe(true);
+    const without = (key: string) => Object.fromEntries(Object.entries(whole).filter(([k]) => k !== key));
+    const partial = without('/lab-runtime/v1/llvm.core.wasm');
+    expect(await compilerCached(memoryCaches({ 'vams-lab-compiler-v1': partial }), 'v1')).toBe(false);
+    const noManifest = without('/lab-runtime/v1/compiler-manifest.json');
+    expect(await compilerCached(memoryCaches({ 'vams-lab-compiler-v1': noManifest }), 'v1')).toBe(false);
+    expect(await compilerCached(memoryCaches(), 'v1')).toBe(false);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 
-  it('drops malformed entries from the header and from a 422 body', async () => {
-    const mixed = [diag(1, 2), { line: 'x' }, null, 7, { file: 'main.cpp', line: 2, col: 1, severity: 'loud', message: 'm' }, diag(5, 6, 'note')];
-    const header = Buffer.from(JSON.stringify(mixed), 'utf8').toString('base64url');
-    expect(decodeDiagnostics(header)).toEqual([diag(1, 2), diag(5, 6, 'note')]);
-    const result = await compileSource('x', { fetch: async () => json({ diagnostics: mixed }, 422) });
-    expect(result).toEqual({ kind: 'errors', diagnostics: [diag(1, 2), diag(5, 6, 'note')] });
+  it('sets the store from the cache, and a missing cache API means absent', async () => {
+    const caches = memoryCaches({ 'vams-lab-compiler-v1': { '/lab-runtime/v1/compiler-manifest.json': MANIFEST_BODY, '/lab-runtime/v1/bundle.js': 'abc', '/lab-runtime/v1/llvm.core.wasm': 'abcde' } });
+    setCompilerEnv({ caches: () => caches });
+    await checkCompiler('v1');
+    expect(useCompiler.getState().state).toBe('ready');
+    setCompilerEnv({ caches: () => undefined });
+    await checkCompiler('v1');
+    expect(useCompiler.getState().state).toBe('absent');
   });
 
-  it('reads the header of a successful compile', async () => {
-    const header = encodeDiagnostics([diag(2, 2, 'warning', 'ü')]);
-    const result = await compileSource('x', {
-      fetch: async () => new Response(new Uint8Array([0, 0x61, 0x73, 0x6d]), { status: 200, headers: { 'content-type': 'application/wasm', 'x-lab-diagnostics': header } }),
+  it('fills the cache file by file with progress, puts the manifest in last, and keeps what it already holds', async () => {
+    const caches = memoryCaches({ 'vams-lab-compiler-v1': { '/lab-runtime/v1/bundle.js': 'abc' } });
+    const cache = await caches.open('vams-lab-compiler-v1');
+    const asked: string[] = [];
+    const fetchFn = (async (url: string) => {
+      asked.push(url);
+      if (url.endsWith('compiler-manifest.json')) return new Response(MANIFEST_BODY);
+      if (url.endsWith('llvm.core.wasm')) return new Response('abcde');
+      return new Response('', { status: 404 });
+    }) as unknown as typeof fetch;
+    const seen: number[] = [];
+    await fillCompilerCache(cache, 'v1', fetchFn, (received) => seen.push(received));
+    expect(asked).toEqual(['/lab-runtime/v1/compiler-manifest.json', '/lab-runtime/v1/llvm.core.wasm']);
+    expect(seen[0]).toBe(0);
+    expect(seen.at(-1)).toBe(8);
+    expect(await compilerCached(caches, 'v1')).toBe(true);
+  });
+
+  it('refuses a file that arrives short, or answers other than 200, and leaves the cache not ready', async () => {
+    for (const body of [new Response('abc'), new Response('nope', { status: 503 })]) {
+      const caches = memoryCaches();
+      const cache = await caches.open('vams-lab-compiler-v1');
+      const fetchFn = (async (url: string) => (url.endsWith('.json') ? new Response(MANIFEST_BODY) : body.clone())) as unknown as typeof fetch;
+      await expect(fillCompilerCache(cache, 'v1', fetchFn, () => {})).rejects.toBeInstanceOf(DownloadError);
+      expect(await compilerCached(caches, 'v1')).toBe(false);
+    }
+  });
+
+  it('answers the version from the cache and anything else from the network', async () => {
+    const caches = memoryCaches({ c: { '/lab-runtime/v1/bundle.js': 'cached' } });
+    const network = vi.fn(async () => new Response('net')) as unknown as typeof fetch;
+    const f = cachedFetch(await caches.open('c'), 'v1', network);
+    expect(await (await f(new URL('https://vams.pages.dev/lab-runtime/v1/bundle.js'))).text()).toBe('cached');
+    expect(await (await f('/lab-runtime/v2/bundle.js')).text()).toBe('net');
+  });
+
+  it('builds the headers tree from the pack', () => {
+    expect(headersTree({ 'include/GL/gl.h': 'a', 'include/GL/glu.h': 'b', 'sysroot/include/stdio.h': 'c' })).toEqual({
+      include: { GL: { 'gl.h': 'a', 'glu.h': 'b' } },
+      sysroot: { include: { 'stdio.h': 'c' } },
     });
-    expect(result.kind === 'ok' && result.diagnostics).toEqual([diag(2, 2, 'warning', 'ü')]);
+  });
+});
+
+describe('BB-LAB-93: Opening the Lab deletes the compiler caches of older versions', () => {
+  afterEach(() => setCompilerEnv());
+
+  it('keeps this version and every other cache, and drops other compiler versions', async () => {
+    const caches = memoryCaches({ 'vams-lab-compiler-old': {}, 'vams-lab-compiler-v1': {}, 'workbox-precache-v2': {} });
+    setCompilerEnv({ caches: () => caches });
+    await checkCompiler('v1');
+    expect(caches.names().sort()).toEqual(['vams-lab-compiler-v1', 'workbox-precache-v2']);
   });
 });
 

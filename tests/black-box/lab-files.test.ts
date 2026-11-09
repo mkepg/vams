@@ -57,7 +57,7 @@ import { importedWork } from '@/features/lab-files';
 import { installFiles, type LabFS } from '@/features/lab-run/worker/lab-files';
 import { labHandoff } from '@/features/project-io/model/lab-handoff';
 import { LAB_IMPORT_KEY, type LabImport } from '@/shared/lib/lab-import';
-import { checkIncludes } from '../../lab/service/src/includes.ts';
+import { checkIncludes } from '@/features/lab-compile/model/includes';
 import { decodePng, encodePng } from '../helpers/image-compare';
 
 // Beside this file, whatever the working directory (import.meta.url isn't a file URL under happy-dom).

@@ -32,8 +32,9 @@ const capture = (event: PointerEvent) => {
 export function stageMessage(status: RunStatus, exitCode?: number): string {
   switch (status) {
     case 'compiling':
-    case 'busy':
       return 'Compiling…';
+    case 'downloading':
+      return 'Downloading the compiler…';
     case 'running':
     case 'waitingInput':
       return 'The program is running. What it prints is in the Console.';

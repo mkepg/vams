@@ -2,7 +2,7 @@
  * Runs the student's program: one Web Worker for each Run, the memory it shares with the page,
  * and what the page shows of it (its window, its menus and the Console).
  *
- * Run's whole life is one status. The workspace sets the compile part (`compiling`, `busy`, and
+ * Run's whole life is one status. The workspace sets the compile part (`compiling`, `downloading`, and
  * back to `idle` when the compile gives no program); `start` takes it from there to `running`,
  * which reads as `waitingInput` while the program waits in the Console, and ends at `exited`,
  * `crashed`, or `idle` when ✕ stops it.
@@ -37,7 +37,7 @@ import {
   type OutputChunk,
 } from './shared-layout';
 
-export type RunStatus = 'idle' | 'compiling' | 'busy' | 'running' | 'waitingInput' | 'exited' | 'crashed';
+export type RunStatus = 'idle' | 'compiling' | 'downloading' | 'running' | 'waitingInput' | 'exited' | 'crashed';
 
 /** The program's window, in its own pixels: what glutCreateWindow, glutReshapeWindow and the grip made it. */
 export interface ProgramWindow {
@@ -139,15 +139,20 @@ class RunController {
     useLabRun.setState({ status: 'compiling', exitCode: undefined, window: null, menus: [], attached: [], input: INPUT_STATE.NONE });
   }
 
-  /** The compile service is busy and the compile is being retried. */
-  busy(): void {
-    if (useLabRun.getState().status === 'compiling') useLabRun.setState({ status: 'busy' });
+  /** The compile waits for the compiler to download. */
+  downloading(): void {
+    if (useLabRun.getState().status === 'compiling') useLabRun.setState({ status: 'downloading' });
+  }
+
+  /** The compiler is here, and the compile goes on. */
+  downloaded(): void {
+    if (useLabRun.getState().status === 'downloading') useLabRun.setState({ status: 'compiling' });
   }
 
   /** The compile gave no program: errors, or a reason Run can't go ahead. */
   compileEnded(): void {
     const { status } = useLabRun.getState();
-    if (status === 'compiling' || status === 'busy') useLabRun.setState({ status: 'idle' });
+    if (status === 'compiling' || status === 'downloading') useLabRun.setState({ status: 'idle' });
   }
 
   // The program.
