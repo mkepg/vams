@@ -1803,3 +1803,112 @@ describe('ALG-LAB-39: A multisampled frame is the same whether each pixel is ave
     expect(new Set(bytes(immediate).map((_, i, a) => (i % 4 === 0 ? a.slice(i, i + 3).join() : ''))).size).toBeGreaterThan(50);
   });
 });
+
+describe('ALG-LAB-40: Drawing held back for unshown frames leaves every frame read with the pixels drawing it all gives', () => {
+  /**
+   * Frame `n` of a program: a clear of the whole window on some frames only, shapes that move with
+   * n, a stippled line, a blended triangle, a scissored clear, bitmap text that moves the raster
+   * position, and a texture whose image is replaced part way through the frame.
+   */
+  function frame(gl: GLContext, n: number, clears: boolean) {
+    if (n === 0) {
+      gl.matrixMode(GL.PROJECTION);
+      gl.loadIdentity();
+      gl.ortho(0, 48, 0, 32, -1, 1);
+      gl.matrixMode(GL.MODELVIEW);
+      const [name] = gl.genTextures(1);
+      gl.bindTexture(GL.TEXTURE_2D, name);
+      gl.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.NEAREST);
+      gl.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.NEAREST);
+    }
+    if (clears) {
+      gl.clearColor(0.1, 0.1 * (n % 5), 0.3, 1);
+      gl.clear(GL.COLOR_BUFFER_BIT);
+    }
+    gl.loadIdentity();
+    gl.translatef(n * 1.7, 0, 0);
+    gl.begin(GL.QUADS);
+    gl.color3f(0.9, 0.5, 0.1);
+    for (const [x, y] of [[1, 2], [9.5, 2], [9.5, 11.25], [1, 11.25]]) gl.vertex2f(x, y);
+    gl.end();
+    gl.loadIdentity();
+    gl.enable(GL.LINE_STIPPLE);
+    gl.lineStipple(1, 0xf0f0 >> n % 4);
+    gl.begin(GL.LINES);
+    gl.color3f(1, 1, 1);
+    gl.vertex2f(0, 31 - n);
+    gl.vertex2f(47, 20 + n);
+    gl.end();
+    gl.disable(GL.LINE_STIPPLE);
+    gl.enable(GL.BLEND);
+    gl.blendFunc(GL.SRC_ALPHA, GL.ONE_MINUS_SRC_ALPHA);
+    gl.begin(GL.TRIANGLES);
+    gl.color4f(0.2, 0.8, 0.9, 0.5);
+    gl.vertex2f(20, 4 + n);
+    gl.vertex2f(44, 8);
+    gl.vertex2f(30, 30);
+    gl.end();
+    gl.disable(GL.BLEND);
+    gl.enable(GL.SCISSOR_TEST);
+    gl.scissor(n, 24, 5, 5);
+    gl.clear(GL.COLOR_BUFFER_BIT);
+    gl.disable(GL.SCISSOR_TEST);
+    gl.color3f(1, 1, 0);
+    gl.rasterPos2f(2, 14);
+    for (let i = 0; i <= n % 3; i++) gl.bitmap(8, 2, 0, 0, 9, 0, new Uint8Array([0xff, 0x81]));
+    gl.enable(GL.TEXTURE_2D);
+    const texel = (k: number) => new Uint8Array([40 * k, 255 - 30 * k, 90, 255]);
+    gl.texImage2D(GL.TEXTURE_2D, 0, GL.RGBA, 1, 1, 0, GL.RGBA, GL.UNSIGNED_BYTE, texel(n % 6));
+    gl.begin(GL.QUADS);
+    gl.color3f(1, 1, 1);
+    gl.texCoord2f(0, 0);
+    gl.vertex2f(36, 1);
+    gl.texCoord2f(1, 0);
+    gl.vertex2f(46, 1);
+    gl.texCoord2f(1, 1);
+    gl.vertex2f(46, 9);
+    gl.texCoord2f(0, 1);
+    gl.vertex2f(36, 9);
+    gl.end();
+    // The next frame's image replaces this one; what was drawn with it must keep it.
+    gl.texImage2D(GL.TEXTURE_2D, 0, GL.RGBA, 1, 1, 0, GL.RGBA, GL.UNSIGNED_BYTE, texel(n % 6 + 1));
+    gl.disable(GL.TEXTURE_2D);
+  }
+
+  /** Every frame's pixels drawing all of it, against a run that holds back the frames `held` picks and reads the rest. */
+  function compare(multisample: boolean, clears: (n: number) => boolean, held: (n: number) => boolean) {
+    const all = new GLContext(48, 32, { multisample });
+    const holding = new GLContext(48, 32, { multisample });
+    for (let n = 0; n < 24; n++) {
+      frame(all, n, clears(n));
+      holding.hold(held(n));
+      frame(holding, n, clears(n));
+      holding.hold(false);
+      if (!held(n)) expect(Array.from(holding.fb.color), `frame ${n}`).toEqual(Array.from(all.fb.color));
+    }
+    expect(Array.from(holding.fb.color)).toEqual(Array.from(all.fb.color));
+  }
+
+  it('a program that clears the whole window every frame, with two frames in three held', () => {
+    for (const multisample of [false, true]) compare(multisample, () => true, (n) => n % 3 !== 0);
+  });
+
+  it('a program that never clears, or clears only some frames, so held drawing shows through', () => {
+    for (const multisample of [false, true]) {
+      compare(multisample, () => false, (n) => n % 3 !== 0);
+      compare(multisample, (n) => n % 4 === 0, (n) => n % 2 === 1 || n % 5 === 0);
+    }
+  });
+
+  it('runs of held frames of any length, and a resize while drawing is held', () => {
+    compare(true, (n) => n % 7 !== 3, (n) => n > 2 && n < 11);
+    const gl = new GLContext(8, 8);
+    gl.hold(true);
+    gl.clearColor(1, 0, 0, 1);
+    gl.clear(GL.COLOR_BUFFER_BIT);
+    gl.resize(6, 4);
+    gl.hold(false);
+    // A new window starts cleared to 0, whatever was held for the old one.
+    expect(Array.from(gl.fb.color).every((v) => v === 0)).toBe(true);
+  });
+});

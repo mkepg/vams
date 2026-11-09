@@ -124,11 +124,13 @@ tests/
 │   ├── lab-functions.test.ts             (BB-LAB-05 to 08: the Pages Functions
 │   │                                        that forward compiles and serve the
 │   │                                        runtime)
-│   ├── lab-runtime.test.ts               (BB-LAB-20 to 31 and 60: the worker
-│   │                                        runtime: GLUT's main loop, events,
-│   │                                        menus, typed input, system(), files,
-│   │                                        the output ring and the Console, and
-│   │                                        how a program's end is reported)
+│   ├── lab-runtime.test.ts               (BB-LAB-20 to 31, 60 and 100: the
+│   │                                        worker runtime: GLUT's main loop,
+│   │                                        events, menus, typed input, system(),
+│   │                                        files, the output ring and the
+│   │                                        Console, how a program's end is
+│   │                                        reported, and one frame a refresh
+│   │                                        however slow a frame is to draw)
 │   ├── lab-page.test.ts                  (BB-LAB-32 to 36, 59 and 65: the /lab
 │   │                                        route, its header link, isolation
 │   │                                        and the dev server)
@@ -232,10 +234,11 @@ tests/
 │   ├── lab-drawing.spec.ts               (VIS-LAB-05: each Lab battery program,
 │   │                                        compiled and run in the Lab, against
 │   │                                        its FreeGLUT reference; LAB_RUNTIME_LOCAL=1)
-│   ├── lab-compiler.spec.ts              (VIS-LAB-07 to 11: the compiler's
+│   ├── lab-compiler.spec.ts              (VIS-LAB-07 to 12: the compiler's
 │   │                                        download, no JavaScript, storage or
-│   │                                        worker from a program, and the 2D
-│   │                                        set compiled in the page;
+│   │                                        worker from a program, the 2D set
+│   │                                        compiled in the page, and the
+│   │                                        jeepney as fast as in the editor;
 │   │                                        LAB_RUNTIME_LOCAL=1)
 │   └── helpers/lab.ts                    (the routes that stand in for
 │                                            production in front of the preview
@@ -252,7 +255,7 @@ tests/
 │   │                                              rasteriser, pixel by pixel, by the
 │   │                                              OpenGL 1.5 rules with and without
 │   │                                              multisampling)
-│   └── gl-context.test.ts                       (ALG-LAB-09 to 16 and 19 to 39: the Lab's
+│   └── gl-context.test.ts                       (ALG-LAB-09 to 16 and 19 to 40: the Lab's
 │                                                  OpenGL 1.5 state machine, display lists,
 │                                                  textures and GLUT's bitmap fonts, and
 │                                                  the reference GPU's choices where the
@@ -335,7 +338,7 @@ The checks that run the real compiler need the runtime built in
 `lab/runtime/out/`, and skip without `LAB_RUNTIME_LOCAL=1`:
 
 ```bash
-LAB_RUNTIME_LOCAL=1 npm run test:visual -- lab.spec lab-drawing lab-compiler   # VIS-LAB-01 to 11
+LAB_RUNTIME_LOCAL=1 npm run test:visual -- lab.spec lab-drawing lab-compiler   # VIS-LAB-01 to 12
 ```
 
 The IDs the compile service's checks held (BB-LAB-05 to 07, WB-LAB-03 to 11,

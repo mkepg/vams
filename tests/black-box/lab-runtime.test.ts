@@ -37,6 +37,7 @@ import {
   sendKey,
   sendLine,
   adoptFramebuffer,
+  MAX_FRAMES_BEHIND,
   type Frame,
   type LabEvent,
   type OutputChunk,
@@ -67,9 +68,10 @@ interface Wait {
  * A runtime on the test's clock, with the page played by the test. When the runtime would block,
  * the page reads the output ring when the runtime waits for room in it, takes any frame waiting
  * for it, or does the next of `page.actions`; when there is nothing to do, the clock moves on by
- * the timeout.
+ * the timeout. With `refreshMs`, the page refreshes on that interval, as a display does: taking a
+ * frame waits for the next refresh, and each refresh is counted in CONTROL.TICK.
  */
-function lab(framebufferBytes?: number, screen?: { width: number; height: number }) {
+function lab(framebufferBytes?: number, screen?: { width: number; height: number }, refreshMs?: number) {
   const layout = createSharedLayout(framebufferBytes);
   const worker = openLayout(layout);
   const pageViews = openLayout(layout);
@@ -114,6 +116,10 @@ function lab(framebufferBytes?: number, screen?: { width: number; height: number
         page.reads++;
         page.readOutput();
         return;
+      }
+      if (index === CONTROL.FRAME_ACK && refreshMs) {
+        page.clock = (Math.floor(page.clock / refreshMs) + 1) * refreshMs;
+        Atomics.store(pageViews.control, CONTROL.TICK, page.clock / refreshMs);
       }
       if (index === CONTROL.FRAME_ACK && takeFrame()) return;
       const action = actions.shift();
@@ -880,5 +886,88 @@ describe('BB-LAB-60: The worker always tells the page how the program ended', ()
     });
     await expect(runProgram(start(), post, exits)).resolves.toBeUndefined();
     expect(posts).toEqual([{ type: 'crash', message: 'could not be cloned' }]);
+  });
+});
+
+describe('BB-LAB-100: A program keeps one frame a page refresh however long its frames take to draw, as the editor’s Run does', () => {
+  const REFRESH = 16;
+
+  /**
+   * An idle animation of `steps` steps in a 40 × 10 window: step n fills column n. Drawing a frame
+   * the page is shown costs `drawMs` of the clock, and the page counts its refreshes as they pass.
+   */
+  function animate(drawMs: number, clears: boolean, steps = 39, stallAt = -1) {
+    const { page, glut } = lab(undefined, undefined, REFRESH);
+    const tick = () => Atomics.store(page.views.control, CONTROL.TICK, Math.floor(page.clock / REFRESH));
+    openWindow(glut, 40, 10);
+    // Whether the runtime is running this frame only to catch up, so its drawing costs nothing.
+    const catchingUp = () => (glut as unknown as { catchingUp: boolean }).catchingUp;
+    let step = 0;
+    const kinds: string[] = [];
+    glut.displayFunc(() => {
+      const gl = glut.gl;
+      gl.matrixMode(GL.PROJECTION);
+      gl.loadIdentity();
+      gl.ortho2D(0, 40, 0, 10);
+      if (clears) gl.clear(GL.COLOR_BUFFER_BIT);
+      gl.rectf(step, 0, step + 1, 10);
+      kinds.push(catchingUp() ? 'held' : 'drawn');
+      if (!catchingUp()) {
+        page.clock += drawMs;
+        tick();
+      }
+      glut.swapBuffers();
+    });
+    glut.idleFunc(() => {
+      if (step === stallAt) {
+        page.clock += 1000;
+        tick();
+      }
+      if (++step >= steps) glut.leaveMainLoop();
+      glut.postRedisplay();
+    });
+    glut.mainLoop();
+    /** The columns each frame the page took has lit, from the left. */
+    const lit = page.frames.map((f) => Array.from({ length: 40 }, (_, x) => f.pixels[x * 4] === 255).flatMap((on, x) => (on ? [x] : [])));
+    return { clock: page.clock, frames: page.frames.length, lit, kinds };
+  }
+
+  it('a frame quicker than a refresh is drawn every refresh', () => {
+    const run = animate(0, true);
+    expect(run.kinds.every((k) => k === 'drawn')).toBe(true);
+    expect(run.frames).toBe(39);
+    expect(run.clock).toBeLessThanOrEqual(40 * REFRESH);
+  });
+
+  it('a frame that takes 2½ refreshes to draw still moves one step a refresh, and the page sees every third step or so', () => {
+    const run = animate(40, true);
+    // As many refreshes as steps, give or take the last frame's drawing and showing it. Drawing
+    // every frame would take three times as long.
+    expect(run.clock).toBeLessThanOrEqual(39 * REFRESH + 40 + 2 * REFRESH);
+    expect(run.frames).toBeGreaterThanOrEqual(10);
+    expect(run.frames).toBeLessThanOrEqual(16);
+    // Each frame shown is its step's own: one column, further right each time.
+    for (const columns of run.lit) expect(columns).toHaveLength(1);
+    const shown = run.lit.map(([x]) => x);
+    expect(shown).toEqual([...shown].sort((a, b) => a - b));
+    expect(new Set(shown).size).toBe(shown.length);
+  });
+
+  it('a program that draws over its last frame without clearing shows every step it has run, held or drawn', () => {
+    const run = animate(40, false);
+    expect(run.kinds.filter((k) => k === 'held').length).toBeGreaterThan(15);
+    for (const columns of run.lit) expect(columns).toEqual(Array.from({ length: columns.length }, (_, x) => x));
+    expect(run.lit.at(-1)).toHaveLength(39);
+  });
+
+  it('after a stall of a second it carries on from there, without running a second of frames unseen', () => {
+    const run = animate(0, true, 39, 10);
+    let longest = 0;
+    let held = 0;
+    for (const k of run.kinds) {
+      held = k === 'held' ? held + 1 : 0;
+      longest = Math.max(longest, held);
+    }
+    expect(longest).toBeLessThanOrEqual(MAX_FRAMES_BEHIND);
   });
 });
