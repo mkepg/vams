@@ -397,6 +397,8 @@ describe('BB-LAB-68: A compile that passes 30 s is stopped, with its worker', ()
     const workers = fakeCompiler();
     const run = compileSource('v1', 'while (1) {}');
     workers[0].reply({ type: 'ready' });
+    await vi.advanceTimersByTimeAsync(0);
+    workers[0].reply({ type: 'started', id: workers[0].compiles()[0].id });
     await vi.advanceTimersByTimeAsync(29_999);
     expect(workers[0].terminated).toBe(false);
     await vi.advanceTimersByTimeAsync(1);
@@ -482,9 +484,9 @@ describe('BB-LAB-69: The page knows the compiler is here only when every file is
     const seen: number[] = [];
     await fillCompilerCache(cache, 'v1', fetchFn, (received) => seen.push(received));
     expect(asked).toEqual(['/lab-runtime/v1/compiler-manifest.json', '/lab-runtime/v1/llvm.core.wasm']);
-    // bundle.js was already held, so the first report counts it as received.
-    expect(seen[0]).toBe(3);
-    expect(seen.at(-1)).toBe(8);
+    // bundle.js was already held, so the first report counts it as received: 2 bytes as stored.
+    expect(seen[0]).toBe(2);
+    expect(seen.at(-1)).toBe(6);
     expect(await compilerCached(caches, 'v1')).toBe(true);
   });
 
@@ -506,10 +508,11 @@ describe('BB-LAB-69: The page knows the compiler is here only when every file is
     expect(await (await f('/lab-runtime/v2/bundle.js')).text()).toBe('net');
   });
 
-  it('builds the headers tree from the pack', () => {
+  it('builds the headers tree from the pack, each file as UTF-8 bytes', () => {
+    const bytes = (text: string) => new TextEncoder().encode(text);
     expect(headersTree({ 'include/GL/gl.h': 'a', 'include/GL/glu.h': 'b', 'sysroot/include/stdio.h': 'c' })).toEqual({
-      include: { GL: { 'gl.h': 'a', 'glu.h': 'b' } },
-      sysroot: { include: { 'stdio.h': 'c' } },
+      include: { GL: { 'gl.h': bytes('a'), 'glu.h': bytes('b') } },
+      sysroot: { include: { 'stdio.h': bytes('c') } },
     });
   });
 });
@@ -571,7 +574,7 @@ describe('BB-LAB-96: A compiler already in this browser is never shown downloadi
     const seen: [number, number][] = [];
     await fillCompilerCache(await caches.open('vams-lab-compiler-v1'), 'v1', network, (received, total) => seen.push([received, total]));
     expect(network).not.toHaveBeenCalled();
-    expect(seen).toEqual([[8, 8]]);
+    expect(seen).toEqual([[6, 6]]);
   });
 
   it('keeps the store ready through the start, and a Run says Compiling, not Downloading', async () => {
@@ -668,5 +671,121 @@ describe('BB-LAB-98: A browser that can’t keep the compiler still compiles, fr
     const caches = memoryCaches();
     await fillCompilerCache(await openCompilerCache(caches, 'v1'), 'v1', network, () => {});
     expect(await compilerCached(caches, 'v1')).toBe(true);
+  });
+});
+
+describe('BB-LAB-102: The download counts bytes as stored, so each file weighs what it costs to fetch', () => {
+  it('moves the progress by each file\'s stored size, however much it unpacks to', async () => {
+    // a.wasm unpacks to 100 bytes from 10 stored, b.json to 10 from 10: each is half the download.
+    const manifest = JSON.stringify({ files: [{ name: 'a.wasm', bytes: 100, stored: 10 }, { name: 'b.json', bytes: 10, stored: 10 }] });
+    const bodies: Record<string, string> = { 'a.wasm': 'x'.repeat(100), 'b.json': 'y'.repeat(10) };
+    const fetchFn = (async (url: string) =>
+      url.endsWith('compiler-manifest.json') ? new Response(manifest) : new Response(bodies[url.split('/').pop()!])) as unknown as typeof fetch;
+    const seen: [number, number][] = [];
+    await fillCompilerCache(await memoryCaches().open('vams-lab-compiler-v1'), 'v1', fetchFn, (received, total) => seen.push([received, total]));
+    expect(seen[0]).toEqual([0, 20]);
+    expect(seen).toContainEqual([10, 20]);
+    expect(seen.at(-1)).toEqual([20, 20]);
+    expect(seen.every(([r], i) => i === 0 || r >= seen[i - 1][0])).toBe(true);
+  });
+});
+
+describe('BB-LAB-103: A compile that stops inside the compiler ends its worker, and the next Run starts a fresh one', () => {
+  afterEach(() => setCompilerEnv());
+
+  it('fails the compile, terminates the worker, and keeps the compiler marked ready', async () => {
+    const workers = fakeCompiler();
+    const run = compileSource('v1', 'int a;');
+    workers[0].reply({ type: 'ready' });
+    await flush();
+    const { id } = workers[0].compiles()[0];
+    workers[0].reply({ type: 'started', id });
+    workers[0].reply({ type: 'result', id, result: { kind: 'failed' } });
+    expect(await run).toEqual({ kind: 'failed' });
+    expect(workers[0].terminated).toBe(true);
+    expect(useCompiler.getState().state).toBe('ready');
+    void compileSource('v1', 'int b;');
+    expect(workers).toHaveLength(2);
+  });
+
+  it('keeps the worker after a compile that ends in errors', async () => {
+    const workers = fakeCompiler();
+    const run = compileSource('v1', 'int a');
+    workers[0].reply({ type: 'ready' });
+    await flush();
+    const { id } = workers[0].compiles()[0];
+    workers[0].reply({ type: 'result', id, result: { kind: 'errors', diagnostics: [diag(1, 6)] } });
+    expect((await run).kind).toBe('errors');
+    expect(workers[0].terminated).toBe(false);
+  });
+});
+
+describe('BB-LAB-104: A queued compile has its full 30 s, counted from when the worker starts it', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    setCompilerEnv();
+  });
+
+  it('lets the second of two compiles run 30 s after the first ends', async () => {
+    vi.useFakeTimers();
+    const workers = fakeCompiler();
+    const first = compileSource('v1', 'int a;');
+    const second = compileSource('v1', 'int b;');
+    workers[0].reply({ type: 'ready' });
+    await vi.advanceTimersByTimeAsync(0);
+    const [a, b2] = workers[0].compiles();
+    workers[0].reply({ type: 'started', id: a.id });
+    await vi.advanceTimersByTimeAsync(20_000);
+    workers[0].reply({ type: 'result', id: a.id, result: { kind: 'ok', module: WASM, diagnostics: [] } });
+    expect((await first).kind).toBe('ok');
+    workers[0].reply({ type: 'started', id: b2.id });
+    // 45 s after it was sent, and 25 s after it started: still within its limit.
+    await vi.advanceTimersByTimeAsync(25_000);
+    expect(workers[0].terminated).toBe(false);
+    workers[0].reply({ type: 'result', id: b2.id, result: { kind: 'ok', module: WASM, diagnostics: [] } });
+    expect((await second).kind).toBe('ok');
+  });
+
+  it('still stops a compile 30 s after it starts', async () => {
+    vi.useFakeTimers();
+    const workers = fakeCompiler();
+    const run = compileSource('v1', 'int a;');
+    workers[0].reply({ type: 'ready' });
+    await vi.advanceTimersByTimeAsync(0);
+    workers[0].reply({ type: 'started', id: workers[0].compiles()[0].id });
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect((await run).kind).toBe('errors');
+    expect(workers[0].terminated).toBe(true);
+  });
+});
+
+describe('BB-LAB-105: The dev runtime\'s compiler is fetched again when its files change', () => {
+  const manifest = (modified: number) => JSON.stringify({ files: [{ name: 'bundle.js', bytes: 3, stored: 3, modified }] });
+
+  it('downloads a changed file again, and nothing when no file changed', async () => {
+    const caches = memoryCaches({
+      'vams-lab-compiler-dev': { '/lab-runtime/dev/compiler-manifest.json': manifest(1), '/lab-runtime/dev/bundle.js': 'old' },
+    });
+    const cache = await caches.open('vams-lab-compiler-dev');
+    let served = manifest(2);
+    const asked: string[] = [];
+    const fetchFn = (async (url: string) => {
+      asked.push(url);
+      return url.endsWith('compiler-manifest.json') ? new Response(served) : new Response('new');
+    }) as unknown as typeof fetch;
+    await fillCompilerCache(cache, 'dev', fetchFn, () => {});
+    expect(asked).toEqual(['/lab-runtime/dev/compiler-manifest.json', '/lab-runtime/dev/bundle.js']);
+    expect(await (await cache.match('/lab-runtime/dev/bundle.js'))!.text()).toBe('new');
+    asked.length = 0;
+    served = manifest(2);
+    await fillCompilerCache(cache, 'dev', fetchFn, () => {});
+    expect(asked).toEqual(['/lab-runtime/dev/compiler-manifest.json']);
+  });
+
+  it('never asks the network again for a published version it holds', async () => {
+    const caches = memoryCaches({ 'vams-lab-compiler-v1': WHOLE_V1 });
+    const network = vi.fn(async () => new Response('', { status: 404 })) as unknown as typeof fetch;
+    await fillCompilerCache(await caches.open('vams-lab-compiler-v1'), 'v1', network, () => {});
+    expect(network).not.toHaveBeenCalled();
   });
 });

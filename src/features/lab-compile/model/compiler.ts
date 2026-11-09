@@ -38,7 +38,7 @@ export const useCompiler = create<{ state: CompilerState; received: number; tota
   total: 0,
 }));
 
-/** The time a compile may take, from the moment it is sent. */
+/** The time a compile may take, from the moment the worker starts it. */
 export const COMPILE_TIME_LIMIT_MS = 30_000;
 export const TIME_LIMIT_MESSAGE = 'The compile took longer than 30 seconds, so it was stopped.';
 
@@ -73,6 +73,8 @@ let worker: CompilerWorker | null = null;
 let prepared: Promise<Prepared> | null = null;
 let nextId = 0;
 const pending = new Map<number, (result: CompileResult) => void>();
+/** Starts a sent compile's time limit, once the worker says the compile has started. */
+const timers = new Map<number, () => void>();
 
 /** Ends the worker and every compile waiting on it. */
 function drop() {
@@ -80,6 +82,7 @@ function drop() {
   worker = null;
   prepared = null;
   w?.terminate();
+  timers.clear();
   const waiting = [...pending.values()];
   pending.clear();
   for (const resolve of waiting) resolve({ kind: 'failed' });
@@ -132,8 +135,12 @@ export function downloadCompiler(version: string): Promise<Prepared> {
       drop();
       useCompiler.setState({ state: 'failed' });
       settle(!m.network ? 'failed' : env.online() ? 'download' : 'offline');
+    } else if (m.type === 'started') {
+      timers.get(m.id)?.();
     } else if (m.type === 'result') {
       pending.get(m.id)?.(m.result);
+      // A compile that stopped inside the compiler may leave it unsound: the next compile starts a fresh one.
+      if (m.result.kind === 'failed') drop();
     }
   };
   w.onerror = () => {
@@ -180,13 +187,19 @@ export async function compileSource(version: string, source: string, options: Co
   if (!w) return { kind: 'failed' };
   const id = ++nextId;
   const result = new Promise<CompileResult>((resolve) => {
-    const timer = setTimeout(() => {
-      pending.delete(id);
-      resolve({ kind: 'errors', diagnostics: [{ file: 'main.cpp', line: 1, col: 1, severity: 'error', message: TIME_LIMIT_MESSAGE }] });
-      if (worker === w) drop();
-    }, env.timeoutMs);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // The limit runs from the worker's `started`, so a compile queued behind another has its own full time.
+    timers.set(id, () => {
+      timers.delete(id);
+      timer = setTimeout(() => {
+        pending.delete(id);
+        resolve({ kind: 'errors', diagnostics: [{ file: 'main.cpp', line: 1, col: 1, severity: 'error', message: TIME_LIMIT_MESSAGE }] });
+        if (worker === w) drop();
+      }, env.timeoutMs);
+    });
     pending.set(id, (r) => {
       clearTimeout(timer);
+      timers.delete(id);
       pending.delete(id);
       resolve(r);
     });

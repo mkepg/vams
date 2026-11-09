@@ -37,9 +37,13 @@ export function labRuntimeFile(pathname: string, dir: string, compilerDir = COMP
 
 /**
  * The compiler's file list for the local files: every file of the compiler, then the headers
- * pack, each stored as it is (the dev server compresses nothing).
+ * pack, each stored as it is (the dev server compresses nothing), with the time it last changed,
+ * so a browser holding the dev compiler fetches a rebuilt file again.
  */
-export function devManifest(dir: string, compilerDir = COMPILER_DIR): { files: { name: string; bytes: number; stored: number }[] } | null {
+export function devManifest(
+  dir: string,
+  compilerDir = COMPILER_DIR,
+): { files: { name: string; bytes: number; stored: number; modified: number }[] } | null {
   const compiler = resolve(compilerDir);
   const pack = join(resolve(dir), HEADERS_PACK);
   if (!existsSync(compiler) || !isFile(pack)) return null;
@@ -49,8 +53,8 @@ export function devManifest(dir: string, compilerDir = COMPILER_DIR): { files: {
     .map((name) => ({ name, path: join(compiler, name) }));
   return {
     files: [...entries, { name: HEADERS_PACK, path: pack }].map(({ name, path }) => {
-      const bytes = statSync(path).size;
-      return { name, bytes, stored: bytes };
+      const { size: bytes, mtimeMs } = statSync(path);
+      return { name, bytes, stored: bytes, modified: Math.round(mtimeMs) };
     }),
   };
 }

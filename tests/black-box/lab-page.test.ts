@@ -3,7 +3,7 @@
  * The /lab page: its route, its header link, the isolation its worker needs, and the dev server
  * that serves the runtime built on this machine.
  */
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough } from 'node:stream';
@@ -291,14 +291,26 @@ describe('BB-LAB-65: The dev server serves the local runtime build and isolates 
     const compiler = compilerDir();
     expect(devManifest(dir, compiler)).toBeNull();
     writeFileSync(join(dir, 'lab-headers.json'), '{"include/GL/gl.h":""}');
+    const modified = expect.any(Number);
     expect(devManifest(dir, compiler)).toEqual({
       files: [
-        { name: 'bundle.js', bytes: 10, stored: 10 },
-        { name: 'llvm-resources.tar', bytes: 3, stored: 3 },
-        { name: 'llvm.core.wasm', bytes: 5, stored: 5 },
-        { name: 'lab-headers.json', bytes: 22, stored: 22 },
+        { name: 'bundle.js', bytes: 10, stored: 10, modified },
+        { name: 'llvm-resources.tar', bytes: 3, stored: 3, modified },
+        { name: 'llvm.core.wasm', bytes: 5, stored: 5, modified },
+        { name: 'lab-headers.json', bytes: 22, stored: 22, modified },
       ],
     });
+  });
+
+  it('gives each file the time it last changed, so a rebuilt file of the same size is noticed', () => {
+    const dir = runtimeDir();
+    const compiler = compilerDir();
+    const pack = join(dir, 'lab-headers.json');
+    writeFileSync(pack, '{"include/GL/gl.h":""}');
+    utimesSync(pack, new Date(1_000_000), new Date(1_000_000));
+    expect(devManifest(dir, compiler)?.files.at(-1)?.modified).toBe(1_000_000);
+    utimesSync(pack, new Date(2_000_000), new Date(2_000_000));
+    expect(devManifest(dir, compiler)?.files.at(-1)?.modified).toBe(2_000_000);
   });
 
   it('serves the manifest at /lab-runtime/dev/compiler-manifest.json', async () => {

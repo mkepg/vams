@@ -134,12 +134,16 @@ tests/
 │   ├── lab-page.test.ts                  (BB-LAB-32 to 36, 59 and 65: the /lab
 │   │                                        route, its header link, isolation
 │   │                                        and the dev server)
-│   ├── lab-editor.test.ts                (BB-LAB-37 to 42 and 66 to 70: the
-│   │                                        code editor, the compile client and
-│   │                                        the log)
-│   ├── lab-workspace.test.ts             (BB-LAB-43 to 51 and 71 to 77: the
-│   │                                        workspace, the stage and the
-│   │                                        program's window)
+│   ├── lab-editor.test.ts                (BB-LAB-37 to 42, 66 to 70, 93, 96 to
+│   │                                        98 and 102 to 105: the code editor,
+│   │                                        the compile client, the compiler's
+│   │                                        cache and the log)
+│   ├── lab-compiler-worker.test.ts       (BB-LAB-106 and 107: the compiler
+│   │                                        worker's messages, and its entry
+│   │                                        point run from its own cache)
+│   ├── lab-workspace.test.ts             (BB-LAB-43 to 51, 71 to 77, 94, 95 and
+│   │                                        101: the workspace, the stage, the
+│   │                                        program's window and the top bar)
 │   ├── lab-shared-layout.test.ts         (BB-LAB-61 to 64: the rings the page
 │   │                                        and the program's worker share)
 │   ├── lab-files.test.ts                 (BB-LAB-52 to 57, 78 to 86 and 88 to 91:

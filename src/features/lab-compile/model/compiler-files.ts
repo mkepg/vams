@@ -16,7 +16,12 @@ export interface ManifestFile {
   name: string;
   bytes: number;
   stored: number;
+  /** The dev server's only: when the file last changed, so an edit of the same size is noticed. */
+  modified?: number;
 }
+
+/** The version the dev server serves from the local build. Its files change; a published version's never do. */
+export const DEV_VERSION = 'dev';
 
 export interface Manifest {
   files: ManifestFile[];
@@ -161,9 +166,10 @@ export interface FillOptions {
 }
 
 /**
- * Fetches each file the cache lacks and keeps it, calling `progress` with the unpacked bytes
- * received so far and the total. The first report already counts the files the cache holds, so
- * a cache that holds them all reports the total at once, and the page never shows a download.
+ * Fetches each file the cache lacks and keeps it, calling `progress` with the bytes received so
+ * far and the total, both as stored. The first report already counts the files the cache holds,
+ * so a cache that holds them all reports the total at once, and the page never shows a download.
+ * The dev version's manifest is fetched every time, and a file whose entry changed is fetched again.
  */
 export async function fillCompilerCache(
   cache: CacheLike,
@@ -174,19 +180,31 @@ export async function fillCompilerCache(
 ): Promise<Manifest> {
   const idleMs = options.idleMs ?? COMPILER_IDLE_MS;
   const base = runtimeBase(version);
-  let manifest: Manifest | null = null;
-  const held = await cache.match(base + MANIFEST);
-  if (held) manifest = readManifest(await held.json().catch(() => null));
-  if (!manifest) {
-    const res = await fetchOk(fetchFn, base + MANIFEST, idleMs);
-    manifest = readManifest(await res.json().catch(() => null));
-    if (!manifest) throw new DownloadError('The compiler manifest is not readable.');
+  const heldResponse = await cache.match(base + MANIFEST);
+  const held = heldResponse ? readManifest(await heldResponse.json().catch(() => null)) : null;
+  let manifest = held;
+  // The dev runtime's files change as it is rebuilt, so its manifest is always asked for again.
+  if (!manifest || version === DEV_VERSION) {
+    let fresh: Manifest | null = null;
+    try {
+      const res = await fetchOk(fetchFn, base + MANIFEST, idleMs);
+      fresh = readManifest(await res.json().catch(() => null));
+    } catch (error) {
+      if (!held) throw error;
+    }
+    manifest = fresh ?? held;
   }
-  const total = manifest.files.reduce((n, f) => n + f.bytes, 0);
+  if (!manifest) throw new DownloadError('The compiler manifest is not readable.');
+  // A published version's files never change, so any file the cache holds is kept, even from a
+  // download cut short. A dev file is kept only while its entry is the one the cache was filled from.
+  const unchanged = new Set((held?.files ?? []).map((f) => JSON.stringify(f)));
+  const current = (f: ManifestFile) => version !== DEV_VERSION || unchanged.has(JSON.stringify(f));
+  // Progress counts bytes as stored: what each file costs to fetch, not what it unpacks to.
+  const total = manifest.files.reduce((n, f) => n + f.stored, 0);
   const missing: ManifestFile[] = [];
   let received = 0;
   for (const f of manifest.files) {
-    if (await cache.match(base + f.name)) received += f.bytes;
+    if (current(f) && (await cache.match(base + f.name))) received += f.stored;
     else missing.push(f);
   }
   progress(received, total);
@@ -205,10 +223,12 @@ export async function fillCompilerCache(
       if (read.done) break;
       chunks.push(read.value);
       size += read.value.length;
-      received += read.value.length;
-      progress(Math.min(received, total), total);
+      // The browser unpacks as it reads, so the part of the stored size is the part of the unpacked one.
+      const part = f.bytes > 0 ? Math.round((f.stored * Math.min(size, f.bytes)) / f.bytes) : f.stored;
+      progress(received + part, total);
     }
     if (size !== f.bytes) throw new DownloadError(`${f.name} arrived with ${size} bytes, not ${f.bytes}`);
+    received += f.stored;
     await cache.put(base + f.name, new Response(new Blob(chunks as BlobPart[]), { headers: { 'content-type': typeOf(f.name) } }));
   }
   // The manifest goes in last: a cache that holds it holds every file it lists.
@@ -230,9 +250,22 @@ export function cachedFetch(cache: CacheLike, version: string, fetchFn: typeof f
   }) as typeof fetch;
 }
 
-/** The headers pack, a map of paths under /lab to text, as a file tree. */
+/**
+ * The compiler's entry point, made to run from a blob URL: each `import.meta.url` becomes the
+ * address it was fetched from, so the files it fetches beside itself are still found there, and
+ * answered from the compiler's cache.
+ */
+export function localBundle(text: string, url: string): string {
+  return text.replaceAll('import.meta.url', JSON.stringify(url));
+}
+
+/**
+ * The headers pack, a map of paths under /lab to text, as a file tree. Each file is encoded to
+ * UTF-8 once, here, rather than by the compiler on every compile.
+ */
 export function headersTree(pack: Record<string, string>): FileTree {
   const root: FileTree = {};
+  const encoder = new TextEncoder();
   for (const [path, text] of Object.entries(pack)) {
     const parts = path.split('/');
     let dir = root;
@@ -242,7 +275,7 @@ export function headersTree(pack: Record<string, string>): FileTree {
       else if (typeof next === 'object' && !(next instanceof Uint8Array)) dir = next;
       else throw new Error(`${path} runs through a file`);
     }
-    dir[parts[parts.length - 1]] = text;
+    dir[parts[parts.length - 1]] = encoder.encode(text);
   }
   return root;
 }
