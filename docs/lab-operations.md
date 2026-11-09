@@ -122,7 +122,8 @@ Firefox gets one manual smoke run on the live site before the Lab goes on: downl
 
 | Date | Browser | Result |
 | --- | --- | --- |
-| | Firefox | pending |
+| 9 Nov 2026 | Chrome, Windows 11 | The live build's preview deployment, runtime `4.0.10-76e5dc0b`. Opening `/lab` fetched nothing of the compiler. Download now took 5 s. Jeepney street compiled and ran in about 2 s. After a reload, Run went straight to Compiling. |
+| 9 Nov 2026 | Firefox 155, Windows 11 | The same deployment. The page is cross-origin isolated. Download now took 7 s. Solar system compiled and ran in 1.4 s, with no console errors. |
 
 ## Where the browser's compile differs from the service's
 
