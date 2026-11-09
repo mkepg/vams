@@ -52,6 +52,7 @@ const FILES = [...labSources(), ...serviceAndRuntime()].sort();
 const CODE_NAMES: Record<string, string[]> = {
   // The C++17 header <future>, in the list of standard headers a program may include.
   'lab/service/src/includes.ts': ['future'],
+  'src/features/lab-compile/model/includes.ts': ['future'],
 };
 
 function messagesIn(file: string): Prose[] {
