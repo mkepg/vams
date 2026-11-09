@@ -126,6 +126,7 @@ function lab(framebufferBytes?: number, screen?: { width: number; height: number
       if (action) return action();
       if (!Number.isFinite(timeout)) throw new Error('the runtime would wait for ever');
       page.clock += timeout;
+      if (refreshMs) Atomics.store(pageViews.control, CONTROL.TICK, Math.floor(page.clock / refreshMs));
     },
   };
   const io = new ConsoleIO(worker, host);
@@ -890,15 +891,14 @@ describe('BB-LAB-60: The worker always tells the page how the program ended', ()
 });
 
 describe('BB-LAB-100: A program keeps one frame a page refresh however long its frames take to draw, as the editor’s Run does', () => {
-  const REFRESH = 16;
-
   /**
    * An idle animation of `steps` steps in a 40 × 10 window: step n fills column n. Drawing a frame
-   * the page is shown costs `drawMs` of the clock, and the page counts its refreshes as they pass.
+   * the page is shown costs `drawMs` of the clock, and the page refreshes every `refresh` ms,
+   * counting its refreshes as they pass. At step `sleepAt` the program calls Sleep(1000).
    */
-  function animate(drawMs: number, clears: boolean, steps = 39, stallAt = -1) {
-    const { page, glut } = lab(undefined, undefined, REFRESH);
-    const tick = () => Atomics.store(page.views.control, CONTROL.TICK, Math.floor(page.clock / REFRESH));
+  function animate({ drawMs, clears = true, refresh = 16, steps = 39, sleepAt = -1 }: { drawMs: number; clears?: boolean; refresh?: number; steps?: number; sleepAt?: number }) {
+    const { page, glut, io } = lab(undefined, undefined, refresh);
+    const tick = () => Atomics.store(page.views.control, CONTROL.TICK, Math.floor(page.clock / refresh));
     openWindow(glut, 40, 10);
     // Whether the runtime is running this frame only to catch up, so its drawing costs nothing.
     const catchingUp = () => (glut as unknown as { catchingUp: boolean }).catchingUp;
@@ -919,9 +919,9 @@ describe('BB-LAB-100: A program keeps one frame a page refresh however long its 
       glut.swapBuffers();
     });
     glut.idleFunc(() => {
-      if (step === stallAt) {
-        page.clock += 1000;
-        tick();
+      if (step === sleepAt) {
+        kinds.push('sleep');
+        io.sleep(1000);
       }
       if (++step >= steps) glut.leaveMainLoop();
       glut.postRedisplay();
@@ -933,17 +933,17 @@ describe('BB-LAB-100: A program keeps one frame a page refresh however long its 
   }
 
   it('a frame quicker than a refresh is drawn every refresh', () => {
-    const run = animate(0, true);
+    const run = animate({ drawMs: 0 });
     expect(run.kinds.every((k) => k === 'drawn')).toBe(true);
     expect(run.frames).toBe(39);
-    expect(run.clock).toBeLessThanOrEqual(40 * REFRESH);
+    expect(run.clock).toBeLessThanOrEqual(40 * 16);
   });
 
   it('a frame that takes 2½ refreshes to draw still moves one step a refresh, and the page sees every third step or so', () => {
-    const run = animate(40, true);
+    const run = animate({ drawMs: 40 });
     // As many refreshes as steps, give or take the last frame's drawing and showing it. Drawing
     // every frame would take three times as long.
-    expect(run.clock).toBeLessThanOrEqual(39 * REFRESH + 40 + 2 * REFRESH);
+    expect(run.clock).toBeLessThanOrEqual(39 * 16 + 40 + 2 * 16);
     expect(run.frames).toBeGreaterThanOrEqual(10);
     expect(run.frames).toBeLessThanOrEqual(16);
     // Each frame shown is its step's own: one column, further right each time.
@@ -953,21 +953,24 @@ describe('BB-LAB-100: A program keeps one frame a page refresh however long its 
     expect(new Set(shown).size).toBe(shown.length);
   });
 
+  it('on a 144 Hz display, with frames 11 refreshes long, it still moves one step a refresh', () => {
+    const run = animate({ drawMs: 80, refresh: 7 });
+    // Give or take a last drawn frame and showing the end; drawing every frame would take 39 × 87 ms.
+    expect(run.clock).toBeLessThanOrEqual(39 * 7 + 2 * (80 + 7));
+    expect(run.kinds.filter((k) => k === 'drawn').length).toBeLessThanOrEqual(6);
+  });
+
   it('a program that draws over its last frame without clearing shows every step it has run, held or drawn', () => {
-    const run = animate(40, false);
+    const run = animate({ drawMs: 40, clears: false });
     expect(run.kinds.filter((k) => k === 'held').length).toBeGreaterThan(15);
     for (const columns of run.lit) expect(columns).toEqual(Array.from({ length: columns.length }, (_, x) => x));
     expect(run.lit.at(-1)).toHaveLength(39);
   });
 
-  it('after a stall of a second it carries on from there, without running a second of frames unseen', () => {
-    const run = animate(0, true, 39, 10);
-    let longest = 0;
-    let held = 0;
-    for (const k of run.kinds) {
-      held = k === 'held' ? held + 1 : 0;
-      longest = Math.max(longest, held);
-    }
-    expect(longest).toBeLessThanOrEqual(MAX_FRAMES_BEHIND);
+  it('after a Sleep it carries on from there, rather than running the slept time’s frames unseen', () => {
+    const run = animate({ drawMs: 0, sleepAt: 10 });
+    const after = run.kinds.slice(run.kinds.indexOf('sleep') + 1);
+    expect(after.filter((k) => k === 'held').length).toBeLessThanOrEqual(1);
+    expect(MAX_FRAMES_BEHIND).toBeGreaterThanOrEqual(120);
   });
 });
