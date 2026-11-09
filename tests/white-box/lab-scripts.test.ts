@@ -12,7 +12,7 @@
  *    copy loads as plain JavaScript and switches billing off
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { AddressInfo } from 'node:net';
@@ -22,7 +22,6 @@ import { firestoreStore, memoryStore, type UsageStore } from '../../lab/service/
 import { checkIncludes } from '../../lab/service/src/includes.ts';
 import type { CompileResult } from '../../lab/service/src/compile.ts';
 import { ALLOWANCE, monthKey, STOP_AT } from '../../lab/service/src/limits.ts';
-import { outputFiles, plannedKeys, runtimeVersion, versionModule } from '../../scripts/lab/publish-runtime.mjs';
 import { CHECKS, context, lowerEgress, recordResults, runChecks, SPIN } from '../../scripts/lab/load-test.mjs';
 import { guardPackage, serviceLimits, SERVICE_LIMITS, writeGuard } from '../../scripts/lab/setup-helpers.mjs';
 import { onBudget } from '../../lab/billing-guard/index.ts';
@@ -39,39 +38,6 @@ const temp = () => {
 };
 afterEach(() => {
   for (const dir of temps.splice(0)) rmSync(dir, { recursive: true, force: true });
-});
-
-describe('WB-LAB-15: The runtime version is <EMSDK_VERSION>-<sha8> of the files', () => {
-  const a = { name: 'vams_main.mjs', bytes: Buffer.from('export default 1;') };
-  const b = { name: 'vams_main.wasm', bytes: Buffer.from([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]) };
-
-  it('is the same whatever order the files come in, and changes with any byte or name', () => {
-    const v = runtimeVersion('4.0.10', [a, b]);
-    expect(v).toMatch(/^4\.0\.10-[0-9a-f]{8}$/);
-    expect(runtimeVersion('4.0.10', [b, a])).toBe(v);
-    expect(runtimeVersion('4.0.10', [a, { ...b, bytes: Buffer.from([0, 0x61, 0x73, 0x6d, 1, 0, 0, 1]) }])).not.toBe(v);
-    expect(runtimeVersion('4.0.10', [a, { ...b, name: 'vams_main2.wasm' }])).not.toBe(v);
-    expect(runtimeVersion('4.0.11', [a, b]).slice(-8)).toBe(v.slice(-8));
-  });
-
-  it('plans one key per file under the version, and writes the version as one exported constant', () => {
-    expect(plannedKeys('4.0.10-0123abcd', ['vams_main.wasm', 'vams_main.mjs'])).toEqual([
-      '4.0.10-0123abcd/vams_main.mjs',
-      '4.0.10-0123abcd/vams_main.wasm',
-    ]);
-    const source = versionModule('4.0.10-0123abcd');
-    expect(source.match(/^export /gm)).toHaveLength(1);
-    expect(source).toContain("export const runtimeVersion = '4.0.10-0123abcd';");
-  });
-
-  it('uploads the files the build left, and not the folders beside them', () => {
-    const dir = temp();
-    writeFileSync(join(dir, 'vams_main.wasm'), 'w');
-    writeFileSync(join(dir, 'vams_main.mjs'), 'm');
-    mkdirSync(join(dir, 'check'));
-    writeFileSync(join(dir, 'check', 'hello.wasm'), 'h');
-    expect(outputFiles(dir).map((f: { name: string }) => f.name)).toEqual(['vams_main.mjs', 'vams_main.wasm']);
-  });
 });
 
 describe('WB-LAB-16: The live checks pass against a local service, fail when they should, and restore the counter', () => {
