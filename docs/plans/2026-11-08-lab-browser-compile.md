@@ -12,8 +12,8 @@
 
 - Student-facing text is British English and never says "coming soon", "not yet", "future", "deferred", "unsupported", "not supported", "3D" or "lighting".
 - These strings are used exactly as written:
-  - Notice: `Run uses a compiler that downloads once (about 22 MB).` with the button `Download now`.
-  - Progress: `Downloading the compiler… <n> of 22 MB`.
+  - Notice: `Run uses a compiler that downloads once (about 18 MB).` with the button `Download now`.
+  - Progress: `Downloading the compiler… <n> of 18 MB`.
   - Download failure: `The compiler couldn't download. Your code is saved in this browser. Try Run again.`
   - Offline: `Run needs the internet the first time, to download the compiler. Your code is saved in this browser.`
   - Time limit: `The compile took longer than 30 seconds, so it was stopped.`

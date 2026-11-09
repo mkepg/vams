@@ -1,27 +1,23 @@
 /**
  * VISUAL TEST SUITE — VIS-LAB (the Lab's look)
  * Screenshot checks for /lab with the template program running, at 1280 and 390 px, in both
- * themes. The template compiles through the compile service's image, so the checks need Docker:
- * LAB_DOCKER=1 npm run test:visual -- lab.spec lab-drawing. Without it they skip. Not part of `npm test`.
+ * themes. The template compiles with the real compiler in the page, against the local runtime build:
+ * LAB_RUNTIME_LOCAL=1 npm run test:visual -- lab.spec lab-drawing lab-compiler. Without it they skip.
+ * Not part of `npm test`.
  */
 import { expect, test, type Page } from '@playwright/test';
-import { LAB_DOCKER, openLab, routeLab, runProgram, startCompileService, type CompileService, type Theme } from './helpers/lab';
+import { LAB_RUNTIME_LOCAL, openLab, requireRuntime, routeLab, runProgram, type Theme } from './helpers/lab';
 
 test.describe('VIS-LAB: the Lab with the template running', () => {
-  test.skip(!LAB_DOCKER, 'Needs Docker: LAB_DOCKER=1');
-  // Each check compiles; the first may also build the image.
+  test.skip(!LAB_RUNTIME_LOCAL, 'Needs the local runtime build: LAB_RUNTIME_LOCAL=1');
+  // Each check downloads the compiler into a fresh browser, then compiles.
   test.describe.configure({ timeout: 120_000 });
   test.use({ serviceWorkers: 'block' });
 
-  let service: CompileService;
-  test.beforeAll(async () => {
-    test.setTimeout(900_000);
-    service = await startCompileService();
-  });
-  test.afterAll(() => service?.stop());
+  test.beforeAll(() => requireRuntime());
 
   async function running(page: Page, theme: Theme) {
-    await routeLab(page.context(), service);
+    await routeLab(page.context());
     await openLab(page, theme);
     await runProgram(page);
     await expect(page.locator('.lab-top-bar__status')).toContainText('Running');
@@ -58,15 +54,10 @@ test.describe('VIS-LAB: the Lab with the template running', () => {
 });
 
 test.describe("VIS-LAB: the Lab's Share dialog", () => {
-  test.skip(!LAB_DOCKER, 'Needs Docker: LAB_DOCKER=1');
+  test.skip(!LAB_RUNTIME_LOCAL, 'Needs the local runtime build: LAB_RUNTIME_LOCAL=1');
   test.use({ serviceWorkers: 'block' });
 
-  let service: CompileService;
-  test.beforeAll(async () => {
-    test.setTimeout(900_000);
-    service = await startCompileService();
-  });
-  test.afterAll(() => service?.stop());
+  test.beforeAll(() => requireRuntime());
 
   for (const theme of ['light', 'dark'] as const) {
     test(`VIS-LAB-06: Share dialog, ${theme}, 1280`, async ({ page }) => {
@@ -74,7 +65,7 @@ test.describe("VIS-LAB: the Lab's Share dialog", () => {
       await page.route('**/api/share', (route) =>
         route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ id: 'k3x9q2Ab', expiresAt: '2027-01-14T00:00:00.000Z' }) }),
       );
-      await routeLab(page.context(), service);
+      await routeLab(page.context());
       await openLab(page, theme);
       await page.getByRole('button', { name: 'Share' }).click();
       await expect(page.getByRole('textbox', { name: 'Link' })).toHaveValue(/\/s\/k3x9q2Ab$/);

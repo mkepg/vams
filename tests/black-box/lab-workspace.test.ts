@@ -781,8 +781,8 @@ describe('BB-LAB-94: The notice offers the compiler, shows its download, and goe
     const host = mount(undefined, download);
     await flush();
     expect(useCompiler.getState().state).toBe('absent');
-    expect(notice(host)!.textContent).toContain('Run uses a compiler that downloads once (about 22 MB).');
-    expect(LAB_MESSAGES.notice).toBe('Run uses a compiler that downloads once (about 22 MB).');
+    expect(notice(host)!.textContent).toContain('Run uses a compiler that downloads once (about 18 MB).');
+    expect(LAB_MESSAGES.notice).toBe('Run uses a compiler that downloads once (about 18 MB).');
     await act(() => button(host, 'Download now')!.click());
     expect(download).toHaveBeenCalledTimes(1);
   });
@@ -798,9 +798,9 @@ describe('BB-LAB-94: The notice offers the compiler, shows its download, and goe
     expect(notice(again)).toBeNull();
     await act(() => useCompiler.setState({ state: 'downloading', received: 30, total: 60 }));
     const bar = again.querySelector('.compiler-notice [role="progressbar"]')!;
-    expect(bar.getAttribute('aria-valuenow')).toBe('11');
-    expect(bar.getAttribute('aria-valuemax')).toBe('22');
-    expect(notice(again)!.textContent).toContain('Downloading the compiler… 11 of 22 MB');
+    expect(bar.getAttribute('aria-valuenow')).toBe('9');
+    expect(bar.getAttribute('aria-valuemax')).toBe('18');
+    expect(notice(again)!.textContent).toContain('Downloading the compiler… 9 of 18 MB');
   });
 
   it('offers the download again after a failed one, and shows nothing once the compiler is here', async () => {

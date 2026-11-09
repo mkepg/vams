@@ -115,7 +115,7 @@ describe('WB-LAB-25: The compiler is stored compressed, listed in its manifest, 
   });
 
   it('reads the notice’s megabytes from messages.ts', () => {
-    expect(noticeMegabytes(readFileSync('src/features/lab-compile/model/messages.ts', 'utf8'))).toBe(22);
+    expect(noticeMegabytes(readFileSync('src/features/lab-compile/model/messages.ts', 'utf8'))).toBe(18);
     expect(() => noticeMegabytes('export const OTHER = 1;')).toThrow();
   });
 });

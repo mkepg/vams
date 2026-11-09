@@ -1,7 +1,7 @@
 import type { CompileResult } from './compiler';
 
 /** The compiler download's size as stored, in the notice. scripts/lab/publish-runtime.mjs refuses a runtime whose total rounds to another number. */
-export const COMPILER_DOWNLOAD_MB = 22;
+export const COMPILER_DOWNLOAD_MB = 18;
 
 /** What the page says about the compiler, and when Run cannot go ahead. Worded by the Lab spec. */
 export const LAB_MESSAGES = {

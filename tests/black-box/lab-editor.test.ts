@@ -148,7 +148,7 @@ describe('BB-LAB-38: Run downloads the compiler once, and a second Run waits for
     expect(workers[0].sent).toEqual([{ type: 'prepare', version: 'v1' }]);
     workers[0].reply({ type: 'progress', received: 50, total: 100 });
     expect(useCompiler.getState()).toMatchObject({ state: 'downloading', received: 50, total: 100 });
-    expect(downloadingMessage(50, 100)).toBe('Downloading the compiler… 11 of 22 MB');
+    expect(downloadingMessage(50, 100)).toBe('Downloading the compiler… 9 of 18 MB');
     workers[0].reply({ type: 'ready' });
     await flush();
     expect(useCompiler.getState().state).toBe('ready');

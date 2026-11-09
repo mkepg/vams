@@ -1,12 +1,12 @@
 /**
  * VISUAL TEST SUITE — VIS-LAB (the Lab's drawing)
  * VIS-LAB-05: every program of the Lab's reference battery, opened in the Lab as a .zip with the
- * images it loads, compiled through the compile service's image and run, draws its first frame
+ * images it loads, compiled by the compiler in the page and run, draws its first frame
  * as FreeGLUT draws it on the course toolchain. The frame is the one the page took from the
  * shared framebuffer, compared by the battery's rule (tests/helpers/image-compare.ts) with
  * tests/fixtures/lab/reference/<program>.png.
  *
- * Needs Docker: LAB_DOCKER=1 npm run test:visual -- lab.spec lab-drawing. Without it the checks skip. A failure
+ * Needs the local runtime build: LAB_RUNTIME_LOCAL=1 npm run test:visual -- lab-drawing. Without it the checks skip. A failure
  * writes the frame and a diff image to tests/visual/results.local/lab-drawing/.
  */
 import { expect, test } from '@playwright/test';
@@ -14,7 +14,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { zipSync } from 'fflate';
 import { compareImages, decodePng, encodePng, type Image } from '../helpers/image-compare';
-import { firstFrame, LAB_DOCKER, openLab, routeLab, runProgram, startCompileService, type CompileService } from './helpers/lab';
+import { firstFrame, LAB_RUNTIME_LOCAL, openLab, requireRuntime, routeLab, runProgram } from './helpers/lab';
 
 const PROGRAMS = resolve('tests/fixtures/lab/programs');
 const REFERENCES = resolve('tests/fixtures/lab/reference');
@@ -49,20 +49,15 @@ function diffImage(actual: Image, reference: Image): Image {
 }
 
 test.describe('VIS-LAB-05: Each battery program draws in the Lab as FreeGLUT draws it', () => {
-  test.skip(!LAB_DOCKER, 'Needs Docker: LAB_DOCKER=1');
+  test.skip(!LAB_RUNTIME_LOCAL, 'Needs the local runtime build: LAB_RUNTIME_LOCAL=1');
   test.describe.configure({ timeout: 120_000 });
   test.use({ serviceWorkers: 'block' });
 
-  let service: CompileService;
-  test.beforeAll(async () => {
-    test.setTimeout(900_000);
-    service = await startCompileService();
-  });
-  test.afterAll(() => service?.stop());
+  test.beforeAll(() => requireRuntime());
 
   for (const name of Object.keys(MANIFEST.programs).sort()) {
     test(`VIS-LAB-05: ${name}`, async ({ page }) => {
-      await routeLab(page.context(), service);
+      await routeLab(page.context());
       await openLab(page, 'light');
       const chooser = page.waitForEvent('filechooser');
       await page.getByRole('button', { name: 'Open', exact: true }).click();
