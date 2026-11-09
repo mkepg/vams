@@ -30,25 +30,6 @@
   }
 }
 
-/* A word set beside the wordmark as one lockup, such as the Lab's "LAB": the same face and lean,
-   most of VAMS's size so it stays readable, white on the same cyan depth. A thinner outline keeps
-   the white strokes open at this size. */
-.vams-logo-suffix {
-  display: inline-block;
-  height: 1em;
-  font-family: var(--font-logo);
-  font-size: 1.5em;
-  font-style: italic;
-  font-weight: normal;
-  line-height: 1;
-  letter-spacing: 0.1em;
-  white-space: nowrap;
-  color: var(--chrome-ink);
-  -webkit-text-stroke: 1px var(--logo-stroke);
-  paint-order: stroke fill;
-  text-shadow: 2px 2px 0 var(--logo-depth);
-}
-
 /* On light paper the wordmark sits on an ink plate, the bar's colour and lip, so it always
    appears on ink. Dark pages need no plate. */
 :root:not([data-theme='dark']) .vams-logo--plate {

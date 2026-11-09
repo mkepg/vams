@@ -22,6 +22,34 @@ interface LabTopBarProps extends LabFileActions {
   onRun: () => void;
 }
 
+/**
+ * "LAB" drawn on a pixel grid, one string per row and X for a pixel, to stand beside the pixel
+ * wordmark. The font's own B closes its bowls at this size; these leave each a two-pixel hole.
+ */
+const LAB_PIXELS = [
+  'XX.......XXXX...XXXXX.',
+  'XX......XX..XX..XX..XX',
+  'XX......XX..XX..XX..XX',
+  'XX......XXXXXX..XXXXX.',
+  'XX......XX..XX..XX..XX',
+  'XXXXXX..XX..XX..XX..XX',
+  'XXXXXX..XX..XX..XXXXX.',
+];
+
+/** The pixels of LAB_PIXELS as one path of unit squares, row by row, runs merged. */
+const LAB_PATH = LAB_PIXELS.flatMap((row, y) =>
+  [...row.matchAll(/X+/g)].map((run) => `M${run.index} ${y}h${run[0].length}v1h-${run[0].length}z`),
+).join('');
+
+function PixelWord() {
+  return (
+    <svg className="lab-top-bar__word" viewBox={`0 0 ${LAB_PIXELS[0].length} ${LAB_PIXELS.length}`} aria-hidden="true" focusable="false">
+      <path className="lab-top-bar__word-depth" d={LAB_PATH} transform="translate(0.45 0.45)" />
+      <path className="lab-top-bar__word-face" d={LAB_PATH} />
+    </svg>
+  );
+}
+
 const ACTIONS: { key: Exclude<keyof LabFileActions, 'examples'>; label: string }[] = [
   { key: 'onNew', label: 'New' },
   { key: 'onOpen', label: 'Open' },
@@ -30,7 +58,7 @@ const ACTIONS: { key: Exclude<keyof LabFileActions, 'examples'>; label: string }
 ];
 
 /**
- * The VAMS LAB lockup and its Experimental tag, the file with Run's state in a chip, the file
+ * The wordmark with "LAB" in pixels beside it, and the Experimental tag; the file with Run's state in a chip, the file
  * actions as one group, and ▶ Run on its own at the end.
  */
 export default function LabTopBar({ file, phase, onRun, examples, ...actions }: LabTopBarProps) {
@@ -41,9 +69,7 @@ export default function LabTopBar({ file, phase, onRun, examples, ...actions }: 
           <Logo />
         </a>
         <h1 className="lab-top-bar__name">
-          <span className="lab-top-bar__word vams-logo-suffix" aria-hidden="true">
-            LAB
-          </span>
+          <PixelWord />
           <span className="lab-top-bar__hidden">Lab</span>
         </h1>
         <span className="lab-top-bar__tag">Experimental</span>
