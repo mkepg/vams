@@ -4,18 +4,20 @@
  * On `compile` it runs one compile, one at a time. The page terminates it to stop a compile.
  *
  * @yowasp/clang reads `globalThis.fetch` once, when its bundle loads, so the cached fetch is put
- * in place before the bundle is imported.
+ * in place before the bundle is imported. A browser that can't keep the files in Cache Storage
+ * keeps them in this worker's memory instead (openCompilerCache).
  */
 import { compileWith, type CompileTools, type FileTree, type Tool } from '../model/compile';
 import {
   cachedFetch,
   COMPILER_ENTRY,
-  compilerCacheName,
   DownloadError,
   fillCompilerCache,
   HEADERS_PACK,
   headersTree,
+  openCompilerCache,
   runtimeBase,
+  type CachesLike,
 } from '../model/compiler-files';
 import type { CompilerReply, CompilerRequest } from '../model/compiler-protocol';
 
@@ -47,7 +49,7 @@ function tool(run: Run): Tool {
 }
 
 async function prepare(version: string, post: Scope['postMessage']): Promise<{ tools: CompileTools; headers: FileTree }> {
-  const cache = await caches.open(compilerCacheName(version));
+  const cache = await openCompilerCache(typeof caches === 'undefined' ? undefined : (caches as unknown as CachesLike), version);
   const network = globalThis.fetch.bind(globalThis);
   await fillCompilerCache(cache, version, network, (received, total) => post({ type: 'progress', received, total }));
   globalThis.fetch = cachedFetch(cache, version, network);

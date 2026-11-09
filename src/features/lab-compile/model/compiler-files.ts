@@ -39,8 +39,53 @@ export interface CachesLike {
   delete(name: string): Promise<boolean>;
 }
 
-/** Thrown when a file can't be fetched: no connection, or an answer other than 200. */
+/** Thrown when a file can't be fetched: no connection, an answer other than 200, or a download that stalls. */
 export class DownloadError extends Error {}
+
+/** How long the download waits for an answer, and for each piece of a file, before it gives up. */
+export const COMPILER_IDLE_MS = 30_000;
+
+/** A cache held in this worker's memory: each match is a fresh answer from the same bytes. */
+function memoryCache(): CacheLike {
+  const files = new Map<string, { body: Blob; type: string }>();
+  return {
+    match: async (request) => {
+      const held = files.get(request);
+      return held ? new Response(held.body, { headers: { 'content-type': held.type } }) : undefined;
+    },
+    put: async (request, response) => {
+      files.set(request, { body: await response.blob(), type: response.headers.get('content-type') ?? 'application/octet-stream' });
+    },
+  };
+}
+
+/**
+ * The version's compiler cache. A browser with no Cache Storage, one that won't open it, or one
+ * whose quota refuses a file still gets the compiler: what the cache can't keep is kept in
+ * memory, for as long as the compiler worker lives, and the next visit downloads it again.
+ */
+export async function openCompilerCache(cachesApi: CachesLike | undefined, version: string): Promise<CacheLike> {
+  const memory = memoryCache();
+  let stored: CacheLike | null = null;
+  try {
+    stored = cachesApi ? await cachesApi.open(compilerCacheName(version)) : null;
+  } catch {
+    stored = null;
+  }
+  if (!stored) return memory;
+  const cache = stored;
+  return {
+    match: async (request) => (await memory.match(request)) ?? (await cache.match(request).catch(() => undefined)),
+    put: async (request, response) => {
+      const copy = response.clone();
+      try {
+        await cache.put(request, response);
+      } catch {
+        await memory.put(request, copy);
+      }
+    },
+  };
+}
 
 /** The manifest, if it is well formed. */
 export function readManifest(value: unknown): Manifest | null {
@@ -85,53 +130,75 @@ const TYPES: Record<string, string> = {
 };
 const typeOf = (name: string) => TYPES[name.slice(name.lastIndexOf('.') + 1)] ?? 'application/octet-stream';
 
-async function fetchOk(fetchFn: typeof fetch, url: string): Promise<Response> {
+/** The promise, or a DownloadError with `message` when it takes longer than `ms`; `onTimeout` then cleans up. */
+function within<T>(promise: Promise<T>, ms: number, message: string, onTimeout: () => void): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      onTimeout();
+      reject(new DownloadError(message));
+    }, ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+async function fetchOk(fetchFn: typeof fetch, url: string, idleMs: number): Promise<Response> {
+  const abort = new AbortController();
   let res: Response;
   try {
-    res = await fetchFn(url);
-  } catch {
+    res = await within(fetchFn(url, { signal: abort.signal }), idleMs, `${url} didn't answer`, () => abort.abort());
+  } catch (error) {
+    if (error instanceof DownloadError) throw error;
     throw new DownloadError(`${url} couldn't be fetched`);
   }
   if (res.status !== 200 || !res.body) throw new DownloadError(`${url} answered ${res.status}`);
   return res;
 }
 
+export interface FillOptions {
+  /** How long to wait for an answer, and for each piece of a file. */
+  idleMs?: number;
+}
+
 /**
  * Fetches each file the cache lacks and keeps it, calling `progress` with the unpacked bytes
- * received so far (files already held count as received) and the total.
+ * received so far and the total. The first report already counts the files the cache holds, so
+ * a cache that holds them all reports the total at once, and the page never shows a download.
  */
 export async function fillCompilerCache(
   cache: CacheLike,
   version: string,
   fetchFn: typeof fetch,
   progress: (received: number, total: number) => void,
+  options: FillOptions = {},
 ): Promise<Manifest> {
+  const idleMs = options.idleMs ?? COMPILER_IDLE_MS;
   const base = runtimeBase(version);
   let manifest: Manifest | null = null;
   const held = await cache.match(base + MANIFEST);
   if (held) manifest = readManifest(await held.json().catch(() => null));
   if (!manifest) {
-    const res = await fetchOk(fetchFn, base + MANIFEST);
+    const res = await fetchOk(fetchFn, base + MANIFEST, idleMs);
     manifest = readManifest(await res.json().catch(() => null));
     if (!manifest) throw new DownloadError('The compiler manifest is not readable.');
   }
   const total = manifest.files.reduce((n, f) => n + f.bytes, 0);
+  const missing: ManifestFile[] = [];
   let received = 0;
-  progress(received, total);
   for (const f of manifest.files) {
-    if (await cache.match(base + f.name)) {
-      received += f.bytes;
-      progress(received, total);
-      continue;
-    }
-    const res = await fetchOk(fetchFn, base + f.name);
+    if (await cache.match(base + f.name)) received += f.bytes;
+    else missing.push(f);
+  }
+  progress(received, total);
+  for (const f of missing) {
+    const res = await fetchOk(fetchFn, base + f.name, idleMs);
     const reader = res.body!.getReader();
     const chunks: Uint8Array[] = [];
     let size = 0;
     for (;;) {
       let read: ReadableStreamReadResult<Uint8Array>;
       try {
-        read = await reader.read();
+        read = await within(reader.read(), idleMs, `${f.name} stopped downloading`, () => void reader.cancel().catch(() => {}));
       } catch {
         throw new DownloadError(`${f.name} stopped downloading`);
       }

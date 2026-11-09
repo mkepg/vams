@@ -8,6 +8,10 @@
  *  - VIS-LAB-08: a program can't run JavaScript: emscripten_run_script stops it on an error
  *  - VIS-LAB-09: every name the code generator emits compiles, and every rejected name gives
  *    the VAMS message on its own line
+ *  - VIS-LAB-10: a program that stores to IndexedDB through the main module's emscripten_idb_*
+ *    stops, and no database appears
+ *  - VIS-LAB-11: a program that starts a worker through emscripten_create_worker stops on an
+ *    error, and the worker's script never runs
  */
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -101,6 +105,65 @@ test.describe('VIS-LAB: the compiler in the page', () => {
     await runUntilDone(page);
     await expect(page.locator('.lab-top-bar__status')).toContainText('Stopped on an error');
     await expect(page.locator('.lab-top-bar__status')).not.toContainText('42');
+  });
+
+  test("VIS-LAB-10: A program can't reach the site's storage through the main module's IndexedDB functions", async ({ page }) => {
+    await routeLab(page.context());
+    await openLab(page, 'light');
+    const databases = () => page.evaluate(async () => (await indexedDB.databases()).map((d) => d.name));
+    expect(await databases()).not.toContain('vams-probe');
+    // The store opens the database the program names. Leaving main with the runtime alive hands
+    // the worker back to its event loop, where the open would finish.
+    await putProgram(
+      page,
+      [
+        'extern "C" {',
+        'void emscripten_idb_async_store(const char *db, const char *id, void *ptr, int num, void *arg, void (*onstore)(void *), void (*onerror)(void *));',
+        'void emscripten_exit_with_live_runtime(void);',
+        '}',
+        'static char data[4] = {1, 2, 3, 4};',
+        'static void done(void *) {}',
+        'int main() {',
+        '  emscripten_idb_async_store("vams-probe", "probe", data, 4, 0, done, done);',
+        '  emscripten_exit_with_live_runtime();',
+        '  return 0;',
+        '}',
+        '',
+      ].join('\n'),
+    );
+    await runUntilDone(page);
+    await expect(page.locator('.lab-top-bar__status')).toContainText('Stopped on an error');
+    await page.waitForTimeout(1500);
+    expect(await databases()).not.toContain('vams-probe');
+  });
+
+  test("VIS-LAB-11: A program can't start a worker of its own, which would run JavaScript", async ({ page }) => {
+    await routeLab(page.context());
+    const probes: string[] = [];
+    await page.context().route('**/vams-probe*', (route) => {
+      probes.push(route.request().url());
+      return route.fulfill({ status: 204 });
+    });
+    await openLab(page, 'light');
+    // The worker would run the data: URL's script and fetch the probe while the program waits.
+    await putProgram(
+      page,
+      [
+        '#include <time.h>',
+        'extern "C" int emscripten_create_worker(const char *url);',
+        'int main() {',
+        '  emscripten_create_worker("data:text/javascript,fetch(\'http://localhost:4319/vams-probe\')");',
+        '  clock_t end = clock() + 3 * CLOCKS_PER_SEC;',
+        '  while (clock() < end) {}',
+        '  return 0;',
+        '}',
+        '',
+      ].join('\n'),
+    );
+    await runUntilDone(page);
+    await page.waitForTimeout(1000);
+    expect(probes).toEqual([]);
+    await expect(page.locator('.lab-top-bar__status')).toContainText('Stopped on an error');
   });
 
   test('VIS-LAB-09: Every generator name compiles, and every rejected name gives the VAMS message on its line', async ({ page }) => {

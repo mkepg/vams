@@ -150,14 +150,14 @@ The site runs on [Cloudflare Pages](https://pages.cloudflare.com/), built from `
 
 ## Tests
 
-As of 9 Nov 2026, 2,534 tests across 77 files pass, and 12 more run only with the battery export check. The suite implements the verification programme in **Chapter 3, §3.10** of the manuscript, and each test carries a stable identifier of the form `{SUITE}-{MODULE}-{NN}` so results map back to the thesis tables.
+As of 9 Nov 2026, 2,552 tests across 78 files pass, and 12 more run only with the battery export check. The suite implements the verification programme in **Chapter 3, §3.10** of the manuscript, and each test carries a stable identifier of the form `{SUITE}-{MODULE}-{NN}` so results map back to the thesis tables.
 
 | Suite | Files | Maps to | Covers |
 | --- | --- | --- | --- |
 | `tests/black-box/` | 47 | Table 12 | Behaviour through the public store API and the rendered UI: primitives, transforms, hierarchy, code generation, C++ validity, the code panel, lessons and their rules, persistence, callbacks and Run, the program window, render fidelity, the site pages (Gallery, Guide, Teach included), sharing, and the Lab's page, files, editor and runtime. |
 | `tests/white-box/` | 23 | Table 13 | Internals: store slices, the matrix engine, scene-graph traversal, lesson internals, the callbacks runtime, bitmap text, British spelling in student text, the share payload and function, error handling, and the Lab's compile, runtime build, publish script and drawing battery. |
 | `tests/algorithm/` | 6 | §3.10.3 | The three core algorithms, checked against independent reference implementations, and the Lab's GL geometry, context and rasteriser. |
-| `tests/security/` | 1 | | The Lab's include check: includes, file probes and inline assembly are refused before clang runs. |
+| `tests/security/` | 2 | | The Lab's include check: includes, file probes and inline assembly are refused before clang runs; and the program's worker loses its storage, network and worker globals before main runs. |
 
 ```bash
 npm test                 # run everything

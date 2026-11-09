@@ -96,6 +96,7 @@ This was true before the change too. The main module is built with `-sMAIN_MODUL
 - `lab/runtime/build.sh` adds `-sDYNAMIC_EXECUTION=0` to the main module. Every evaluation path then aborts instead ("DYNAMIC_EXECUTION=0 was set, cannot eval"), and the program ends as a crash does.
 - A test checks the flag is in `build.sh`, and a visual Lab check runs a program that calls `emscripten_run_script` and sees it end without the script running.
 - The 21 battery programs pass VIS-LAB-05 against the rebuilt main module.
+- *(Added 2026-11-09, from the branch's review.)* `-sMAIN_MODULE=1` also exports the rest of Emscripten's JavaScript library, and a program can call it by name: `emscripten_create_worker` starts a worker from any URL, which runs a script of the program's own, and `emscripten_idb_*` and `emscripten_wget` reach IndexedDB and the network. The program's worker therefore takes away its storage, network and worker globals once the main module has loaded and before the program's main runs. VIS-LAB-10 and 11 run programs that try.
 
 ## Browsers and machines
 

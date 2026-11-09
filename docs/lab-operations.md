@@ -10,7 +10,7 @@ In short, a runtime version holds three things:
 - **The compiler:** clang and wasm-ld built for WebAssembly, from the pinned `@yowasp/clang`.
 - **The headers the compiler reads.**
 
-The Lab page downloads none of the compiler until Run or Download now asks for it. It then keeps the compiler in Cache Storage, so later visits download nothing. Nothing in the Lab costs money to run, and nothing counts compiles.
+The Lab page downloads none of the compiler until Run or Download now asks for it. It then keeps the compiler in Cache Storage, so later visits download nothing. A browser that can't keep it there (no Cache Storage, or a full quota) keeps it in the compiler worker's memory for the visit, and downloads it again on the next. A download that sends nothing for 30 seconds fails, and Run says so. Nothing in the Lab costs money to run, and nothing counts compiles.
 
 ## What exists where
 
@@ -55,6 +55,8 @@ The pack holds the sysroot's `include` folder, without its graphics, audio and b
 
 The main module is built with `-sDYNAMIC_EXECUTION=0`, so a program can't run JavaScript. Every path that would evaluate it aborts instead: `emscripten_run_script`, and the `EM_ASM` and `EM_JS` code a side module carries. VIS-LAB-08 checks this.
 
+The main module also exports every other function of Emscripten's JavaScript library, and a program can declare any of them and call it. Some reach past the program: `emscripten_idb_*` open IndexedDB, `emscripten_wget` fetches, and `emscripten_create_worker` starts a worker from any URL, which would run a script of the program's own. So the program's worker takes away its storage, network and worker globals (`indexedDB`, `caches`, `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `BroadcastChannel`, `Worker`, `SharedWorker`, `importScripts`, `WebTransport` and `navigator.storage`) once the main module has loaded and just before the program's main runs (`src/features/lab-run/worker/seal-scope.ts`). The runtime needs none of them by then. SEC-LAB-16 checks the seal and when it happens, and VIS-LAB-10 and 11 run programs that try both paths.
+
 `npm run dev` serves the local build and the compiler at `/lab-runtime/dev/`. It also makes the compiler's manifest from the files on disk.
 
 ## Publishing the runtime
@@ -89,7 +91,7 @@ A build with `LAB_LIVE = true` refuses the version `dev`, so the version must be
 After the next deployment, check the live files:
 
 ```bash
-curl -sI https://vams.pages.dev/lab-runtime/<version>/llvm.core.wasm   # 200, content-encoding: br
+curl -sI https://vams.pages.dev/lab-runtime/<version>/llvm.core.wasm   # HEAD: 200, content-encoding: br
 ```
 
 A new version leaves the older ones in KV, and each browser deletes its cache of an older compiler the next time it opens the Lab.
@@ -109,6 +111,8 @@ LAB_RUNTIME_LOCAL=1 npx playwright test lab.spec lab-drawing lab-compiler
 | VIS-LAB-07 | Nothing of the compiler downloads until Run or Download now; a reload asks only the cache |
 | VIS-LAB-08 | A program that calls `emscripten_run_script` stops on an error, and its script never runs |
 | VIS-LAB-09 | Every name the code generator emits compiles; every rejected name gives the VAMS message on its line |
+| VIS-LAB-10 | A program that stores to IndexedDB through `emscripten_idb_async_store` stops, and no database appears |
+| VIS-LAB-11 | A program that starts a worker through `emscripten_create_worker` stops on an error, and the worker's script never runs |
 
 ## Browsers
 

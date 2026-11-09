@@ -5,8 +5,9 @@
  *   1. installs globalThis.__vamsLab, which every import of the main module's library_vams.js
  *      forwards to: the GL context, the GLUT runtime and the Console;
  *   2. imports the main module from /lab-runtime/<runtimeVersion>/;
- *   3. mounts the student's files in MEMFS, writes the side module to /main.wasm, and calls
- *      vams_run('/main.wasm'), which runs the program's main, glutMainLoop and all.
+ *   3. mounts the student's files in MEMFS, writes the side module to /main.wasm;
+ *   4. takes away the globals that reach storage, the network or another script (seal-scope.ts),
+ *      and calls vams_run('/main.wasm'), which runs the program's main, glutMainLoop and all.
  *
  * vams_run ends with exit(), and the main module runs its exit fully (EXIT_RUNTIME), so whichever
  * way the program ends, its static destructors run and stdio flushes every stream: what it
@@ -23,6 +24,7 @@ import { ConsoleIO } from './console-io';
 import { atomicsHost } from './event-queue';
 import { GlutRuntime, type ProgramMemory } from './glut-runtime';
 import { fileReports, installFiles, type LabFS } from './lab-files';
+import { sealProgramScope } from './seal-scope';
 
 /** What library_vams.js finds on globalThis.__vamsLab. */
 export interface VamsLab {
@@ -59,8 +61,17 @@ function exitCode(error: unknown): number | null {
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-/** Runs the program in `start`, posting what it does with `post`, and the main module from `loadMain`. */
-export async function runProgram(start: StartMessage, post: (message: WorkerMessage) => void, loadMain: () => Promise<CreateMain>): Promise<void> {
+/**
+ * Runs the program in `start`, posting what it does with `post`, and the main module from
+ * `loadMain`. `seal` runs once the main module is loaded and the files are in place, just before
+ * the program's main; a seal that throws stops the program there.
+ */
+export async function runProgram(
+  start: StartMessage,
+  post: (message: WorkerMessage) => void,
+  loadMain: () => Promise<CreateMain>,
+  seal: () => void = () => {},
+): Promise<void> {
   const views = openLayout(start.shared);
   const host = atomicsHost(views, post);
   const io = new ConsoleIO(views, host);
@@ -92,6 +103,7 @@ export async function runProgram(start: StartMessage, post: (message: WorkerMess
     });
     files = installFiles(main.FS, start.files, fileReports(io, host), [MODULE_PATH]);
     main.FS.writeFile(MODULE_PATH, new Uint8Array(start.module));
+    seal();
     const code = main.ccall('vams_run', 'number', ['string'], [MODULE_PATH]);
     finish({ type: 'exit', code });
   } catch (error) {
@@ -114,9 +126,14 @@ if (typeof WorkerGlobalScope !== 'undefined' && globalThis instanceof WorkerGlob
   scope.onmessage = (event) => {
     if (event.data.type !== 'start') return;
     scope.onmessage = null;
-    void runProgram(event.data, (message) => scope.postMessage(message), async () => {
-      const module = (await import(/* @vite-ignore */ runtimeUrl(runtimeVersion))) as { default: CreateMain };
-      return module.default;
-    });
+    void runProgram(
+      event.data,
+      (message) => scope.postMessage(message),
+      async () => {
+        const module = (await import(/* @vite-ignore */ runtimeUrl(runtimeVersion))) as { default: CreateMain };
+        return module.default;
+      },
+      () => sealProgramScope(globalThis),
+    );
   };
 }

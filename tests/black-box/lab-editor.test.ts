@@ -4,6 +4,8 @@
  *  - A compile error marks its line, and the Compiler tab jumps to line and column
  *  - One download for every Run that waits on it; the download, offline, failed and time-limit messages
  *  - The page knows the compiler is in this browser from Cache Storage alone
+ *  - A compiler already here is never shown downloading; a download that stalls fails
+ *  - A browser that can't keep the compiler still compiles, from memory
  *  - Ctrl+Enter and Cmd+Enter run; the status line counts errors
  *  - The log folds, and the fold is remembered
  */
@@ -31,8 +33,10 @@ import {
   cachedFetch,
   compilerCached,
   DownloadError,
+  COMPILER_IDLE_MS,
   fillCompilerCache,
   headersTree,
+  openCompilerCache,
   type CachesLike,
 } from '@/features/lab-compile/model/compiler-files';
 import LabLog from '@/widgets/lab-workspace/ui/LabLog';
@@ -478,7 +482,8 @@ describe('BB-LAB-69: The page knows the compiler is here only when every file is
     const seen: number[] = [];
     await fillCompilerCache(cache, 'v1', fetchFn, (received) => seen.push(received));
     expect(asked).toEqual(['/lab-runtime/v1/compiler-manifest.json', '/lab-runtime/v1/llvm.core.wasm']);
-    expect(seen[0]).toBe(0);
+    // bundle.js was already held, so the first report counts it as received.
+    expect(seen[0]).toBe(3);
     expect(seen.at(-1)).toBe(8);
     expect(await compilerCached(caches, 'v1')).toBe(true);
   });
@@ -548,5 +553,120 @@ describe('BB-LAB-70: Sent texts are drained as the parent echoes them', () => {
     echo(root, 'Oy');
     echo(root, 'O');
     expect(view.state.doc.toString()).toBe('O');
+  });
+});
+
+const WHOLE_V1 = {
+  '/lab-runtime/v1/compiler-manifest.json': MANIFEST_BODY,
+  '/lab-runtime/v1/bundle.js': 'abc',
+  '/lab-runtime/v1/llvm.core.wasm': 'abcde',
+};
+
+describe('BB-LAB-96: A compiler already in this browser is never shown downloading', () => {
+  afterEach(() => setCompilerEnv());
+
+  it('reports every byte as received before anything else, when the cache holds every file', async () => {
+    const caches = memoryCaches({ 'vams-lab-compiler-v1': WHOLE_V1 });
+    const network = vi.fn(async () => new Response('', { status: 404 })) as unknown as typeof fetch;
+    const seen: [number, number][] = [];
+    await fillCompilerCache(await caches.open('vams-lab-compiler-v1'), 'v1', network, (received, total) => seen.push([received, total]));
+    expect(network).not.toHaveBeenCalled();
+    expect(seen).toEqual([[8, 8]]);
+  });
+
+  it('keeps the store ready through the start, and a Run says Compiling, not Downloading', async () => {
+    const workers = fakeCompiler();
+    useCompiler.setState({ state: 'ready' });
+    const states: string[] = [];
+    const stop = useCompiler.subscribe((s) => states.push(s.state));
+    const run = compileSource('v1', 'int a;');
+    workers[0].reply({ type: 'progress', received: 8, total: 8 });
+    workers[0].reply({ type: 'ready' });
+    await flush();
+    workers[0].reply({ type: 'result', id: workers[0].compiles()[0].id, result: { kind: 'ok', module: WASM, diagnostics: [] } });
+    expect((await run).kind).toBe('ok');
+    stop();
+    expect(states).not.toContain('downloading');
+  });
+
+  it('shows the download when a file the page counted on has gone from the cache', async () => {
+    const workers = fakeCompiler();
+    useCompiler.setState({ state: 'ready' });
+    void compileSource('v1', 'int a;');
+    workers[0].reply({ type: 'progress', received: 3, total: 8 });
+    expect(useCompiler.getState()).toMatchObject({ state: 'downloading', received: 3, total: 8 });
+  });
+});
+
+describe('BB-LAB-97: A download that stops sending fails, instead of waiting for ever', () => {
+  it('waits 30 seconds for each answer and each piece of a file', () => {
+    expect(COMPILER_IDLE_MS).toBe(30_000);
+  });
+
+  it('a file that stops part way, or a server that never answers, ends in a download error', async () => {
+    const stalledBody = () =>
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new Uint8Array([1, 2]));
+          },
+        }),
+      );
+    const answers: Array<() => Promise<Response>> = [async () => stalledBody(), () => new Promise<Response>(() => {})];
+    for (const answer of answers) {
+      const cache = await memoryCaches().open('vams-lab-compiler-v1');
+      const fetchFn = ((url: string) => (url.endsWith('.json') ? Promise.resolve(new Response(MANIFEST_BODY)) : answer())) as unknown as typeof fetch;
+      await expect(fillCompilerCache(cache, 'v1', fetchFn, () => {}, { idleMs: 40 })).rejects.toBeInstanceOf(DownloadError);
+    }
+  });
+});
+
+describe('BB-LAB-98: A browser that can’t keep the compiler still compiles, from memory', () => {
+  const network = (async (url: string) => {
+    const path = new URL(url, 'https://vams.pages.dev').pathname;
+    const body = (WHOLE_V1 as Record<string, string>)[path];
+    return body === undefined ? new Response('', { status: 404 }) : new Response(body);
+  }) as unknown as typeof fetch;
+
+  const quotaCaches = (): CachesLike => {
+    const real = memoryCaches();
+    return {
+      ...real,
+      open: async (name) => {
+        const cache = await real.open(name);
+        return {
+          match: cache.match,
+          put: async () => {
+            throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+          },
+        };
+      },
+    };
+  };
+  const brokenCaches = (): CachesLike => ({
+    ...memoryCaches(),
+    open: async () => {
+      throw new DOMException('The operation is insecure.', 'SecurityError');
+    },
+  });
+
+  it.each([
+    ['no Cache Storage at all', () => undefined],
+    ['a cache that refuses every file for its quota', quotaCaches],
+    ['a cache that can’t be opened', brokenCaches],
+  ])('%s: the files download, and every one is answered after', async (_, make) => {
+    const cache = await openCompilerCache(make(), 'v1');
+    await fillCompilerCache(cache, 'v1', network, () => {});
+    expect(await (await cache.match('/lab-runtime/v1/llvm.core.wasm'))?.text()).toBe('abcde');
+    // Each match is a fresh answer, so the compiler can read the same file twice.
+    expect(await (await cache.match('/lab-runtime/v1/bundle.js'))?.text()).toBe('abc');
+    expect(await (await cache.match('/lab-runtime/v1/bundle.js'))?.text()).toBe('abc');
+    expect((await cache.match('/lab-runtime/v1/bundle.js'))?.headers.get('content-type')).toBe('text/javascript; charset=utf-8');
+  });
+
+  it('a cache that works keeps the files in Cache Storage, where the next visit finds them', async () => {
+    const caches = memoryCaches();
+    await fillCompilerCache(await openCompilerCache(caches, 'v1'), 'v1', network, () => {});
+    expect(await compilerCached(caches, 'v1')).toBe(true);
   });
 });

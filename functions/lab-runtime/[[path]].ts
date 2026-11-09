@@ -44,3 +44,10 @@ export async function onRequestGet({
     return json({ error: 'The runtime can’t be read right now.' }, 503);
   }
 }
+
+/** HEAD /lab-runtime/<version>/<file>: GET's status and headers, without the body. */
+export async function onRequestHead(context: Parameters<typeof onRequestGet>[0]): Promise<Response> {
+  const res = await onRequestGet(context);
+  await res.body?.cancel();
+  return new Response(null, { status: res.status, headers: res.headers });
+}

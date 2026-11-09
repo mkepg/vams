@@ -5,11 +5,12 @@
  * Test focus:
  *  - The runtime is cached for a year, same-origin only, and keys outside <version>/<file> are 404
  *  - A file stored brotli-compressed goes out as stored, with Content-Encoding: br
+ *  - HEAD answers with GET's headers and no body
  *
  * BB-LAB-05 to 07 checked the compile forward, which went with the compile service.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { onRequestGet } from '../../functions/lab-runtime/[[path]]';
+import { onRequestGet, onRequestHead } from '../../functions/lab-runtime/[[path]]';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -57,5 +58,26 @@ describe('BB-LAB-08: the shared runtime', () => {
     const bad = [['..', 'main.wasm'], ['v1', '..'], ['v1', '..', 'main.wasm'], ['v1'], ['v1', 'a', 'b'], ['v1', ''], ['', 'main.wasm'], ['v1', '.hidden'], ['v1/..', 'x'], []];
     for (const path of bad) expect((await get(path)).status).toBe(404);
     expect(kvGet).not.toHaveBeenCalled();
+  });
+});
+
+describe('BB-LAB-99: HEAD on the shared runtime answers with GET’s headers and no body', () => {
+  const kvGet = vi.fn(async (key: string) =>
+    key === 'v1/llvm.core.wasm' ? { value: new Response(new Uint8Array([9, 9])).body, metadata: { encoding: 'br' } } : { value: null, metadata: null },
+  );
+  const env = { LAB_RUNTIME: { getWithMetadata: kvGet } } as unknown as Parameters<typeof onRequestHead>[0]['env'];
+
+  it('gives the status, the type, the cache header and the encoding, with an empty body', async () => {
+    const res = await onRequestHead({ params: { path: ['v1', 'llvm.core.wasm'] }, env });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-encoding')).toBe('br');
+    expect(res.headers.get('content-type')).toBe('application/wasm');
+    expect(res.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+    expect(res.body).toBeNull();
+  });
+
+  it('answers 404 for a missing file and for a key outside <version>/<file>', async () => {
+    expect((await onRequestHead({ params: { path: ['v1', 'gone.wasm'] }, env })).status).toBe(404);
+    expect((await onRequestHead({ params: { path: ['..', 'x'] }, env })).status).toBe(404);
   });
 });

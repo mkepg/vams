@@ -191,10 +191,13 @@ tests/
 │   └── lab-battery.test.ts               (WB-LAB-19: each Lab battery program is
 │                                            the one its reference was captured
 │                                            from)
-├── security/                     ← What a Lab program may include and use.
-│   └── lab-includes.test.ts              (SEC-LAB-01, 02 and 11 to 13: include
-│                                            and directive checks, and inline
-│                                            assembly refused in the file)
+├── security/                     ← What a Lab program may include, use and reach.
+│   ├── lab-includes.test.ts              (SEC-LAB-01, 02 and 11 to 13: include
+│   │                                        and directive checks, and inline
+│   │                                        assembly refused in the file)
+│   └── lab-sandbox.test.ts               (SEC-LAB-16: the program's worker loses
+│                                            its storage, network and worker
+│                                            globals before main runs)
 ├── visual/                       ← Not part of `npm test`.
 │   ├── editor.spec.ts                    (VIS-EDITOR-*: screenshot checks,
 │   │                                        including the rail panels,
@@ -229,10 +232,11 @@ tests/
 │   ├── lab-drawing.spec.ts               (VIS-LAB-05: each Lab battery program,
 │   │                                        compiled and run in the Lab, against
 │   │                                        its FreeGLUT reference; LAB_RUNTIME_LOCAL=1)
-│   ├── lab-compiler.spec.ts              (VIS-LAB-07 to 09: the compiler's
-│   │                                        download, no JavaScript from a
-│   │                                        program, and the 2D set compiled in
-│   │                                        the page; LAB_RUNTIME_LOCAL=1)
+│   ├── lab-compiler.spec.ts              (VIS-LAB-07 to 11: the compiler's
+│   │                                        download, no JavaScript, storage or
+│   │                                        worker from a program, and the 2D
+│   │                                        set compiled in the page;
+│   │                                        LAB_RUNTIME_LOCAL=1)
 │   └── helpers/lab.ts                    (the routes that stand in for
 │                                            production in front of the preview
 │                                            server: the local runtime and the
@@ -325,13 +329,13 @@ The Lab's checks carry the module `LAB` in every suite: `BB-LAB` (the page, the
 workspace, the runtime, the 2D set and the wording), `WB-LAB` (the
 browser's compile, the runtime build, the publish script and the battery),
 `ALG-LAB` (the rasteriser and the OpenGL 1.5 state machine), `SEC-LAB` (what a
-program may include and use) and `VIS-LAB` (the page in the browser).
+program may include, use and reach) and `VIS-LAB` (the page in the browser).
 
 The checks that run the real compiler need the runtime built in
 `lab/runtime/out/`, and skip without `LAB_RUNTIME_LOCAL=1`:
 
 ```bash
-LAB_RUNTIME_LOCAL=1 npm run test:visual -- lab.spec lab-drawing lab-compiler   # VIS-LAB-01 to 09
+LAB_RUNTIME_LOCAL=1 npm run test:visual -- lab.spec lab-drawing lab-compiler   # VIS-LAB-01 to 11
 ```
 
 The IDs the compile service's checks held (BB-LAB-05 to 07, WB-LAB-03 to 11,
