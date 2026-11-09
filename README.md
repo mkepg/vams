@@ -84,7 +84,7 @@ The pages are prerendered for search engines and link previews, and the app inst
 
 ![The Gallery page, with the jeepney street scene first](docs/images/07-gallery.png)
 
-The Lab, at `/lab`, is where students write their own OpenGL 1.x and GLUT program in C++ and run it in the browser with nothing to install: the browser compiles it with clang built for WebAssembly, downloaded once on the first Run, and it runs in a window on the page. It goes live once its runtime is published; until then it is built only with `VITE_LAB=1`.
+The Lab, at `/lab`, is where students write their own OpenGL 1.x and GLUT program in C++ and run it in the browser with nothing to install: the browser compiles it with clang built for WebAssembly, downloaded once on the first Run, and it runs in a window on the page. It has been live since 9 Nov 2026, when its runtime was published.
 
 ## Quick start
 

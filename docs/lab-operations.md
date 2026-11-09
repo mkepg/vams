@@ -86,7 +86,7 @@ It then uploads each file with `wrangler kv key put --remote --metadata '{"encod
 
 The first published version measured 14.6 MB for `llvm.core.wasm`, 2.5 MB for `llvm-resources.tar` and 1.2 MB for the headers: about 18 MB in all.
 
-A build with `LAB_LIVE = true` refuses the version `dev`, so the version must be published before the Lab goes live.
+A build with `LAB_LIVE = true` refuses the version `dev`, so the version must be published before the Lab goes live. The first version, `4.0.10-76e5dc0b`, was published on 9 Nov 2026, and the Lab went live with it.
 
 After the next deployment, check the live files:
 
