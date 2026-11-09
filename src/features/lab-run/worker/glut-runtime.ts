@@ -15,7 +15,8 @@
  * without drawing them: the GL context holds their drawing back (GLContext.hold), and drops it
  * when the frame after clears the whole window, so the frames shown have the pixels drawing every
  * frame would have given. An animation therefore moves at the same speed as in the editor; a
- * frame that is slow to draw only shows fewer of its steps.
+ * frame that is slow to draw only shows fewer of its steps. Time the program spends waiting on
+ * purpose (Sleep, the Console, or no idle work) isn't caught up on: its frames count from there.
  *
  * Nothing here relies on the program stopping by itself: the page ends a program by terminating
  * its worker.
@@ -144,6 +145,8 @@ export class GlutRuntime {
   private catchingUp = false;
   /** Whether the last frame was run to catch up, so the page hasn't seen it. */
   private unshown = false;
+  /** The Console's pauses when pacing last counted: a pause since starts the count again. */
+  private pausesSeen = 0;
 
   constructor({ views, host, console, screen }: GlutOptions) {
     this.views = views;
@@ -309,6 +312,11 @@ export class GlutRuntime {
     if (this.catchingUp) this.published = true;
     else this.publish();
     const tick = Atomics.load(this.views.control, CONTROL.TICK);
+    // Time the program spent waiting on purpose is not time to catch up on.
+    if (this.console.pauses !== this.pausesSeen) {
+      this.pausesSeen = this.console.pauses;
+      this.pace = null;
+    }
     // The first frame belongs to the refresh it was drawn in.
     this.pace ??= { base: tick - 1, frames: 0 };
     this.pace.frames += 1;
@@ -615,6 +623,8 @@ export class GlutRuntime {
     const timeout = this.timers.length ? this.timers[0].due - this.host.now() : Infinity;
     if (timeout <= 0) return;
     this.showUnshown();
+    // With no idle work the program waits for an event or a timer, and its frames start again from there.
+    this.pace = null;
     this.events.waitForEvent(timeout);
   }
 

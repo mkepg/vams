@@ -71,10 +71,10 @@ export const OUTPUT_BYTES = 64 * 1024;
 export const FRAME_WAIT_MS = 100;
 /**
  * How many refreshes a program may fall behind and still catch up, by running frames without
- * drawing them. Further behind, after a pause such as Sleep or a read from the Console, it
- * carries on from where it is.
+ * drawing them: about four seconds at 60 Hz, far more than any frame takes to draw. A program
+ * that stopped to wait (Sleep, the Console, or no idle work) carries on from where it is instead.
  */
-export const MAX_FRAMES_BEHIND = 8;
+export const MAX_FRAMES_BEHIND = 240;
 /** The framebuffer a new layout holds: a 1024 × 768 window. */
 export const DEFAULT_FRAMEBUFFER_BYTES = 1024 * 768 * 4;
 
