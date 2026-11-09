@@ -252,7 +252,7 @@ tests/
 │   │                                              rasteriser, pixel by pixel, by the
 │   │                                              OpenGL 1.5 rules with and without
 │   │                                              multisampling)
-│   └── gl-context.test.ts                       (ALG-LAB-09 to 16 and 19 to 37: the Lab's
+│   └── gl-context.test.ts                       (ALG-LAB-09 to 16 and 19 to 39: the Lab's
 │                                                  OpenGL 1.5 state machine, display lists,
 │                                                  textures and GLUT's bitmap fonts, and
 │                                                  the reference GPU's choices where the

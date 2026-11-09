@@ -150,7 +150,7 @@ The site runs on [Cloudflare Pages](https://pages.cloudflare.com/), built from `
 
 ## Tests
 
-As of 9 Nov 2026, 2,552 tests across 78 files pass, and 12 more run only with the battery export check. The suite implements the verification programme in **Chapter 3, §3.10** of the manuscript, and each test carries a stable identifier of the form `{SUITE}-{MODULE}-{NN}` so results map back to the thesis tables.
+As of 9 Nov 2026, 2,553 tests across 78 files pass, and 12 more run only with the battery export check. The suite implements the verification programme in **Chapter 3, §3.10** of the manuscript, and each test carries a stable identifier of the form `{SUITE}-{MODULE}-{NN}` so results map back to the thesis tables.
 
 | Suite | Files | Maps to | Covers |
 | --- | --- | --- | --- |

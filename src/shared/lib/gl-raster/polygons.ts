@@ -1,18 +1,73 @@
 import { fragmentBox, type Box } from './clip';
 import { SAMPLE_OFFSETS, type Framebuffer } from './framebuffer';
-import { drawable, emitFragment, FULL_COVERAGE, type RasterState, type RGBA, type WinVertex } from './fragment';
+import { drawable, emitFragment, fillSolid, FULL_COVERAGE, solidBytes, type RasterState, type RGBA, type WinVertex } from './fragment';
 import { rasterLine } from './lines';
 import { rasterPoint } from './points';
 
 const CENTRE: readonly (readonly [number, number])[] = [[0, 0]];
 
 /**
- * Whether a point the edge function `e` puts exactly on edge (dx, dy) of a counter-clockwise
- * triangle belongs to it: left edges (running down) and top edges (running left, interior below)
- * do, so two triangles sharing an edge never both take a point on it (3.5.1).
+ * The edge function of edge p→q, positive left of it, worked out from the edge's left end (its
+ * lower end when it is vertical), so the triangle on the other side of a shared edge gets exactly
+ * the negated value. `takesTies`: whether a point exactly on it belongs to a counter-clockwise
+ * triangle. Left edges (running down) and top edges (running left, interior below) do, so two
+ * triangles sharing an edge never both take a point on it (3.5.1). Its parts are fixed once a
+ * triangle, and each point costs two products.
  */
-function inside(e: number, dx: number, dy: number): boolean {
-  return e > 0 || (e === 0 && (dy < 0 || (dy === 0 && dx < 0)));
+interface Edge {
+  dx: number;
+  dy: number;
+  ox: number;
+  oy: number;
+  negate: boolean;
+  takesTies: boolean;
+}
+
+function edgeOf(p: WinVertex, q: WinVertex): Edge {
+  const fromP = p.x < q.x || (p.x === q.x && p.y < q.y);
+  const [o, e] = fromP ? [p, q] : [q, p];
+  const dx = q.x - p.x;
+  const dy = q.y - p.y;
+  return { dx: e.x - o.x, dy: e.y - o.y, ox: o.x, oy: o.y, negate: !fromP, takesTies: dy < 0 || (dy === 0 && dx < 0) };
+}
+
+function edgeAt(f: Edge, x: number, y: number): number {
+  const v = f.dx * (y - f.oy) - f.dy * (x - f.ox);
+  return f.negate ? -v : v;
+}
+
+/**
+ * Narrows the pixels of row y that edge `f` can cover, `span`, to those within a pixel of its
+ * crossing, and the pixels it covers whole, `inner`, to those more than a pixel inside it. Every
+ * sample of row y lies between y and y + 1, and every sample of pixel x between x and x + 1, so a
+ * pixel more than a pixel outside the crossing has no sample inside, and one more than a pixel
+ * inside has every sample inside, by a margin rounding can't cross. The exact test decides every
+ * pixel between the two; this only settles the ones whose answer can't be in doubt.
+ */
+function narrow(f: Edge, y: number, span: [number, number], inner: [number, number]): void {
+  if (f.dy === 0) {
+    // A level edge holds for all of row y, or for none of it: inside at both of its bounds is
+    // inside at every sample between them.
+    if (!(edgeAt(f, f.ox, y) > 0 && edgeAt(f, f.ox, y + 1) > 0)) inner[1] = inner[0] - 1;
+    return;
+  }
+  // Inside is edgeAt ≥ 0, and edgeAt rises with x when (−dy, negated) says so.
+  const rising = f.negate ? f.dy > 0 : f.dy < 0;
+  const r0 = f.ox + (f.dx * (y - f.oy)) / f.dy;
+  const r1 = f.ox + (f.dx * (y + 1 - f.oy)) / f.dy;
+  if (rising) {
+    span[0] = Math.max(span[0], Math.floor(Math.min(r0, r1)) - 1);
+    inner[0] = Math.max(inner[0], Math.ceil(Math.max(r0, r1)) + 1);
+  } else {
+    span[1] = Math.min(span[1], Math.ceil(Math.max(r0, r1)) + 1);
+    inner[1] = Math.min(inner[1], Math.floor(Math.min(r0, r1)) - 2);
+  }
+}
+
+/** Whether point x, y is inside edge `f`, or on it and the edge takes ties. */
+function covers(f: Edge, x: number, y: number): boolean {
+  const e = edgeAt(f, x, y);
+  return e > 0 || (e === 0 && f.takesTies);
 }
 
 /** The value at weights wb, wc of b and c (a takes the rest), written so equal values stay exact. */
@@ -45,33 +100,53 @@ export function fillTriangle(
   const y0 = Math.max(box.y0, Math.floor(Math.min(a.y, b.y, c.y)));
   const y1 = Math.min(box.y1 - 1, Math.floor(Math.max(a.y, b.y, c.y)));
   // Edge functions: positive left of the edge, which is inside for a counter-clockwise triangle.
-  // Each is worked out from the edge's left end (its lower end when it is vertical), so the
-  // triangle on the other side of a shared edge gets exactly the negated value, and the tie rule
-  // in inside() sees both as 0.
-  const edge = (p: WinVertex, q: WinVertex, x: number, y: number) =>
-    p.x < q.x || (p.x === q.x && p.y < q.y)
-      ? (q.x - p.x) * (y - p.y) - (q.y - p.y) * (x - p.x)
-      : -((p.x - q.x) * (y - q.y) - (p.y - q.y) * (x - q.x));
+  const bc = edgeOf(b, c);
+  const ca = edgeOf(c, a);
+  const ab = edgeOf(a, b);
   const offsets = state.multisample ? SAMPLE_OFFSETS : CENTRE;
   const tex = a.tex && b.tex && c.tex ? [a.tex, b.tex, c.tex] : null;
+  // One colour at every vertex, untextured, mixes to that colour exactly (the differences are 0),
+  // so the weights aren't needed: with perspective too when every w is the same ordinary number,
+  // as in any 2D drawing, since the weights are then finite.
+  const same = (i: number) => a.color[i] === b.color[i] && a.color[i] === c.color[i];
+  const flatW = a.w === b.w && a.w === c.w && Math.abs(a.w) > 1e-30 && Math.abs(a.w) < 1e30;
+  // Texture coordinates count only when a texture applies (texture() leaves the colour alone otherwise).
+  const textured = !!(state.texture && tex);
+  const solid = !textured && (!perspective || flatW) && same(0) && same(1) && same(2) && same(3) ? a.color : null;
+  // Unblended, the inside of such a triangle is one set of bytes.
+  const bytes = solid ? solidBytes(state, solid) : null;
+  const span: [number, number] = [x0, x1];
+  const inner: [number, number] = [x0, x1];
   for (let y = y0; y <= y1; y++) {
-    for (let x = x0; x <= x1; x++) {
+    span[0] = inner[0] = x0;
+    span[1] = inner[1] = x1;
+    narrow(bc, y, span, inner);
+    narrow(ca, y, span, inner);
+    narrow(ab, y, span, inner);
+    for (let x = span[0]; x <= span[1]; x++) {
       let coverage = 0;
-      for (let k = 0; k < offsets.length; k++) {
-        const sx = x + 0.5 + offsets[k][0];
-        const sy = y + 0.5 + offsets[k][1];
-        if (
-          inside(edge(b, c, sx, sy), c.x - b.x, c.y - b.y) &&
-          inside(edge(c, a, sx, sy), a.x - c.x, a.y - c.y) &&
-          inside(edge(a, b, sx, sy), b.x - a.x, b.y - a.y)
-        ) {
-          coverage |= 1 << k;
+      if (x >= inner[0] && x <= inner[1]) {
+        if (bytes) {
+          fillSolid(fb, state, x, y, bytes);
+          continue;
+        }
+        coverage = (1 << offsets.length) - 1;
+      } else {
+        for (let k = 0; k < offsets.length; k++) {
+          const sx = x + 0.5 + offsets[k][0];
+          const sy = y + 0.5 + offsets[k][1];
+          if (covers(bc, sx, sy) && covers(ca, sx, sy) && covers(ab, sx, sy)) coverage |= 1 << k;
         }
       }
       if (!coverage) continue;
+      const mask = state.multisample ? coverage : FULL_COVERAGE;
+      if (solid) {
+        emitFragment(fb, state, box, x, y, solid, undefined, mask);
+        continue;
+      }
       // Barycentric weights of b and c at the pixel centre (a's is the rest).
-      let wb = edge(c, a, x + 0.5, y + 0.5) / area;
-      let wc = edge(a, b, x + 0.5, y + 0.5) / area;
+      let wb = edgeAt(ca, x + 0.5, y + 0.5) / area;
+      let wc = edgeAt(ab, x + 0.5, y + 0.5) / area;
       if (perspective) {
         const qa = (1 - wb - wc) / a.w;
         const qb = wb / b.w;
@@ -89,7 +164,7 @@ export function fillTriangle(
       const st: [number, number] | undefined = tex
         ? [mix(tex[0][0], tex[1][0], tex[2][0], wb, wc), mix(tex[0][1], tex[1][1], tex[2][1], wb, wc)]
         : undefined;
-      emitFragment(fb, state, box, x, y, color, st, state.multisample ? coverage : FULL_COVERAGE);
+      emitFragment(fb, state, box, x, y, color, st, mask);
     }
   }
 }
