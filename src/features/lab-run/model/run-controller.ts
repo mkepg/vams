@@ -22,6 +22,7 @@ import type { AttachedMenu, LabFile, LabMenu, StartMessage, WorkerMessage } from
 import {
   acknowledgeFrame,
   adoptFramebuffer,
+  countRefresh,
   createSharedLayout,
   INPUT_STATE,
   inputState,
@@ -262,6 +263,8 @@ class RunController {
   pump(): void {
     const views = this.views;
     if (!views || !this.worker) return;
+    // One refresh: the program keeps one frame a refresh, as the editor's Run does (glut-runtime).
+    countRefresh(views);
     this.outbox.flush((e) => postToRing(views, e));
     this.append(this.reader?.take() ?? []);
     const input = inputState(views);

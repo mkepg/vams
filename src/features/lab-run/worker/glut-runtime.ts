@@ -9,6 +9,14 @@
  * GLUT_SINGLE window) copies the frame there and waits, at most FRAME_WAIT_MS, for the page to take
  * it, as a lab PC waits for vsync.
  *
+ * The program keeps one frame a page refresh, as a lab PC with vsync does and as the editor's Run
+ * does, however long a frame takes to draw. A frame that took longer than a refresh puts the
+ * program behind the page's refreshes (CONTROL.TICK), and it catches up by running the next frames
+ * without drawing them: the GL context holds their drawing back (GLContext.hold), and drops it
+ * when the frame after clears the whole window, so the frames shown have the pixels drawing every
+ * frame would have given. An animation therefore moves at the same speed as in the editor; a
+ * frame that is slow to draw only shows fewer of its steps.
+ *
  * Nothing here relies on the program stopping by itself: the page ends a program by terminating
  * its worker.
  */
@@ -24,7 +32,7 @@ import {
   type BitmapFont,
 } from '@/shared/lib/glut-fonts';
 import type { LabMenuEntry } from '../model/protocol';
-import { CONTROL, FRAME_WAIT_MS, type LabEvent, type LayoutViews } from '../model/shared-layout';
+import { CONTROL, FRAME_WAIT_MS, MAX_FRAMES_BEHIND, type LabEvent, type LayoutViews } from '../model/shared-layout';
 import type { ConsoleIO } from './console-io';
 import { EventQueue, type WorkerHost } from './event-queue';
 
@@ -130,6 +138,12 @@ export class GlutRuntime {
   private actionOnClose: number = GLUT.ACTION_EXIT;
   private modifiers = 0;
   private published = false;
+  /** The page refresh before the first frame, and the frames since, run or drawn (present()). */
+  private pace: { base: number; frames: number } | null = null;
+  /** Whether the frame being run is held back from drawing, to catch up with the page. */
+  private catchingUp = false;
+  /** Whether the last frame was run to catch up, so the page hasn't seen it. */
+  private unshown = false;
 
   constructor({ views, host, console, screen }: GlutOptions) {
     this.views = views;
@@ -286,19 +300,49 @@ export class GlutRuntime {
     }
   }
 
+  /**
+   * The end of a frame: it goes to the page, unless it was run to catch up. Then whether the next
+   * frame is drawn: not while the program is behind the page's refreshes, so it catches up.
+   */
+  private present(): void {
+    this.unshown = this.catchingUp;
+    if (this.catchingUp) this.published = true;
+    else this.publish();
+    const tick = Atomics.load(this.views.control, CONTROL.TICK);
+    // The first frame belongs to the refresh it was drawn in.
+    this.pace ??= { base: tick - 1, frames: 0 };
+    this.pace.frames += 1;
+    let behind = tick - this.pace.base - this.pace.frames;
+    if (behind > MAX_FRAMES_BEHIND) {
+      this.pace.base = tick - this.pace.frames;
+      behind = 0;
+    }
+    this.catchingUp = behind > 0;
+    this.context.hold(this.catchingUp);
+  }
+
+  /** Shows the last frame if it was run to catch up: when the program stops to wait, it is what stays on screen. */
+  private showUnshown(): void {
+    if (!this.unshown || !this.window) return;
+    this.unshown = false;
+    this.catchingUp = false;
+    this.context.hold(false);
+    this.publish();
+  }
+
   swapBuffers(): void {
-    if (this.window) this.publish();
+    if (this.window) this.present();
   }
 
   /** glFlush: in a GLUT_SINGLE window the frame goes to the page; a double-buffered one shows it at the swap. */
   flush(): void {
     this.context.flush();
-    if (this.window && !this.doubleBuffered) this.publish();
+    if (this.window && !this.doubleBuffered) this.present();
   }
 
   finish(): void {
     this.context.finish();
-    if (this.window && !this.doubleBuffered) this.publish();
+    if (this.window && !this.doubleBuffered) this.present();
   }
 
   // Callbacks.
@@ -488,7 +532,7 @@ export class GlutRuntime {
     const w = this.window;
     if (!w) return;
     ({ width, height } = this.fit(width, height));
-    if (width !== this.context.fb.width || height !== this.context.fb.height) {
+    if (width !== this.context.width || height !== this.context.height) {
       this.ensureFramebuffer(width * height * 4);
       this.context.resize(width, height);
     }
@@ -570,6 +614,7 @@ export class GlutRuntime {
     if (this.redisplay || this.reshapePending || this.events.waiting) return;
     const timeout = this.timers.length ? this.timers[0].due - this.host.now() : Infinity;
     if (timeout <= 0) return;
+    this.showUnshown();
     this.events.waitForEvent(timeout);
   }
 
@@ -590,13 +635,14 @@ export class GlutRuntime {
         this.published = false;
         this.callbacks.display();
         // A GLUT_SINGLE window shows what display drew even when it never calls glFlush.
-        if (!this.doubleBuffered && !this.published && this.window) this.publish();
+        if (!this.doubleBuffered && !this.published && this.window) this.present();
       }
       if (!this.running || !this.window) break;
       if (this.idle) this.idle();
       else this.sleepForWork();
     }
     this.running = false;
+    this.showUnshown();
     if (this.actionOnClose === GLUT.ACTION_EXIT) this.program.exit(0);
   }
 

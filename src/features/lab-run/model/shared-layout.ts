@@ -58,6 +58,8 @@ export const CONTROL = {
   OUTPUT_HEAD: 12,
   /** Output bytes read so far (page). The page notifies it after each read. */
   OUTPUT_TAIL: 13,
+  /** The page's refreshes so far: it adds 1 each time it reads the shared memory, once a display frame. */
+  TICK: 14,
 } as const;
 
 export const CONTROL_WORDS = 16;
@@ -67,6 +69,12 @@ export const INPUT_BYTES = 8192;
 export const OUTPUT_BYTES = 64 * 1024;
 /** The longest a frame waits for the page to take it, as a lab PC's vsync waits. */
 export const FRAME_WAIT_MS = 100;
+/**
+ * How many refreshes a program may fall behind and still catch up, by running frames without
+ * drawing them. Further behind, after a pause such as Sleep or a read from the Console, it
+ * carries on from where it is.
+ */
+export const MAX_FRAMES_BEHIND = 8;
 /** The framebuffer a new layout holds: a 1024 × 768 window. */
 export const DEFAULT_FRAMEBUFFER_BYTES = 1024 * 768 * 4;
 
@@ -423,4 +431,9 @@ export function latestFrame(views: LayoutViews, since: number): Frame | null {
 export function acknowledgeFrame(views: LayoutViews, frame: number): void {
   Atomics.store(views.control, CONTROL.FRAME_ACK, frame);
   Atomics.notify(views.control, CONTROL.FRAME_ACK);
+}
+
+/** Counts one page refresh, which the program keeps pace with (CONTROL.TICK). */
+export function countRefresh(views: LayoutViews): void {
+  Atomics.add(views.control, CONTROL.TICK, 1);
 }

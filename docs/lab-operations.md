@@ -113,6 +113,11 @@ LAB_RUNTIME_LOCAL=1 npx playwright test lab.spec lab-drawing lab-compiler
 | VIS-LAB-09 | Every name the code generator emits compiles; every rejected name gives the VAMS message on its line |
 | VIS-LAB-10 | A program that stores to IndexedDB through `emscripten_idb_async_store` stops, and no database appears |
 | VIS-LAB-11 | A program that starts a worker through `emscripten_create_worker` stops on an error, and the worker's script never runs |
+| VIS-LAB-12 | The gallery's jeepney drives across the window as fast in the Lab as in the editor's Run |
+
+## How fast a program runs
+
+The editor's Run moves an animation one step a display refresh, and the Lab keeps the same pace, as a lab PC with vsync does: one frame of the program a refresh, counted by the page (`CONTROL.TICK`). The Lab draws in software, so a big multisampled frame can take longer than a refresh to draw. The program then falls behind the page's refreshes, and catches up by running its next frames without drawing them: their drawing is held back (`GLContext.hold`), and dropped when the frame after clears the whole window, or drawn in order when it doesn't. Every frame the page shows has the pixels drawing every frame would give, and an animation moves as fast as in the editor; a frame that is slow to draw only shows fewer of its steps. More than 8 refreshes behind, as after `Sleep` or a read from the Console, the program carries on from where it is rather than racing to catch up.
 
 ## Browsers
 

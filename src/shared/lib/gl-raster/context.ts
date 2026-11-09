@@ -16,6 +16,7 @@ import { clearFramebuffer, createFramebuffer, deferResolve, resolvePending, type
 import { defaultRasterState, type BlendFactor, type EnvMode, type Filter, type RasterState, type RGBA, type TextureUnit, type Wrap } from './fragment';
 import { drawPrimitive, GL_MODE, insideVolume, toWindow, type ClipVertex, type Target, type Viewport } from './assembly';
 import { drawBitmap, initialRasterPos } from './bitmap';
+import { fragmentBox } from './clip';
 import { GL_LIST, DisplayLists } from './lists';
 import { MAX_LINE_WIDTH } from './lines';
 import * as M from './matrix';
@@ -196,6 +197,18 @@ interface ArrayElement {
 /** A pointer argument: an offset into the bound buffer object, an address in program memory, or the bytes themselves. */
 export type Pointer = number | Uint8Array;
 
+/** A copy of the rasterisation state, its parts copied too, for drawing held back while later commands change it. */
+function rasterSnapshot(s: RasterState): RasterState {
+  return {
+    ...s,
+    stipple: { ...s.stipple },
+    polygonMode: { ...s.polygonMode },
+    cullFace: { ...s.cullFace },
+    blend: { ...s.blend },
+    scissor: s.scissor && { ...s.scissor },
+  };
+}
+
 export interface GLContextOptions {
   /** GLUT_MULTISAMPLE: four samples a pixel. */
   multisample?: boolean;
@@ -214,6 +227,10 @@ export interface GLContextOptions {
 export class GLContext {
   /** The framebuffer drawing goes to. A multisampled one averages its pixels when `fb` is read. */
   private frame: Framebuffer;
+  /** Whether drawing is recorded in `held` rather than done (hold). */
+  private holding = false;
+  /** Drawing recorded while holding, oldest first, each with the state it was drawn in. */
+  private held: (() => void)[] = [];
   /** The error flag (2.5): the first error since glGetError last read it, or GL_NO_ERROR. */
   error: number = GL.NO_ERROR;
 
@@ -247,10 +264,49 @@ export class GLContext {
     this.vp = { x: 0, y: 0, width, height };
   }
 
-  /** The framebuffer, every pixel's colour up to date. */
+  /** The framebuffer, every pixel's colour up to date, with any drawing held back done. */
   get fb(): Framebuffer {
+    this.replay();
     resolvePending(this.frame);
     return this.frame;
+  }
+
+  /** The window's size, without bringing the framebuffer up to date. */
+  get width(): number {
+    return this.frame.width;
+  }
+
+  get height(): number {
+    return this.frame.height;
+  }
+
+  /**
+   * Holds drawing back (on) or lets it through (off), so frames nobody will see cost nothing to
+   * draw. Held drawing is recorded with the state it was drawn in, and every command still takes
+   * effect on the GL state at once, so the program sees no difference. A clear of the whole window
+   * covers every pixel the held drawing touched, so the held drawing is dropped; any other drawing,
+   * and any read of `fb`, does the held drawing first, in order. The pixels are therefore always
+   * those drawing everything would have given.
+   */
+  hold(on: boolean): void {
+    this.holding = on;
+  }
+
+  /** Does `run` now, or records it while holding; `whole`: it clears the whole window. */
+  private draw(run: () => void, whole = false): void {
+    if (this.held.length) {
+      if (whole) this.held = [];
+      else if (!this.holding) this.replay();
+    }
+    if (this.holding) this.held.push(run);
+    else run();
+  }
+
+  private replay(): void {
+    if (!this.held.length) return;
+    const held = this.held;
+    this.held = [];
+    for (const run of held) run();
   }
 
   private newFramebuffer(width: number, height: number, buffer?: SharedArrayBuffer): Framebuffer {
@@ -261,6 +317,8 @@ export class GLContext {
 
   /** A new window size: a fresh framebuffer, cleared to 0. The viewport stays as the program set it. */
   resize(width: number, height: number, buffer?: SharedArrayBuffer): void {
+    // The old framebuffer goes, and what was held for it with it.
+    this.held = [];
     this.frame = this.newFramebuffer(width, height, buffer);
   }
 
@@ -316,16 +374,26 @@ export class GLContext {
 
   // Vertices and their attributes (2.6, 2.7).
 
+  /** Where a primitive draws, and with what; a copy of the state while holding, as later commands change it. */
   private target(): Target {
-    return { fb: this.frame, state: this.raster, viewport: this.vp, texture: this.textureView() };
+    const state = this.holding ? rasterSnapshot(this.raster) : this.raster;
+    return { fb: this.frame, state, viewport: this.vp, texture: this.textureView() };
   }
 
   /** The bound texture for a level of detail, when GL_TEXTURE_2D is on and the texture is complete. */
   private textureView(): ((lambda: number) => TextureUnit) | null {
     if (!this.texture2D) return null;
-    const t = this.textures.get(this.boundTexture);
-    if (!t || !isComplete(t)) return null;
+    const bound = this.textures.get(this.boundTexture);
+    if (!bound || !isComplete(bound)) return null;
+    // Images are replaced, never written into, so a copy of the object keeps what held drawing saw.
+    const t = this.holding ? { ...bound, levels: bound.levels.slice() } : bound;
     return (lambda) => textureFor(t, lambda);
+  }
+
+  /** drawPrimitive through draw(). */
+  private drawNow(mode: number, vertices: ClipVertex[]): void {
+    const t = this.target();
+    this.draw(() => drawPrimitive(t, mode, vertices));
   }
 
   /** Object coordinates to clip coordinates: the model-view matrix, then the projection (2.11). */
@@ -360,7 +428,7 @@ export class GLContext {
       const prim = this.prim;
       if (!prim) return this.fail(GL.INVALID_OPERATION);
       this.prim = null;
-      drawPrimitive(this.target(), prim.mode, prim.vertices);
+      this.drawNow(prim.mode, prim.vertices);
     }, true);
   }
 
@@ -447,7 +515,7 @@ export class GLContext {
   private rect(x1: number, y1: number, x2: number, y2: number): void {
     this.compiled(() => {
       const vs = [this.processed(x1, y1, 0, 1), this.processed(x2, y1, 0, 1), this.processed(x2, y2, 0, 1), this.processed(x1, y2, 0, 1)];
-      drawPrimitive(this.target(), GL.POLYGON, vs);
+      this.drawNow(GL.POLYGON, vs);
     });
   }
   rectd(x1: number, y1: number, x2: number, y2: number): void {
@@ -499,8 +567,16 @@ export class GLContext {
     this.compiled(() => {
       if (width < 0 || height < 0) return this.fail(GL.INVALID_VALUE);
       const view = this.textureView();
-      const state = view ? { ...this.raster, texture: view(-Infinity) } : this.raster;
-      drawBitmap(this.frame, state, this.pos, width, height, xorig, yorig, xmove, ymove, copy);
+      const live = view ? { ...this.raster, texture: view(-Infinity) } : this.raster;
+      const state = this.holding ? rasterSnapshot(live) : live;
+      // Held, the bitmap draws from a copy of the raster position, and the position moves now.
+      const pos = this.holding ? { ...this.pos } : this.pos;
+      const fb = this.frame;
+      this.draw(() => drawBitmap(fb, state, pos, width, height, xorig, yorig, xmove, ymove, copy));
+      if (pos !== this.pos && this.pos.valid) {
+        this.pos.x += xmove;
+        this.pos.y += ymove;
+      }
     });
   }
 
@@ -614,7 +690,14 @@ export class GLContext {
       const all = GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT | GL.STENCIL_BUFFER_BIT | GL.ACCUM_BUFFER_BIT;
       if (mask & ~all) return this.fail(GL.INVALID_VALUE);
       // Only the colour buffer exists; the scissor test limits the clear when it is on (4.2.3).
-      if (mask & GL.COLOR_BUFFER_BIT) clearFramebuffer(this.frame, this.clearValue, this.raster.scissor);
+      if (mask & GL.COLOR_BUFFER_BIT) {
+        const fb = this.frame;
+        const value = this.clearValue;
+        const scissor = this.raster.scissor && { ...this.raster.scissor };
+        const box = fragmentBox(fb, scissor);
+        const whole = box.x0 <= 0 && box.y0 <= 0 && box.x1 >= fb.width && box.y1 >= fb.height;
+        this.draw(() => clearFramebuffer(fb, value, scissor), whole);
+      }
     });
   }
 
@@ -830,7 +913,7 @@ export class GLContext {
         if (e.tex) this.texCoord = e.tex;
         if (e.vertex) vertices.push(this.processed(...e.vertex));
       }
-      drawPrimitive(this.target(), mode, vertices);
+      this.drawNow(mode, vertices);
     });
   }
 
