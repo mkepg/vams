@@ -146,7 +146,7 @@ The Lab is a separate page, `/lab`, where a student writes a whole OpenGL 1.x an
 - **The 2D set:** the bundled headers declare what the Lab accepts. It rejects Appendix C's deferred symbols at compile time, with `gluLookAt` and GLUT's solid and wire shapes: a call to one of those functions stops the build on its line with a message naming what to use instead, and constants outside the set, such as `GL_LIGHTING`, are not declared.
 - **Isolation:** `/lab` is served with cross-origin isolation headers, which the worker's shared memory needs, and everything it loads is same-origin. The page reloads once if it arrives without isolation.
 
-The `/lab` route, its header link and its sitemap entry appear once the runtime, with its compiler, is published (`LAB_LIVE`); a build with `VITE_LAB=1` turns them on for development and the visual checks. How the runtime is built and published is in [docs/lab-operations.md](lab-operations.md).
+The `/lab` route, its header link and its sitemap entry are on (`LAB_LIVE`), since the runtime, with its compiler, was published on 9 Nov 2026; a build with `VITE_LAB=1` turns them on in any build, for development and the visual checks. How the runtime is built and published is in [docs/lab-operations.md](lab-operations.md).
 
 ### Code Generation
 

@@ -392,10 +392,10 @@ describe('BB-LAB-92: A live build refuses the development runtime', () => {
     expect(() => assertLiveRuntime({ live: true, build: true, runtimeVersion: 'dev' })).toThrow(problem!);
   });
 
-  it('lets the dev server, the flagged visual build and today’s production build through', () => {
+  it('lets the dev server, the flagged visual build and a build with the Lab off through', () => {
     // The dev server serves the local runtime at /lab-runtime/dev/.
     expect(liveRuntimeProblem({ live: true, build: false, runtimeVersion: 'dev' })).toBeNull();
-    // VITE_LAB=1 and today's production build both have LAB_LIVE false.
+    // A build with LAB_LIVE false, as the VITE_LAB=1 visual build of a branch may be.
     expect(liveRuntimeProblem({ live: false, build: true, runtimeVersion: 'dev' })).toBeNull();
     expect(liveRuntimeProblem({ live: false, build: false, runtimeVersion: 'dev' })).toBeNull();
     // A published runtime may go live.
