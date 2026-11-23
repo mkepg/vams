@@ -21,6 +21,20 @@
     height: 100%;
   }
 
+  // The Run view: the running program's frames, drawn as the exported program draws them, over
+  // the editing view. Each canvas pixel is a window pixel; a larger screen scales it without blur.
+  .run-view {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    image-rendering: pixelated;
+    visibility: hidden;
+
+    &[data-showing] {
+      visibility: visible;
+    }
+  }
+
   &--readonly {
     pointer-events: none;
     cursor: default;

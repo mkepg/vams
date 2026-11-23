@@ -7,6 +7,7 @@ import { renderBridge } from '@/shared/engine/render-bridge';
 import {
   createRunState, dispatch, runStateColor, windowToWorld, type RunEvent, type RunState,
 } from './runtime';
+import { runView } from './run-view';
 
 /**
  * The canvas Run state. It owns the event listeners and the frame loop, keeps a temporary
@@ -80,6 +81,18 @@ class RunController {
     // The program's window is the canvas: GLUT's window size is the canvas size.
     const canvas = renderBridge.getCanvasSize() ?? FALLBACK_CANVAS;
     this.run = createRunState(state.objects, state.viewportLimits, canvas);
+    // The Run view draws each frame as the exported program does, with the textures its init() loads.
+    const used = new Set(state.objects.flatMap((o) => (o.texture ? [o.texture.textureId] : [])));
+    runView.start(
+      {
+        objects: state.objects,
+        callbacks: state.callbacks,
+        canvasBackgroundColor: state.canvasBackgroundColor,
+        canvasSize: { ...canvas },
+        viewportLimits: state.viewportLimits,
+      },
+      state.getAllTextures().filter((t) => used.has(t.id)).map((t) => ({ id: t.id, dataUrl: t.dataUrl })),
+    );
     this.pointer = { x: 0, y: 0 };
     this.pendingMotion = null;
     this.held = 0;
@@ -91,6 +104,8 @@ class RunController {
     this.watchStore();
     // GLUT calls the reshape handler once when the window opens.
     this.handle({ type: 'reshape', width: canvas.width, height: canvas.height });
+    // ...and then display(), before the first idle pass.
+    this.draw();
     if (options.loop !== false) this.startLoop();
     return true;
   }
@@ -106,6 +121,7 @@ class RunController {
     this.flashTimer = null;
     this.run = null;
     this.applied.clear();
+    runView.stop();
     renderBridge.resync();
     renderBridge.setEditorOverlaysHidden(false);
     renderBridge.setRunTextPixelsPerUnitY(null);
@@ -250,7 +266,10 @@ class RunController {
       }
     }
     const size = this.snapshot.window;
-    if (size) renderBridge.setView(run.view, { x: 0, y: 0, width: size.width, height: size.height });
+    if (size) {
+      renderBridge.setView(run.view, { x: 0, y: 0, width: size.width, height: size.height });
+      runView.frame({ state: run.objects, view: run.view }, size.width, size.height);
+    }
   }
 
   private armFlashClear(): void {
