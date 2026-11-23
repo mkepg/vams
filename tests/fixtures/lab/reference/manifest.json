@@ -1,5 +1,5 @@
 {
-  "renderer": "NVIDIA GeForce RTX 3060 Laptop GPU/PCIe/SSE2, 4.6.0 NVIDIA 592.82",
+  "renderer": "Intel(R) Iris(R) Xe Graphics, 4.6.0 - Build 31.0.101.4502",
   "programs": {
     "bitmap-text": "62b6b971c03b0b298f4cb4abf199fa6eb36b23b3b7a278f3d0d2e1e1ecb7f719",
     "blend": "c35a37f3fa3707b0bd6904610c0327f11eb9c06decda6b1693dc3cf53434a5ea",

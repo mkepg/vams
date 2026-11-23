@@ -25,12 +25,18 @@ export interface PendingPixels {
   count: number;
 }
 
-/** The four sample positions of a multisampled pixel, in pixels from its centre: (−2, −6), (6, −2), (−6, 2), (2, 6) sixteenths. */
+/**
+ * The four sample positions of a multisampled pixel, in pixels from its centre, y up as in GL:
+ * (−2, 6), (6, 2), (−6, −2), (2, −6) sixteenths. The reference Intel driver reports them through
+ * glGetMultisamplefv as (0.375, 0.125), (0.875, 0.375), (0.125, 0.625), (0.625, 0.875) from the
+ * pixel's corner, but covers samples as if y ran down: its points' corners fit only the mirrored
+ * pattern (docs/specs/2026-11-24-intel-reference-design.md).
+ */
 export const SAMPLE_OFFSETS: readonly (readonly [number, number])[] = [
-  [-2 / 16, -6 / 16],
-  [6 / 16, -2 / 16],
-  [-6 / 16, 2 / 16],
-  [2 / 16, 6 / 16],
+  [-2 / 16, 6 / 16],
+  [6 / 16, 2 / 16],
+  [-6 / 16, -2 / 16],
+  [2 / 16, -6 / 16],
 ];
 
 /** Samples a pixel. The store keeps a pixel's samples together, four bytes each, in this order. */
@@ -92,8 +98,8 @@ export function resolvePending(fb: Framebuffer): void {
   if (!pending || !pending.count) return;
   const { flags, list } = pending;
   const samples = sampleStore(fb);
-  // A pixel whose four samples hold the same four bytes, as most do, resolves channel by channel
-  // to SAME, which a 32-bit comparison of the samples finds at once.
+  // A pixel whose four samples hold the same four bytes, as most do, resolves to those bytes
+  // (RESOLVE[4v] is v), which a 32-bit comparison of the samples finds at once.
   const words = new Uint32Array(samples.buffer, samples.byteOffset, samples.length >> 2);
   const color = fb.color;
   for (let k = 0; k < pending.count; k++) {
@@ -102,12 +108,7 @@ export function resolvePending(fb: Framebuffer): void {
     flags[i] = 0;
     const w = i * SAMPLES;
     if (words[w] === words[w + 1] && words[w] === words[w + 2] && words[w] === words[w + 3]) {
-      const at = w * 4;
-      const p = i * 4;
-      color[p] = SAME[samples[at]];
-      color[p + 1] = SAME[samples[at + 1]];
-      color[p + 2] = SAME[samples[at + 2]];
-      color[p + 3] = samples[at + 3];
+      color.set(samples.subarray(w * 4, w * 4 + 4), i * 4);
     } else resolvePixel(fb, i % fb.width, Math.floor(i / fb.width));
   }
   pending.count = 0;
@@ -132,53 +133,22 @@ export function storePixel(fb: Framebuffer, x: number, y: number, r: number, g: 
   }
 }
 
-// A byte's light in linear terms, by the sRGB curve, for each of the 256 values.
-const LINEAR = Array.from({ length: 256 }, (_, v) => {
-  const c = v / 255;
-  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-});
-
-/** Linear light back to an sRGB byte. */
-function srgbByte(l: number): number {
-  const c = l <= 0.0031308 ? l * 12.92 : 1.055 * l ** (1 / 2.4) - 0.055;
-  return Math.round(Math.min(1, Math.max(0, c)) * 255);
-}
-
-/** The resolved byte of one colour channel whose samples hold `values`, in sample order. */
-function resolveChannel(values: ArrayLike<number>): number {
-  let sum = 0;
-  for (let s = 0; s < SAMPLES; s++) sum += LINEAR[values[s]];
-  return srgbByte(sum / SAMPLES);
-}
-
-// The resolve, worked out once for each set of sample bytes. A pixel whose samples all hold the
-// same byte, as every pixel inside a shape does, reads SAME; any other set is kept in RESOLVED as
-// it is first met, so the pow in srgbByte runs once per set rather than once per fragment.
-const SAME = Uint8Array.from({ length: 256 }, (_, v) => resolveChannel(new Array<number>(SAMPLES).fill(v)));
-const RESOLVED = new Map<number, number>();
-const RESOLVED_LIMIT = 1 << 16;
+/**
+ * The resolved byte for each sum of a channel's 4 sample bytes, 0 to 1020: (sum + 1) >> 2, so a
+ * quarter-way value rounds down, except that an average of exactly 127.5 rounds up to 128. That is
+ * the reference Intel driver's resolve, measured for 1, 2 and 3 of 4 samples of every byte over
+ * black and over white (docs/specs/2026-11-24-intel-reference-design.md).
+ */
+const RESOLVE = Uint8Array.from({ length: 4 * 255 + 1 }, (_, sum) => (sum === 510 ? 128 : (sum + 1) >> 2));
 
 /** The resolved byte of the channel at `at` in a pixel's 4 samples (SAMPLES is 4). */
 function resolvedByte(samples: Uint8Array, at: number): number {
-  const v0 = samples[at];
-  const v1 = samples[at + 4];
-  const v2 = samples[at + 8];
-  const v3 = samples[at + 12];
-  if (v0 === v1 && v1 === v2 && v2 === v3) return SAME[v0];
-  const key = v0 | (v1 << 8) | (v2 << 16) | (v3 << 24);
-  let byte = RESOLVED.get(key);
-  if (byte === undefined) {
-    byte = resolveChannel([v0, v1, v2, v3]);
-    if (RESOLVED.size >= RESOLVED_LIMIT) RESOLVED.clear();
-    RESOLVED.set(key, byte);
-  }
-  return byte;
+  return RESOLVE[samples[at] + samples[at + 4] + samples[at + 8] + samples[at + 12]];
 }
 
 /**
- * Sets pixel `x`, `y` to the average of its samples. Red, green and blue are averaged as light, in
- * sRGB, as the reference driver resolves them, so a pixel half covered by white over black is 188,
- * not 128; alpha is averaged as it is.
+ * Sets pixel `x`, `y` to the average of its samples, each channel by RESOLVE, as the reference
+ * driver resolves them: a pixel half covered by white over black is 128.
  */
 export function resolvePixel(fb: Framebuffer, x: number, y: number): void {
   const samples = sampleStore(fb);
@@ -187,9 +157,7 @@ export function resolvePixel(fb: Framebuffer, x: number, y: number): void {
   fb.color[p] = resolvedByte(samples, at);
   fb.color[p + 1] = resolvedByte(samples, at + 1);
   fb.color[p + 2] = resolvedByte(samples, at + 2);
-  let alpha = 0;
-  for (let s = 0; s < SAMPLES; s++) alpha += samples[at + s * 4 + 3];
-  fb.color[p + 3] = Math.round(alpha / SAMPLES);
+  fb.color[p + 3] = resolvedByte(samples, at + 3);
 }
 
 /** Repeats the `unit` bytes already at `start` up to `end`, doubling the copy each time. */

@@ -7,7 +7,8 @@
 //
 // stb_image.h is read from VAMS_STB_IMAGE, or from the Application folder beside mingw32.
 // VAMS_CAPTURE_FRAME picks the frame to save (default 1). A program fails unless the renderer it
-// ran on names VAMS_CAPTURE_RENDERER (default NVIDIA). Each capture records the SHA-256 of its
+// ran on names VAMS_CAPTURE_RENDERER (default Intel), and a multisampled one unless its sample
+// positions are Intel's. Each capture records the SHA-256 of its
 // program, and the renderer, in tests/fixtures/lab/reference/manifest.json. Needs Node 22.2 or
 // later (node:zlib's crc32).
 import { spawnSync } from 'node:child_process';
@@ -24,6 +25,8 @@ const PROGRAMS = join(ROOT, 'tests/fixtures/lab/programs');
 const CAPTURE = join(ROOT, 'tests/fixtures/lab/capture');
 const REFERENCE = join(ROOT, 'tests/fixtures/lab/reference');
 const MANIFEST = join(REFERENCE, 'manifest.json');
+/** Intel's 4 sample positions (glGetMultisamplefv), which gl-raster's SAMPLE_OFFSETS use. */
+const INTEL_SAMPLES = 'samples 0.3750,0.1250 0.8750,0.3750 0.1250,0.6250 0.6250,0.8750';
 
 function chunk(type, data) {
   const out = Buffer.alloc(12 + data.length);
@@ -66,7 +69,7 @@ function capture(name, toolchain, stb, work) {
   const run = spawnSync(exe, [], { cwd: PROGRAMS, env, timeout: 20_000, encoding: 'utf8' });
   if (run.status !== 0 || !existsSync(out)) throw new Error(`${name} didn't save a frame (exit ${run.status}).\n${run.stderr ?? ''}`);
   const renderer = run.stderr.trim().split(/\r?\n/).pop() ?? '';
-  const want = process.env.VAMS_CAPTURE_RENDERER ?? 'NVIDIA';
+  const want = process.env.VAMS_CAPTURE_RENDERER ?? 'Intel';
   if (!renderer.includes(want)) throw new Error(`${name} ran on "${renderer}"; the references are recorded on ${want}.`);
 
   const frame = readFileSync(out);
@@ -81,6 +84,7 @@ function capture(name, toolchain, stb, work) {
   if (multisample ? samples !== 4 : samples > 1) {
     throw new Error(`${name} ran with ${samples} samples; the references are recorded with ${multisample ? 4 : 'none'}.`);
   }
+  if (multisample && !run.stderr.includes(INTEL_SAMPLES)) throw new Error(`${name}'s sample positions aren't Intel's:\n${run.stderr}`);
   // glReadPixels starts at the bottom row. The window has no alpha to read.
   const rows = frame.subarray(12);
   const rgba = new Uint8Array(width * height * 4);

@@ -398,8 +398,8 @@ export class GLContext {
 
   /** Object coordinates to clip coordinates: the model-view matrix, then the projection (2.11). */
   private toClip(x: number, y: number, z: number, w: number): [number, number, number, number] {
-    const [ex, ey, ez, ew] = M.transform(this.modelview.top, x, y, z, w);
-    return M.transform(this.projection.top, ex, ey, ez, ew);
+    const [ex, ey, ez, ew] = M.transformF32(this.modelview.top, x, y, z, w);
+    return M.transformF32(this.projection.top, ex, ey, ez, ew);
   }
 
   private processed(x: number, y: number, z: number, w: number): ClipVertex {
@@ -536,10 +536,14 @@ export class GLContext {
       this.pos.valid = insideVolume(v);
       if (!this.pos.valid) return;
       const win = toWindow(v, this.vp);
-      // The reference driver keeps the position on a 1/256-pixel grid, so a rounding error under that
-      // doesn't move a bitmap by a pixel.
-      this.pos.x = Math.round(win.x * 256) / 256;
-      this.pos.y = Math.round(win.y * 256) / 256;
+      // The reference Intel driver works the position out in 32-bit floats and keeps it unrounded,
+      // so glRasterPos2i(8, y) under glOrtho(0, 720, ...) lands at 7.9999995 and its first bitmap
+      // a pixel left of 8 (3.7).
+      const f = Math.fround;
+      const [ex, ey, ez, ew] = M.transformF32(this.modelview.top, x, y, z, 1);
+      const [cx, cy, , cw] = M.transformF32(this.projection.top, ex, ey, ez, ew);
+      this.pos.x = f(f(f(f(cx / cw) + 1) * f(this.vp.width / 2)) + this.vp.x);
+      this.pos.y = f(f(f(f(cy / cw) + 1) * f(this.vp.height / 2)) + this.vp.y);
       this.pos.z = win.z;
       this.pos.color = v.color;
       this.pos.tex = v.tex;
@@ -574,8 +578,9 @@ export class GLContext {
       const fb = this.frame;
       this.draw(() => drawBitmap(fb, state, pos, width, height, xorig, yorig, xmove, ymove, copy));
       if (pos !== this.pos && this.pos.valid) {
-        this.pos.x += xmove;
-        this.pos.y += ymove;
+        // In 32-bit floats, as drawBitmap moves it.
+        this.pos.x = Math.fround(this.pos.x + xmove);
+        this.pos.y = Math.fround(this.pos.y + ymove);
       }
     });
   }

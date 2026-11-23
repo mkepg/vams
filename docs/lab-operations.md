@@ -119,6 +119,17 @@ LAB_RUNTIME_LOCAL=1 npx playwright test lab.spec lab-drawing lab-compiler
 
 The editor's Run moves an animation one step a display refresh, and the Lab keeps the same pace, as a lab PC with vsync does: one frame of the program a refresh, counted by the page (`CONTROL.TICK`). The Lab draws in software, so a big multisampled frame can take longer than a refresh to draw. The program then falls behind the page's refreshes, and catches up by running its next frames without drawing them: their drawing is held back (`GLContext.hold`), and dropped when the frame after clears the whole window, or drawn in order when it doesn't. Every frame the page shows has the pixels drawing every frame would give, and an animation moves as fast as in the editor; a frame that is slow to draw only shows fewer of its steps. Time a program spends waiting on purpose, in `Sleep`, a read from the Console, or with no idle work and no timer due, isn't caught up on: its frames count again from there. Only a program more than 240 refreshes behind (`MAX_FRAMES_BEHIND`, about four seconds at 60 Hz) gives up catching up and carries on from where it is.
 
+## What the Lab draws like
+
+The Lab draws what FreeGLUT draws on the lab PCs, which have Intel graphics. The reference is the owner's laptop's Intel Iris Xe Graphics, driver 31.0.101.4502, because no lab PC is available to capture on. The rules it follows, and how each was measured, are in [One reference: Intel FreeGLUT, every pixel](specs/2026-11-24-intel-reference-design.md).
+
+- **The check:** VIS-LAB-05 holds every battery program to every pixel within 2 of its reference. It runs with `LAB_RUNTIME_LOCAL=1 npx playwright test lab-drawing`.
+- **Named exceptions:**
+  - `gallery-clock` 12, `gallery-jeepney-street` 22, `gallery-parol` 68 and `gallery-solar-system` 127 pixels: each is one sample of a multisampled line's edge, which Intel's fixed-point edge setup puts inside the line and no model here matches.
+  - `gallery-pixel-fox` 10 pixels: one row where a pixel centre falls exactly on a texel boundary under `GL_NEAREST`.
+- **Recording:** record again with `scripts/lab/capture-reference.mjs` on a laptop whose integrated GPU is Intel. The capture shim asks for no particular GPU, and recording refuses any other renderer, or sample positions that aren't Intel's.
+- **The file name trap:** the NVIDIA driver sends some file names to the discrete GPU whatever the shim asks; `resolve.exe` is DaVinci Resolve's. Name probe programs `vams-*.exe`.
+
 ## Browsers
 
 The gate is Chromium (Chrome and Edge), which the lab PCs run, and where the visual specs run.

@@ -1,13 +1,15 @@
 /**
  * ALG-FID: points, lines, stipple and flat colours as OpenGL 1.5 draws them with multisampling.
- * Every expected value is worked out by hand from the specification's rules (3.3, 3.4, Table 2.12),
- * and the stipple from the reference driver's, which measures the pattern in distance along the line.
+ * Every expected value is worked out by hand from the specification's rules (3.3, 3.4, Table 2.12)
+ * and the reference Intel driver's: a point is a square whose side is its size rounded half up, and
+ * stipple counts the pattern once per pixel column of the major axis.
  */
 import { describe, expect, it } from 'vitest';
 import {
   POINT_SIZE,
   lineSegments,
   lineTriangles,
+  pointSide,
   pointTriangles,
   polygonTriangles,
   stippleRuns,
@@ -53,25 +55,18 @@ function pieces(t: Triangles) {
   return out;
 }
 
-describe('ALG-FID-01: A point is a circle as wide as its size, centred on its vertex (3.3.3)', () => {
-  it('draws a circle 8 wide at the generator\'s glPointSize(8.0f)', () => {
+describe('ALG-FID-01: A point is a square whose side is its size rounded half up, centred on its vertex', () => {
+  it('draws an 8 × 8 square at the generator\'s glPointSize(8.0f)', () => {
     expect(POINT_SIZE).toBe(8);
     const t = pointTriangles([v(10.5, 20.5, RED)], POINT_SIZE);
-    const b = bounds(t);
-    for (const [got, want] of [[b.minX, 6.5], [b.maxX, 14.5], [b.minY, 16.5], [b.maxY, 24.5]]) expect(got).toBeCloseTo(want, 6);
-    // π × 4², to within a twentieth of a pixel: the corners of the 8 × 8 square are left out.
-    expect(Math.abs(area(t) - Math.PI * 16)).toBeLessThan(0.05);
-    for (let i = 0; i < t.positions.length; i += 2) {
-      expect(Math.hypot(t.positions[i] - 10.5, t.positions[i + 1] - 20.5)).toBeLessThanOrEqual(4 + 1e-9);
-    }
+    expect(bounds(t)).toEqual({ minX: 6.5, maxX: 14.5, minY: 16.5, maxY: 24.5 });
+    expect(area(t)).toBe(64);
     expect(new Set(triangleColours(t).map(String))).toEqual(new Set(['1,0,0,1']));
   });
 
-  it('stays round at any size', () => {
-    for (const size of [1, 3, 20, 64]) {
-      const t = pointTriangles([v(0, 0)], size);
-      expect(Math.abs(area(t) - (Math.PI * size * size) / 4) / ((Math.PI * size * size) / 4)).toBeLessThan(0.01);
-    }
+  it('rounds the size half up, to at least 1 and at most 255', () => {
+    expect([0.2, 1, 1.4, 2.5, 5.5, 6.49, 64, 1e30].map(pointSide)).toEqual([1, 1, 1, 3, 6, 6, 64, 255]);
+    for (const size of [1, 2.5, 5.5, 20]) expect(area(pointTriangles([v(0, 0)], size))).toBe(pointSide(size) ** 2);
   });
 });
 
@@ -139,15 +134,20 @@ describe('ALG-FID-05: The stipple counter carries through a strip and resets for
     expect(pieces(t).slice(2).map((p) => [p.minY, p.maxY])).toEqual([[0, 1], [2, 3], [4, 5]]);
   });
 
-  it('measures dashes in distance from the first vertex, not from pixel edges', () => {
-    // From x = 26.8, (2, 0xAAAA) is off for the first 2 units and on for the next 2: x 28.8 to 30.8.
+  it('cuts dashes at pixel column edges, counted from the first fragment', () => {
+    // From x = 26.8 the first fragment is column 27; (2, 0xAAAA) is off for columns 27 and 28 and on
+    // for 29 and 30. Column 26, before the first fragment, takes the first fragment's bit: off.
     const right = lineTriangles('LINES', [v(26.8, 52.5), v(100, 52.5)], 1, 'SMOOTH', { factor: 2, pattern: 0xaaaa });
-    expect(pieces(right)[0].minX).toBeCloseTo(28.8, 9);
-    expect(pieces(right)[0].maxX).toBeCloseTo(30.8, 9);
-    // Leftwards from 50.3, (1, 0xAAAA) is on from 1 to 2 units along: x 49.3 down to 48.3.
+    expect([pieces(right)[0].minX, pieces(right)[0].maxX]).toEqual([29, 31]);
+    // Leftwards from 50.3 the first fragment is column 49; (1, 0xAAAA) is on for the second, column 48.
     const left = lineTriangles('LINES', [v(50.3, 0.5), v(40, 0.5)], 1, 'SMOOTH', { factor: 1, pattern: 0xaaaa });
-    expect(pieces(left)[0].minX).toBeCloseTo(48.3, 9);
-    expect(pieces(left)[0].maxX).toBeCloseTo(49.3, 9);
+    expect([pieces(left)[0].minX, pieces(left)[0].maxX]).toEqual([48, 49]);
+  });
+
+  it('gives a column before the first fragment that fragment\'s bit', () => {
+    // From x = 26.8, (2, 0x0003) is on for columns 27 to 30, and column 26 joins that dash.
+    const t = lineTriangles('LINES', [v(26.8, 0.5), v(40, 0.5)], 1, 'SMOOTH', { factor: 2, pattern: 0x0003 });
+    expect([pieces(t)[0].minX, pieces(t)[0].maxX]).toEqual([26.8, 31]);
   });
 
   it('ends a stippled segment exactly at its vertices', () => {
@@ -155,10 +155,12 @@ describe('ALG-FID-05: The stipple counter carries through a strip and resets for
     expect([pieces(t)[0].minX, pieces(t)[0].maxX]).toEqual([26.4, 30.3]);
   });
 
-  it('counts distance along the line, not pixels along the major axis', () => {
-    // 40 px across and 10 up is 41.23 long: 0x5555 starts a dash every 2 units, 21 of them.
+  it('counts fragments along the major axis, not distance along the line', () => {
+    // 40 px across and 10 up is 40 fragments: 0x5555 starts a dash every 2 columns, 20 of them, and
+    // the rectangle reaches column 40, whose bit (0) is on too: 21 pieces, each a whole column.
     const t = lineTriangles('LINES', [v(0, 0), v(40, 10)], 1, 'SMOOTH', { factor: 1, pattern: 0x5555 });
     expect(pieces(t)).toHaveLength(21);
+    expect([pieces(t)[1].minX, pieces(t)[1].maxX]).toEqual([2, 3]);
   });
 });
 

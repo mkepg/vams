@@ -2,9 +2,9 @@
  * VISUAL TEST SUITE — VIS-LAB (the Lab's drawing)
  * VIS-LAB-05: every program of the Lab's reference battery, opened in the Lab as a .zip with the
  * images it loads, compiled by the compiler in the page and run, draws its first frame
- * as FreeGLUT draws it on the course toolchain. The frame is the one the page took from the
- * shared framebuffer, compared by the battery's rule (tests/helpers/image-compare.ts) with
- * tests/fixtures/lab/reference/<program>.png.
+ * as FreeGLUT draws it on the course toolchain on the reference Intel GPU. The frame is the one the
+ * page took from the shared framebuffer, compared by the strict rule (tests/helpers/image-compare.ts:
+ * every pixel within 2) with tests/fixtures/lab/reference/<program>.png.
  *
  * Needs the local runtime build: LAB_RUNTIME_LOCAL=1 npm run test:visual -- lab-drawing. Without it the checks skip. A failure
  * writes the frame and a diff image to tests/visual/results.local/lab-drawing/.
@@ -13,7 +13,7 @@ import { expect, test } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { zipSync } from 'fflate';
-import { compareImages, decodePng, encodePng, type Image } from '../helpers/image-compare';
+import { compareStrict, decodePng, encodePng, type Image } from '../helpers/image-compare';
 import { firstFrame, LAB_RUNTIME_LOCAL, openLab, requireRuntime, routeLab, runProgram } from './helpers/lab';
 
 const PROGRAMS = resolve('tests/fixtures/lab/programs');
@@ -22,10 +22,21 @@ const WORK = resolve('tests/visual/results.local/lab-drawing');
 const MANIFEST: { programs: Record<string, string> } = JSON.parse(readFileSync(join(REFERENCES, 'manifest.json'), 'utf8'));
 
 /**
- * Known residuals, parked when the battery was recorded: the end pixels of lines-wide's 45° width-4
- * lines, where no model of the reference GPU fits exactly.
+ * Named exceptions: pixels of a program that can't be matched, each with the investigation that
+ * showed why. docs/lab-operations.md lists the same.
  */
-const PARKED: Record<string, number> = { 'lines-wide': 2 };
+const LINE_EDGE =
+  'multisampled line edges: one sample of a pixel, which lies within 0.003 of a pixel outside the line and which the fixed-point edge setup of the reference driver counts as inside';
+const EXCEPTIONS: Record<string, { pixels: number; reason: string }> = {
+  'gallery-clock': { pixels: 12, reason: LINE_EDGE },
+  'gallery-jeepney-street': { pixels: 22, reason: LINE_EDGE },
+  'gallery-parol': { pixels: 68, reason: LINE_EDGE },
+  'gallery-solar-system': { pixels: 127, reason: LINE_EDGE },
+  'gallery-pixel-fox': {
+    pixels: 10,
+    reason: 'one row where a pixel centre falls exactly on a texel boundary under GL_NEAREST, and the reference driver takes the texel below',
+  },
+};
 
 /** The program as main.cpp, with the images it loads beside it. */
 function workZip(name: string): Buffer {
@@ -69,7 +80,7 @@ test.describe('VIS-LAB-05: Each battery program draws in the Lab as FreeGLUT dra
 
       const frame = await firstFrame(page);
       const reference = decodePng(readFileSync(join(REFERENCES, `${name}.png`)));
-      const result = compareImages(frame, reference);
+      const result = compareStrict(frame, reference);
       if (!result.ok) {
         mkdirSync(WORK, { recursive: true });
         writeFileSync(join(WORK, `${name}.lab.png`), encodePng(frame));
@@ -78,7 +89,7 @@ test.describe('VIS-LAB-05: Each battery program draws in the Lab as FreeGLUT dra
         }
       }
       test.info().annotations.push({ type: 'failures', description: `${name}: ${result.failures}` });
-      expect(result.failures, `first differences [x, y, size]: ${JSON.stringify(result.examples)}`).toBeLessThanOrEqual(PARKED[name] ?? 0);
+      expect(result.failures, `first differences [x, y, size]: ${JSON.stringify(result.examples)}`).toBeLessThanOrEqual(EXCEPTIONS[name]?.pixels ?? 0);
     });
   }
 });

@@ -184,11 +184,10 @@ describe('ALG-LAB-10: Begin/End objects break into the specification’s polygon
       { vertices: [0, 2, 3], provoking: 3, split: undefined },
       { vertices: [0, 3, 4], provoking: 4, split: undefined },
     ]);
-    // The reference driver splits a quad 0-1-2, 0-2-3 (ALG-LAB-33; it was 0-1-3, 1-2-3 when the
-    // references came from another GPU).
+    // The reference Intel driver splits a quad 0-1-3, 1-2-3, on the 1-3 diagonal (ALG-LAB-33).
     expect(flat(GL.QUADS, 9)).toEqual([
-      { vertices: [0, 1, 2, 3], provoking: 3, split: [[0, 1, 2], [0, 2, 3]] },
-      { vertices: [4, 5, 6, 7], provoking: 7, split: [[0, 1, 2], [0, 2, 3]] },
+      { vertices: [0, 1, 2, 3], provoking: 3, split: [[0, 1, 3], [1, 2, 3]] },
+      { vertices: [4, 5, 6, 7], provoking: 7, split: [[0, 1, 3], [1, 2, 3]] },
     ]);
     // Quad i is v2i, v2i+1, v2i+3, v2i+2.
     expect(flat(GL.QUAD_STRIP, 7)).toEqual([
@@ -865,15 +864,22 @@ describe('ALG-LAB-15: glutBitmapCharacter and the GLUT fonts, as freeglut and th
     expect(covered(outside.fb)).toEqual([]);
   });
 
-  it('a newline in glutBitmapString starts the next line one font height down', () => {
+  it('a newline in glutBitmapString starts the next line one font height down, moved back by what the line moved', () => {
     const gl = pixelContext(W, H);
     gl.rasterPos2i(5, 25);
     glutBitmapString(gl, GLUT_FONTS.GLUT_BITMAP_9_BY_15, 'Hi\nHello');
-    expect(covered(gl.fb)).toEqual([...editorPixels('Hi', 5, 25), ...editorPixels('Hello', 5, 9)].sort((p, q) => {
-      const [a, b] = p.split(',').map(Number);
-      const [c, d] = q.split(',').map(Number);
-      return b - d || a - c;
-    }));
+    // Under glOrtho(0, 120, ...) the raster position's x works out in 32-bit floats to 4.999999
+    // (ALG-LAB-37), so the first line's H starts at column 5. The newline moves back the 18 the line
+    // moved, landing in 32-bit floats on 5 exactly, so the second line's H starts at column 6. The
+    // reference GPU draws the same.
+    const leftmost = (rows: (y: number) => boolean) =>
+      Math.min(...covered(gl.fb).map((p) => p.split(',').map(Number)).filter(([, y]) => rows(y)).map(([x]) => x));
+    expect(leftmost((y) => y >= 20)).toBe(5);
+    expect(leftmost((y) => y < 20)).toBe(6);
+    // Each H's left stroke: rows 25..34 of column 5, and rows 9..18 of column 6.
+    const lit = covered(gl.fb);
+    for (let y = 25; y <= 34; y++) expect(lit).toContain(`5,${y}`);
+    for (let y = 9; y <= 18; y++) expect(lit).toContain(`6,${y}`);
   });
 
   // Widths of H, e, l, o and the font height and yorig, from fg_font_data.c (each glyph's first byte).
@@ -960,8 +966,9 @@ describe('ALG-LAB-16: glClear fills the scissor box only while GL_SCISSOR_TEST i
     gl.clear(GL.COLOR_BUFFER_BIT);
     gl.rectf(0, 0, 4.5, 10);
     // Pixel 4's samples at 4.5 − 2/16 and 4.5 − 6/16 are covered, the two at + 6/16 and + 2/16 are not:
-    // half white, half red. Averaged as light in sRGB (ALG-LAB-36), green and blue are 188.
-    expect(px(gl.fb, 4, 5)).toEqual([255, 188, 188, 255]);
+    // half white, half red. Averaged as the reference driver averages them (ALG-LAB-36), green and
+    // blue are 128.
+    expect(px(gl.fb, 4, 5)).toEqual([255, 128, 128, 255]);
     expect(px(gl.fb, 3, 5)).toEqual([255, 255, 255, 255]);
     expect(px(gl.fb, 5, 5)).toEqual([255, 0, 0, 255]);
   });
@@ -1187,7 +1194,7 @@ describe('ALG-LAB-25: glTexImage2D takes no level past log2 of the largest textu
   });
 });
 
-describe('ALG-LAB-26: Point size and line width stop at 64 and 10 in both sampling modes', () => {
+describe('ALG-LAB-26: Point size and line width stop at 255 and 2047 in both sampling modes, as the reference driver reports', () => {
   /** How many pixels of column x the drawing covers, each counted by its alpha, so a half-covered pixel is ½. */
   const columnCover = (fb: Framebuffer, x: number) => {
     let sum = 0;
@@ -1195,42 +1202,41 @@ describe('ALG-LAB-26: Point size and line width stop at 64 and 10 in both sampli
     return sum;
   };
 
-  it('without multisampling, glPointSize(1e30) draws a 64 × 64 square', () => {
-    const gl = pixelContext(100, 100);
+  it('without multisampling, glPointSize(1e30) draws a 255 × 255 square', () => {
+    const gl = pixelContext(300, 300);
     gl.pointSize(1e30);
     gl.begin(GL.POINTS);
-    gl.vertex2f(50, 50);
+    gl.vertex2f(150, 150);
     gl.end();
     expect(gl.getError()).toBe(GL.NO_ERROR);
-    // Centred on the pixel corner (50, 50): x and y 18..81 (3.3.1).
-    expect(covered(gl.fb)).toEqual(block(18, 81, 18, 81));
+    // An odd size centres on (150.5, 150.5): x and y 23..277 (3.3.1). The reference GPU draws the same.
+    expect(covered(gl.fb)).toEqual(block(23, 277, 23, 277));
   });
 
-  it('with multisampling, glPointSize(1e30) draws a circle 64 wide', () => {
-    const gl = pixelContext(100, 100, true);
+  it('with multisampling, glPointSize(1e30) draws a square 255 wide', () => {
+    const gl = pixelContext(300, 300, true);
     gl.pointSize(1e30);
     gl.begin(GL.POINTS);
-    gl.vertex2f(50, 50);
+    gl.vertex2f(150, 150);
     gl.end();
     expect(gl.getError()).toBe(GL.NO_ERROR);
-    // A circle of radius 32 about (50, 50) (3.3.3, ALG-LAB-34): it reaches rows and columns 18 and
-    // 81 at its middle, and leaves the corners of the 64 × 64 square out.
-    const lit = covered(gl.fb);
-    expect(lit.every((p) => block(18, 81, 18, 81).includes(p))).toBe(true);
-    for (const p of ['18,49', '81,50', '49,18', '50,81', '30,30']) expect(lit).toContain(p);
-    for (const p of ['18,18', '81,18', '18,81', '81,81', '24,24']) expect(lit).not.toContain(p);
+    // The square x and y 22.5..277.5 covers columns and rows 23..276 whole, its corners too, and two
+    // samples of each pixel on its edges (ALG-LAB-34). The reference GPU draws the same.
+    expect(covered(gl.fb)).toEqual(block(22, 277, 22, 277));
+    for (const [x, y] of [[23, 23], [276, 276], [150, 150]]) expect(px(gl.fb, x, y)[0]).toBe(255);
+    expect(px(gl.fb, 22, 150)[0]).toBe(128);
   });
 
-  it.each([false, true])('multisample %s: glLineWidth(1e9) draws a line 10 pixels wide', (multisample) => {
-    const gl = pixelContext(100, 100, multisample);
+  it.each([false, true])('multisample %s: glLineWidth(1e9) draws a line 2047 pixels wide', (multisample) => {
+    const gl = pixelContext(100, 3000, multisample);
     gl.lineWidth(1e9);
     gl.begin(GL.LINES);
-    gl.vertex2f(10, 50.5);
-    gl.vertex2f(90, 50.5);
+    gl.vertex2f(10, 1500.5);
+    gl.vertex2f(90, 1500.5);
     gl.end();
     expect(gl.getError()).toBe(GL.NO_ERROR);
     // A multisampled edge row is half covered and resolves to 128 / 255, so allow for 8-bit rounding.
-    expect(columnCover(gl.fb, 50)).toBeCloseTo(10, 1);
+    expect(columnCover(gl.fb, 50)).toBeCloseTo(2047, 0);
   });
 
   it('a multisampled, stippled, widest line to 1e30 stays in the window and finishes within a second', () => {
@@ -1452,8 +1458,8 @@ describe('ALG-LAB-30: Lines on a pixel edge or a diamond corner take the pixels 
     expect(runs(gl.fb, 20)).toEqual(['0-31', '64-95', '128-159', '192-223', '256-287', '320-351', '384-415', '448-479']);
   });
 
-  it('a horizontal line on the boundary y = 460 takes row 459', () => {
-    expect(line(500, 500, 20, 460, 230, 460)).toEqual(block(20, 229, 459, 459));
+  it('a horizontal line on the boundary y = 460 takes row 460', () => {
+    expect(line(500, 500, 20, 460, 230, 460)).toEqual(block(20, 229, 460, 460));
   });
 
   it('a vertical line on the boundary x = 20 takes column 19, either way', () => {
@@ -1475,7 +1481,8 @@ describe('ALG-LAB-30: Lines on a pixel edge or a diamond corner take the pixels 
     expect(line(40, 40, 10, 10, 30, 30)).toEqual(diagonal((k) => [k, k]));
     expect(line(40, 40, 30, 30, 10, 10)).toEqual(diagonal((k) => [k, k]));
     expect(line(40, 40, 10, 30, 30, 10)).toEqual(diagonal((k) => [k, 39 - k]));
-    expect(line(40, 40, 10.5, 10, 30.5, 30)).toEqual(diagonal((k) => [k, k - 1]));
+    // Exactly 45°, the segment is y-major, and each row's fragment is the one its centre's diamond holds.
+    expect(line(40, 40, 10.5, 10, 30.5, 30)).toEqual(diagonal((k) => [k, k]));
   });
 });
 
@@ -1517,18 +1524,18 @@ describe('ALG-LAB-31: glTexParameterfv sets GL_TEXTURE_BORDER_COLOR, which GL_CL
   });
 });
 
-describe('ALG-LAB-32: An aliased line width rounds half to even, as the reference driver rounds it (3.4.2)', () => {
-  it('width 4.5 is 4 pixels: lines-wide.png column 62 takes rows 148 to 151', () => {
+describe('ALG-LAB-32: An aliased line width rounds half up, as the reference driver rounds it (3.4.2)', () => {
+  it('width 4.5 is 5 pixels: lines-wide.png column 62 takes rows 148 to 152', () => {
     const gl = pixelContext(500, 500);
     gl.lineWidth(4.5);
     gl.begin(GL.LINES);
     gl.vertex2f(22.5, 150);
     gl.vertex2f(102.5, 150);
     gl.end();
-    expect(covered(gl.fb).filter((p) => p.startsWith('62,'))).toEqual(['62,148', '62,149', '62,150', '62,151']);
+    expect(covered(gl.fb).filter((p) => p.startsWith('62,'))).toEqual(['62,148', '62,149', '62,150', '62,151', '62,152']);
   });
 
-  it.each([[1.5, 2], [2.5, 2], [3.5, 4], [5.5, 6], [6.5, 6], [2.7, 3], [3.3, 3]])('width %s is %s pixels', (width, pixels) => {
+  it.each([[1.5, 2], [2.5, 3], [3.5, 4], [5.5, 6], [6.5, 7], [2.7, 3], [3.3, 3]])('width %s is %s pixels', (width, pixels) => {
     const gl = pixelContext(40, 40);
     gl.lineWidth(width);
     gl.begin(GL.LINES);
@@ -1539,10 +1546,10 @@ describe('ALG-LAB-32: An aliased line width rounds half to even, as the referenc
   });
 });
 
-describe('ALG-LAB-33: A quad is filled as triangles 0-1-2 and 0-2-3, as the reference driver splits it', () => {
+describe('ALG-LAB-33: A quad is filled as triangles 0-1-3 and 1-2-3, as the reference driver splits it', () => {
   // The smooth ramp of tests/fixtures/lab/programs/blend.cpp; expected colours are
-  // tests/fixtures/lab/reference/blend.png's, at pixels well away from the 0-2 diagonal and the edges.
-  it('the ramp from blend.cpp takes the reference colours on both sides of the 0-2 diagonal', () => {
+  // tests/fixtures/lab/reference/blend.png's, at pixels well away from the 1-3 diagonal and the edges.
+  it('the ramp from blend.cpp takes the reference colours on both sides of the 1-3 diagonal', () => {
     const gl = pixelContext(500, 500);
     gl.shadeModel(GL.SMOOTH);
     gl.begin(GL.QUADS);
@@ -1556,22 +1563,22 @@ describe('ALG-LAB-33: A quad is filled as triangles 0-1-2 and 0-2-3, as the refe
     gl.vertex2f(360, 370);
     gl.end();
     const reference: [number, number, number[]][] = [
-      [370, 339, [255, 233, 220]],
-      [365, 250, [255, 243, 116]],
-      [380, 300, [255, 211, 174]],
-      [470, 159, [31, 244, 235]],
-      [475, 350, [242, 23, 245]],
-      [460, 170, [65, 231, 214]],
+      [370, 339, [233, 255, 242]],
+      [365, 250, [243, 255, 128]],
+      [380, 300, [211, 255, 218]],
+      [470, 159, [20, 255, 246]],
+      [475, 350, [232, 32, 255]],
+      [460, 170, [41, 255, 237]],
     ];
     for (const [x, y, want] of reference) expect(near(px(gl.fb, x, y), want, 1), `${x},${y}: ${px(gl.fb, x, y)}`).toBe(true);
   });
 });
 
-describe('ALG-LAB-34: A multisampled point covers the samples inside a circle as wide as its size (3.3.3)', () => {
-  // A size-8 star of tests/fixtures/lab/programs/gallery-solar-system.cpp, white on black, so a
-  // pixel's red, back in linear light (ALG-LAB-36) and times 4, counts its covered samples. The
-  // counts are the reference image's.
-  function star(): (x: number, y: number) => number {
+describe('ALG-LAB-34: A multisampled point covers the samples inside a square of its size, as the reference driver draws it (3.3.3)', () => {
+  // A size-8 star of tests/fixtures/lab/programs/gallery-solar-system.cpp, white on black. The square
+  // x 84.09..92.09 takes the samples strictly right of its left edge and above its bottom edge, and
+  // those on its right and top edges.
+  it('draws the star exactly as the reference image does, corners and all', () => {
     const gl = new GLContext(500, 500, { multisample: true });
     gl.matrixMode(GL.PROJECTION);
     gl.ortho(-1.6, 1.6, -0.9, 0.9, -1, 1);
@@ -1580,20 +1587,28 @@ describe('ALG-LAB-34: A multisampled point covers the samples inside a circle as
     gl.begin(GL.POINTS);
     gl.vertex2f(-1.0362, -0.8099);
     gl.end();
-    const linear = (v: number) => (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4);
-    return (x, y) => Math.round(linear(px(gl.fb, x, y)[0]) * 4);
-  }
-
-  it('leaves out the corners of the 8 × 8 square around (88.09, 25.03), and fills the middle', () => {
-    const samples = star();
-    for (const [x, y] of [[84, 28], [91, 28], [84, 21], [91, 21]]) expect(samples(x, y), `${x},${y}`).toBe(0);
-    for (const [x, y] of [[88, 25], [86, 26], [89, 23]]) expect(samples(x, y), `${x},${y}`).toBe(4);
+    const reference = decodePng(readFileSync(join(process.cwd(), 'tests/fixtures/lab/reference/gallery-solar-system.png')));
+    for (const [x, y] of [[84, 28], [91, 28], [84, 21], [91, 21], [88, 25]]) expect(px(gl.fb, x, y)[0], `${x},${y}`).toBe(255);
+    // The reference star is white over the scene's dark blue (red 5): each pixel's covered samples,
+    // 0 to 4, read from both images, are the same around the whole square.
+    const red = (x: number, y: number) => reference.data[((499 - y) * 500 + x) * 4];
+    const background = red(80, 17);
+    for (let y = 18; y <= 31; y++) {
+      for (let x = 81; x <= 94; x++) {
+        const want = Math.round(((red(x, y) - background) / (255 - background)) * 4);
+        expect(Math.round((px(gl.fb, x, y)[0] / 255) * 4), `${x},${y}`).toBe(want);
+      }
+    }
   });
 
-  it('half covers the edge pixels the reference half covers', () => {
-    const samples = star();
-    expect(samples(84, 23)).toBe(2);
-    expect(samples(86, 28)).toBe(2);
+  it('rounds the size half up: 2.5 covers a 3 × 3 square', () => {
+    const gl = pixelContext(20, 20, true);
+    gl.pointSize(2.5);
+    gl.begin(GL.POINTS);
+    gl.vertex2f(10.5, 10.5);
+    gl.end();
+    expect(covered(gl.fb)).toEqual(block(9, 11, 9, 11));
+    for (const p of block(9, 11, 9, 11)) expect(px(gl.fb, +p.split(',')[0], +p.split(',')[1])[0]).toBe(255);
   });
 
   it('a point without multisampling stays a square', () => {
@@ -1606,9 +1621,9 @@ describe('ALG-LAB-34: A multisampled point covers the samples inside a circle as
   });
 });
 
-describe('ALG-LAB-35: A multisampled stipple counts distance along the line, on through a strip or loop', () => {
-  // The reference driver measures a multisampled line's stipple in window units along the line,
-  // carried on through every segment of a strip or loop, not one count per pixel column.
+describe('ALG-LAB-35: A multisampled stipple counts pixel columns along the major axis, on through a strip or loop', () => {
+  // The reference driver counts a multisampled line's stipple once per fragment of the major axis,
+  // as in aliased drawing, carried on through every segment of a strip or loop.
 
   it('the dashed Mars orbit of gallery-solar-system.cpp lights the pixels the reference lights', () => {
     const program = readFileSync(join(process.cwd(), 'tests/fixtures/lab/programs/gallery-solar-system.cpp'), 'utf8');
@@ -1645,39 +1660,56 @@ describe('ALG-LAB-35: A multisampled stipple counts distance along the line, on 
     expect(wrong).toEqual([]);
   });
 
-  it('a 45° line takes 16 units of (1, 0x00FF) for every 11.3 pixels of x, the same split into pieces', () => {
+  it('a 45° line takes 16 columns of (1, 0x00FF) for every 16 pixels of x, the same split into pieces', () => {
     const draw = (pieces: number) => {
       const gl = pixelContext(200, 200, true);
       gl.enable(GL.LINE_STIPPLE);
       gl.lineStipple(1, 0x00ff);
       gl.begin(GL.LINE_STRIP);
-      for (let i = 0; i <= pieces; i++) gl.vertex2f(10.3 + (140 * i) / pieces, 10.3 + (140 * i) / pieces);
+      for (let i = 0; i <= pieces; i++) gl.vertex2f(10.5 + 16 * i * (8 / pieces), 10.25 + 16 * i * (8 / pieces));
       gl.end();
-      return Array.from({ length: 140 }, (_, k) => (px(gl.fb, 10 + k, 10 + k)[3] > 128 ? '#' : ' ')).join('');
+      return Array.from({ length: 128 }, (_, k) => (px(gl.fb, 10 + k, 10 + k)[3] > 128 ? '#' : ' ')).join('');
     };
-    // Along the diagonal the dashes repeat every 16 / √2 ≈ 11.3 pixels, as the reference driver draws them.
-    // On for 0 to 5.66 pixels of x from 10.3, off to 11.31, on to 16.97, off to 22.63, on to 28.28.
+    // Columns 10..17 are on, 18..25 off, 26..33 on: along the diagonal the dashes repeat every 16 pixels.
     const one = draw(1);
-    expect([2, 8, 13, 19, 24].map((k) => one[k]).join('')).toBe('# # #');
-    expect(draw(53)).toBe(one);
+    expect([2, 10, 18, 26].map((k) => one[k]).join('')).toBe('# # ');
+    expect(draw(8)).toBe(one);
   });
 });
 
-describe('ALG-LAB-36: The 4 samples of a pixel resolve as the reference driver resolves them, averaged in sRGB', () => {
-  // White on black: the reference image's partly covered pixels are 137, 188 and 225 for 1, 2 and 3
-  // samples, the sRGB encoding of a quarter, a half and three quarters of full light
-  // (tests/fixtures/lab/reference/gallery-solar-system.png's stars).
+describe('ALG-LAB-36: The 4 samples of a pixel resolve as the reference driver resolves them: (sum + 1) >> 2, 510 to 128', () => {
+  // White on black: the reference driver's partly covered pixels are 64, 128 and 191 for 1, 2 and 3
+  // samples, measured for every byte value over black and over white
+  // (docs/specs/2026-11-24-intel-reference-design.md).
   it.each([
-    [10.7, 1, 137],
-    [10.5, 2, 188],
-    [10.25, 3, 225],
+    [10.7, 1, 64],
+    [10.5, 2, 128],
+    [10.25, 3, 191],
   ])('a rectangle from x = %s covers %s of pixel 10’s samples and resolves to %s', (left, _samples, value) => {
     const gl = pixelContext(24, 24, true);
     gl.rectf(left, 0, 20, 20);
     // Pixel 10's samples sit at x 10.375, 10.875, 10.125 and 10.625.
-    expect(Math.abs(px(gl.fb, 10, 5)[0] - value)).toBeLessThanOrEqual(1);
+    expect(px(gl.fb, 10, 5)[0]).toBe(value);
     expect(px(gl.fb, 11, 5)[0]).toBe(255);
     expect(px(gl.fb, 9, 5)[0]).toBe(0);
+  });
+
+  it('rounds a quarter down and an exact half of 255 up', () => {
+    // Two samples of 135 over black average 67.5, which resolves to 67; three of 85 over white, and
+    // two of 255 over black, average 127.5, which resolves to 128.
+    const resolved = (value: number, left: number, background: number) => {
+      const gl = pixelContext(24, 24, true);
+      gl.clearColor(background / 255, 0, 0, 1);
+      gl.clear(GL.COLOR_BUFFER_BIT);
+      gl.color3ub(value, 0, 0);
+      gl.rectf(left, 0, 20, 20);
+      return px(gl.fb, 10, 5)[0];
+    };
+    expect(resolved(135, 10.5, 0)).toBe(67);
+    expect(resolved(255, 10.5, 0)).toBe(128);
+    expect(resolved(85, 10.25, 255)).toBe(128);
+    expect(resolved(1, 10.7, 0)).toBe(0);
+    expect(resolved(3, 10.7, 0)).toBe(1);
   });
 
   it('a covered pixel keeps its colour exactly, and alpha averages as coverage', () => {
@@ -1689,19 +1721,20 @@ describe('ALG-LAB-36: The 4 samples of a pixel resolve as the reference driver r
   });
 });
 
-describe('ALG-LAB-37: The raster position sits on a 1/256-pixel grid, as the reference driver keeps it (2.13)', () => {
-  // tests/fixtures/lab/programs/bitmap-text.cpp's Helvetica 18 line at glRasterPos2i(8, 104) under
-  // glOrtho(0, 720, 0, 640): worked out exactly the position is 103.99999999999999, which would put
-  // the glyphs a row low; the reference draws them from row 104.
-  it('glRasterPos2i(8, 104) under glOrtho(0, 720, 0, 640) puts a glyph’s origin at (8, 104)', () => {
+describe('ALG-LAB-37: The raster position works out in 32-bit floats, as the reference driver keeps it (2.13)', () => {
+  // tests/fixtures/lab/programs/bitmap-text.cpp's lines start at glRasterPos2i(8, y) under
+  // glOrtho(0, 720, 0, 640): in 32-bit floats x is 7.9999995, so a line's first glyph sits a pixel
+  // left of 8, and moving on by 9 brings the next to 17 exactly, as the reference draws them.
+  it('glRasterPos2i(8, 104) under glOrtho(0, 720, 0, 640) puts the first glyph at x 7 and the next at 17', () => {
     const gl = new GLContext(720, 640);
     gl.matrixMode(GL.PROJECTION);
     gl.ortho(0, 720, 0, 640, -1, 1);
     gl.matrixMode(GL.MODELVIEW);
     gl.rasterPos2i(8, 104);
     // A 1 × 1 bitmap with its one bit set lands on the raster position's pixel.
-    gl.bitmap(1, 1, 0, 0, 0, 0, new Uint8Array([0x80]));
-    expect(covered(gl.fb)).toEqual(['8,104']);
+    gl.bitmap(1, 1, 0, 0, 9, 0, new Uint8Array([0x80]));
+    gl.bitmap(1, 1, 0, 0, 9, 0, new Uint8Array([0x80]));
+    expect(covered(gl.fb)).toEqual(['7,104', '17,104']);
   });
 });
 
