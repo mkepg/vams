@@ -1,18 +1,23 @@
 // Render fidelity capture: compiled into an exported program with capture-pre.h, it writes the
-// program's first frame (width, height, sample count, then bottom-up RGBA rows), prints the
-// renderer it ran on, and exits.
+// program's first frame (width, height, sample count, then bottom-up RGBA rows), prints its
+// sample positions and the renderer it ran on, and exits. It asks for no particular GPU, so a laptop
+// with switchable graphics runs it on its integrated Intel GPU, the reference.
 #include <GL/glew.h>
 #include <GL/freeglut.h>
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
 
-// Runs the program on the discrete GPU of a laptop with switchable graphics, as the Lab's
-// references do (tests/fixtures/lab/capture). Without it a laptop picks its integrated GPU,
-// which draws a multisampled point as a square instead of the circle OpenGL 1.5 asks for (3.3.3).
-extern "C" {
-__declspec(dllexport) unsigned long NvOptimusEnablement = 1;
-__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+// The sample positions of a multisampled window, as the recorders check them against Intel's.
+static void printSamplePositions(GLint samples) {
+  if (samples <= 1 || !glGetMultisamplefv) return;
+  fprintf(stderr, "samples");
+  for (GLint i = 0; i < samples; i++) {
+    GLfloat p[2] = {0, 0};
+    glGetMultisamplefv(GL_SAMPLE_POSITION, i, p);
+    fprintf(stderr, " %.4f,%.4f", p[0], p[1]);
+  }
+  fprintf(stderr, "\n");
 }
 
 static void dump(GLenum buf) {
@@ -26,6 +31,7 @@ static void dump(GLenum buf) {
   fwrite(&w, 4, 1, f); fwrite(&h, 4, 1, f);
   GLint samples = 0; glGetIntegerv(GL_SAMPLES, &samples); fwrite(&samples, 4, 1, f);
   fwrite(px.data(), 1, px.size(), f); fclose(f);
+  printSamplePositions(samples);
   fprintf(stderr, "%s, %s\n", (const char*)glGetString(GL_RENDERER), (const char*)glGetString(GL_VERSION));
   exit(0);
 }

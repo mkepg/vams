@@ -61,7 +61,7 @@ The 21 Lab battery programs were built with the course toolchain and captured on
 ### The comparison rule
 
 - `tests/helpers/image-compare.ts` gets a strict rule: every pixel within `CHANNEL_TOLERANCE` (2) of the reference, with a per-scene list of named exceptions, each a pixel count and a reason. The Lab battery and the editor's Run view use it.
-- The editing view keeps an edge allowance, narrowed so it can't swallow gradients or text: a pixel is an edge pixel when some pixel in its 3 × 3 neighbourhood in the reference differs from it by more than 32 in a channel. *(My call: a gradient across a shape changes by a few levels a pixel, and an anti-aliased edge jumps by far more. 32 is an eighth of the range.)* Text and dashes still count as edges here, so the editing view's text and stipple are checked through the Run view.
+- The editing view keeps an edge allowance, narrowed so it can't swallow gradients: a pixel is an edge pixel when some pixel in its 3 × 3 neighbourhood in the reference differs from it by more than 8 in a channel, and every other pixel must be within 8. *(My call, revised while building: WebGL on the viewer's GPU interpolates a gradient to within a few levels of the reference, not 2, and a low-contrast anti-aliased edge jumps by less than 32. A wrong quad split, stipple or point shape is far more than 8.)* Text and dashes still count as edges here, so the editing view's text and stipple are checked through the Run view.
 - A failing comparison writes the frame, the reference and the diff image to `tests/visual/results.local`, as today.
 
 ### The software renderer (`src/shared/lib/gl-raster/`)
@@ -75,6 +75,26 @@ Fitted to the Intel references until the strict rule passes. What is known to ch
 - **Bitmap text:** the glyph offset of the font that differs.
 
 Each change is checked in Vitest with a small case drawn from an Intel capture, as the existing `ALG-FID` and `ALG-LAB` tests do.
+
+### What the fitting found (2026-11-24)
+
+Each rule below was found by drawing a probe program on the Iris Xe and through `gl-raster`, then comparing every pixel.
+
+- **Resolve:** each channel is `(s + 1) >> 2` of the sum `s` of its 4 sample bytes, except that a sum of 510 (an average of exactly 127.5) gives 128. This was measured for 1, 2 and 3 of 4 samples of every byte, over black and over white: 1,536 cases with no exceptions. The sRGB resolve was NVIDIA's.
+- **Sample positions:** `glGetMultisamplefv` reports (0.375, 0.125), (0.875, 0.375), (0.125, 0.625) and (0.625, 0.875), but coverage follows the same pattern mirrored in y. Points' corners fit only the mirrored one. `SAMPLE_OFFSETS` holds the mirrored pattern, and the recorders check the reported one.
+- **Vertices:** window coordinates are rounded to 1/256 of a pixel (`GL_SUBPIXEL_BITS` is 8), after the transforms are worked out in 32-bit floats.
+- **Multisampled points:** a square whose side is the size rounded half up, from 1 to 255. It takes the samples on its right and top edges, but not those on its left and bottom ones.
+- **Aliased wide lines:** the width is rounded half up, from 1 to 2047. A line wider than 1 is filled as a parallelogram at pixel centres, by the polygon tie rules, with its ends square to the major axis. A width-1 line keeps the diamond-exit rule with Intel's ties:
+  - an x-major line takes the diamond's bottom corner;
+  - an exact 45° line is y-major;
+  - a diamond's two lower edges count as inside it, for the line's start and end alike.
+- **Multisampled lines:** the rectangle of `gl-geometry`, with the stipple counted per fragment of the major axis. Each pixel column takes its own fragment's bit. A column before the first fragment takes the first fragment's bit, and a column past the last takes the bit its place gives.
+- **Clipping lines:** a line that leaves the viewport is drawn whole, and the fragments outside the viewport are dropped (a guard band of 8 viewports each side). No clipped end lands on a pixel edge, and the stipple keeps its phase.
+- **Quads:** split 0-1-3 and 1-2-3. Quad strips, polygons and fans already matched.
+- **Raster position:** worked out in 32-bit floats and kept unrounded. `glRasterPos2i(8, y)` under `glOrtho(0, 720, ...)` lands at 7.9999995, so a line's first glyph sits a pixel left of 8. `glBitmap` moves it in 32-bit floats too, and 7.9999995 + 9 is exactly 17.
+- **Limits the driver reports:** points up to 255 in both modes, lines up to 2047, a modelview stack of 32 and a projection stack of 4. The stack depths belong to the next piece.
+- **Named exceptions:** multisampled line edges where a sample lies within 0.003 of a pixel outside the line, which Intel's fixed-point edge setup counts as inside. No rounding of the width, the ends or the corners matched every case, so these stay exceptions. The other is one row of `gallery-pixel-fox`, where a pixel centre falls exactly on a texel boundary under `GL_NEAREST`. The Lab battery lists both, with counts, in `EXCEPTIONS` in `tests/visual/lab-drawing.spec.ts`.
+- **The editing view's text** keeps its whole-line layout. On Intel only the first glyph of a line moves when the raster position lands a hair below a whole pixel, so text is exact in the Run view, which draws through `gl-raster`. *(My call.)*
 
 ### `gl-geometry` (the editing view)
 

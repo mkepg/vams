@@ -1,4 +1,5 @@
 import { lineSegments, type LineMode } from '@/shared/lib/gl-geometry';
+import type { Scissor } from './clip';
 import type { Framebuffer } from './framebuffer';
 import type { RasterState, RGBA, TextureUnit, WinVertex } from './fragment';
 import { rasterLine } from './lines';
@@ -54,10 +55,10 @@ export interface PolygonPiece {
   split?: [number, number, number][];
 }
 
-// The split the reference driver uses for a quad: 0-1-2 and 0-2-3.
+// The split the reference driver uses for a quad: 0-1-3 and 1-2-3, on the 1-3 diagonal.
 const QUAD_SPLIT: [number, number, number][] = [
-  [0, 1, 2],
-  [0, 2, 3],
+  [0, 1, 3],
+  [1, 2, 3],
 ];
 // A quad strip's quad 2i, 2i+1, 2i+3, 2i+2 split the same way: 2i-2i+1-2i+3 and 2i-2i+3-2i+2.
 const QUAD_STRIP_SPLIT: [number, number, number][] = [
@@ -175,11 +176,24 @@ export function clipPolygon(vertices: readonly ClipVertex[]): ClipVertex[] {
   return poly.length >= 3 ? poly.map(onVolume) : [];
 }
 
+/**
+ * Sub-pixel steps a window coordinate is rounded to: the reference Intel driver keeps vertex
+ * positions to 1/256 of a pixel, which decides which pixel centres and samples an edge passes.
+ */
+export const SUBPIXEL = 256;
+
+const f32 = Math.fround;
+
+/** A window coordinate rounded to the nearest 1/SUBPIXEL of a pixel. */
+function snap(c: number): number {
+  return Number.isFinite(c) ? Math.round(c * SUBPIXEL) / SUBPIXEL : c;
+}
+
 /** Clip coordinates to window coordinates: the perspective divide, then the viewport (2.11.1). */
 export function toWindow(v: ClipVertex, vp: Viewport): WinVertex {
   return {
-    x: (v.x / v.w + 1) * (vp.width / 2) + vp.x,
-    y: (v.y / v.w + 1) * (vp.height / 2) + vp.y,
+    x: snap(f32((f32(f32(v.x / v.w) + 1) * f32(vp.width / 2)) + vp.x)),
+    y: snap(f32((f32(f32(v.y / v.w) + 1) * f32(vp.height / 2)) + vp.y)),
     z: (v.z / v.w + 1) / 2,
     w: v.w,
     color: v.color,
@@ -221,14 +235,41 @@ function textureSize(t: Target): [number, number] {
   return unit ? [unit.width, unit.height] : [1, 1];
 }
 
+/** How far past the viewport, in viewport widths each side, a line is still drawn unclipped. */
+const GUARD_BAND = 8;
+
+/** Whether a line end is drawn unclipped: in front of the eye, inside the depth range, inside the guard band. */
+function inGuardBand(v: ClipVertex): boolean {
+  if (!(v.w > 0) || Math.abs(v.z) > v.w) return false;
+  return Math.abs(v.x / v.w) <= GUARD_BAND && Math.abs(v.y / v.w) <= GUARD_BAND;
+}
+
+/** The viewport as a scissor rectangle, cut down to `scissor` when that is on. */
+function viewportScissor(vp: Viewport, scissor: Scissor | null): Scissor {
+  const x0 = Math.max(vp.x, scissor?.enabled ? scissor.x : -Infinity);
+  const y0 = Math.max(vp.y, scissor?.enabled ? scissor.y : -Infinity);
+  const x1 = Math.min(vp.x + vp.width, scissor?.enabled ? scissor.x + scissor.width : Infinity);
+  const y1 = Math.min(vp.y + vp.height, scissor?.enabled ? scissor.y + scissor.height : Infinity);
+  return { enabled: true, x: x0, y: y0, width: Math.max(0, x1 - x0), height: Math.max(0, y1 - y0) };
+}
+
 /**
  * A segment clipped, mapped to the window and rasterised; the stipple counter carries on in
  * `t.state`. When clipping moves the start, the counter first moves on by the pixels cut off along
- * the major axis (multisampled, the distance cut off), so the pattern keeps the phase it has from
- * the unclipped start, as the reference driver draws it. Only the counter's place in the pattern
+ * the major axis, with or without multisampling, so the pattern keeps the phase it has from the
+ * unclipped start, as the reference driver draws it. Only the counter's place in the pattern
  * matters, so it is kept within one repeat.
  */
 function drawSegment(t: Target, a: ClipVertex, b: ClipVertex, size: [number, number]): void {
+  if (inGuardBand(a) && inGuardBand(b)) {
+    // The reference Intel driver draws a line that leaves the viewport whole and drops the fragments
+    // outside it, so no clipped end lands on a pixel edge and the stipple keeps its phase.
+    const wa = toWindow(a, t.viewport);
+    const wb = toWindow(b, t.viewport);
+    const state = stateFor(t, segmentLambda(wa, wb, size));
+    rasterLine(t.fb, wa, wb, { ...state, scissor: viewportScissor(t.viewport, state.scissor) });
+    return;
+  }
   const clipped = clipSegment(a, b);
   if (!clipped) return;
   const wa = toWindow(clipped[0], t.viewport);
@@ -237,10 +278,7 @@ function drawSegment(t: Target, a: ClipVertex, b: ClipVertex, size: [number, num
   if (stipple.enabled && clipped[0] !== a && a.w > 0) {
     const start = toWindow(a, t.viewport);
     const xMajor = Math.abs(wb.x - wa.x) >= Math.abs(wb.y - wa.y);
-    // Multisampled, the counter is a distance along the line (lines.ts, stipplePieces).
-    const cut = t.state.multisample
-      ? Math.hypot(start.x - wa.x, start.y - wa.y)
-      : Math.round(Math.abs(xMajor ? start.x - wa.x : start.y - wa.y));
+    const cut = Math.round(Math.abs(xMajor ? start.x - wa.x : start.y - wa.y));
     const repeat = 16 * Math.min(256, Math.max(1, Math.round(stipple.factor)));
     if (Number.isFinite(cut)) stipple.counter = (stipple.counter + (cut % repeat)) % repeat;
   }

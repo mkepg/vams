@@ -136,9 +136,9 @@ describe('WB-LAB-19: Each battery program is the one its reference was captured 
     : { renderer: '', programs: {} };
   const programs = readdirSync(PROGRAMS).filter((f) => f.endsWith('.cpp')).map((f) => f.slice(0, -4)).sort();
 
-  it('records every program, captured on NVIDIA graphics', () => {
+  it('records every program, captured on the reference Intel graphics', () => {
     expect(Object.keys(manifest.programs).sort()).toEqual(programs);
-    expect(manifest.renderer).toContain('NVIDIA');
+    expect(manifest.renderer).toContain('Intel(R) Iris(R) Xe Graphics');
   });
 
   it.each(programs)('%s matches the manifest', (name) => {

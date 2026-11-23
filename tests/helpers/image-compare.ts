@@ -1,8 +1,7 @@
 /**
- * Reading, writing and comparing the render fidelity battery's images. The comparison rule is the
- * render fidelity spec's: a pixel whose 3 × 3 neighbourhood in the reference is not all one colour
- * is an edge pixel and may differ by any amount; every other pixel must be within 2 of the
- * reference in each channel.
+ * Reading, writing and comparing the battery's images, by the rules of the Intel reference spec
+ * (docs/specs/2026-11-24-intel-reference-design.md): the strict rule for the Lab and the editor's
+ * Run view, and the edge rule for the editor's editing view, whose edges come from the viewer's GPU.
  */
 import { unzlibSync, zlibSync } from 'fflate';
 
@@ -119,22 +118,49 @@ export function decodePng(bytes: Uint8Array): Image {
   return { width, height, data: out };
 }
 
+/** In the edge rule, a jump between neighbouring reference pixels larger than this makes them edge pixels. */
+export const EDGE_JUMP = 8;
+
+/**
+ * The edge rule's tolerance away from edges. The editing view is drawn by the viewer's GPU through
+ * WebGL, which interpolates colour to its own precision: a gradient lands within a few levels of the
+ * reference, not within 2. A wrong quad split, stipple or point shape is far more than 8.
+ */
+export const EDITING_TOLERANCE = 8;
+
 export interface Comparison {
   ok: boolean;
-  /** Pixels that are not edge pixels and differ by more than CHANNEL_TOLERANCE. */
+  /** Pixels the rule checks that differ by more than its tolerance. */
   failures: number;
   /** The first few failures, as [x, y, largest channel difference]. */
   examples: [number, number, number][];
 }
 
-/** Compares `actual` with `reference` by the battery's rule. `ignore` leaves out pixels that aren't drawing. */
-export function compareImages(actual: Image, reference: Image, ignore: (x: number, y: number) => boolean = () => false): Comparison {
+type Ignore = (x: number, y: number) => boolean;
+
+/** The strict rule: every pixel within CHANNEL_TOLERANCE. `ignore` leaves out pixels that aren't drawing. */
+export function compareStrict(actual: Image, reference: Image, ignore: Ignore = () => false): Comparison {
+  return compare(actual, reference, ignore, false);
+}
+
+/**
+ * The editing view's rule: a pixel with a neighbour (3 × 3) in the reference that differs from it by
+ * more than EDGE_JUMP in a channel is an edge pixel and may differ by any amount; every other pixel
+ * is held to EDITING_TOLERANCE, gradients included.
+ */
+export function compareEdges(actual: Image, reference: Image, ignore: Ignore = () => false): Comparison {
+  return compare(actual, reference, ignore, true);
+}
+
+function compare(actual: Image, reference: Image, ignore: Ignore, edges: boolean): Comparison {
+  const tolerance = edges ? EDITING_TOLERANCE : CHANNEL_TOLERANCE;
   if (actual.width !== reference.width || actual.height !== reference.height) {
     throw new Error(`The image is ${actual.width} × ${actual.height}; the reference is ${reference.width} × ${reference.height}.`);
   }
   const { width, height } = reference;
   const ref = reference.data;
-  const sameAs = (i: number, j: number) => ref[i] === ref[j] && ref[i + 1] === ref[j + 1] && ref[i + 2] === ref[j + 2];
+  const jumps = (i: number, j: number) =>
+    Math.abs(ref[i] - ref[j]) > EDGE_JUMP || Math.abs(ref[i + 1] - ref[j + 1]) > EDGE_JUMP || Math.abs(ref[i + 2] - ref[j + 2]) > EDGE_JUMP;
   let failures = 0;
   const examples: [number, number, number][] = [];
   for (let y = 0; y < height; y++) {
@@ -142,11 +168,11 @@ export function compareImages(actual: Image, reference: Image, ignore: (x: numbe
       if (ignore(x, y)) continue;
       const i = (y * width + x) * 4;
       let edge = false;
-      for (let dy = -1; dy <= 1 && !edge; dy++) {
+      for (let dy = -1; dy <= 1 && edges && !edge; dy++) {
         for (let dx = -1; dx <= 1 && !edge; dx++) {
           const xx = x + dx;
           const yy = y + dy;
-          if (xx >= 0 && yy >= 0 && xx < width && yy < height && !sameAs(i, (yy * width + xx) * 4)) edge = true;
+          if (xx >= 0 && yy >= 0 && xx < width && yy < height && jumps(i, (yy * width + xx) * 4)) edge = true;
         }
       }
       if (edge) continue;
@@ -155,7 +181,7 @@ export function compareImages(actual: Image, reference: Image, ignore: (x: numbe
         Math.abs(actual.data[i + 1] - ref[i + 1]),
         Math.abs(actual.data[i + 2] - ref[i + 2]),
       );
-      if (diff > CHANNEL_TOLERANCE) {
+      if (diff > tolerance) {
         failures++;
         if (examples.length < 5) examples.push([x, y, diff]);
       }

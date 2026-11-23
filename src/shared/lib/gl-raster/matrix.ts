@@ -97,6 +97,17 @@ export function transform(m: Mat4, x: number, y: number, z: number, w: number): 
   ];
 }
 
+/**
+ * m × (x, y, z, w) in 32-bit floats, each product and sum rounded as a float would hold it: the
+ * arithmetic the reference driver does on the raster position (2.13), whose rounding can leave it a
+ * hair below a whole pixel.
+ */
+export function transformF32(m: Mat4, x: number, y: number, z: number, w: number): [number, number, number, number] {
+  const f = Math.fround;
+  const row = (i: number) => f(f(f(f(f(m[i]) * f(x)) + f(f(m[i + 4]) * f(y))) + f(f(m[i + 8]) * f(z))) + f(f(m[i + 12]) * f(w)));
+  return [row(0), row(1), row(2), row(3)];
+}
+
 /** A matrix stack of at most `depth` entries; the last is the current matrix. */
 export class MatrixStack {
   private readonly entries: Mat4[] = [identity()];

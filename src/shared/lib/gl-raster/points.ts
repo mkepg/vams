@@ -2,27 +2,36 @@ import { fragmentBox } from './clip';
 import { SAMPLE_OFFSETS, type Framebuffer } from './framebuffer';
 import { drawable, emitFragment, type RasterState, type WinVertex } from './fragment';
 
-// The widest aliased point. The reference driver's range isn't documented; 64 is close to Mesa's.
-export const MAX_POINT_SIZE = 64;
+// The widest point in either mode, as the reference Intel driver draws it (GL_ALIASED_POINT_SIZE_RANGE
+// 1 to 255; a multisampled point stops at 255 too).
+export const MAX_POINT_SIZE = 255;
+
+/** A multisampled point's side, as the reference driver takes it: rounded half up, 1 to MAX_POINT_SIZE. */
+export function multisamplePointSize(size: number): number {
+  return Math.min(MAX_POINT_SIZE, Math.max(1, Math.floor(size + 0.5)));
+}
 
 /**
  * A point. Without multisampling it is a square of pixels, the size rounded to an integer up to
  * MAX_POINT_SIZE: odd sizes centre on (⌊xw⌋ + ½, ⌊yw⌋ + ½), even sizes on (⌊xw + ½⌋, ⌊yw + ½⌋)
- * (3.3.1). With it, the point is a circle as wide as its size, up to MAX_POINT_SIZE, centred on the
- * vertex, and covers the samples inside it (3.3.3). Every fragment takes the vertex's data.
+ * (3.3.1). With it, as the reference Intel driver draws it, the point is a square centred on the
+ * vertex, its side the size rounded half up to an integer (at least 1, at most MAX_POINT_SIZE), and
+ * it covers the samples inside the square, those on its right and top edges included and those on
+ * its left and bottom edges left out (OpenGL 1.5 lets the point's sample region be a square,
+ * 3.3.3). Every fragment takes the vertex's data.
  */
 export function rasterPoint(fb: Framebuffer, v: WinVertex, state: RasterState): void {
   if (!drawable(v)) return;
   const box = fragmentBox(fb, state.scissor);
   if (state.multisample) {
-    const r = Math.min(MAX_POINT_SIZE, Math.max(0, state.pointSize)) / 2;
+    const r = multisamplePointSize(state.pointSize) / 2;
     for (let y = Math.floor(v.y - r); y <= Math.floor(v.y + r); y++) {
       for (let x = Math.floor(v.x - r); x <= Math.floor(v.x + r); x++) {
         let coverage = 0;
         for (let k = 0; k < SAMPLE_OFFSETS.length; k++) {
           const dx = x + 0.5 + SAMPLE_OFFSETS[k][0] - v.x;
           const dy = y + 0.5 + SAMPLE_OFFSETS[k][1] - v.y;
-          if (dx * dx + dy * dy < r * r) coverage |= 1 << k;
+          if (dx > -r && dx <= r && dy > -r && dy <= r) coverage |= 1 << k;
         }
         if (coverage) emitFragment(fb, state, box, x, y, v.color, v.tex, coverage);
       }

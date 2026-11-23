@@ -110,23 +110,22 @@ describe('ALG-LAB-02: A width-1 line covers the diamond-exit pixels and leaves o
 });
 
 describe('ALG-LAB-03: A wide line is width pixels in the minor direction (3.4.2)', () => {
-  it('rounds width 4.5 to 4 and stacks 4 pixels a column', () => {
+  it('rounds width 4.5 to 5 and fills the parallelogram 5 high', () => {
     const fb = createFramebuffer(16, 20);
     rasterLine(fb, v(2.5, 10.5), v(8.5, 10.5), state({ lineWidth: 4.5 }));
-    // Width rounds to the nearest integer, a half to the even one as the reference driver does,
-    // so 4.5 to 4; the segment moves down (4 − 1)/2 = 1.5 to y 9, on the boundary between rows 8 and
-    // 9, where an x-major segment takes the diamonds' top corners: fragments (2..7, 8) are each the
-    // lowest of a column 4 high. The reference GPU draws the same.
-    expect(covered(fb)).toEqual(block(2, 7, 8, 11));
+    // Width rounds half up, as the reference Intel driver does, so 4.5 to 5: the parallelogram x
+    // 2.5..8.5, y 8..13, filled at pixel centres. The centre on its left end (2.5) is in, the one on
+    // its right end (8.5) out, as the polygon rules take ties: columns 2..7, rows 8..12. The
+    // reference GPU draws the same.
+    expect(covered(fb)).toEqual(block(2, 7, 8, 12));
   });
 
   it('lays a y-major wide line out as rows in x', () => {
     const fb = createFramebuffer(16, 16);
     rasterLine(fb, v(5.5, 2.5), v(5.5, 6.5), state({ lineWidth: 4.5 }));
-    // y-major: the segment moves left 1.5 to x 4, through the right corners of column 3's diamonds,
-    // which a y-major segment takes; it ends on (3, 6)'s, which is left out. Fragments (3, 2..5)
-    // each start a row 4 long. The reference GPU draws the same.
-    expect(covered(fb)).toEqual(block(3, 6, 2, 5));
+    // y-major: the parallelogram x 3..8, y 2.5..6.5. Its top end takes the centres on it and its
+    // bottom end does not: columns 3..7, rows 3..6. The reference GPU draws the same.
+    expect(covered(fb)).toEqual(block(3, 7, 3, 6));
   });
 
   it('builds a slanted wide line from columns, not a turned rectangle', () => {
@@ -256,9 +255,9 @@ describe('ALG-LAB-17: Multisample mode covers 4 samples a pixel (3.4.4, 3.5.6)',
     const rect = [v(10.5, 0, RED), v(20, 0, RED), v(20, 20, RED), v(10.5, 20, RED)];
     rasterPolygon(fb, rect, s, 3);
     // Pixel 10's samples sit at x 10.375, 10.875, 10.125, 10.625; the two right of 10.5 are covered.
-    // The resolve averages them as light, in sRGB as the reference driver does (ALG-LAB-36): half of
-    // full red encodes to 188. Alpha averages as it is, to 128.
-    expect(px(fb, 10, 5)).toEqual([188, 0, 0, 128]);
+    // The resolve averages them as the reference driver does (ALG-LAB-36): half of full red is 128,
+    // and so is half of full alpha.
+    expect(px(fb, 10, 5)).toEqual([128, 0, 0, 128]);
     expect(px(fb, 9, 5)).toEqual([0, 0, 0, 0]);
     // Every sample inside belongs to exactly one of the two triangles, so the diagonal leaves no seam.
     for (let y = 1; y < 19; y++) for (let x = 11; x < 20; x++) expect(px(fb, x, y)).toEqual([255, 0, 0, 255]);
@@ -269,13 +268,13 @@ describe('ALG-LAB-17: Multisample mode covers 4 samples a pixel (3.4.4, 3.5.6)',
     rasterLine(fb, v(2, 10), v(12, 10), state({ multisample: true, lineWidth: 3 }));
     // The rectangle x 2..12, y 8.5..11.5: columns 2..11 have every sample inside; rows 9 and 10 are
     // whole, and rows 8 and 11 hold 2 samples each (y offsets ±2/16 and ±6/16 on the inner side),
-    // which resolve in sRGB to 188 (ALG-LAB-36), alpha to 128.
+    // which resolve to 128 (ALG-LAB-36). The reference GPU draws the same.
     expect(covered(fb)).toEqual(block(2, 11, 8, 11));
     for (let x = 2; x <= 11; x++) {
-      expect(px(fb, x, 8)).toEqual([188, 188, 188, 128]);
+      expect(px(fb, x, 8)).toEqual([128, 128, 128, 128]);
       expect(px(fb, x, 9)).toEqual([255, 255, 255, 255]);
       expect(px(fb, x, 10)).toEqual([255, 255, 255, 255]);
-      expect(px(fb, x, 11)).toEqual([188, 188, 188, 128]);
+      expect(px(fb, x, 11)).toEqual([128, 128, 128, 128]);
     }
   });
 
@@ -374,15 +373,16 @@ describe('ALG-LAB-18: Non-finite vertices draw nothing, and sizes stop at the im
     for (const r of results) expect(r.covered).toEqual([]);
   });
 
-  it('stops a huge point at 64 pixels square', async () => {
-    const [r] = await inWorker([call('rasterPoint', [v(32.5, 32.5)], state({ pointSize: 1e6 }), 128, 128)]);
-    // Size clamps to 64, even: centre ⌊32.5 + ½⌋ = 33, so x and y run 33 − 32 = 1 to 64.
-    expect(r.covered).toEqual(block(1, 64, 1, 64));
+  it('stops a huge point at 255 pixels square, the widest the reference driver draws', async () => {
+    const [r] = await inWorker([call('rasterPoint', [v(150.5, 150.5)], state({ pointSize: 1e6 }), 300, 300)]);
+    // Size clamps to 255, odd: centre ⌊150.5⌋ + ½, so x and y run 150 − 127 = 23 to 277.
+    expect(r.covered).toEqual(block(23, 277, 23, 277));
   });
 
-  it('stops a huge line width at 10 pixels', async () => {
-    const [r] = await inWorker([call('rasterLine', [v(10.5, 60), v(20.5, 60)], state({ lineWidth: 1e6 }), 32, 80)]);
-    // Width clamps to 10: the segment moves down 4.5 to y 55.5, whose fragments (10..19, 55) each start a column 10 high.
-    expect(r.covered).toEqual(block(10, 19, 55, 64));
+  it('stops a huge line width at 2047 pixels, the widest the reference driver draws', async () => {
+    const [r] = await inWorker([call('rasterLine', [v(10.5, 1500), v(20.5, 1500)], state({ lineWidth: 1e6 }), 32, 3000)]);
+    // Width clamps to 2047: the parallelogram y 476.5..2523.5 takes the centres above its bottom edge
+    // and on its top one, rows 477..2523, and columns 10..19.
+    expect(r.covered).toEqual(block(10, 19, 477, 2523));
   });
 });

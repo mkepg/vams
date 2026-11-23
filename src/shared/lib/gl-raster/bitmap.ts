@@ -52,6 +52,7 @@ export function drawBitmap(
       }
     }
   }
-  pos.x += xmove;
-  pos.y += ymove;
+  // In 32-bit floats, as the reference driver moves it: 7.9999995 + 9 is 17 exactly.
+  pos.x = Math.fround(pos.x + xmove);
+  pos.y = Math.fround(pos.y + ymove);
 }

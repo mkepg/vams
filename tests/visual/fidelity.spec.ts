@@ -1,13 +1,13 @@
 /**
  * Render fidelity (VIS-FID): the canvas draws each battery scene as the exported program draws it
- * on the course toolchain (MinGW g++, FreeGLUT, GLEW), compared by the rule in
+ * on the course toolchain (MinGW g++, FreeGLUT, GLEW), compared by the edge rule in
  * tests/helpers/image-compare.ts against the references in tests/fixtures/fidelity/reference.
  *
  * Record the references on the reference machine (Windows) with
  *   FIDELITY_RECORD=1 VAMS_GLUT_TOOLCHAIN=<path to the toolchain's mingw32 folder> npx playwright test fidelity
  * which exports each scene's C++, builds it with the capture shim, runs it and saves its first frame.
  * A recording fails unless the program ran on a renderer naming VAMS_CAPTURE_RENDERER (default
- * NVIDIA), the GPU the Lab's references are recorded on too.
+ * Intel), the GPU the Lab's references are recorded on too, and with Intel's 4 sample positions.
  * stb_image.h is read from VAMS_STB_IMAGE, or from the Application folder beside mingw32.
  */
 import { expect, test, type Page } from '@playwright/test';
@@ -15,11 +15,13 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { FIDELITY_SCENES, type FidelityScene } from '../fixtures/fidelity/scenes';
-import { compareImages, decodePng, encodePng, type Image } from '../helpers/image-compare';
+import { compareEdges, decodePng, encodePng, type Image } from '../helpers/image-compare';
 
 const FIXTURES = resolve('tests/fixtures/fidelity');
 const WORK = resolve('tests/visual/results.local/fidelity');
 const RECORD = process.env.FIDELITY_RECORD === '1';
+/** Intel's 4 sample positions (glGetMultisamplefv), which gl-raster's SAMPLE_OFFSETS use. */
+const INTEL_SAMPLES = 'samples 0.3750,0.1250 0.8750,0.3750 0.1250,0.6250 0.6250,0.8750';
 /** The program window's resize grip and rounded corners sit in the canvas's bottom corners. */
 const CORNER = 16;
 
@@ -104,7 +106,7 @@ async function record(page: Page, scene: FidelityScene, size: { width: number; h
   const run = spawnSync(join(dir, 'scene.exe'), [], { cwd: dir, env, timeout: 20_000, encoding: 'utf8' });
   if (run.status !== 0 || !existsSync(join(dir, 'frame.rgba'))) throw new Error(`The program didn't save a frame (exit ${run.status}).`);
   const renderer = run.stderr.trim().split(/\r?\n/).pop() ?? '';
-  const want = process.env.VAMS_CAPTURE_RENDERER ?? 'NVIDIA';
+  const want = process.env.VAMS_CAPTURE_RENDERER ?? 'Intel';
   if (!renderer.includes(want)) throw new Error(`The program ran on "${renderer}"; the references are recorded on ${want}.`);
 
   const frame = readFileSync(join(dir, 'frame.rgba'));
@@ -112,6 +114,7 @@ async function record(page: Page, scene: FidelityScene, size: { width: number; h
   const height = frame.readInt32LE(4);
   const samples = frame.readInt32LE(8);
   if (samples !== 4) throw new Error(`The program ran with ${samples} samples; the references are recorded with 4.`);
+  if (!run.stderr.includes(INTEL_SAMPLES)) throw new Error(`The sample positions aren't Intel's:\n${run.stderr}`);
   const rows = frame.subarray(12);
   const data = new Uint8Array(width * height * 4);
   // glReadPixels starts at the bottom row.
@@ -127,7 +130,7 @@ FIDELITY_SCENES.forEach((scene, i) => {
     if (RECORD) await record(page, scene, shot);
     const reference = decodePng(readFileSync(join(FIXTURES, 'reference', `${scene.id}.png`)));
     const inCorner = (x: number, y: number) => y >= shot.height - CORNER && (x < CORNER || x >= shot.width - CORNER);
-    const result = compareImages(shot, reference, inCorner);
+    const result = compareEdges(shot, reference, inCorner);
     if (!result.ok) {
       mkdirSync(WORK, { recursive: true });
       writeFileSync(join(WORK, `${scene.id}.canvas.png`), encodePng(shot));

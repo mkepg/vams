@@ -32,9 +32,11 @@ tests/
 │   │                                and the British spelling and Language
 │   │                                Discipline checks (WB-SPELL, BB-LAB-58).
 │   └── image-compare.ts          ← PNG reading and writing, and the image
-│                                    rule of the render fidelity and Lab
-│                                    batteries (edge pixels may differ, the
-│                                    rest within 2 per channel).
+│                                    rules of the render fidelity and Lab
+│                                    batteries: strict (every pixel within 2
+│                                    per channel) and the editing view's
+│                                    (pixels beside a jump of more than 8
+│                                    free, the rest within 8).
 ├── fixtures/
 │   ├── no-callbacks-program.cpp  ← The program generated for a scene with
 │   │                                no callbacks, pinned by BB-CB-12.
@@ -295,9 +297,9 @@ after each change. Results are written to `tests/visual/results.local/`.
 The render fidelity checks (`VIS-FID-*`) are the exception: their references are
 committed in `tests/fixtures/fidelity/reference/`, because they come from the
 exported programs, not from the browser. They were recorded on the owner's
-development PC (Windows, NVIDIA, 4× multisampling) with the course toolchain
-(MinGW g++ 11.3, FreeGLUT, GLEW). To record them again after a deliberate change
-to what a scene draws:
+laptop's integrated Intel Iris Xe Graphics (Windows, 4× multisampling), the kind
+of GPU the lab PCs have, with the course toolchain (MinGW g++ 11.3, FreeGLUT,
+GLEW). To record them again after a deliberate change to what a scene draws:
 
 ```bash
 FIDELITY_RECORD=1 VAMS_GLUT_TOOLCHAIN=<path to the toolchain's mingw32 folder> npx playwright test fidelity
@@ -317,9 +319,11 @@ VAMS_GLUT_TOOLCHAIN=<path to the toolchain's mingw32 folder> node scripts/lab/ca
 ```
 
 `VAMS_CAPTURE_FRAME` picks the frame to save (default 1). The capture shim asks
-for the discrete GPU, and a program fails unless the renderer it ran on names
-`VAMS_CAPTURE_RENDERER` (default `NVIDIA`). The committed references came from an
-NVIDIA GeForce RTX 3060 Laptop GPU (OpenGL 4.6, driver 592.82). Each capture
+for no particular GPU, so a laptop with switchable graphics runs it on the
+integrated one. A program fails unless the renderer it ran on names
+`VAMS_CAPTURE_RENDERER` (default `Intel`), and a multisampled one unless its
+sample positions are Intel's. The committed references came from an Intel(R)
+Iris(R) Xe Graphics (OpenGL 4.6, driver 31.0.101.4502). Each capture
 writes the program's SHA-256 and the renderer to
 `tests/fixtures/lab/reference/manifest.json`, and `WB-LAB-19` fails when a
 program no longer matches its entry.
@@ -364,9 +368,11 @@ downloads the compiler, from this machine.
 VIS-LAB-01 to 04 are screenshot checks with local baselines, like the others.
 VIS-LAB-05 opens each battery program in the Lab as a `.zip` with the images it
 loads, runs it, and compares the first frame the page takes from the shared
-framebuffer with the program's reference by the battery's rule. `lines-wide`
-keeps 2 parked pixels, the ends of its 45° width-4 lines; every other program
-must match. A failure writes the frame and a diff image to
+framebuffer with the program's reference by the strict rule: every pixel within
+2. The named exceptions in the spec's `EXCEPTIONS` (four gallery scenes' line
+edges and one texel tie in `gallery-pixel-fox`) carry their pixel counts and
+reasons; every other program must match. A failure writes the frame and a diff
+image to
 `tests/visual/results.local/lab-drawing/`.
 
 ## Acceptance bar (per §3.10)

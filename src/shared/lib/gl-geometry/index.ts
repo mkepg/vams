@@ -1,9 +1,9 @@
 /**
  * Points, lines and filled primitives as triangles, by the OpenGL 1.5 rules for a multisampled
- * window (specification 3.3 to 3.5): a point is a circle as wide as its size, a line segment is
- * a rectangle as long as the segment with no caps or joins, stipple reads the pattern of 3.4.2 in
- * distance along the line, as the reference driver does, and FLAT shading takes the provoking
- * vertex of Table 2.12.
+ * window (specification 3.3 to 3.5), as the reference Intel driver draws them: a point is a square
+ * whose side is its size rounded half up, a line segment is a rectangle as long as the segment with
+ * no caps or joins, stipple counts the pattern of 3.4.2 once per pixel column of the major axis, and
+ * FLAT shading takes the provoking vertex of Table 2.12.
  *
  * Coordinates are whatever space the caller works in. Width, size and stipple are in window
  * pixels, so lines and points are built from window coordinates. Nothing here imports from
@@ -52,29 +52,22 @@ function lerp(a: Rgba, b: Rgba, t: number): Rgba {
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t];
 }
 
-/**
- * The sides of the polygon a point's circle is drawn as. A multiple of 4, so the polygon reaches
- * the circle's left, right, top and bottom; at 96 it covers all but 0.07% of the circle's area.
- */
-const CIRCLE_SIDES = 96;
+/** A multisampled point's side, as the reference driver takes it: rounded half up, 1 to 255. */
+export function pointSide(size: number): number {
+  return Math.min(255, Math.max(1, Math.floor(size + 0.5)));
+}
 
-/** Each point as a circle as wide as `size`, centred on it, in its own colour (3.3.3). */
+/** Each point as a square of side pointSide(size), centred on it, in its own colour. */
 export function pointTriangles(vertices: readonly GeoVertex[], size: number): Triangles {
   const out = empty();
-  const r = size / 2;
-  const rim = Array.from({ length: CIRCLE_SIDES }, (_, i) => {
-    const a = (2 * Math.PI * i) / CIRCLE_SIDES;
-    // Snap the quarter turns, so the extremes sit exactly r away and sin(π) leaves no 1e-16.
-    return i % (CIRCLE_SIDES / 4) === 0 ? [[1, 0], [0, 1], [-1, 0], [0, -1]][(4 * i) / CIRCLE_SIDES] : [Math.cos(a), Math.sin(a)];
-  });
+  const h = pointSide(size) / 2;
   for (const { x, y, color } of vertices) {
-    for (let i = 0; i < CIRCLE_SIDES; i++) {
-      const [c0, s0] = rim[i];
-      const [c1, s1] = rim[(i + 1) % CIRCLE_SIDES];
-      push(out, x, y, color);
-      push(out, x + r * c0, y + r * s0, color);
-      push(out, x + r * c1, y + r * s1, color);
-    }
+    push(out, x - h, y - h, color);
+    push(out, x + h, y - h, color);
+    push(out, x + h, y + h, color);
+    push(out, x - h, y - h, color);
+    push(out, x + h, y + h, color);
+    push(out, x - h, y + h, color);
   }
   return out;
 }
@@ -143,9 +136,15 @@ export function lineTriangles(
 
 /**
  * One segment's rectangle, or its stipple pieces with the counter starting at `counter`, added to
- * `out` in `flat` or, when it is null, the end colours blended. The counter is measured in window
- * units of distance along the line, as the reference driver measures it, so a 45° line repeats
- * every 16 × factor / √2 pixels of x. Returns how far the counter moves: the segment's length.
+ * `out` in `flat` or, when it is null, the end colours blended. As the reference Intel driver draws
+ * it, the counter moves on once per fragment of the major axis, as in aliased drawing (3.4.2), and
+ * each pixel column (row, for a y-major segment) of the rectangle takes the pattern bit of its own
+ * fragment: a piece is the rectangle cut to whole columns, so its ends are the segment's ends and
+ * its cuts are square to the major axis. A column the rectangle reaches before the first fragment
+ * takes the first fragment's bit; one after the last reads the bit its place in the count gives.
+ * With `axisEnds`, the shape is the parallelogram an aliased wide line fills instead: `width`
+ * across the minor axis, its ends square to the major axis. Returns how far the counter moves: the
+ * segment's fragments.
  */
 export function segmentTriangles(
   out: Triangles,
@@ -155,31 +154,86 @@ export function segmentTriangles(
   flat: Rgba | null,
   stipple: Stipple | null,
   counter: number,
+  axisEnds = false,
 ): number {
   const dx = B.x - A.x;
   const dy = B.y - A.y;
-  const len = Math.hypot(dx, dy);
-  if (len === 0) return 0;
-  const nx = (-dy / len) * (width / 2);
-  const ny = (dx / len) * (width / 2);
-  const spans: [number, number][] = stipple
-    ? stippleRuns(counter, len, stipple.factor, stipple.pattern).map(([s0, s1]) => [(s0 - counter) / len, (s1 - counter) / len])
-    : [[0, 1]];
-  for (const [t0, t1] of spans) {
-    const c0 = flat ?? lerp(A.color, B.color, t0);
-    const c1 = flat ?? lerp(A.color, B.color, t1);
-    const x0 = A.x + dx * t0;
-    const y0 = A.y + dy * t0;
-    const x1 = A.x + dx * t1;
-    const y1 = A.y + dy * t1;
-    push(out, x0 - nx, y0 - ny, c0);
-    push(out, x1 - nx, y1 - ny, c1);
-    push(out, x1 + nx, y1 + ny, c1);
-    push(out, x0 - nx, y0 - ny, c0);
-    push(out, x1 + nx, y1 + ny, c1);
-    push(out, x0 + nx, y0 + ny, c0);
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return 0;
+  const len = Math.sqrt(len2);
+  const frags = fragmentColumns(A, B);
+  const [nx, ny] = axisEnds
+    ? frags.xMajor ? [0, width / 2] : [-width / 2, 0]
+    : [(-dy / len) * (width / 2), (dx / len) * (width / 2)];
+  const rect: [number, number][] = [[A.x - nx, A.y - ny], [B.x - nx, B.y - ny], [B.x + nx, B.y + ny], [A.x + nx, A.y + ny]];
+  const colorAt = (x: number, y: number): Rgba => flat ?? lerp(A.color, B.color, ((x - A.x) * dx + (y - A.y) * dy) / len2);
+  const fan = (poly: [number, number][]) => {
+    for (let i = 1; i + 1 < poly.length; i++) {
+      for (const [x, y] of [poly[0], poly[i], poly[i + 1]]) push(out, x, y, colorAt(x, y));
+    }
+  };
+  if (!stipple) {
+    fan(rect);
+    return frags.count;
   }
-  return len;
+  // The columns the rectangle reaches, as fragment indices from the first fragment.
+  const major = rect.map(([x, y]) => (frags.xMajor ? x : y));
+  const index = (m: number) => (frags.forward ? Math.floor(m) - frags.first : frags.first - Math.floor(m));
+  const k0 = Math.min(...major.map(index));
+  const k1 = Math.max(...major.map(index));
+  // Columns before the first fragment take its bit, as the reference driver draws them.
+  const runs = stippleRuns(counter, Math.max(1, k1 + 1), stipple.factor, stipple.pattern);
+  for (const [s0, s1] of runs) {
+    // Fragments a to b − 1 cover columns first + a to first + b (forward), or the mirror.
+    const a = s0 === counter ? Math.min(0, k0) : s0 - counter;
+    const b = s1 - counter;
+    const lo = frags.forward ? frags.first + a : frags.first + 1 - b;
+    const hi = frags.forward ? frags.first + b : frags.first + 1 - a;
+    // A run past the rectangle's ends (the bit of the column after the last) covers nothing.
+    if (hi <= Math.min(...major) || lo >= Math.max(...major)) continue;
+    const piece = clipToSlab(rect, frags.xMajor ? 0 : 1, lo, hi);
+    if (piece.length >= 3) fan(piece);
+  }
+  return frags.count;
+}
+
+/** The convex polygon `poly` cut to lo ≤ coordinate `axis` ≤ hi (Sutherland–Hodgman, two planes). */
+function clipToSlab(poly: [number, number][], axis: 0 | 1, lo: number, hi: number): [number, number][] {
+  const cut = (pts: [number, number][], keep: (v: number) => boolean, at: number): [number, number][] => {
+    const res: [number, number][] = [];
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i];
+      const q = pts[(i + 1) % pts.length];
+      const pin = keep(p[axis]);
+      const qin = keep(q[axis]);
+      if (pin) res.push(p);
+      if (pin !== qin) {
+        const t = (at - p[axis]) / (q[axis] - p[axis]);
+        const x = p[0] + (q[0] - p[0]) * t;
+        const y = p[1] + (q[1] - p[1]) * t;
+        res.push(axis === 0 ? [at, y] : [x, at]);
+      }
+    }
+    return res;
+  };
+  return cut(cut(poly, (v) => v >= lo, lo), (v) => v <= hi, hi);
+}
+
+/**
+ * A segment's window fragments: one per pixel along the major axis whose centre lies on the
+ * segment, first end included and last end left out (3.4.1). `first` is the first fragment's
+ * column (row, when y is the major axis), and `forward` whether the segment runs up the axis.
+ */
+function fragmentColumns(A: GeoVertex, B: GeoVertex): { count: number; first: number; forward: boolean; xMajor: boolean } {
+  const xMajor = Math.abs(B.x - A.x) >= Math.abs(B.y - A.y);
+  const m0 = xMajor ? A.x : A.y;
+  const m1 = xMajor ? B.x : B.y;
+  const forward = m1 >= m0;
+  // The first and last pixel whose centre (c + 0.5) is on the segment.
+  const first = forward ? Math.ceil(m0 - 0.5) : Math.floor(m0 - 0.5);
+  const last = forward ? Math.ceil(m1 - 0.5) - 1 : Math.floor(m1 - 0.5) + 1;
+  const count = Math.max(0, forward ? last - first + 1 : first - last + 1);
+  return { count, first, forward, xMajor };
 }
 
 /**
