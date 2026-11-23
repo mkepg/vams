@@ -64,20 +64,30 @@ async function jeepneyFront(page: Page, canvas: Locator): Promise<number> {
   }, shot);
 }
 
-/** How far the jeepney drives a second, in windows: the median over 6 s of screenshots, where it is wholly in view. */
+/**
+ * How far the jeepney drives a second, in windows: over 8 s of screenshots, the distance it covers
+ * across the stretch where it is wholly in view, never moves back and covers the most, over that
+ * stretch's time. A canvas that shows the same frame to several screenshots then moves on is measured the
+ * same as one that moves every time.
+ */
 async function jeepneySpeed(page: Page, canvas: Locator): Promise<number> {
   await page.waitForTimeout(500);
   const samples: [number, number][] = [];
   const start = Date.now();
-  while (Date.now() - start < 6000) samples.push([Date.now(), await jeepneyFront(page, canvas)]);
-  const rates: number[] = [];
-  for (let i = 1; i < samples.length; i++) {
-    const [ta, xa] = samples[i - 1];
-    const [tb, xb] = samples[i];
-    if (xa > 0.05 && xb < 0.97 && xb > xa) rates.push((xb - xa) / ((tb - ta) / 1000));
+  while (Date.now() - start < 8000) samples.push([Date.now(), await jeepneyFront(page, canvas)]);
+  const inView = ([, x]: [number, number]) => x > 0.05 && x < 0.97;
+  let best: [number, number][] = [];
+  let run: [number, number][] = [];
+  for (const s of samples) {
+    if (inView(s) && (run.length === 0 || s[1] >= run[run.length - 1][1])) run.push(s);
+    else run = inView(s) ? [s] : [];
+    const covers = (r: [number, number][]) => (r.length ? r[r.length - 1][1] - r[0][1] : 0);
+    if (covers(run) > covers(best)) best = [...run];
   }
-  expect(rates.length).toBeGreaterThan(4);
-  return rates.sort((a, b) => a - b)[Math.floor(rates.length / 2)];
+  const [t0, x0] = best[0] ?? [0, 0];
+  const [t1, x1] = best[best.length - 1] ?? [0, 0];
+  expect(x1 - x0, 'the jeepney should cross a fifth of the window in view').toBeGreaterThan(0.2);
+  return (x1 - x0) / ((t1 - t0) / 1000);
 }
 
 /** Presses Run and waits until Run rests: the program ended, stopped, or the compile gave errors. */
