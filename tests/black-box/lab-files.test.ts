@@ -2,6 +2,7 @@
  * BLACK-BOX TEST SUITE — BB-LAB (the student's code and files)
  * Test focus:
  *  - The code saves in the browser as it is typed, under its own key, and a reload keeps it
+ *  - A second tab follows the newest save, so it never writes older code over it
  *  - Save and Open round-trip main.cpp, and a .zip of main.cpp with its images and Input.txt
  *  - New asks before replacing unsaved changes, then loads the course template
  *  - Every example loads, passes the include check, and brings the images it loads
@@ -19,7 +20,7 @@ import { clear as clearIdb, del as idbDel, get as idbGet } from 'idb-keyval';
 import { strToU8, unzipSync, zipSync } from 'fflate';
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { labProjectDefaults, readLabFiles, useLabStore, type LabFile } from '@/entities/lab-project';
+import { LAB_STORAGE_KEY, labProjectDefaults, readLabFiles, useLabStore, type LabFile } from '@/entities/lab-project';
 import {
   addUploads,
   BROWSER_SAVE_FAILED,
@@ -178,6 +179,41 @@ describe('BB-LAB-52: The code autosaves, and survives a reload of the store', ()
     // What a reload reads is IndexedDB's copy: with it gone, the file is gone.
     await idbDel('vams-lab-file:sky.png');
     expect((await readLabFiles()).map((f) => f.name)).toEqual(['Input.txt']);
+  });
+});
+
+describe('BB-LAB-116: A second Lab tab follows the newest save, so it never writes older code over it', () => {
+  /** Another tab of the Lab saving: localStorage changes, and this tab hears a storage event. */
+  const otherTabSaves = async (source: string) => {
+    const saved = { ...stored(), state: { ...stored().state, source, unsaved: true } };
+    const value = JSON.stringify(saved);
+    localStorage.setItem(LAB_STORAGE_KEY, value);
+    await act(async () => {
+      window.dispatchEvent(new StorageEvent('storage', { key: LAB_STORAGE_KEY, newValue: value }));
+      await Promise.resolve();
+    });
+  };
+
+  it('takes up the other tab’s code in the editor, and its next change builds on it', async () => {
+    const host = mountWorkspace();
+    type(host, '// older tab\n');
+    await otherTabSaves('// newer work\n');
+    expect(useLabStore.getState()).toMatchObject({ source: '// newer work\n', unsaved: true });
+    expect(editorOf(host).state.doc.toString()).toBe('// newer work\n');
+    type(host, '// more\n');
+    expect(stored().state.source).toBe('// more\n// newer work\n');
+  });
+
+  it('ignores another key, and a save cleared by the other tab', async () => {
+    const host = mountWorkspace();
+    type(host, '// mine\n');
+    const mine = `// mine\n${TEMPLATE}`;
+    await act(async () => {
+      window.dispatchEvent(new StorageEvent('storage', { key: 'vams-storage', newValue: '{}' }));
+      window.dispatchEvent(new StorageEvent('storage', { key: LAB_STORAGE_KEY, newValue: null }));
+      await Promise.resolve();
+    });
+    expect(editorOf(host).state.doc.toString()).toBe(mine);
   });
 });
 
