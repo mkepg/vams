@@ -86,7 +86,7 @@ It then uploads each file with `wrangler kv key put --remote --metadata '{"encod
 
 The first published version measured 14.6 MB for `llvm.core.wasm`, 2.5 MB for `llvm-resources.tar` and 1.2 MB for the headers: about 18 MB in all.
 
-A build with `LAB_LIVE = true` refuses the version `dev`, so the version must be published before the Lab goes live. The first version, `4.0.10-76e5dc0b`, was published on 9 Nov 2026, and the Lab went live with it.
+A build with `LAB_LIVE = true` refuses the version `dev`, so the version must be published before the Lab goes live. The first version, `4.0.10-76e5dc0b`, was published on 9 Nov 2026, and the Lab went live with it. The second, `4.0.10-bfcc5346`, was published on 25 Nov 2026: the main module gives a program a 2 MB stack and 2 GB of memory, and names an exception nothing caught ([The Lab in a class](specs/2026-11-25-lab-class-design.md)).
 
 After the next deployment, check the live files:
 
@@ -126,7 +126,7 @@ The Lab draws in software, so it draws only frames the page will show. A frame r
 
 Timers keep their time, as FreeGLUT's do in a window that can be seen. The runtime sleeps until shortly before a timer is due and spins the rest, because a browser's wait can wake a millisecond or a whole Windows tick late.
 
-Exported VAMS code doesn't race. Its `_vams_idle` takes a step only 60 times a second, by `glutGet(GLUT_ELAPSED_TIME)`, and the editor's Run steps 60 times a second whatever the screen's refresh rate. So a scene moves at the same speed in the editor, in the Lab and on a lab PC. How each part was measured is in [GLUT behaviour](specs/2026-11-24-glut-behaviour-design.md).
+Exported VAMS code doesn't race. Its `_vams_idle` takes a step only 60 times a second, by `glutGet(GLUT_ELAPSED_TIME)`, and the editor's Run steps 60 times a second whatever the screen's refresh rate. Both catch up at most 30 steps, half a second, so a scene the Lab draws slowly in software (400 ms a frame for 400 large multisampled triangles on the reference) still keeps its pace. So a scene moves at the same speed in the editor, in the Lab and on a lab PC. How each part was measured is in [GLUT behaviour](specs/2026-11-24-glut-behaviour-design.md).
 
 ## How the Lab runs GLUT
 
@@ -137,13 +137,32 @@ The Lab runs a program as FreeGLUT 3.0.0 (the course toolchain's) runs it on the
 - **Closing:** the window's ✕ is its close button. The program's close callback runs and `glutMainLoop` ends as `GLUT_ACTION_ON_WINDOW_CLOSE` says. A program that doesn't take the close within a second, because it is busy or waiting for typed input, is stopped.
 - **Matrix stacks:** they hold Intel's depths, 32 modelview and 4 projection matrices.
 
-To record the misuse and input batteries again, on a Windows PC with the course toolchain:
+To record the misuse, input and crash batteries again, on a Windows PC with the course toolchain:
 
 ```bash
-VAMS_GLUT_TOOLCHAIN='<the toolchain>\mingw32' node scripts/lab/capture-glut.mjs misuse events
+VAMS_GLUT_TOOLCHAIN='<the toolchain>\mingw32' node scripts/lab/capture-glut.mjs misuse events crash
 ```
 
 The misuse battery runs each case as a program of its own, so a window opens and closes for each case that makes a window. The input battery is one window for a few seconds. It plays `events.script.txt` on itself by posting messages, so nothing else on the desktop is touched.
+
+## When a program goes wrong
+
+A program has what a lab PC's program has: MinGW's 2 MB stack (`-sSTACK_SIZE` in `build.sh`), and memory up to 2 GB, as a 32-bit program's. So a large local array works as it does there, and an allocation past 2 GB fails as it does there: `new` throws `std::bad_alloc`, and `malloc` gives `NULL`.
+
+`tests/fixtures/lab/glut/crash.cpp` records how a lab PC ends each kind of crash, and VIS-LAB-16 runs every case in the Lab:
+
+- **An exception nothing caught:** libstdc++'s lines, `terminate called after throwing an instance of '<type>'` and `what():`, printed as on a lab PC (the type and message come from the runtime's `getExceptionMessage`).
+- **A crash:** a lab PC ends it with a Windows exception code and prints nothing. The Lab stops the program, and the Console says what happened in plain words: an exception nothing caught, `abort()`, a division by zero, memory outside the program's own, a stack that ran out, a bad function pointer, or code the compiler marked as never reached. A browser message the Lab doesn't know is shown as it came (`crash-words.ts`).
+- **The named differences:** a write through a null pointer doesn't crash, because a program's memory starts at address 0 in the browser. The stack sits after the runtime's data, so a program that overflows its 2 MB writes over that data before it stops; it stops either way, at the depth where a lab PC's would. The Lab compiles with `-O1` where `x.bat` doesn't optimise, so undefined behaviour can end differently: a function that ends without returning its value stops on "never reached", and `1 / x` becomes a comparison that never divides.
+
+A program that never ends is ended by the window's ✕, or Stop when it has no window. The code is never part of a run: a crash or a stop leaves the editor and its browser save as they were.
+
+## In a class
+
+- **The first download:** the compiler is about 18 MB, fetched once per browser at the first Run or Download now, then kept in Cache Storage. Forty machines fetching it at the start of a class share the room's network, so the instructor page asks for Download now on each machine beforehand. A new runtime version is a new download.
+- **Compiling:** every compile runs in the student's browser, about a quarter of a second on the reference, so a class puts no load on the site. Nothing counts compiles.
+- **Sharing:** a class shares from one network address. `SHARE_LIMITER` is not bound in production, so no rate limit applies to it.
+- **The code:** it is saved in the browser on every change. A second Lab tab follows the newest save (`followOtherTabs`), so an older tab never writes its code back over newer work. A full or blocked localStorage says so once. Lab PCs that clear browser data at sign-out clear the code and the compiler with it, so students keep their work with Save or Share.
 
 ## What the Lab draws like
 

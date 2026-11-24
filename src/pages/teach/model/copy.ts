@@ -38,6 +38,8 @@ export const TEACH_COPY = {
       'My scenes, backups and lesson progress are kept in that browser on that computer. On shared machines, students keep their work by saving a project file from the File menu, and open it again the same way.',
       'Export C++ code in the File menu gives the whole GLUT program the editor shows. It builds with g++ and FreeGLUT, so students can compile and run what they made.',
       'The editor is laid out for a window at least 960 pixels wide. On a projector, browser zoom sets how large it looks.',
+      'The Lab, where students write the C++ themselves, compiles in the browser. Its compiler is about 18 MB, downloaded once per browser. Before the class, open the Lab on each machine and press Download now, so the room isn’t fetching it all at once.',
+      'The Lab keeps each student’s code in that browser as they type. On machines that clear the browser at sign-out, students keep their work with Save, which gives the code as a file, or Share, which gives a link.',
     ],
   },
   plan: {
