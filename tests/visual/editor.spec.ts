@@ -425,7 +425,7 @@ async function openStillScene(page: Page) {
   await expect(page.getByRole('treeitem', { name: 'Roof', exact: true })).toBeVisible();
 }
 
-const canvasShot = async (page: Page) => decodePng(await page.locator('.canvas-wrapper canvas').screenshot());
+const canvasShot = async (page: Page) => decodePng(await page.locator('.canvas-wrapper canvas:not(.run-view)').screenshot());
 
 /** Pixels whose largest channel difference is over 2. */
 function differingPixels(a: { data: Uint8Array }, b: { data: Uint8Array }) {
@@ -452,7 +452,7 @@ async function stopRun(page: Page) {
 
 /** Clicks the canvas's empty bottom-right corner, which selects nothing. */
 async function selectNothing(page: Page) {
-  const canvas = page.locator('.canvas-wrapper canvas');
+  const canvas = page.locator('.canvas-wrapper canvas:not(.run-view)');
   const box = (await canvas.boundingBox())!;
   await canvas.click({ position: { x: box.width - 40, y: box.height - 40 } });
   await expect(page.locator('[role="treeitem"][aria-selected="true"]')).toHaveCount(0);

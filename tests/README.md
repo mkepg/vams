@@ -89,6 +89,8 @@ tests/
 │   ├── callbacks.test.ts                 (BB-CB-*: callback rules, handler
 │   │                                        code, names)
 │   ├── run-mode.test.ts                  (BB-RUN-*: the canvas Run state)
+│   ├── run-view.test.ts                  (BB-RUN-28 and 29: the Run view's
+│   │                                        frames from its worker)
 │   ├── first-visit-tour.test.ts          (BB-TOUR-*: the first-visit tour's
 │   │                                        steps, checks and spotlight)
 │   ├── code-panel.test.ts                (BB-CODE-*: folds, value marks, Find,
@@ -256,6 +258,9 @@ tests/
 │   ├── algorithm-1-global-matrix.test.ts        (ALG-1-*)
 │   ├── algorithm-2-code-generation.test.ts      (ALG-2-*)
 │   ├── algorithm-3-lesson-step.test.ts          (ALG-3-*)
+│   ├── gl-draw.test.ts                          (ALG-RUN-*: the Run view's GL calls are
+│   │                                              the generated display()'s, in order,
+│   │                                              with its values)
 │   ├── gl-geometry.test.ts                      (ALG-FID-*: points, lines,
 │   │                                              stipple and FLAT colours by the
 │   │                                              OpenGL 1.5 multisample rules)

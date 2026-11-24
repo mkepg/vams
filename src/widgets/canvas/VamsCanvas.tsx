@@ -8,6 +8,7 @@ import { useGridSystem } from '@/shared/engine/pixi/hooks/useGridSystem';
 import { runController } from '@/features/callbacks';
 import { observeResize } from '@/shared/engine/observe-resize';
 import { CanvasOverlays } from './ui/CanvasOverlays';
+import { RunViewCanvas } from './ui/RunViewCanvas';
 import './vams-canvas.scss';
 
 interface VamsCanvasProps {
@@ -91,6 +92,7 @@ export default function VamsCanvas({ isHidden = false, readOnly = false }: VamsC
       onContextMenu={(event) => event.preventDefault()}
       style={{ cursor: cursorStyle }}
     >
+      {!readOnly && <RunViewCanvas />}
       <CanvasOverlays showEmptyHint={showEmptyHint} />
     </div>
   );

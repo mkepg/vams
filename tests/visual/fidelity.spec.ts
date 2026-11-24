@@ -15,7 +15,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { FIDELITY_SCENES, type FidelityScene } from '../fixtures/fidelity/scenes';
-import { compareEdges, decodePng, encodePng, type Image } from '../helpers/image-compare';
+import { compareEdges, compareStrict, decodePng, encodePng, type Image } from '../helpers/image-compare';
 
 const FIXTURES = resolve('tests/fixtures/fidelity');
 const WORK = resolve('tests/visual/results.local/fidelity');
@@ -37,20 +37,33 @@ function checker(): Image {
 
 const dataUrl = (png: Uint8Array) => `data:image/png;base64,${Buffer.from(png).toString('base64')}`;
 
+/**
+ * An Idle callback with no rules: the program it exports draws the same display(), and Run can
+ * start, which needs a valid callback.
+ */
+const IDLE_ONLY = {
+  keyboard: { handlerName: '', rules: [] },
+  special: { handlerName: '', rules: [] },
+  mouse: { handlerName: '', rules: [] },
+  motion: { handlerName: '', rules: [] },
+  reshape: { handlerName: '', resize: 'keep' },
+  idle: { handlerName: 'idle', rules: [] },
+};
+
 async function open(page: Page, scene: FidelityScene) {
   const uploadedTextures = (scene.textures ?? []).map((t) => ({ id: t.id, name: t.name, dataUrl: dataUrl(encodePng(checker())), width: 8, height: 8 }));
   await page.addInitScript(
-    ({ objects, uploadedTextures }) => {
+    ({ objects, uploadedTextures, callbacks }) => {
       window.localStorage.setItem('vams-theme', 'light');
       window.localStorage.setItem('vams-storage', JSON.stringify({
         state: {
-          objects, uploadedTextures, hasSeenWelcome: true, activeSection: 'Primitives', canvasBackgroundColor: '#000000',
+          objects, uploadedTextures, callbacks, hasSeenWelcome: true, activeSection: 'Primitives', canvasBackgroundColor: '#000000',
           axisVisibility: { showGlobalAxes: false, showLocalAxes: false, showOriginMarker: false, showGridlines: false, showGridNumbers: false },
         },
         version: 11,
       }));
     },
-    { objects: scene.objects ?? [], uploadedTextures },
+    { objects: scene.objects ?? [], uploadedTextures, callbacks: IDLE_ONLY },
   );
   await page.goto(scene.gallery ? `/app?scene=${scene.gallery}` : '/app');
   await page.waitForSelector('.canvas-wrapper canvas');
@@ -136,5 +149,41 @@ FIDELITY_SCENES.forEach((scene, i) => {
       writeFileSync(join(WORK, `${scene.id}.canvas.png`), encodePng(shot));
     }
     expect(result.failures, `first differences [x, y, size]: ${JSON.stringify(result.examples)}`).toBeLessThanOrEqual(scene.texelTies ?? 0);
+  });
+});
+
+// The Run view draws through gl-raster, which matches the reference GPU at every pixel. A scene
+// with no rules shows the program's first frame for as long as it runs. Gallery scenes move from
+// the first step; ALG-RUN-01 holds their Run view to the program's own calls instead, and
+// VIS-LAB-05 holds those calls to the reference GPU.
+/**
+ * Named exceptions of the Run view: multisampled line edges, where one sample of a pixel lies within
+ * 0.003 of a pixel outside a sloped or wide line and the reference driver's fixed-point edge setup
+ * counts it as inside (the Lab battery's LINE_EDGE, docs/lab-operations.md).
+ */
+const RUN_EXCEPTIONS: Record<string, number> = {
+  'scaled-lines-and-points': 31,
+  'stipple-presets-1px': 2,
+  'stipple-presets-4.5px': 31,
+  'every-primitive-flat': 18,
+  'every-primitive-smooth': 18,
+};
+
+FIDELITY_SCENES.filter((scene) => !scene.gallery).forEach((scene, i) => {
+  const id = FIDELITY_SCENES.length + i + 1;
+  test(`VIS-FID-${id}: ${scene.id} runs as FreeGLUT draws it, every pixel`, async ({ page }) => {
+    await open(page, scene);
+    await page.getByRole('button', { name: /^Run/ }).first().click();
+    await page.locator('.run-view[data-showing]').waitFor();
+    await page.waitForTimeout(300);
+    const shot = decodePng(await page.locator('.canvas-wrapper').screenshot());
+    const reference = decodePng(readFileSync(join(FIXTURES, 'reference', `${scene.id}.png`)));
+    const inCorner = (x: number, y: number) => y >= shot.height - CORNER && (x < CORNER || x >= shot.width - CORNER);
+    const result = compareStrict(shot, reference, inCorner);
+    if (!result.ok) {
+      mkdirSync(WORK, { recursive: true });
+      writeFileSync(join(WORK, `${scene.id}.run.png`), encodePng(shot));
+    }
+    expect(result.failures, `first differences [x, y, size]: ${JSON.stringify(result.examples)}`).toBe(RUN_EXCEPTIONS[scene.id] ?? 0);
   });
 });

@@ -125,7 +125,7 @@ The Lab draws what FreeGLUT draws on the lab PCs, which have Intel graphics. The
 
 - **The check:** VIS-LAB-05 holds every battery program to every pixel within 2 of its reference. It runs with `LAB_RUNTIME_LOCAL=1 npx playwright test lab-drawing`.
 - **Named exceptions:**
-  - `gallery-clock` 12, `gallery-jeepney-street` 22, `gallery-parol` 68 and `gallery-solar-system` 127 pixels: each is one sample of a multisampled line's edge, which Intel's fixed-point edge setup puts inside the line and no model here matches.
+  - `gallery-clock` 12, `gallery-jeepney-street` 22, `gallery-parol` 68, `gallery-solar-system` 127, `modes-multisample` 4, `sizes-multisample` 29 and `state-ops` 20 pixels: each is one sample of a multisampled line's edge, which Intel's fixed-point edge setup puts inside the line and no model here matches.
   - `gallery-pixel-fox` 10 pixels: one row where a pixel centre falls exactly on a texel boundary under `GL_NEAREST`.
 - **Recording:** record again with `scripts/lab/capture-reference.mjs` on a laptop whose integrated GPU is Intel. The capture shim asks for no particular GPU, and recording refuses any other renderer, or sample positions that aren't Intel's.
 - **The file name trap:** the NVIDIA driver sends some file names to the discrete GPU whatever the shim asks; `resolve.exe` is DaVinci Resolve's. Name probe programs `vams-*.exe`.

@@ -15,7 +15,10 @@
 
 // The sample positions of a multisampled window, as the recorders check them against Intel's.
 static void printSamplePositions(GLint samples) {
-  if (samples <= 1 || !glGetMultisamplefv) return;
+  if (samples <= 1) return;
+  // A program that never called glewInit hasn't loaded the entry point yet.
+  if (!glGetMultisamplefv) glewInit();
+  if (!glGetMultisamplefv) return;
   fprintf(stderr, "samples");
   for (GLint i = 0; i < samples; i++) {
     GLfloat p[2] = {0, 0};
