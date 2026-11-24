@@ -10,6 +10,8 @@
 //           of its own, so a window opens and closes for each one that makes a window.
 //   events  events.cpp in one window for a few seconds, playing events.script.txt on itself: the
 //           callbacks it printed, one line each.
+//   crash   every case of crash.cpp, a console program that goes wrong: stdout, stderr and the
+//           exit code. No window opens.
 //
 // pace.cpp isn't recorded here: on a shared desktop a native window's timers depend on whether
 // Windows sees it (see the GLUT behaviour spec), so its figures come from the spec's measurements.
@@ -66,7 +68,28 @@ function events(toolchain, work) {
   return lines;
 }
 
-const BATTERIES = { misuse, events };
+/** The case names in crash.cpp. */
+export function crashCases(source) {
+  return [...source.matchAll(/^\s+\{ "([\w-]+)", \[\]/gm)].map((m) => m[1]);
+}
+
+// A program that crashes ends with a Windows exception code, printed here as a signed 32-bit
+// number, as %ERRORLEVEL% shows it.
+function crash(toolchain, work) {
+  const { exe, env } = build('crash', toolchain, work);
+  const cases = {};
+  for (const name of crashCases(readFileSync(join(GLUT_DIR, 'crash.cpp'), 'utf8'))) {
+    const run = spawnSync(exe, [], { env, input: `${name}\n`, timeout: 20_000, encoding: 'utf8', windowsHide: true });
+    if (run.error) throw new Error(`${name}: ${run.error.message}`);
+    const clean = (text) => text.replaceAll(exe, '<program>').replaceAll('\r\n', '\n');
+    const exit = run.status === null ? null : run.status | 0;
+    cases[name] = { stdout: clean(run.stdout), stderr: clean(run.stderr), exit };
+    console.log(`${name}: exit ${exit}${run.stderr ? `, ${clean(run.stderr).trim()}` : ''}`);
+  }
+  return cases;
+}
+
+const BATTERIES = { misuse, events, crash };
 
 const toolchain = process.env.VAMS_GLUT_TOOLCHAIN;
 if (!toolchain) {

@@ -282,7 +282,7 @@ describe('BB-LAB-46: ✕ ends the program, and Run starts a fresh worker', () =>
     const again = await run(host);
     again.emit({ type: 'crash', message: 'unreachable' });
     expect(useLabRun.getState().status).toBe('crashed');
-    expect(host.querySelector('.lab-log__console')!.textContent).toContain('The program stopped: unreachable');
+    expect(host.querySelector('.lab-log__console')!.textContent).toContain('The program stopped: it reached code the compiler marked as never reached');
   });
 
   it('puts each compile result in Run’s status and message, with the spec’s words', async () => {
