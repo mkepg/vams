@@ -199,6 +199,20 @@ export const useLabStore = create<LabProjectState>()(
   ),
 );
 
+/**
+ * Keeps this tab on the newest browser save. Every tab of the Lab saves the code on each change,
+ * so a second tab left open on older code would write it back over the first tab's work at its
+ * next keystroke. When another tab saves, this one takes up what it saved instead: the code, the
+ * file list and whether it is unsaved. Returns the function that stops following.
+ */
+export function followOtherTabs(): () => void {
+  const follow = (event: StorageEvent) => {
+    if (event.key === LAB_STORAGE_KEY && event.newValue !== null) void useLabStore.persist.rehydrate();
+  };
+  window.addEventListener('storage', follow);
+  return () => window.removeEventListener('storage', follow);
+}
+
 /** The files in the list with their bytes, ready for Run or Save. A file whose bytes are gone is left out. */
 export async function readLabFiles(): Promise<LabFile[]> {
   const files = await Promise.all(

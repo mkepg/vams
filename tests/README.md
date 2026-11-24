@@ -128,13 +128,14 @@ tests/
 │   ├── lab-functions.test.ts             (BB-LAB-05 to 08: the Pages Functions
 │   │                                        that forward compiles and serve the
 │   │                                        runtime)
-│   ├── lab-runtime.test.ts               (BB-LAB-20 to 31, 60 and 100: the
-│   │                                        worker runtime: GLUT's main loop,
+│   ├── lab-runtime.test.ts               (BB-LAB-20 to 31, 60, 100, 112 and 115:
+│   │                                        the worker runtime: GLUT's main loop,
 │   │                                        events, menus, typed input, system(),
 │   │                                        files, the output ring and the
 │   │                                        Console, how a program's end is
-│   │                                        reported, and one frame a refresh
-│   │                                        however slow a frame is to draw)
+│   │                                        reported and a crash worded, and one
+│   │                                        frame a refresh however slow a frame
+│   │                                        is to draw)
 │   ├── lab-page.test.ts                  (BB-LAB-32 to 36, 59 and 65: the /lab
 │   │                                        route, its header link, isolation
 │   │                                        and the dev server)
@@ -146,14 +147,15 @@ tests/
 │   │                                        worker's messages, and its entry
 │   │                                        point run from its own cache)
 │   ├── lab-workspace.test.ts             (BB-LAB-43 to 51, 71 to 77, 94, 95,
-│   │                                        101 and 108 to 111: the workspace,
+│   │                                        101, 108 to 111 and 114: the workspace,
 │   │                                        the stage, the program's window, the
 │   │                                        top bar, the log's bar and the
 │   │                                        keyboard help)
 │   ├── lab-shared-layout.test.ts         (BB-LAB-61 to 64: the rings the page
 │   │                                        and the program's worker share)
-│   ├── lab-files.test.ts                 (BB-LAB-52 to 57, 78 to 86 and 88 to 91:
-│   │                                        the browser save, Save, Open, New,
+│   ├── lab-files.test.ts                 (BB-LAB-52 to 57, 78 to 86, 88 to 91 and
+│   │                                        116: the browser save and a second
+│   │                                        tab, Save, Open, New,
 │   │                                        the examples, the file list and the
 │   │                                        editor's Open in Lab)
 │   └── lab-wording.test.ts               (BB-LAB-58: every message in the Lab's
@@ -244,12 +246,13 @@ tests/
 │   ├── lab-drawing.spec.ts               (VIS-LAB-05: each Lab battery program,
 │   │                                        compiled and run in the Lab, against
 │   │                                        its FreeGLUT reference; LAB_RUNTIME_LOCAL=1)
-│   ├── lab-compiler.spec.ts              (VIS-LAB-07 to 12: the compiler's
+│   ├── lab-compiler.spec.ts              (VIS-LAB-07 to 16: the compiler's
 │   │                                        download, no JavaScript, storage or
 │   │                                        worker from a program, the 2D set
-│   │                                        compiled in the page, and the
-│   │                                        jeepney as fast as in the editor;
-│   │                                        LAB_RUNTIME_LOCAL=1)
+│   │                                        compiled in the page, the jeepney
+│   │                                        as fast as in the editor, and the
+│   │                                        misuse, pace, input and crash
+│   │                                        batteries; LAB_RUNTIME_LOCAL=1)
 │   └── helpers/lab.ts                    (the routes that stand in for
 │                                            production in front of the preview
 │                                            server: the local runtime and the
@@ -344,12 +347,14 @@ the images they load, after which their references are recorded again.
 How FreeGLUT behaves, rather than draws, is recorded in
 `tests/fixtures/lab/glut/reference.json`: the misuse battery (`misuse.cpp`,
 replayed by BB-LAB-112 and sampled end to end by VIS-LAB-13) and the input
-battery (`events.cpp` playing `events.script.txt`, compared by VIS-LAB-15).
+battery (`events.cpp` playing `events.script.txt`, compared by VIS-LAB-15),
+and the crash battery (`crash.cpp`, a console program that goes wrong, run case
+by case by VIS-LAB-16).
 `pace.cpp` (VIS-LAB-14) is checked against figures in its own comment. Record
 the batteries again with:
 
 ```bash
-VAMS_GLUT_TOOLCHAIN=<path to the toolchain's mingw32 folder> node scripts/lab/capture-glut.mjs [misuse] [events]
+VAMS_GLUT_TOOLCHAIN=<path to the toolchain's mingw32 folder> node scripts/lab/capture-glut.mjs [misuse] [events] [crash]
 ```
 `checkerboard.png` is an 8 × 8 RGBA image of one-texel cells, white where x + y
 is even and red (220, 30, 30) where it is odd, written once with `encodePng`.
@@ -366,7 +371,7 @@ The checks that run the real compiler need the runtime built in
 `lab/runtime/out/`, and skip without `LAB_RUNTIME_LOCAL=1`:
 
 ```bash
-LAB_RUNTIME_LOCAL=1 npm run test:visual -- lab.spec lab-drawing lab-compiler   # VIS-LAB-01 to 12
+LAB_RUNTIME_LOCAL=1 npm run test:visual -- lab.spec lab-drawing lab-compiler   # VIS-LAB-01 to 16
 ```
 
 The IDs the compile service's checks held (BB-LAB-05 to 07, WB-LAB-03 to 11,

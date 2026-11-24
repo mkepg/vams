@@ -41,8 +41,12 @@ SIDE_STRIP_FLAGS="--remove-section=.debug* --remove-section=producers --remove-s
 # EXIT_RUNTIME makes exit() run atexit handlers and static destructors, so files are written.
 # DYNAMIC_EXECUTION=0 turns every path that evaluates a program's JavaScript (emscripten_run_script,
 # and the EM_ASM and EM_JS code a side module carries) into an abort, so a program runs only wasm.
+# STACK_SIZE is MinGW's 2 MB, the stack a lab PC's program has, and STACK_FIRST puts it below
+# everything else, so a program that overflows it stops on a bad memory access instead of writing
+# over the main module's data. getExceptionMessage names an exception nothing caught, for the
+# message libstdc++ prints. Growth stops at 2 GB, as a 32-bit program's memory does.
 MAIN_SOURCES="$HERE/vams_main.c $HERE/conio.c $HERE/windows.c $HERE/glew.c $HERE/stb_image_impl.c"
-MAIN_FLAGS="-O2 -fwasm-exceptions -sMAIN_MODULE=1 -sMODULARIZE -sEXPORT_ES6 -sENVIRONMENT=$ENVIRONMENT -sALLOW_MEMORY_GROWTH -sEXPORT_NAME=createVamsMain -sEXPORTED_RUNTIME_METHODS=FS,ccall -sEXIT_RUNTIME=1 -sDYNAMIC_EXECUTION=0"
+MAIN_FLAGS="-O2 -fwasm-exceptions -sMAIN_MODULE=1 -sMODULARIZE -sEXPORT_ES6 -sENVIRONMENT=$ENVIRONMENT -sALLOW_MEMORY_GROWTH -sMAXIMUM_MEMORY=2147483648 -sSTACK_SIZE=2097152 -Wl,--stack-first -sEXPORT_EXCEPTION_HANDLING_HELPERS -sEXPORT_NAME=createVamsMain -sEXPORTED_RUNTIME_METHODS=FS,ccall,getExceptionMessage -sEXIT_RUNTIME=1 -sDYNAMIC_EXECUTION=0"
 
 case "${1:-}" in
   --side-flags) echo "$SIDE_FLAGS"; exit 0 ;;

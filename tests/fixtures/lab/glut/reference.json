@@ -1,4 +1,61 @@
 {
+  "crash": {
+    "exit-code": {
+      "stdout": "start\n",
+      "stderr": "",
+      "exit": 7
+    },
+    "throw-runtime-error": {
+      "stdout": "start\n",
+      "stderr": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  the file is missing\n",
+      "exit": -1073740791
+    },
+    "throw-int": {
+      "stdout": "start\n",
+      "stderr": "terminate called after throwing an instance of 'int'\n",
+      "exit": -1073740791
+    },
+    "new-too-big": {
+      "stdout": "start\n",
+      "stderr": "terminate called after throwing an instance of 'std::bad_alloc'\n  what():  std::bad_alloc\n",
+      "exit": -1073740791
+    },
+    "new-caught": {
+      "stdout": "start\ncaught std::bad_alloc\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "malloc-too-big": {
+      "stdout": "start\nmalloc gave NULL\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "abort": {
+      "stdout": "start\n",
+      "stderr": "",
+      "exit": -1073740791
+    },
+    "divide-by-zero": {
+      "stdout": "start\n",
+      "stderr": "",
+      "exit": -1073741676
+    },
+    "far-pointer": {
+      "stdout": "start\n",
+      "stderr": "",
+      "exit": -1073741819
+    },
+    "endless-recursion": {
+      "stdout": "start\n",
+      "stderr": "",
+      "exit": -1073741571
+    },
+    "big-local-array": {
+      "stdout": "start\nsum 1150\nafter\n",
+      "stderr": "",
+      "exit": 0
+    }
+  },
   "events": [
     "reshape 400 300",
     "passive 10 10",

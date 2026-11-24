@@ -20,6 +20,9 @@
  *    refresh, as on the reference
  *  - VIS-LAB-15: a script of keys and mouse actions gives the program the callbacks, values and
  *    modifiers FreeGLUT gave it on the reference, line for line
+ *  - VIS-LAB-16: each case of the crash battery prints what a lab PC prints and ends as it ends,
+ *    a crash in plain words; a 1.5 MB local array and a 2 GB allocation behave as there; the
+ *    code survives every case
  */
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -378,5 +381,48 @@ test.describe('VIS-LAB: the compiler in the page', () => {
     const printed = ((await page.getByRole('tabpanel').textContent()) ?? '').split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
     const recorded = JSON.parse(readFileSync(join(dir, 'reference.json'), 'utf8')).events as string[];
     expect(printed).toEqual(recorded);
+  });
+
+  test('VIS-LAB-16: A program that goes wrong ends as it ends on a lab PC, in plain words, and its code stays', async ({ page }) => {
+    test.setTimeout(600_000);
+    await routeLab(page.context());
+    await openLab(page, 'light');
+    const dir = join(process.cwd(), 'tests/fixtures/lab/glut');
+    const source = readFileSync(join(dir, 'crash.cpp'), 'utf8');
+    const recorded = JSON.parse(readFileSync(join(dir, 'reference.json'), 'utf8')).crash as Record<string, { stdout: string; stderr: string; exit: number }>;
+    // What the Console says for each case that ends on a Windows exception code.
+    const words: Record<string, RegExp> = {
+      'throw-runtime-error': /an exception that nothing caught/,
+      'throw-int': /an exception that nothing caught/,
+      'new-too-big': /an exception that nothing caught/,
+      abort: /called abort\(\)/,
+      'divide-by-zero': /divided a whole number by zero/,
+      'far-pointer': /memory outside the program's own/,
+      'endless-recursion': /ran out of stack|memory outside the program's own/,
+    };
+    await putProgram(page, source);
+    await page.getByRole('tab', { name: 'Console' }).click();
+    for (const [name, want] of Object.entries(recorded)) {
+      await page.locator('.lab-top-bar__run').click();
+      const field = page.locator('#lab-console-input');
+      await expect(field).toBeVisible({ timeout: 90_000 });
+      await field.fill(name);
+      await field.press('Enter');
+      const status = page.locator('.lab-top-bar__status');
+      await expect(status, name).not.toContainText('Running', { timeout: 60_000 });
+      const console = page.getByRole('tabpanel');
+      for (const line of `${want.stdout}${want.stderr}`.split('\n').filter((l) => l.length > 0)) await expect(console, name).toContainText(line);
+      if (want.exit >= 0) {
+        await expect(status, name).toContainText(`Ended with exit code ${want.exit}`);
+        await expect(console, name).not.toContainText('The program stopped');
+      } else {
+        await expect(status, name).toContainText('Stopped on an error');
+        await expect(console, name).toContainText(words[name]);
+      }
+    }
+    // A crash never touches the code: a reload opens it as it was.
+    await page.reload();
+    await page.waitForSelector('.lab-top-bar__run');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('vams-lab') ?? '{}').state?.source)).toBe(source);
   });
 });

@@ -17,6 +17,7 @@ import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { labFileType, OTHER_FILE_TYPE } from '@/entities/lab-project';
 import { appendConsole, emptyConsole, type ConsoleLog } from './console-lines';
+import { crashWords } from './crash-words';
 import { EventOutbox } from './event-outbox';
 import type { AttachedMenu, LabFile, LabMenu, StartMessage, WorkerMessage } from './protocol';
 import {
@@ -109,7 +110,7 @@ export const CLOSE_WAIT_MS = 1000;
 export const HIDDEN_READ_MS = 100;
 
 /** The Console line for a program that stopped on an error. */
-export const crashLine = (message: string) => `The program stopped: ${message}`;
+export const crashLine = (message: string) => `The program stopped: ${crashWords(message)}`;
 /** What the Console says when the worker itself would not start. */
 export const NO_START = "The program couldn't start.";
 

@@ -13,10 +13,12 @@
  * way the program ends, its static destructors run and stdio flushes every stream: what it
  * printed is in the output ring and what it wrote is in its files. The worker then posts the files
  * still open for writing, and `exit` with the code; a trap, an abort or a runtime that won't load
- * posts `crash` with its message. If that post fails, it posts `crash` as a last resort. The
+ * posts `crash` with its message. A C++ exception that nothing caught first prints libstdc++'s
+ * "terminate called" lines, as on a lab PC. If that post fails, it posts `crash` as a last resort. The
  * worker never stops a program itself: the page terminates the worker.
  */
 import type { GLContext } from '@/shared/lib/gl-raster';
+import { ABORTED, UNCAUGHT_EXCEPTION } from '../model/crash-words';
 import type { PageMessage, StartMessage, WorkerMessage } from '../model/protocol';
 import { runtimeVersion } from '../model/runtime-version';
 import { openLayout } from '../model/shared-layout';
@@ -42,13 +44,20 @@ export const MODULE_PATH = '/main.wasm';
 /** The main module's URL for a runtime version. */
 export const runtimeUrl = (version: string) => `/lab-runtime/${version}/vams_main.mjs`;
 
-/** The main module, as build.sh makes it: FS and ccall exported. */
+/** The main module, as build.sh makes it: FS, ccall and getExceptionMessage exported. */
 export interface MainModule {
   FS: LabFS;
   ccall(name: 'vams_run', returns: 'number', args: ['string'], values: [string]): number;
+  /** An exception's type, demangled, and its what() when it is a std::exception. */
+  getExceptionMessage?(exception: unknown): [string, string | undefined];
 }
 
-export type CreateMain = (options: { print(line: string): void; printErr(line: string): void }) => Promise<MainModule>;
+export type CreateMain = (options: {
+  print(line: string): void;
+  printErr(line: string): void;
+  /** Called as abort() begins, before Emscripten prints its "Aborted(…)" line and traps. */
+  onAbort?(what: unknown): void;
+}) => Promise<MainModule>;
 
 /** Emscripten's ExitStatus, thrown by exit(). */
 function exitCode(error: unknown): number | null {
@@ -60,6 +69,28 @@ function exitCode(error: unknown): number | null {
 }
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+/** Whether `error` is a C++ exception that left main: wasm exceptions reach JavaScript as WebAssembly.Exception. */
+function isWasmException(error: unknown): boolean {
+  const Exception = (WebAssembly as unknown as { Exception?: abstract new (...args: never[]) => object }).Exception;
+  return typeof Exception === 'function' && error instanceof Exception;
+}
+
+/**
+ * What libstdc++ prints on a lab PC for an exception nothing caught, before the program ends:
+ * the exception's type, and its what() when it has one.
+ */
+export function terminateText(main: Pick<MainModule, 'getExceptionMessage'>, exception: unknown): string {
+  let named: [string, string | undefined] | undefined;
+  try {
+    named = main.getExceptionMessage?.(exception);
+  } catch {
+    named = undefined;
+  }
+  if (!named) return '';
+  const [type, what] = named;
+  return `terminate called after throwing an instance of '${type}'\n${what ? `  what():  ${what}\n` : ''}`;
+}
 
 /**
  * Runs the program in `start`, posting what it does with `post`, and the main module from
@@ -95,11 +126,19 @@ export async function runProgram(
       post({ type: 'crash', message: errorMessage(error) });
     }
   };
+  let main: MainModule | null = null;
+  // abort() on a lab PC prints nothing, so Emscripten's "Aborted()" line isn't passed on.
+  let aborted = false;
   try {
     const create = await loadMain();
-    const main = await create({
+    main = await create({
       print: (line) => io.write('stdout', `${line}\n`),
-      printErr: (line) => io.write('stderr', `${line}\n`),
+      printErr: (line) => {
+        if (!(aborted && line.startsWith('Aborted('))) io.write('stderr', `${line}\n`);
+      },
+      onAbort: () => {
+        aborted = true;
+      },
     });
     files = installFiles(main.FS, start.files, fileReports(io, host), [MODULE_PATH]);
     main.FS.writeFile(MODULE_PATH, new Uint8Array(start.module));
@@ -109,7 +148,11 @@ export async function runProgram(
   } catch (error) {
     const code = exitCode(error);
     if (code !== null) finish({ type: 'exit', code });
-    else finish({ type: 'crash', message: errorMessage(error) });
+    else if (aborted) finish({ type: 'crash', message: ABORTED });
+    else if (main && isWasmException(error)) {
+      io.write('stderr', terminateText(main, error));
+      finish({ type: 'crash', message: UNCAUGHT_EXCEPTION });
+    } else finish({ type: 'crash', message: errorMessage(error) });
   }
 }
 

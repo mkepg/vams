@@ -10,6 +10,7 @@
  *  - Typed input, getch, system() and Sleep wait for the Console as a lab PC's console does
  *  - Menus, window messages, files, display lists and bitmap text
  *  - Output in a tight loop arrives batched, and the Console keeps its last 5,000 lines
+ *  - A program that crashes, aborts or throws an exception nothing caught ends in plain words
  *
  * Most tests run the runtime on a clock of their own: each time it would block, the test plays
  * the page (sends an event, a key, or takes a frame) and moves the clock on, so they are exact and
@@ -46,7 +47,9 @@ import { ConsoleIO, PAUSE_PROMPT, systemMessage } from '@/features/lab-run/worke
 import type { WorkerHost } from '@/features/lab-run/worker/event-queue';
 import { GLUT, GlutRuntime, PROGRAM_NAME } from '@/features/lab-run/worker/glut-runtime';
 import { fileReports, installFiles, missingMessage, type FSStream, type LabFS } from '@/features/lab-run/worker/lab-files';
-import { runProgram } from '@/features/lab-run/worker/lab-worker';
+import { runProgram, terminateText, type CreateMain, type MainModule } from '@/features/lab-run/worker/lab-worker';
+import { ABORTED, UNCAUGHT_EXCEPTION } from '@/features/lab-run/model/crash-words';
+import { crashLine } from '@/features/lab-run';
 import type { ConsoleCall, ConsoleReply } from '../helpers/lab-console-worker';
 import reference from '../fixtures/lab/glut/reference.json';
 
@@ -893,6 +896,80 @@ describe('BB-LAB-60: The worker always tells the page how the program ended', ()
     });
     await expect(runProgram(start(), post, exits)).resolves.toBeUndefined();
     expect(posts).toEqual([{ type: 'crash', message: 'could not be cloned' }]);
+  });
+});
+
+describe('BB-LAB-115: A program that goes wrong is said in plain words, as a lab PC ends it', () => {
+  const start = () => ({ type: 'start' as const, module: new ArrayBuffer(0), files: [], shared: createSharedLayout(0) });
+  type Options = Parameters<CreateMain>[0];
+  /** A main module whose vams_run does `run` with the options the worker gave it. */
+  const main =
+    (run: (options: Options) => number, getExceptionMessage?: MainModule['getExceptionMessage']): (() => Promise<CreateMain>) =>
+    async () =>
+    async (options) => ({ FS: new FakeFS(), ccall: () => run(options), getExceptionMessage });
+  const wasmException = () => {
+    const wasm = WebAssembly as unknown as { Tag: new (t: object) => object; Exception: new (tag: object, args: number[]) => object };
+    return new wasm.Exception(new wasm.Tag({ parameters: ['i32'] }), [0]);
+  };
+
+  it('an exception nothing caught ends as uncaught, and abort() as aborted, without Emscripten’s own line', async () => {
+    const posts: WorkerMessage[] = [];
+    const printed: string[] = [];
+    await runProgram(
+      start(),
+      (m) => posts.push(m),
+      main(() => {
+        throw wasmException();
+      }, () => ['std::runtime_error', 'the file is missing']),
+    );
+    await runProgram(
+      start(),
+      (m) => posts.push(m),
+      main((options) => {
+        options.onAbort?.('');
+        options.printErr('Aborted()');
+        printed.push('called');
+        throw new Error('unreachable');
+      }),
+    );
+    expect(posts).toEqual([
+      { type: 'crash', message: UNCAUGHT_EXCEPTION },
+      { type: 'crash', message: ABORTED },
+    ]);
+    expect(printed).toEqual(['called']);
+  });
+
+  it('libstdc++’s lines name the exception, with what() when it has one', () => {
+    expect(terminateText({ getExceptionMessage: () => ['std::bad_alloc', 'std::bad_alloc'] }, {})).toBe(
+      "terminate called after throwing an instance of 'std::bad_alloc'\n  what():  std::bad_alloc\n",
+    );
+    expect(terminateText({ getExceptionMessage: () => ['int', undefined] }, {})).toBe("terminate called after throwing an instance of 'int'\n");
+    // A runtime without the helper, or one that can't read the exception, prints nothing.
+    expect(terminateText({}, {})).toBe('');
+    expect(
+      terminateText(
+        {
+          getExceptionMessage: () => {
+            throw new Error('not a C++ exception');
+          },
+        },
+        {},
+      ),
+    ).toBe('');
+  });
+
+  it('each browser message for a stop has its plain words, and one the Lab does not know is passed on', () => {
+    const said = (message: string) => crashLine(message).replace('The program stopped: ', '');
+    expect(said(UNCAUGHT_EXCEPTION)).toBe('it threw an exception that nothing caught.');
+    expect(said(ABORTED)).toBe('it called abort().');
+    for (const m of ['divide by zero', 'integer divide by zero', 'remainder by zero']) expect(said(m)).toBe('it divided a whole number by zero.');
+    for (const m of ['memory access out of bounds', 'index out of bounds']) expect(said(m)).toMatch(/^it read or wrote memory outside the program's own/);
+    for (const m of ['Maximum call stack size exceeded', 'too much recursion']) expect(said(m)).toMatch(/^it ran out of stack/);
+    for (const m of ['null function or function signature mismatch', 'table index is out of bounds', 'indirect call to null'])
+      expect(said(m)).toMatch(/^it called a function through a pointer/);
+    expect(said('unreachable')).toMatch(/^it reached code the compiler marked as never reached/);
+    expect(said('divide result unrepresentable')).toMatch(/^it divided the smallest int by -1/);
+    expect(said('Aborted(something new)')).toBe('Aborted(something new)');
   });
 });
 

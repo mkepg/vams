@@ -39,13 +39,14 @@ describe('ALG-RUN-03: Run steps 60 times a second, whatever the refresh rate', (
     expect(counts.slice(1).every((n) => n === 2)).toBe(true);
   });
 
-  it('catches up a slow frame, but takes a single step after a stall longer than a tenth of a second', () => {
-    expect(MAX_CATCH_UP).toBe(6);
+  it('catches up a slow frame, even one of 400 ms, but takes a single step after a stall longer than half a second', () => {
+    expect(MAX_CATCH_UP).toBe(30);
     const due = stepPacer();
     expect(due(0)).toBe(1);
     expect(due(70)).toBe(4);
     expect(due(70.1)).toBe(0);
-    expect(due(2070)).toBe(1);
-    expect(due(2086.7)).toBe(1);
+    expect(due(470)).toBe(24);
+    expect(due(2470)).toBe(1);
+    expect(due(2486.7)).toBe(1);
   });
 });

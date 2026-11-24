@@ -17,7 +17,7 @@ import {
   saveWork,
   withBrowserSave,
 } from '@/features/lab-files';
-import { dropMissingFiles, readLabFiles, useLabStore } from '@/entities/lab-project';
+import { dropMissingFiles, followOtherTabs, readLabFiles, useLabStore } from '@/entities/lab-project';
 import { LabShareDialog, useShareDialog } from '@/features/share/lab';
 import type { MenuEntry } from '@/shared/ui/controls';
 import { LOG_SPLIT, PANE_SPLIT, splitStyle } from '../model/split';
@@ -126,6 +126,9 @@ export default function LabWorkspace({ compile = compileHere, download = downloa
       if (missing.length > 0) tellFiles(missingFilesMessage(missing));
     });
   }, []);
+
+  // Another Lab tab's save replaces this tab's code, so an older tab never writes over newer work.
+  useEffect(() => followOtherTabs(), []);
 
   // Whether the compiler is in this browser: asked of Cache Storage, which downloads nothing.
   useEffect(() => {

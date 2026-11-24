@@ -31,7 +31,8 @@ static void idle()
 {
     glutPostRedisplay();
     if (glutGet(GLUT_ELAPSED_TIME) - start < 1000) return;
-    printf("idle frames per second %d\n", count * 1000 / (glutGet(GLUT_ELAPSED_TIME) - start));
+    // In 64 bits: the Lab holds frames the page won't show, and runs millions a second.
+    printf("idle frames per second %lld\n", count * 1000LL / (glutGet(GLUT_ELAPSED_TIME) - start));
     exit(0);
 }
 

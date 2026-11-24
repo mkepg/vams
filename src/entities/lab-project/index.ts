@@ -3,6 +3,7 @@ export {
   labProjectDefaults,
   readLabFiles,
   dropMissingFiles,
+  followOtherTabs,
   labFileType,
   OTHER_FILE_TYPE,
   LAB_STORAGE_KEY,
