@@ -32,6 +32,9 @@ const EXCEPTIONS: Record<string, { pixels: number; reason: string }> = {
   'gallery-jeepney-street': { pixels: 22, reason: LINE_EDGE },
   'gallery-parol': { pixels: 68, reason: LINE_EDGE },
   'gallery-solar-system': { pixels: 127, reason: LINE_EDGE },
+  'modes-multisample': { pixels: 4, reason: LINE_EDGE },
+  'sizes-multisample': { pixels: 29, reason: LINE_EDGE },
+  'state-ops': { pixels: 20, reason: LINE_EDGE },
   'gallery-pixel-fox': {
     pixels: 10,
     reason: 'one row where a pixel centre falls exactly on a texel boundary under GL_NEAREST, and the reference driver takes the texel below',

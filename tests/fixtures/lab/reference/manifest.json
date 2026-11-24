@@ -4,6 +4,7 @@
     "bitmap-text": "62b6b971c03b0b298f4cb4abf199fa6eb36b23b3b7a278f3d0d2e1e1ecb7f719",
     "blend": "c35a37f3fa3707b0bd6904610c0327f11eb9c06decda6b1693dc3cf53434a5ea",
     "display-list": "51f79ab67e324409e265f5eac7428935bb26f0c5a57fe5b628d7668d9da7f31b",
+    "fonts-fractional": "75874a22627befff6d915e858b3ae3d17b1463fff733c53b2ffead532ca69470",
     "gallery-clock": "7fc6aab63de7ed3b718419ccd828ed74eb3de00eef2f7c233d311394c737f84a",
     "gallery-jeepney-street": "c897f476b54bc467f8b47c5f241ffd994384f98b34466f6caff8a2e96a94c09f",
     "gallery-parol": "4ba2d154f6176780217df5d661f697c97134b8da5f7d69dcefef55d0771cbdf5",
@@ -12,6 +13,8 @@
     "line-ties": "421dbf5be12b26dc8e467529357ed9a23bc44f01cf3960c7047dd57e43a3e689",
     "lines-stipple": "dfbc212ddd2fa47ca5e8df1d4aa41860f9628dcfb4716982f377d0166171fcdc",
     "lines-wide": "baa66d8411b42d84879e4f0a37971ff9a93d4d3cb9e787f48d0d09b909170257",
+    "modes-aliased": "263e2a23c80263f1c5d4390dfe82cc53fe3e275dd8c3ce327d7c48fb118837b2",
+    "modes-multisample": "f0d98a8addfd1bfc9f08638d2901dc0b751c1649656ffe56c41ee0da9f0fafbc",
     "points": "4a1234236683a0e685f107d1b798eedcb5083e3a677dfad86a779fa640f7cad3",
     "polygon-mode": "8f0adb080dbd249977d0c50b97b464e5cf05b872e6bdec3ac76a4f320f6dba88",
     "s1-triangle": "c09967c80145d6c3ffc7f7b1ea1f36925202f4e911ec6ba7a7c23046d1b31fa5",
@@ -21,6 +24,10 @@
     "s5-dynamic-vbo": "3760e6994325e710d008113654487b886dff6a975c8ba869f54baa4b3a0c7878",
     "s6-textured-quad": "28d9f0a4e1480bd4efaf0cdc0c0b8f5f6e18159a0309b9d8f4ff4a2033e9fff5",
     "s7-indexed-strip": "4197c05b6132fbf93526f961e564ecf74de5bc3464942d5011db4cf8d8ca92f2",
+    "sizes-aliased": "d86678a9423bcbc1a20ac5cc276d974b9df101b3b2fc310f4d404c23db2d8e8f",
+    "sizes-multisample": "80f0716c3a60763e2164193ff0062ce0a6c5b082a25ddc498ac76d4aefae52bf",
+    "state-ops": "7913fa49243be830e819ee6a5b139c593e2bf21e843343ea5dd0b968e3f91555",
+    "texture-modes": "ebe59af25db9bb4adc5e4ede9cb8855d164496a9b1477bd52e965ccedcbcfffc",
     "textured-quad": "667d5dbd4a49377e0e581b0a50e2bec5e0a809d3ed8d586c45a23167fdd096fe"
   }
 }
