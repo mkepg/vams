@@ -6,7 +6,13 @@
 //
 // Batteries:
 //   misuse  every case of misuse.cpp, its name on standard input: stdout, stderr and the exit code.
-//           The program's path in FreeGLUT's messages is written as <program>.
+//           The program's path in FreeGLUT's messages is written as <program>. Each case is a run
+//           of its own, so a window opens and closes for each one that makes a window.
+//   events  events.cpp in one window for a few seconds, playing events.script.txt on itself: the
+//           callbacks it printed, one line each.
+//
+// pace.cpp isn't recorded here: on a shared desktop a native window's timers depend on whether
+// Windows sees it (see the GLUT behaviour spec), so its figures come from the spec's measurements.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -51,7 +57,16 @@ function misuse(toolchain, work) {
   return cases;
 }
 
-const BATTERIES = { misuse };
+function events(toolchain, work) {
+  const { exe, env } = build('events', toolchain, work);
+  const run = spawnSync(exe, [], { env: { ...env, VAMS_EVENTS_SCRIPT: join(GLUT_DIR, 'events.script.txt') }, timeout: 30_000, encoding: 'utf8' });
+  if (run.status !== 0) throw new Error(`events.cpp ended with ${run.status}:\n${run.stderr}`);
+  const lines = run.stdout.replaceAll('\r\n', '\n').split('\n').filter((l) => l.length > 0);
+  console.log(lines.join('\n'));
+  return lines;
+}
+
+const BATTERIES = { misuse, events };
 
 const toolchain = process.env.VAMS_GLUT_TOOLCHAIN;
 if (!toolchain) {

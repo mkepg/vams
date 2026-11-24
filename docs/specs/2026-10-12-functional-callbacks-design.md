@@ -456,6 +456,7 @@ Run listens on the run surface and the window (keys) while it is active, and rep
   - Afterwards it calls it whenever the size changes through the drag handle, at most once per animation frame.
   - With no Reshape handler, the window behaves like Stretch, as GLUT's default does.
 - **Idle.** Once per animation frame, Run runs the equivalent of `_vams_idle()`: the saved animations' per-frame steps, then the Idle rules. Then it draws, the way a vsync-limited GLUT program steps idle once per displayed frame.
+  - *24 Nov 2026:* the lab PCs' Intel GPU doesn't hold idle to the screen, so Run and the exported `_vams_idle` now both step 60 times a second ([GLUT behaviour](2026-11-24-glut-behaviour-design.md)).
 
 ### The program window
 

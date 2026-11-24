@@ -107,17 +107,43 @@ LAB_RUNTIME_LOCAL=1 npx playwright test lab.spec lab-drawing lab-compiler
 | Check | What it shows |
 | --- | --- |
 | VIS-LAB-01 to 04, 06 | The Lab's look, with the template running, and the Share dialog |
-| VIS-LAB-05 | Each of the 21 battery programs draws as FreeGLUT draws it |
+| VIS-LAB-05 | Each of the 28 battery programs draws as FreeGLUT draws it |
 | VIS-LAB-07 | Nothing of the compiler downloads until Run or Download now; a reload asks only the cache |
 | VIS-LAB-08 | A program that calls `emscripten_run_script` stops on an error, and its script never runs |
 | VIS-LAB-09 | Every name the code generator emits compiles; every rejected name gives the VAMS message on its line |
 | VIS-LAB-10 | A program that stores to IndexedDB through `emscripten_idb_async_store` stops, and no database appears |
 | VIS-LAB-11 | A program that starts a worker through `emscripten_create_worker` stops on an error, and the worker's script never runs |
 | VIS-LAB-12 | The gallery's jeepney drives across the window as fast in the Lab as in the editor's Run |
+| VIS-LAB-13 | A sample of GLUT misuse prints FreeGLUT's messages and ends with its exit codes |
+| VIS-LAB-14 | Timers fire within 1 ms of the reference's, and an idle loop isn't held to the page's refresh |
+| VIS-LAB-15 | A script of keys and mouse actions gives the program FreeGLUT's callbacks, line for line |
 
 ## How fast a program runs
 
-The editor's Run moves an animation one step a display refresh, and the Lab keeps the same pace, as a lab PC with vsync does: one frame of the program a refresh, counted by the page (`CONTROL.TICK`). The Lab draws in software, so a big multisampled frame can take longer than a refresh to draw. The program then falls behind the page's refreshes, and catches up by running its next frames without drawing them: their drawing is held back (`GLContext.hold`), and dropped when the frame after clears the whole window, or drawn in order when it doesn't. Every frame the page shows has the pixels drawing every frame would give, and an animation moves as fast as in the editor; a frame that is slow to draw only shows fewer of its steps. Time a program spends waiting on purpose, in `Sleep`, a read from the Console, or with no idle work and no timer due, isn't caught up on: its frames count again from there. Only a program more than 240 refreshes behind (`MAX_FRAMES_BEHIND`, about four seconds at 60 Hz) gives up catching up and carries on from where it is.
+On the lab PCs' Intel GPU, `glutSwapBuffers` doesn't wait for the screen, so an idle loop runs as fast as the PC can go: about 1,750 frames a second for a trivial frame on the reference. The Lab does the same. `glutSwapBuffers` hands the frame to the page and returns, and the page shows the newest frame at each refresh, as Windows' compositor does.
+
+The Lab draws in software, so it draws only frames the page will show. A frame run before the page has taken the last one is held back from drawing (`GLContext.hold`). Held drawing is dropped when the next frame clears the whole window, and drawn in order when it doesn't. So a scene slow to draw still runs all its frames and keeps its pace, and the page shows the newest one drawn. When the program stops to wait (a `Sleep`, a read from the Console, no idle work and no timer due, or its end), the last frame it ran is drawn and shown.
+
+Timers keep their time, as FreeGLUT's do in a window that can be seen. The runtime sleeps until shortly before a timer is due and spins the rest, because a browser's wait can wake a millisecond or a whole Windows tick late.
+
+Exported VAMS code doesn't race. Its `_vams_idle` takes a step only 60 times a second, by `glutGet(GLUT_ELAPSED_TIME)`, and the editor's Run steps 60 times a second whatever the screen's refresh rate. So a scene moves at the same speed in the editor, in the Lab and on a lab PC. How each part was measured is in [GLUT behaviour](specs/2026-11-24-glut-behaviour-design.md).
+
+## How the Lab runs GLUT
+
+The Lab runs a program as FreeGLUT 3.0.0 (the course toolchain's) runs it on the reference:
+
+- **Misuse:** the same messages, return values and exit codes, recorded case by case in `tests/fixtures/lab/glut/reference.json`.
+- **Message prefix:** messages name the program as `x.bat` builds it on a lab PC, `c:\openglcpp\Program.exe`. A lab PC builds programs as Windows programs, so these messages never show there; the Lab shows them in the Console.
+- **Closing:** the window's ✕ is its close button. The program's close callback runs and `glutMainLoop` ends as `GLUT_ACTION_ON_WINDOW_CLOSE` says. A program that doesn't take the close within a second, because it is busy or waiting for typed input, is stopped.
+- **Matrix stacks:** they hold Intel's depths, 32 modelview and 4 projection matrices.
+
+To record the misuse and input batteries again, on a Windows PC with the course toolchain:
+
+```bash
+VAMS_GLUT_TOOLCHAIN='<the toolchain>\mingw32' node scripts/lab/capture-glut.mjs misuse events
+```
+
+The misuse battery runs each case as a program of its own, so a window opens and closes for each case that makes a window. The input battery is one window for a few seconds. It plays `events.script.txt` on itself by posting messages, so nothing else on the desktop is touched.
 
 ## What the Lab draws like
 

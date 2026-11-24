@@ -1,0 +1,32 @@
+click 10 10
+key KeyA
+key Shift+KeyA
+key Control+KeyA
+key Digit1
+key Shift+Digit1
+key Semicolon
+key Space
+key Enter
+key Escape
+key Backspace
+key Delete
+key F1
+key F12
+key ArrowLeft
+key ArrowUp
+key ArrowRight
+key ArrowDown
+key PageUp
+key PageDown
+key Home
+key End
+key Insert
+key Shift+ArrowLeft
+key Control+F1
+move 50 60
+move 51 61
+drag 50 60 120 90
+middle 70 80
+wheel up 100 100
+wheel down 100 100
+close

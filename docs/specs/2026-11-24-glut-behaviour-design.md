@@ -44,13 +44,19 @@ Probes built with the course toolchain and run on the reference showed:
    ```cpp
    static int done = -1;
    int step = glutGet(GLUT_ELAPSED_TIME) * 60 / 1000; // 60 steps a second
-   if (step == done) return;
-   done = step;
+   // The first call, or one after a long pause, takes a single step
+   if (done < 0 || step - done > 6) done = step - 1;
+   for (; done < step; done++) {
+       update_buffers();
+       onIdle();
+   }
    ```
-   The editor's Run takes one step whenever the same count has moved on, whatever the screen's refresh rate. Its time starts half a step before its first frame, so refresh jitter never lands on a step boundary. A scene then moves at the same speed in the editor, in the Lab and on a lab PC.
-   - Student-facing text that says idle runs "every frame" now says it steps 60 times a second where it describes the editor's step. The generated code's comment says why.
+   - The editor's Run takes the same steps, whatever the screen's refresh rate (`stepPacer` in `src/shared/lib/run-pace.ts`). Its time starts half a step before its first frame, so refresh jitter never lands on a step boundary.
+   - A scene then moves at the same speed in the editor, in the Lab and on a lab PC.
+   - Both catch up at most 6 steps, a tenth of a second, so a machine slow to draw keeps the pace and a pause doesn't make the scene jump.
+   - The lesson that explains why counting per frame runs faster on a faster computer now says how `_vams_idle` avoids it, and teaches `glutGet(GLUT_ELAPSED_TIME)`. The generated code's comment says why.
 3. **FreeGLUT's misuse behaviour, exactly.** Every case in the list above takes FreeGLUT's message, return value and exit code. Each function's init and window checks are measured, not guessed: the misuse battery covers all 41 functions of the 2D set.
-   - The program's name is `c:\openglcpp\Program.exe`, as `x.bat` builds it on a lab PC. It is passed as `argv[0]`, so a program that prints `argv[0]` sees it too.
+   - The program's name is `c:\openglcpp\Program.exe`, as `x.bat` builds it on a lab PC. (Building kept the main module's own `argv[0]` as it was; see "What building found".)
    - On a lab PC the program is built as a Windows program, so these messages go nowhere a student can see. The Lab shows them in the Console; that is the one difference, and it helps.
 4. **✕ is the window's close button.** The page sends a close event. The runtime calls the close callback, destroys the window and ends `glutMainLoop` as FreeGLUT does. If the program hasn't taken the event within 1 second, because it is busy or waiting for typed input, the page ends the worker as it does now.
 5. **Input is measured, not assumed.** The event battery records FreeGLUT's callbacks for a script of keys, mouse actions, a resize and a menu choice. The Lab's mapping (`glut-input.ts`) and dispatch are fixed until the traces match.
@@ -59,15 +65,15 @@ Probes built with the course toolchain and run on the reference showed:
 
 ## How it is checked
 
-Three batteries, each recorded on the reference by a script and replayed in the Lab, as the drawing battery is:
+Three batteries. Misuse and events are recorded on the reference by a script and replayed in the Lab, as the drawing battery is; pace checks against the figures measured here (see "What building found"):
 
 - **Misuse** (`tests/fixtures/lab/glut/misuse.cpp`). One program reads a case name from standard input and runs that misuse. `scripts/lab/capture-glut.mjs` runs every case natively and records stdout, stderr and the exit code in `tests/fixtures/lab/glut/reference.json`. The Lab test runs each case and compares the Console and the exit code exactly. The program name in FreeGLUT's prefix is the only text normalised.
-- **Events** (`events.cpp` and `events.script.json`). The program prints a line for every callback, with its values and `glutGetModifiers()`.
-  - Natively, a small driver (`tests/fixtures/lab/glut/drive.cpp`) plays the script with `SendInput` into the focused window, resizes it with `SetWindowPos`, picks a menu entry, and closes the window.
+- **Events** (`events.cpp` and `events.script.txt`). The program prints a line for every callback, with its values and `glutGetModifiers()`.
+  - Natively, the program plays the script on itself by posting each key and mouse message to its own window, then closes it. Menus and resizing are left to the runtime's own tests.
   - In the Lab, Playwright plays the same script with real browser input.
-  - The traces must match line for line. Callbacks the window system adds (a display after a menu closes, a second reshape on a resize) are listed as named exceptions when the browser has no such moment.
+  - The traces must match line for line. Callbacks the window system adds when the browser has no such moment are listed as named exceptions.
 - **Pace** (`pace.cpp`).
-  - On the reference, the probe records timer intervals for 1, 10, 16 and 33 ms, and the idle rate.
+  - On the reference, with the window in front, timers of 1, 10, 16 and 33 ms fired every 1.55, 10.4, 16.39 and 33.05 ms.
   - In the Lab, each timer's mean interval must be within 1 ms of the reference's.
   - Idle must run at least 4 times per page refresh for a trivial frame, which shows the loop isn't held to the screen.
   - The editor's 60-steps-a-second pace is checked in Vitest with a fake clock: one step per refresh at 60 Hz, two refreshes in five with no step at 144 Hz, no burst after a stall.
@@ -77,3 +83,30 @@ Three batteries, each recorded on the reference by a script and replayed in the 
 - A second `glutCreateWindow`, and calls outside the 2D set. They are refusals (piece 4).
 - The window position `glutGet(GLUT_WINDOW_X)` reports on a lab PC depends on where Windows places the window. The Lab keeps answering with its stage position.
 - The size Windows gives a window when `glutInitWindowSize` was refused (FreeGLUT then reports -1 × -1). The Lab reports -1 × -1 too, and opens at 300 × 300, a named exception.
+
+## What building found (24 Nov 2026)
+
+Calls made while building, each recorded here as the owner asked.
+
+- **Recording happens on the owner's desktop.** The owner asked that recordings not keep opening and closing windows on their screen. So the native recordings are few, and each keeps one window open:
+  - The misuse battery is recorded once; each case is its own short run.
+  - Pace is not recorded by a script (next point).
+  - The input battery is one window for about three seconds.
+- **Timers depend on whether Windows can see the window.** FreeGLUT asks Windows for 1 ms timers (`timeBeginPeriod`). Windows 11 keeps that only while the window can be seen; a covered window's timers fall back to the 15.6 ms tick. Two recordings on the shared desktop gave 10 ms timers every 14.4 ms and 33 ms timers every 42.7 ms.
+  - A student's window is in front, so the reference figures are the first probe's, taken with the window in front: 1 ms every 1.55, 10 every 10.4, 16 every 16.39, 33 every 33.05.
+  - `pace.cpp` holds them in a comment, and VIS-LAB-14 checks the Lab against them.
+- **The browser's own wait wakes late**, by a millisecond or by a whole Windows tick. Left alone, a 16 ms timer fired every 17.4 to 19.4 ms in the Lab. So the runtime sleeps until shortly before a timer is due and spins the rest. The margin grows to the latest late wake it has seen (at most 16 ms) and eases back to 2 ms. The cost is CPU while a timer is pending, no more than an idle loop takes on a lab PC.
+- **A frame is drawn only when the page has taken the last one**, even for a scene slow to draw.
+  - A trial that drew every frame of a slow program ran the jeepney at 0.22 of the editor's speed. Its 70 ms software frames let `_vams_idle` take only about 14 of its 60 steps a second.
+  - With frames held, the jeepney still ran at 0.28: the first gate took at most one step a call and skipped the rest, and a 70 ms software frame skipped about four. So `_vams_idle` and Run catch up the steps due, at most 6, and the jeepney keeps the editor's pace (VIS-LAB-12).
+  - The page shows the newest frame drawn.
+  - A Sleep, a read from the Console and the loop's own wait each show a held frame first, so a loop paced with `Sleep(16)` still shows its frames. The Console's pause counter became an `onPause` hook for this.
+- **`argv[0]` stays `program`** in the main module. Only FreeGLUT's message prefix names `c:\openglcpp\Program.exe`. Changing `vams_main.c` means rebuilding and publishing the runtime, for programs that print their own `argv[0]`, which lab work doesn't do.
+- **`glutDestroyWindow` inside the loop isn't in the recording.** FreeGLUT's outcome there depends on when Windows paints: the same program once exited with 0 and once stopped on "No display callback". The Lab takes the clean outcome, close callback then exit 0, and a test of its own pins it.
+- **Input is recorded by posting messages, not with `SendInput`.** `SendInput` would move the owner's cursor and type on their desktop while it ran. Instead, `events.cpp` posts each key and mouse message to its own window, one a tick, after setting the keyboard state that message needs. FreeGLUT's window procedure handles them through `TranslateMessage`, as real input. Measured:
+  - Shift and Ctrl alone reach the special callback as 112 and 114, with the modifier set on press and clear on release.
+  - Ctrl+A is keyboard 1, Shift+1 is 33, and Delete is keyboard 127.
+  - Key callbacks get the last mouse position.
+  - With no wheel callback, a wheel turn is button 3 (up) or 4 (down), pressed and released.
+- **The matrix stack test** joined ALG-LAB-09's existing stack test rather than a new ALG-LAB-41, so the test ID stays stable.
+- **The Lab's battery programs keep their copies of the gallery scenes.** Only the Lab's examples are re-exported with the 60-steps pace. The battery checks first frames, which the pace doesn't change, and re-recording them would mean more windows on the owner's screen.
