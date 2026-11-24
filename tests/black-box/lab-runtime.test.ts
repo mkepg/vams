@@ -13,8 +13,9 @@
  *
  * Most tests run the runtime on a clock of their own: each time it would block, the test plays
  * the page (sends an event, a key, or takes a frame) and moves the clock on, so they are exact and
- * quick. BB-LAB-23 blocks for real, with Atomics.wait in a worker thread, while the test thread
- * is the page.
+ * quick. A test can also play the page's refresh itself (page.refresh), which takes the newest
+ * frame. BB-LAB-23 blocks for real, with Atomics.wait in a worker thread, while the test thread is
+ * the page.
  */
 import { resolve } from 'node:path';
 import { Worker } from 'node:worker_threads';
@@ -37,7 +38,6 @@ import {
   sendKey,
   sendLine,
   adoptFramebuffer,
-  MAX_FRAMES_BEHIND,
   type Frame,
   type LabEvent,
   type OutputChunk,
@@ -69,10 +69,9 @@ interface Wait {
  * A runtime on the test's clock, with the page played by the test. When the runtime would block,
  * the page reads the output ring when the runtime waits for room in it, takes any frame waiting
  * for it, or does the next of `page.actions`; when there is nothing to do, the clock moves on by
- * the timeout. With `refreshMs`, the page refreshes on that interval, as a display does: taking a
- * frame waits for the next refresh, and each refresh is counted in CONTROL.TICK.
+ * the timeout.
  */
-function lab(framebufferBytes?: number, screen?: { width: number; height: number }, refreshMs?: number) {
+function lab(framebufferBytes?: number, screen?: { width: number; height: number }) {
   const layout = createSharedLayout(framebufferBytes);
   const worker = openLayout(layout);
   const pageViews = openLayout(layout);
@@ -95,6 +94,8 @@ function lab(framebufferBytes?: number, screen?: { width: number; height: number
     send: (...events: LabEvent[]) => actions.push(() => events.forEach((e) => expect(postEvent(pageViews, e)).toBe(true))),
     /** The page's animation frame: reads what the program has printed. */
     readOutput: () => output.push(...reader.take()),
+    /** The page's refresh: takes the newest frame, if there is one it hasn't. */
+    refresh: () => takeFrame(),
   };
   let seen = 0;
   const takeFrame = () => {
@@ -118,16 +119,11 @@ function lab(framebufferBytes?: number, screen?: { width: number; height: number
         page.readOutput();
         return;
       }
-      if (index === CONTROL.FRAME_ACK && refreshMs) {
-        page.clock = (Math.floor(page.clock / refreshMs) + 1) * refreshMs;
-        Atomics.store(pageViews.control, CONTROL.TICK, page.clock / refreshMs);
-      }
       if (index === CONTROL.FRAME_ACK && takeFrame()) return;
       const action = actions.shift();
       if (action) return action();
       if (!Number.isFinite(timeout)) throw new Error('the runtime would wait for ever');
       page.clock += timeout;
-      if (refreshMs) Atomics.store(pageViews.control, CONTROL.TICK, Math.floor(page.clock / refreshMs));
     },
   };
   const io = new ConsoleIO(worker, host);
@@ -248,6 +244,7 @@ describe('BB-LAB-21: A reshape calls the reshape callback and resizes the frameb
     });
     page.send({ kind: 'reshape', width: 320, height: 240 });
     glut.mainLoop();
+    page.refresh();
     // The window's first reshape, as it opens, then the page's.
     expect(sizes).toEqual([
       [200, 100],
@@ -311,7 +308,7 @@ describe('BB-LAB-22: Idle runs again and again, and timers fire in order at thei
     ]);
   });
 
-  it('with no idle callback the loop sleeps until the next timer is due', () => {
+  it('with no idle callback the loop sleeps until 2 ms before the next timer is due, and spins the rest', () => {
     const { page, glut } = lab();
     openWindow(glut);
     const fired: number[] = [];
@@ -324,9 +321,12 @@ describe('BB-LAB-22: Idle runs again and again, and timers fire in order at thei
     glut.mainLoop();
     expect(fired).toEqual([30, 80]);
     const sleeps = page.waits.filter((w) => w.index === CONTROL.SIGNAL);
+    // This clock doesn't move while the runtime spins, so the last 2 ms are a wait of their own.
     expect(sleeps.map((w) => [w.at, w.timeout])).toEqual([
-      [0, 30],
-      [30, 50],
+      [0, 28],
+      [28, 2],
+      [30, 48],
+      [78, 2],
     ]);
   });
 
@@ -724,6 +724,7 @@ describe('BB-LAB-30: Display lists and glutBitmapString draw through the context
       glut.leaveMainLoop();
     });
     glut.mainLoop();
+    page.refresh();
     expect(page.frames).toHaveLength(1);
     const frame = page.frames[0];
     // The same calls on a context of its own, with GLUT_BITMAP_9_BY_15 (handle 2) from glut-fonts.
@@ -762,6 +763,7 @@ describe('BB-LAB-30: Display lists and glutBitmapString draw through the context
       glut.leaveMainLoop();
     });
     glut.mainLoop();
+    page.refresh();
     expect(page.frames).toHaveLength(1);
     expect(Array.from(page.frames[0].pixels.subarray(0, 4))).toEqual([0, 255, 0, 255]);
   });
@@ -894,32 +896,37 @@ describe('BB-LAB-60: The worker always tells the page how the program ended', ()
   });
 });
 
-describe('BB-LAB-100: A program keeps one frame a page refresh however long its frames take to draw, as the editor’s Run does', () => {
+describe('BB-LAB-100: A program runs as fast as it can, as on the reference, and the page shows its newest frame each refresh', () => {
   /**
-   * An idle animation of `steps` steps in a 40 × 10 window: step n fills column n. Drawing a frame
-   * the page is shown costs `drawMs` of the clock, and the page refreshes every `refresh` ms,
-   * counting its refreshes as they pass. At step `sleepAt` the program calls Sleep(1000).
+   * An idle animation of `steps` steps in a `steps` × 10 window: step n fills column n. Each frame
+   * costs `frameMs` of the clock to run, and `drawMs` more when it is drawn rather than held. The
+   * page refreshes every `refresh` ms and takes the newest frame. At step `sleepAt` the program
+   * calls Sleep(1000).
    */
-  function animate({ drawMs, clears = true, refresh = 16, steps = 39, sleepAt = -1 }: { drawMs: number; clears?: boolean; refresh?: number; steps?: number; sleepAt?: number }) {
-    const { page, glut, io } = lab(undefined, undefined, refresh);
-    const tick = () => Atomics.store(page.views.control, CONTROL.TICK, Math.floor(page.clock / refresh));
-    openWindow(glut, 40, 10);
-    // Whether the runtime is running this frame only to catch up, so its drawing costs nothing.
-    const catchingUp = () => (glut as unknown as { catchingUp: boolean }).catchingUp;
+  function animate({ frameMs = 1, drawMs = 0, clears = true, refresh = 16, steps = 160, sleepAt = -1 }: { frameMs?: number; drawMs?: number; clears?: boolean; refresh?: number; steps?: number; sleepAt?: number }) {
+    const { page, glut, io } = lab();
+    openWindow(glut, steps, 10);
+    // Whether the runtime is holding this frame back from drawing, so its drawing costs nothing.
+    const holding = () => (glut as unknown as { holding: boolean }).holding;
+    let refreshes = 0;
+    const pass = (ms: number) => {
+      page.clock += ms;
+      while (Math.floor(page.clock / refresh) > refreshes) {
+        refreshes++;
+        page.refresh();
+      }
+    };
     let step = 0;
     const kinds: string[] = [];
     glut.displayFunc(() => {
       const gl = glut.gl;
       gl.matrixMode(GL.PROJECTION);
       gl.loadIdentity();
-      gl.ortho2D(0, 40, 0, 10);
+      gl.ortho2D(0, steps, 0, 10);
       if (clears) gl.clear(GL.COLOR_BUFFER_BIT);
       gl.rectf(step, 0, step + 1, 10);
-      kinds.push(catchingUp() ? 'held' : 'drawn');
-      if (!catchingUp()) {
-        page.clock += drawMs;
-        tick();
-      }
+      kinds.push(holding() ? 'held' : 'drawn');
+      pass(frameMs + (holding() ? 0 : drawMs));
       glut.swapBuffers();
     });
     glut.idleFunc(() => {
@@ -931,51 +938,50 @@ describe('BB-LAB-100: A program keeps one frame a page refresh however long its 
       glut.postRedisplay();
     });
     glut.mainLoop();
+    // The page's next refresh, after the program has stopped.
+    page.refresh();
     /** The columns each frame the page took has lit, from the left. */
-    const lit = page.frames.map((f) => Array.from({ length: 40 }, (_, x) => f.pixels[x * 4] === 255).flatMap((on, x) => (on ? [x] : [])));
+    const lit = page.frames.map((f) => Array.from({ length: steps }, (_, x) => f.pixels[x * 4] === 255).flatMap((on, x) => (on ? [x] : [])));
     return { clock: page.clock, frames: page.frames.length, lit, kinds };
   }
 
-  it('a frame quicker than a refresh is drawn every refresh', () => {
-    const run = animate({ drawMs: 0 });
-    expect(run.kinds.every((k) => k === 'drawn')).toBe(true);
-    expect(run.frames).toBe(39);
-    expect(run.clock).toBeLessThanOrEqual(40 * 16);
-  });
-
-  it('a frame that takes 2½ refreshes to draw still moves one step a refresh, and the page sees every third step or so', () => {
-    const run = animate({ drawMs: 40 });
-    // As many refreshes as steps, give or take the last frame's drawing and showing it. Drawing
-    // every frame would take three times as long.
-    expect(run.clock).toBeLessThanOrEqual(39 * 16 + 40 + 2 * 16);
-    expect(run.frames).toBeGreaterThanOrEqual(10);
-    expect(run.frames).toBeLessThanOrEqual(16);
-    // Each frame shown is its step's own: one column, further right each time.
+  it('a loop quicker than a refresh never waits for the page, and only the frames the page takes are drawn', () => {
+    const run = animate({});
+    // 160 frames of 1 ms: no frame waited for a refresh.
+    expect(run.clock).toBeLessThanOrEqual(161);
+    // About one frame a refresh reached the page, each its own step, in order, the last one last.
+    expect(run.frames).toBeGreaterThanOrEqual(9);
+    expect(run.frames).toBeLessThanOrEqual(13);
     for (const columns of run.lit) expect(columns).toHaveLength(1);
     const shown = run.lit.map(([x]) => x);
     expect(shown).toEqual([...shown].sort((a, b) => a - b));
     expect(new Set(shown).size).toBe(shown.length);
+    expect(shown.at(-1)).toBe(159);
+    expect(run.kinds.filter((k) => k === 'drawn').length).toBeLessThanOrEqual(run.frames + 1);
   });
 
-  it('on a 144 Hz display, with frames 11 refreshes long, it still moves one step a refresh', () => {
-    const run = animate({ drawMs: 80, refresh: 7 });
-    // Give or take a last drawn frame and showing the end; drawing every frame would take 39 × 87 ms.
-    expect(run.clock).toBeLessThanOrEqual(39 * 7 + 2 * (80 + 7));
-    expect(run.kinds.filter((k) => k === 'drawn').length).toBeLessThanOrEqual(6);
+  it('a scene slow to draw still runs every frame: those the page can’t show yet are held, and it sees the newest drawn', () => {
+    const run = animate({ drawMs: 40, steps: 39 });
+    // Drawing all 39 would take 39 × 41 ms; holding the frames the page couldn't show yet takes half that.
+    expect(run.clock).toBeLessThanOrEqual(25 * 41);
+    expect(run.kinds.filter((k) => k === 'held').length).toBeGreaterThanOrEqual(15);
+    for (const columns of run.lit) expect(columns).toHaveLength(1);
+    const shown = run.lit.map(([x]) => x);
+    expect(shown).toEqual([...shown].sort((a, b) => a - b));
+    expect(shown.at(-1)).toBe(38);
   });
 
   it('a program that draws over its last frame without clearing shows every step it has run, held or drawn', () => {
-    const run = animate({ drawMs: 40, clears: false });
-    expect(run.kinds.filter((k) => k === 'held').length).toBeGreaterThan(15);
+    const run = animate({ clears: false });
+    expect(run.kinds.filter((k) => k === 'held').length).toBeGreaterThan(100);
     for (const columns of run.lit) expect(columns).toEqual(Array.from({ length: columns.length }, (_, x) => x));
-    expect(run.lit.at(-1)).toHaveLength(39);
+    expect(run.lit.at(-1)).toHaveLength(160);
   });
 
-  it('after a Sleep it carries on from there, rather than running the slept time’s frames unseen', () => {
-    const run = animate({ drawMs: 0, sleepAt: 10 });
-    const after = run.kinds.slice(run.kinds.indexOf('sleep') + 1);
-    expect(after.filter((k) => k === 'held').length).toBeLessThanOrEqual(1);
-    expect(MAX_FRAMES_BEHIND).toBeGreaterThanOrEqual(120);
+  it('when the program stops to Sleep, the frame it last ran is the one on screen', () => {
+    const run = animate({ sleepAt: 50 });
+    expect(run.kinds[run.kinds.indexOf('sleep') - 1]).toBe('held');
+    expect(run.lit).toContainEqual([50]);
   });
 });
 

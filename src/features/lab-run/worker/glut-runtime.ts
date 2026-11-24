@@ -5,18 +5,16 @@
  * Each pass of the loop takes the window's events from the shared ring and calls their callbacks,
  * fires the timers that are due, calls display when a redisplay is pending, then calls idle when
  * one is set. With no idle callback it sleeps on Atomics.wait until the next timer or the next
- * event. Frames reach the page through the shared framebuffer: glutSwapBuffers (and glFlush in a
- * GLUT_SINGLE window) copies the frame there and waits, at most FRAME_WAIT_MS, for the page to take
- * it, as a lab PC waits for vsync.
+ * event. Frames reach the page through the shared framebuffer.
  *
- * The program keeps one frame a page refresh, as a lab PC with vsync does and as the editor's Run
- * does, however long a frame takes to draw. A frame that took longer than a refresh puts the
- * program behind the page's refreshes (CONTROL.TICK), and it catches up by running the next frames
- * without drawing them: the GL context holds their drawing back (GLContext.hold), and drops it
- * when the frame after clears the whole window, so the frames shown have the pixels drawing every
- * frame would have given. An animation therefore moves at the same speed as in the editor; a
- * frame that is slow to draw only shows fewer of its steps. Time the program spends waiting on
- * purpose (Sleep, the Console, or no idle work) isn't caught up on: its frames count from there.
+ * glutSwapBuffers doesn't wait for the screen, as it doesn't on the reference: on Intel's driver a
+ * composited window's SwapBuffers returns at once, so an idle loop runs as fast as the program can
+ * go (about 1,750 frames a second for a trivial frame). The page shows the newest frame at each of
+ * its refreshes, as the compositor does. A frame is drawn only when the page has taken the last
+ * one published; a frame run before then is held back from drawing (GLContext.hold), which drops
+ * it when the frame after clears the whole window, so the frames shown have the pixels drawing
+ * every frame would have given. When the program stops to wait (Sleep, the Console, no idle work,
+ * or its end), the last frame it ran is drawn and shown.
  *
  * Nothing here relies on the program stopping by itself: the page ends a program by terminating
  * its worker.
@@ -33,7 +31,7 @@ import {
   type BitmapFont,
 } from '@/shared/lib/glut-fonts';
 import type { LabMenuEntry } from '../model/protocol';
-import { CONTROL, FRAME_WAIT_MS, MAX_FRAMES_BEHIND, type LabEvent, type LayoutViews } from '../model/shared-layout';
+import { CONTROL, FRAME_WAIT_MS, type LabEvent, type LayoutViews } from '../model/shared-layout';
 import type { ConsoleIO } from './console-io';
 import { EventQueue, type WorkerHost } from './event-queue';
 
@@ -68,6 +66,10 @@ export const GLUT = {
  * c:\openglcpp\Program.exe.
  */
 export const PROGRAM_NAME = 'c:\\openglcpp\\Program.exe';
+
+/** How long before a timer is due the runtime stops sleeping and spins, so the timer fires on time; and the most it spins. */
+const TIMER_SPIN_MS = 2;
+const MAX_SPIN_MS = 16;
 
 /** The window size FreeGLUT opens when glutInitWindowSize was refused, where Windows would choose one. */
 const DEFAULT_WINDOW_SIZE = { width: 300, height: 300 };
@@ -153,20 +155,19 @@ export class GlutRuntime {
   private actionOnClose: number = GLUT.ACTION_EXIT;
   private modifiers = 0;
   private published = false;
-  /** The page refresh before the first frame, and the frames since, run or drawn (present()). */
-  private pace: { base: number; frames: number } | null = null;
-  /** Whether the frame being run is held back from drawing, to catch up with the page. */
-  private catchingUp = false;
-  /** Whether the last frame was run to catch up, so the page hasn't seen it. */
+  /** Whether the frame being run is held back from drawing, because the page hasn't taken the last one yet. */
+  private holding = false;
+  /** Whether the last frame was held, so the page hasn't seen it. */
   private unshown = false;
-  /** The Console's pauses when pacing last counted: a pause since starts the count again. */
-  private pausesSeen = 0;
+  /** How long before a timer is due the runtime spins rather than sleeps (waitForTimer). */
+  private spinMs = TIMER_SPIN_MS;
 
   constructor({ views, host, console, screen }: GlutOptions) {
     this.views = views;
     this.host = host;
     this.console = console;
     this.events = new EventQueue(views, host);
+    console.onPause = () => this.showUnshown();
     this.screen = screen ?? { width: 1920, height: 1080 };
     this.start = host.now();
   }
@@ -335,60 +336,57 @@ export class GlutRuntime {
     this.host.post({ type: 'framebuffer', buffer, generation: views.generation });
   }
 
-  /** Copies the frame to the page, top row first, and waits for the page to take it. */
+  /** Whether the page has taken every frame published, so the shared framebuffer is free to write. */
+  private pageTookLast(): boolean {
+    const control = this.views.control;
+    return Atomics.load(control, CONTROL.FRAME_ACK) >= Atomics.load(control, CONTROL.FRAME);
+  }
+
+  /**
+   * Copies the frame to the page, top row first. The page must have taken the last one, or the copy
+   * would tear the frame it is reading: a held frame never gets here, and a frame shown as the
+   * program stops to wait waits for the page, at most FRAME_WAIT_MS.
+   */
   private publish(): void {
+    const control = this.views.control;
+    const deadline = this.host.now() + FRAME_WAIT_MS;
+    while (!this.pageTookLast()) {
+      const left = deadline - this.host.now();
+      if (left <= 0) break;
+      this.host.wait(CONTROL.FRAME_ACK, Atomics.load(control, CONTROL.FRAME_ACK), left);
+    }
     const { width, height, color } = this.context.fb;
     const row = width * 4;
     this.ensureFramebuffer(row * height);
     const out = this.views.framebuffer;
     for (let y = 0; y < height; y++) out.set(color.subarray((height - 1 - y) * row, (height - y) * row), y * row);
-    const control = this.views.control;
     Atomics.store(control, CONTROL.FRAME_WIDTH, width);
     Atomics.store(control, CONTROL.FRAME_HEIGHT, height);
     Atomics.store(control, CONTROL.FRAME_GENERATION, this.views.generation);
-    const frame = Atomics.add(control, CONTROL.FRAME, 1) + 1;
+    Atomics.add(control, CONTROL.FRAME, 1);
     this.published = true;
-    const deadline = this.host.now() + FRAME_WAIT_MS;
-    for (;;) {
-      const ack = Atomics.load(control, CONTROL.FRAME_ACK);
-      if (ack >= frame) return;
-      const left = deadline - this.host.now();
-      if (left <= 0) return;
-      this.host.wait(CONTROL.FRAME_ACK, ack, left);
-    }
   }
 
   /**
-   * The end of a frame: it goes to the page, unless it was run to catch up. Then whether the next
-   * frame is drawn: not while the program is behind the page's refreshes, so it catches up.
+   * The end of a frame: a drawn frame goes to the page, without waiting for the screen. Then whether
+   * the next frame is drawn: only when the page has taken this one. A frame run before then would be
+   * replaced before the page could show it, so it is held, which costs next to nothing. A scene slow
+   * to draw in software therefore still runs its frames, and a program paced by the clock keeps its
+   * pace; the page shows the newest frame drawn.
    */
   private present(): void {
-    this.unshown = this.catchingUp;
-    if (this.catchingUp) this.published = true;
+    this.unshown = this.holding;
+    if (this.holding) this.published = true;
     else this.publish();
-    const tick = Atomics.load(this.views.control, CONTROL.TICK);
-    // Time the program spent waiting on purpose is not time to catch up on.
-    if (this.console.pauses !== this.pausesSeen) {
-      this.pausesSeen = this.console.pauses;
-      this.pace = null;
-    }
-    // The first frame belongs to the refresh it was drawn in.
-    this.pace ??= { base: tick - 1, frames: 0 };
-    this.pace.frames += 1;
-    let behind = tick - this.pace.base - this.pace.frames;
-    if (behind > MAX_FRAMES_BEHIND) {
-      this.pace.base = tick - this.pace.frames;
-      behind = 0;
-    }
-    this.catchingUp = behind > 0;
-    this.context.hold(this.catchingUp);
+    this.holding = !this.pageTookLast();
+    this.context.hold(this.holding);
   }
 
-  /** Shows the last frame if it was run to catch up: when the program stops to wait, it is what stays on screen. */
+  /** Shows the last frame if it was held: when the program stops to wait, it is what stays on screen. */
   private showUnshown(): void {
     if (!this.unshown || !this.window) return;
     this.unshown = false;
-    this.catchingUp = false;
+    this.holding = false;
     this.context.hold(false);
     this.publish();
   }
@@ -710,12 +708,36 @@ export class GlutRuntime {
   /** Sleeps until the next timer, or until an event arrives. */
   private sleepForWork(): void {
     if (this.redisplay || this.reshapePending || this.events.waiting) return;
-    const timeout = this.timers.length ? this.timers[0].due - this.host.now() : Infinity;
-    if (timeout <= 0) return;
+    const due = this.timers.length ? this.timers[0].due : Infinity;
+    if (due <= this.host.now()) return;
     this.showUnshown();
-    // With no idle work the program waits for an event or a timer, and its frames start again from there.
-    this.pace = null;
-    this.events.waitForEvent(timeout);
+    if (due === Infinity) this.events.waitForEvent(Infinity);
+    else this.waitForTimer(due);
+  }
+
+  /**
+   * Waits until `due` on the host's clock, or an event. A browser's wait can wake late, by a
+   * millisecond or by a whole 15.6 ms Windows tick, where FreeGLUT's timers fire within half a
+   * millisecond. So the runtime sleeps until `spinMs` before `due` and spins the rest; `spinMs`
+   * grows to the latest wake it has seen (up to MAX_SPIN_MS) and eases back to TIMER_SPIN_MS when
+   * wakes are on time. A clock that doesn't move while spinning (a test's) gets a plain wait instead.
+   */
+  private waitForTimer(due: number): void {
+    const wake = due - this.spinMs;
+    if (wake > this.host.now()) {
+      this.events.waitForEvent(wake - this.host.now());
+      const late = this.host.now() - wake;
+      this.spinMs = late > 0 ? Math.min(MAX_SPIN_MS, Math.max(this.spinMs, late + 1)) : Math.max(TIMER_SPIN_MS, this.spinMs * 0.9);
+    }
+    let last = this.host.now();
+    let still = 0;
+    while (!this.events.waiting) {
+      const now = this.host.now();
+      if (now >= due) return;
+      if (now === last && ++still > 1000) return this.events.waitForEvent(due - now);
+      if (now !== last) still = 0;
+      last = now;
+    }
   }
 
   mainLoop(): void {

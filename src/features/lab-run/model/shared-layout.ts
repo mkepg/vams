@@ -33,7 +33,7 @@ export interface SharedLayout {
 export const CONTROL = {
   /** Frames published so far. The worker adds 1 after writing each frame. */
   FRAME: 0,
-  /** The last frame the page has copied. The worker waits for it, at most FRAME_WAIT_MS. */
+  /** The last frame the page has copied. The worker writes the next frame only after it. */
   FRAME_ACK: 1,
   /** Events written so far (page). */
   EVENT_HEAD: 2,
@@ -58,8 +58,6 @@ export const CONTROL = {
   OUTPUT_HEAD: 12,
   /** Output bytes read so far (page). The page notifies it after each read. */
   OUTPUT_TAIL: 13,
-  /** The page's refreshes so far: it adds 1 each time it reads the shared memory, once a display frame. */
-  TICK: 14,
 } as const;
 
 export const CONTROL_WORDS = 16;
@@ -67,14 +65,8 @@ export const EVENT_SLOTS = 256;
 export const EVENT_WORDS = 8;
 export const INPUT_BYTES = 8192;
 export const OUTPUT_BYTES = 64 * 1024;
-/** The longest a frame waits for the page to take it, as a lab PC's vsync waits. */
+/** The longest a frame shown as the program stops to wait waits for the page to take the one before. */
 export const FRAME_WAIT_MS = 100;
-/**
- * How many refreshes a program may fall behind and still catch up, by running frames without
- * drawing them: about four seconds at 60 Hz, far more than any frame takes to draw. A program
- * that stopped to wait (Sleep, the Console, or no idle work) carries on from where it is instead.
- */
-export const MAX_FRAMES_BEHIND = 240;
 /** The framebuffer a new layout holds: a 1024 × 768 window. */
 export const DEFAULT_FRAMEBUFFER_BYTES = 1024 * 768 * 4;
 
@@ -437,9 +429,4 @@ export function latestFrame(views: LayoutViews, since: number): Frame | null {
 export function acknowledgeFrame(views: LayoutViews, frame: number): void {
   Atomics.store(views.control, CONTROL.FRAME_ACK, frame);
   Atomics.notify(views.control, CONTROL.FRAME_ACK);
-}
-
-/** Counts one page refresh, which the program keeps pace with (CONTROL.TICK). */
-export function countRefresh(views: LayoutViews): void {
-  Atomics.add(views.control, CONTROL.TICK, 1);
 }

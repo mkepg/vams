@@ -43,8 +43,8 @@ export class ConsoleIO {
   private line: Uint8Array = new Uint8Array(0);
   /** How far into the waiting input a newline has been looked for. */
   private scanned = 0;
-  /** How many times the program has stopped to wait: for a line, a key, or a Sleep. */
-  pauses = 0;
+  /** Called as the program stops to wait for a line, a key or a Sleep: the GLUT runtime shows the frame it last ran. */
+  onPause: (() => void) | null = null;
 
   constructor(views: LayoutViews, host: WorkerHost) {
     this.views = views;
@@ -95,7 +95,7 @@ export class ConsoleIO {
   /** The next line the student enters, as bytes ending in `\n`. Blocks until there is one. */
   private lineBytes(): Uint8Array {
     this.setState(INPUT_STATE.LINE);
-    if (this.newline() < 0) this.pauses++;
+    if (this.newline() < 0) this.onPause?.();
     waitUntil(this.host, this.views, () => this.newline() >= 0);
     this.setState(INPUT_STATE.NONE);
     const bytes = takeInput(this.views, this.newline() + 1);
@@ -123,7 +123,7 @@ export class ConsoleIO {
   /** One key pressed in the Console. Blocks until there is one. */
   private key(): number {
     this.setState(INPUT_STATE.KEY);
-    if (inputWaiting(this.views) === 0) this.pauses++;
+    if (inputWaiting(this.views) === 0) this.onPause?.();
     waitUntil(this.host, this.views, () => inputWaiting(this.views) > 0);
     this.setState(INPUT_STATE.NONE);
     this.scanned = 0;
@@ -173,10 +173,12 @@ export class ConsoleIO {
     return 1;
   }
 
-  /** Sleep(ms): waits on a word nothing writes, so only the time ends it. */
+  /** Sleep(ms): waits on a word nothing writes, so only the time ends it. Showing the last frame is part of the wait. */
   sleep(ms: number): void {
     if (ms <= 0) return;
-    this.pauses++;
-    this.host.wait(CONTROL.SLEEP, 0, ms);
+    const end = this.host.now() + ms;
+    this.onPause?.();
+    const left = end - this.host.now();
+    if (left > 0) this.host.wait(CONTROL.SLEEP, 0, left);
   }
 }
