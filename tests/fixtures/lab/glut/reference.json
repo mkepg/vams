@@ -1,0 +1,640 @@
+{
+  "events": [
+    "reshape 400 300",
+    "passive 10 10",
+    "mouse 0 0 10 10 mods 0",
+    "mouse 0 1 10 10 mods 0",
+    "keyboard 97 10 10 mods 0",
+    "keyboardUp 97 10 10 mods 0",
+    "special 112 10 10 mods 1",
+    "keyboard 65 10 10 mods 1",
+    "keyboardUp 65 10 10 mods 1",
+    "specialUp 112 10 10 mods 0",
+    "special 114 10 10 mods 2",
+    "keyboard 1 10 10 mods 2",
+    "keyboardUp 1 10 10 mods 2",
+    "specialUp 114 10 10 mods 0",
+    "keyboard 49 10 10 mods 0",
+    "keyboardUp 49 10 10 mods 0",
+    "special 112 10 10 mods 1",
+    "keyboard 33 10 10 mods 1",
+    "keyboardUp 33 10 10 mods 1",
+    "specialUp 112 10 10 mods 0",
+    "keyboard 59 10 10 mods 0",
+    "keyboardUp 59 10 10 mods 0",
+    "keyboard 32 10 10 mods 0",
+    "keyboardUp 32 10 10 mods 0",
+    "keyboard 13 10 10 mods 0",
+    "keyboardUp 13 10 10 mods 0",
+    "keyboard 27 10 10 mods 0",
+    "keyboardUp 27 10 10 mods 0",
+    "keyboard 8 10 10 mods 0",
+    "keyboardUp 8 10 10 mods 0",
+    "keyboard 127 10 10 mods 0",
+    "keyboardUp 127 10 10 mods 0",
+    "special 1 10 10 mods 0",
+    "specialUp 1 10 10 mods 0",
+    "special 12 10 10 mods 0",
+    "specialUp 12 10 10 mods 0",
+    "special 100 10 10 mods 0",
+    "specialUp 100 10 10 mods 0",
+    "special 101 10 10 mods 0",
+    "specialUp 101 10 10 mods 0",
+    "special 102 10 10 mods 0",
+    "specialUp 102 10 10 mods 0",
+    "special 103 10 10 mods 0",
+    "specialUp 103 10 10 mods 0",
+    "special 104 10 10 mods 0",
+    "specialUp 104 10 10 mods 0",
+    "special 105 10 10 mods 0",
+    "specialUp 105 10 10 mods 0",
+    "special 106 10 10 mods 0",
+    "specialUp 106 10 10 mods 0",
+    "special 107 10 10 mods 0",
+    "specialUp 107 10 10 mods 0",
+    "special 108 10 10 mods 0",
+    "specialUp 108 10 10 mods 0",
+    "special 112 10 10 mods 1",
+    "special 100 10 10 mods 1",
+    "specialUp 100 10 10 mods 1",
+    "specialUp 112 10 10 mods 0",
+    "special 114 10 10 mods 2",
+    "special 1 10 10 mods 2",
+    "specialUp 1 10 10 mods 2",
+    "specialUp 114 10 10 mods 0",
+    "passive 50 60",
+    "passive 51 61",
+    "passive 50 60",
+    "mouse 0 0 50 60 mods 0",
+    "motion 120 90",
+    "mouse 0 1 120 90 mods 0",
+    "passive 70 80",
+    "mouse 1 0 70 80 mods 0",
+    "mouse 1 1 70 80 mods 0",
+    "passive 100 100",
+    "mouse 3 0 100 100 mods 0",
+    "mouse 3 1 100 100 mods 0",
+    "passive 100 100",
+    "mouse 4 0 100 100 mods 0",
+    "mouse 4 1 100 100 mods 0",
+    "close"
+  ],
+  "freeglut": "3.0.0, course toolchain, Intel Iris Xe, driver 31.0.101.4502",
+  "misuse": {
+    "noinit-glutInitWindowPosition": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "noinit-glutInitWindowSize": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "noinit-glutInitDisplayMode": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "noinit-glutCreateWindow": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutCreateWindow> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutDestroyWindow": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutDestroyWindow> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutGetWindow": {
+      "stdout": "window 0\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "noinit-glutSetWindowTitle": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutSetWindowTitle> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutReshapeWindow": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutReshapeWindow> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutPositionWindow": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutPositionWindow> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutFullScreen": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutFullScreen> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutPostRedisplay": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutPostRedisplay> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutSwapBuffers": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutSwapBuffers> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutMainLoop": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutMainLoop> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutLeaveMainLoop": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutLeaveMainLoop> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutSetOption": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutSetOption> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutDisplayFunc": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutDisplayFunc> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutReshapeFunc": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutReshapeFunc> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutKeyboardFunc": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutKeyboardFunc> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutKeyboardUpFunc": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutKeyboardUpFunc> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutSpecialFunc": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutSpecialFunc> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutSpecialUpFunc": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutSpecialUpFunc> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutMouseFunc": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutMouseFunc> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutMotionFunc": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutMotionFunc> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutPassiveMotionFunc": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutPassiveMotionFunc> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutMouseWheelFunc": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutMouseWheelFunc> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutCloseFunc": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutCloseFunc> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutIdleFunc": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutIdleFunc> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutTimerFunc": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutTimerFunc> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutCreateMenu": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutCreateMenu> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutDestroyMenu": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutDestroyMenu> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutAddMenuEntry": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutAddMenuEntry> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutAddSubMenu": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutAddSubMenu> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutAttachMenu": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutAttachMenu> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutDetachMenu": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutDetachMenu> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutGet": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutGet> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutGet-elapsed": {
+      "stdout": "elapsed counted\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "noinit-glutGet-screen": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutGet> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutGet-init": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutGet> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutGetModifiers": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutGetModifiers> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutBitmapCharacter": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutBitmapCharacter> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutBitmapString": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutBitmapString> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutBitmapWidth": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutBitmapWidth> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutBitmapLength": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutBitmapLength> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "noinit-glutBitmapHeight": {
+      "stdout": "",
+      "stderr": "freeglut  ERROR:  Function <glutBitmapHeight> called without first calling 'glutInit'.\n",
+      "exit": 1
+    },
+    "nowindow-glutInitWindowPosition": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutInitWindowSize": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutInitDisplayMode": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutCreateWindow": {
+      "stdout": "window 1\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutDestroyWindow": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutGetWindow": {
+      "stdout": "window 0\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutSetWindowTitle": {
+      "stdout": "",
+      "stderr": "freeglut (<program>):  ERROR:  Function <glutSetWindowTitle> called with no current window defined.\n",
+      "exit": 1
+    },
+    "nowindow-glutReshapeWindow": {
+      "stdout": "",
+      "stderr": "freeglut (<program>):  ERROR:  Function <glutReshapeWindow> called with no current window defined.\n",
+      "exit": 1
+    },
+    "nowindow-glutPositionWindow": {
+      "stdout": "",
+      "stderr": "freeglut (<program>):  ERROR:  Function <glutPositionWindow> called with no current window defined.\n",
+      "exit": 1
+    },
+    "nowindow-glutFullScreen": {
+      "stdout": "",
+      "stderr": "freeglut (<program>):  ERROR:  Function <glutFullScreen> called with no current window defined.\n",
+      "exit": 1
+    },
+    "nowindow-glutPostRedisplay": {
+      "stdout": "",
+      "stderr": "freeglut (<program>):  ERROR:  Function <glutPostRedisplay> called with no current window defined.\n",
+      "exit": 1
+    },
+    "nowindow-glutSwapBuffers": {
+      "stdout": "",
+      "stderr": "freeglut (<program>):  ERROR:  Function <glutSwapBuffers> called with no current window defined.\n",
+      "exit": 1
+    },
+    "nowindow-glutMainLoop": {
+      "stdout": "",
+      "stderr": "freeglut (<program>):  ERROR:  glutMainLoop called with no windows created.\n",
+      "exit": 1
+    },
+    "nowindow-glutLeaveMainLoop": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutSetOption": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutDisplayFunc": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutReshapeFunc": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutKeyboardFunc": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutKeyboardUpFunc": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutSpecialFunc": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutSpecialUpFunc": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutMouseFunc": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutMotionFunc": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutPassiveMotionFunc": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutMouseWheelFunc": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutCloseFunc": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutIdleFunc": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutTimerFunc": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutCreateMenu": {
+      "stdout": "menu 1\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutDestroyMenu": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutAddMenuEntry": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutAddSubMenu": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutAttachMenu": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutDetachMenu": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutGet": {
+      "stdout": "get 0\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutGet-elapsed": {
+      "stdout": "elapsed counted\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutGet-screen": {
+      "stdout": "screen known\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutGet-init": {
+      "stdout": "init -1 -1 300 300\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutGetModifiers": {
+      "stdout": "modifiers 0\nafter\n",
+      "stderr": "freeglut (<program>): glutGetModifiers() called outside an input callback\n",
+      "exit": 0
+    },
+    "nowindow-glutBitmapCharacter": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutBitmapString": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutBitmapWidth": {
+      "stdout": "width 9\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutBitmapLength": {
+      "stdout": "length 36\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "nowindow-glutBitmapHeight": {
+      "stdout": "height 16\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "init-twice": {
+      "stdout": "",
+      "stderr": "freeglut (<program>): illegal glutInit() reinitialization attempt\n",
+      "exit": 1
+    },
+    "get-unknown": {
+      "stdout": "get -1\nafter\n",
+      "stderr": "freeglut (<program>): glutGet(): missing enum handle 30583\n",
+      "exit": 0
+    },
+    "bitmap-character-bad-font": {
+      "stdout": "after\n",
+      "stderr": "freeglut (<program>): glutBitmapCharacter: bitmap font 0x00001234 not found. Make sure you're not passing a stroke font.\n\n",
+      "exit": 0
+    },
+    "bitmap-string-bad-font": {
+      "stdout": "after\n",
+      "stderr": "freeglut (<program>): glutBitmapString: bitmap font 0x00001234 not found. Make sure you're not passing a stroke font.\n\n",
+      "exit": 0
+    },
+    "bitmap-width-bad-font": {
+      "stdout": "width 0\nafter\n",
+      "stderr": "freeglut (<program>): glutBitmapWidth: bitmap font 0x00001234 not found. Make sure you're not passing a stroke font.\n\n",
+      "exit": 0
+    },
+    "bitmap-length-bad-font": {
+      "stdout": "length 0\nafter\n",
+      "stderr": "freeglut (<program>): glutBitmapLength: bitmap font 0x00001234 not found. Make sure you're not passing a stroke font.\n\n",
+      "exit": 0
+    },
+    "bitmap-height-bad-font": {
+      "stdout": "height 0\nafter\n",
+      "stderr": "freeglut (<program>): glutBitmapHeight: bitmap font 0x00001234 not found. Make sure you're not passing a stroke font.\n\n",
+      "exit": 0
+    },
+    "display-null": {
+      "stdout": "",
+      "stderr": "freeglut (<program>): Fatal error in program.  NULL display callback not permitted in GLUT 3.0+ or freeglut 2.0.1+\n",
+      "exit": 1
+    },
+    "mainloop-no-display": {
+      "stdout": "",
+      "stderr": "freeglut (<program>): ERROR:  No display callback registered for window 1\n\n",
+      "exit": 1
+    },
+    "window-get": {
+      "stdout": "get 200 100 1 200\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "menu-without-current": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "menu-destroy-unknown": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "menu-null-callback": {
+      "stdout": "menu 1\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "menu-submenu-unknown": {
+      "stdout": "after\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "leave-exit": {
+      "stdout": "timer\nclose callback\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "leave-returns": {
+      "stdout": "timer\nclose callback\nafter the loop, window 0\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "leave-continues": {
+      "stdout": "timer\nclose callback\nafter the loop, window 0\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "destroy-then-loop": {
+      "stdout": "destroyed\nclose callback\n",
+      "stderr": "freeglut (<program>): ERROR:  No display callback registered for window 1\n\n",
+      "exit": 1
+    },
+    "size-refused-window": {
+      "stdout": "init -1 -1\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "position-half-negative": {
+      "stdout": "init -1 -1\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "destroy-then-call": {
+      "stdout": "window 0\n",
+      "stderr": "freeglut (<program>):  ERROR:  Function <glutPostRedisplay> called with no current window defined.\n",
+      "exit": 1
+    },
+    "size-refused": {
+      "stdout": "init -1 -1\nafter\n",
+      "stderr": "",
+      "exit": 0
+    },
+    "position-negative": {
+      "stdout": "init -1 -1\nafter\n",
+      "stderr": "",
+      "exit": 0
+    }
+  }
+}

@@ -238,7 +238,7 @@ export default function LabStage() {
 
   const controls: WindowControls = {
     maximised: win.fullscreen,
-    onClose: () => runController.stop(),
+    onClose: () => runController.close(),
     barProps: {
       onPointerDown: (event) => {
         if (event.button !== 0 || (event.target as Element).closest('button') || win.fullscreen) return;

@@ -14,6 +14,12 @@
  *    error, and the worker's script never runs
  *  - VIS-LAB-12: the gallery's jeepney, run in the editor and in the Lab, drives across the window
  *    at the same speed, though the Lab draws its frames in software
+ *  - VIS-LAB-13: a sample of the GLUT misuse battery, run end to end, prints FreeGLUT's messages
+ *    and ends with its exit codes
+ *  - VIS-LAB-14: timers fire within 1 ms of their time, and an idle loop isn't held to the page's
+ *    refresh, as on the reference
+ *  - VIS-LAB-15: a script of keys and mouse actions gives the program the callbacks, values and
+ *    modifiers FreeGLUT gave it on the reference, line for line
  */
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -245,7 +251,7 @@ test.describe('VIS-LAB: the compiler in the page', () => {
     await page.locator('.lab-top-bar__run').click();
     await expect(page.locator('.lab-top-bar__status')).toContainText('Running', { timeout: 90_000 });
     const lab = await jeepneySpeed(page, page.locator('canvas').filter({ visible: true }).last());
-    // One step a refresh in both; screenshots' timing makes each measure a little rough.
+    // 60 steps a second in both; screenshots' timing makes each measure a little rough.
     expect(lab / editor).toBeGreaterThan(0.7);
     expect(lab / editor).toBeLessThan(1.3);
   });
@@ -272,5 +278,105 @@ test.describe('VIS-LAB: the compiler in the page', () => {
       for (let j = 0; j < group.length; j++) await expect(list).toContainText(`main.cpp:${FIRST + j}:`);
       for (const name of group) await expect(list).toContainText(`${name}${REJECTED_TEXT}`);
     }
+  });
+
+  test('VIS-LAB-13: GLUT misuse ends a program in the Lab as FreeGLUT ends it on a lab PC', async ({ page }) => {
+    test.setTimeout(600_000);
+    await routeLab(page.context());
+    await openLab(page, 'light');
+    const misuse = readFileSync(join(process.cwd(), 'tests/fixtures/lab/glut/misuse.cpp'), 'utf8');
+    const recorded = JSON.parse(readFileSync(join(process.cwd(), 'tests/fixtures/lab/glut/reference.json'), 'utf8')).misuse;
+    await putProgram(page, misuse);
+    // One case of each kind: before glutInit, without a window, the loop's check, a warning, and the loop's end.
+    for (const name of ['noinit-glutDisplayFunc', 'nowindow-glutPostRedisplay', 'mainloop-no-display', 'get-unknown', 'leave-returns']) {
+      const want = recorded[name] as { stdout: string; stderr: string; exit: number };
+      await page.locator('.lab-top-bar__run').click();
+      const field = page.locator('#lab-console-input');
+      await expect(field).toBeVisible({ timeout: 90_000 });
+      await field.fill(name);
+      await field.press('Enter');
+      await expect(page.locator('.lab-top-bar__status')).toContainText(`Ended with exit code ${want.exit}`, { timeout: 30_000 });
+      const console = page.getByRole('tabpanel');
+      // The program's name in FreeGLUT's prefix is x.bat's Program.exe, as on a lab PC.
+      const lines = `${want.stdout}${want.stderr}`.replaceAll('<program>', 'c:\\openglcpp\\Program.exe').split('\n');
+      for (const line of lines.filter((l) => l.length > 0)) await expect(console, name).toContainText(line);
+    }
+  });
+
+  test('VIS-LAB-14: Timers keep their time and idle runs as fast as it can, as on the reference', async ({ page }) => {
+    await routeLab(page.context());
+    await openLab(page, 'light');
+    await putProgram(page, readFileSync(join(process.cwd(), 'tests/fixtures/lab/glut/pace.cpp'), 'utf8'));
+    await page.locator('.lab-top-bar__run').click();
+    await expect(page.locator('.lab-top-bar__status')).toContainText('Ended with exit code 0', { timeout: 120_000 });
+    await page.getByRole('tab', { name: 'Console' }).click();
+    const printed = (await page.getByRole('tabpanel').textContent()) ?? '';
+    // The reference's mean intervals, measured with the window in front (GLUT behaviour spec); the Lab's must be within 1 ms of each.
+    const reference: Record<number, number> = { 1: 1.55, 10: 10.4, 16: 16.39, 33: 33.05 };
+    const means = Object.fromEntries(
+      Object.keys(reference).map((p) => [p, Number(new RegExp(`timer ${p} ms: mean ([\\d.]+) ms`).exec(printed)?.[1])]),
+    );
+    for (const [period, mean] of Object.entries(means)) expect(Math.abs(mean - reference[Number(period)]), `timer ${period}: ${JSON.stringify(means)}`).toBeLessThanOrEqual(1);
+    // Not held to the page's refresh: at least four frames a refresh at 60 Hz.
+    const idle = Number(/idle frames per second (\d+)/.exec(printed)?.[1]);
+    expect(idle).toBeGreaterThanOrEqual(240);
+  });
+
+  test('VIS-LAB-15: Keys and the mouse reach a program in the Lab as FreeGLUT hands them over on the reference', async ({ page }) => {
+    await page.setViewportSize({ width: 1600, height: 900 });
+    await routeLab(page.context());
+    await openLab(page, 'light');
+    const dir = join(process.cwd(), 'tests/fixtures/lab/glut');
+    await putProgram(page, readFileSync(join(dir, 'events.cpp'), 'utf8'));
+    await page.locator('.lab-top-bar__run').click();
+    await expect(page.locator('.lab-top-bar__status')).toContainText('Running', { timeout: 120_000 });
+    const surface = page.locator('.canvas-window canvas').first();
+    await expect(surface).toBeVisible();
+    const box = (await surface.boundingBox())!;
+    // Window pixels to page pixels: the window opens at 400 × 300, unscaled on a stage this size.
+    const to = (x: number, y: number) => [box.x + ((x + 0.5) * box.width) / 400, box.y + ((y + 0.5) * box.height) / 300] as const;
+    const script = readFileSync(join(dir, 'events.script.txt'), 'utf8').split(/\r?\n/).filter((l) => l.trim().length > 0);
+    for (const line of script) {
+      const [what, ...args] = line.trim().split(/\s+/);
+      const n = args.map(Number);
+      switch (what) {
+        case 'click':
+          await page.mouse.move(...to(n[0], n[1]));
+          await page.mouse.down();
+          await page.mouse.up();
+          break;
+        case 'middle':
+          await page.mouse.move(...to(n[0], n[1]));
+          await page.mouse.down({ button: 'middle' });
+          await page.mouse.up({ button: 'middle' });
+          break;
+        case 'move':
+          await page.mouse.move(...to(n[0], n[1]));
+          break;
+        case 'drag':
+          await page.mouse.move(...to(n[0], n[1]));
+          await page.mouse.down();
+          await page.mouse.move(...to(n[2], n[3]));
+          await page.mouse.up();
+          break;
+        case 'wheel':
+          await page.mouse.move(...to(Number(args[1]), Number(args[2])));
+          await page.mouse.wheel(0, args[0] === 'up' ? -100 : 100);
+          break;
+        case 'key':
+          await page.keyboard.press(args[0]);
+          break;
+        case 'close':
+          await page.locator('.canvas-window button[aria-label="Close"]').click();
+          break;
+      }
+      // One event at a time, as the reference posts one message a tick.
+      await page.waitForTimeout(30);
+    }
+    await expect(page.locator('.lab-top-bar__status')).toContainText('Ended with exit code 0', { timeout: 10_000 });
+    await page.getByRole('tab', { name: 'Console' }).click();
+    const printed = ((await page.getByRole('tabpanel').textContent()) ?? '').split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+    const recorded = JSON.parse(readFileSync(join(dir, 'reference.json'), 'utf8')).events as string[];
+    expect(printed).toEqual(recorded);
   });
 });

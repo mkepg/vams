@@ -22,7 +22,6 @@ import type { AttachedMenu, LabFile, LabMenu, StartMessage, WorkerMessage } from
 import {
   acknowledgeFrame,
   adoptFramebuffer,
-  countRefresh,
   createSharedLayout,
   INPUT_STATE,
   inputState,
@@ -103,6 +102,9 @@ export type WorkerFactory = () => WorkerLike;
 const defaultWorker: WorkerFactory = () =>
   new Worker(new URL('../worker/lab-worker.ts', import.meta.url), { type: 'module', name: 'vams-lab-program' }) as unknown as WorkerLike;
 
+/** How long ✕ waits for the program to take its close event before stopping it. */
+export const CLOSE_WAIT_MS = 1000;
+
 /** How often a hidden tab reads the shared memory. */
 export const HIDDEN_READ_MS = 100;
 
@@ -126,6 +128,7 @@ class RunController {
   private raf = 0;
   private timer: ReturnType<typeof setInterval> | null = null;
   private createWorker: WorkerFactory = defaultWorker;
+  private closeTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** Replaced by the tests. */
   setWorkerFactory(factory: WorkerFactory | null): void {
@@ -192,7 +195,28 @@ class RunController {
     this.startPump();
   }
 
-  /** ✕: ends the program where it is. What it printed stays in the Console. */
+  /**
+   * The window's ✕, as the close button on a lab PC: the program gets a close event, runs its close
+   * callback and ends as glutMainLoop does. A program that doesn't take it within CLOSE_WAIT_MS,
+   * because it is busy or waiting for typed input, is stopped.
+   */
+  close(): void {
+    if (!this.worker || !useLabRun.getState().window) return this.stop();
+    if (this.closeTimer) return;
+    const run = this.run;
+    this.postEvent({ kind: 'close' });
+    this.closeTimer = setTimeout(() => {
+      this.closeTimer = null;
+      if (run === this.run) this.stop();
+    }, CLOSE_WAIT_MS);
+  }
+
+  private cancelClose(): void {
+    if (this.closeTimer) clearTimeout(this.closeTimer);
+    this.closeTimer = null;
+  }
+
+  /** Stop: ends the program where it is. What it printed stays in the Console. */
   stop(): void {
     if (!this.worker) return;
     this.pump();
@@ -263,8 +287,6 @@ class RunController {
   pump(): void {
     const views = this.views;
     if (!views || !this.worker) return;
-    // One refresh: the program keeps one frame a refresh, as the editor's Run does (glut-runtime).
-    countRefresh(views);
     this.outbox.flush((e) => postToRing(views, e));
     this.append(this.reader?.take() ?? []);
     const input = inputState(views);
@@ -327,6 +349,11 @@ class RunController {
         useLabRun.setState({ window: { title, width, height, x, y, fullscreen: false } });
         return;
       }
+      case 'windowClosed':
+        // The program took the close (or destroyed its window); it carries on until it ends by itself.
+        this.cancelClose();
+        useLabRun.setState({ window: null, menus: [], attached: [] });
+        return;
       case 'title':
         if (state.window) useLabRun.setState({ window: { ...state.window, title: message.title } });
         return;
@@ -370,6 +397,7 @@ class RunController {
 
   /** Terminates the worker, if there is one, and lets go of its memory. */
   private end(): void {
+    this.cancelClose();
     this.stopPump();
     this.run++;
     this.worker?.terminate();

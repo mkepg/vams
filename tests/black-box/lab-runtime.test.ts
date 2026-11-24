@@ -13,8 +13,9 @@
  *
  * Most tests run the runtime on a clock of their own: each time it would block, the test plays
  * the page (sends an event, a key, or takes a frame) and moves the clock on, so they are exact and
- * quick. BB-LAB-23 blocks for real, with Atomics.wait in a worker thread, while the test thread
- * is the page.
+ * quick. A test can also play the page's refresh itself (page.refresh), which takes the newest
+ * frame. BB-LAB-23 blocks for real, with Atomics.wait in a worker thread, while the test thread is
+ * the page.
  */
 import { resolve } from 'node:path';
 import { Worker } from 'node:worker_threads';
@@ -37,17 +38,17 @@ import {
   sendKey,
   sendLine,
   adoptFramebuffer,
-  MAX_FRAMES_BEHIND,
   type Frame,
   type LabEvent,
   type OutputChunk,
 } from '@/features/lab-run/model/shared-layout';
 import { ConsoleIO, PAUSE_PROMPT, systemMessage } from '@/features/lab-run/worker/console-io';
 import type { WorkerHost } from '@/features/lab-run/worker/event-queue';
-import { GLUT, GlutRuntime } from '@/features/lab-run/worker/glut-runtime';
+import { GLUT, GlutRuntime, PROGRAM_NAME } from '@/features/lab-run/worker/glut-runtime';
 import { fileReports, installFiles, missingMessage, type FSStream, type LabFS } from '@/features/lab-run/worker/lab-files';
 import { runProgram } from '@/features/lab-run/worker/lab-worker';
 import type { ConsoleCall, ConsoleReply } from '../helpers/lab-console-worker';
+import reference from '../fixtures/lab/glut/reference.json';
 
 /** exit() from the program, as the fake program's C library throws it. */
 class ProgramExit extends Error {
@@ -68,10 +69,9 @@ interface Wait {
  * A runtime on the test's clock, with the page played by the test. When the runtime would block,
  * the page reads the output ring when the runtime waits for room in it, takes any frame waiting
  * for it, or does the next of `page.actions`; when there is nothing to do, the clock moves on by
- * the timeout. With `refreshMs`, the page refreshes on that interval, as a display does: taking a
- * frame waits for the next refresh, and each refresh is counted in CONTROL.TICK.
+ * the timeout.
  */
-function lab(framebufferBytes?: number, screen?: { width: number; height: number }, refreshMs?: number) {
+function lab(framebufferBytes?: number, screen?: { width: number; height: number }) {
   const layout = createSharedLayout(framebufferBytes);
   const worker = openLayout(layout);
   const pageViews = openLayout(layout);
@@ -94,6 +94,8 @@ function lab(framebufferBytes?: number, screen?: { width: number; height: number
     send: (...events: LabEvent[]) => actions.push(() => events.forEach((e) => expect(postEvent(pageViews, e)).toBe(true))),
     /** The page's animation frame: reads what the program has printed. */
     readOutput: () => output.push(...reader.take()),
+    /** The page's refresh: takes the newest frame, if there is one it hasn't. */
+    refresh: () => takeFrame(),
   };
   let seen = 0;
   const takeFrame = () => {
@@ -117,16 +119,11 @@ function lab(framebufferBytes?: number, screen?: { width: number; height: number
         page.readOutput();
         return;
       }
-      if (index === CONTROL.FRAME_ACK && refreshMs) {
-        page.clock = (Math.floor(page.clock / refreshMs) + 1) * refreshMs;
-        Atomics.store(pageViews.control, CONTROL.TICK, page.clock / refreshMs);
-      }
       if (index === CONTROL.FRAME_ACK && takeFrame()) return;
       const action = actions.shift();
       if (action) return action();
       if (!Number.isFinite(timeout)) throw new Error('the runtime would wait for ever');
       page.clock += timeout;
-      if (refreshMs) Atomics.store(pageViews.control, CONTROL.TICK, Math.floor(page.clock / refreshMs));
     },
   };
   const io = new ConsoleIO(worker, host);
@@ -189,6 +186,9 @@ describe('BB-LAB-20: Keyboard, special, mouse and motion callbacks get the windo
       { kind: 'mouse', button: GLUT.LEFT_BUTTON, state: GLUT.UP, x: 50, y: 60, modifiers: 0 },
       { kind: 'passiveMotion', x: 199, y: 0 },
     );
+    // Outside an input callback there are no modifiers, and FreeGLUT says so.
+    expect(glut.getModifiers()).toBe(0);
+    expect(text(page, 'stderr')).toBe(`freeglut (${PROGRAM_NAME}): glutGetModifiers() called outside an input callback\n`);
     glut.mainLoop();
     expect(got).toEqual([
       ['key', 97, 10, 20, 1],
@@ -200,8 +200,6 @@ describe('BB-LAB-20: Keyboard, special, mouse and motion callbacks get the windo
       ['mouse', GLUT.LEFT_BUTTON, GLUT.UP, 50, 60],
       ['passiveMotion', 199, 0],
     ]);
-    // Outside a callback there are no modifiers.
-    expect(glut.getModifiers()).toBe(0);
   });
 
   it('a wheel turn reaches the mouse callback as buttons 3 and 4 when there is no wheel callback', () => {
@@ -232,6 +230,7 @@ describe('BB-LAB-21: A reshape calls the reshape callback and resizes the frameb
     const { page, glut } = lab(200 * 100 * 4);
     openWindow(glut, 200, 100);
     const sizes: number[][] = [];
+    let reported: number[] = [];
     glut.reshapeFunc((w, h) => {
       sizes.push([w, h]);
       glut.gl.viewport(0, 0, w, h);
@@ -240,17 +239,19 @@ describe('BB-LAB-21: A reshape calls the reshape callback and resizes the frameb
       glut.gl.clearColor(0, 0, 1, 1);
       glut.gl.clear(GL.COLOR_BUFFER_BIT);
       glut.swapBuffers();
+      reported = [glut.get(GLUT.WINDOW_WIDTH), glut.get(GLUT.WINDOW_HEIGHT)];
       if (sizes.length === 2) glut.leaveMainLoop();
     });
     page.send({ kind: 'reshape', width: 320, height: 240 });
     glut.mainLoop();
+    page.refresh();
     // The window's first reshape, as it opens, then the page's.
     expect(sizes).toEqual([
       [200, 100],
       [320, 240],
     ]);
     expect([glut.gl.fb.width, glut.gl.fb.height]).toEqual([320, 240]);
-    expect([glut.get(GLUT.WINDOW_WIDTH), glut.get(GLUT.WINDOW_HEIGHT)]).toEqual([320, 240]);
+    expect(reported).toEqual([320, 240]);
     const posted = page.messages.filter((m) => m.type === 'framebuffer');
     expect(posted).toHaveLength(1);
     expect(posted[0].type === 'framebuffer' && posted[0].buffer.byteLength).toBeGreaterThanOrEqual(320 * 240 * 4);
@@ -307,7 +308,7 @@ describe('BB-LAB-22: Idle runs again and again, and timers fire in order at thei
     ]);
   });
 
-  it('with no idle callback the loop sleeps until the next timer is due', () => {
+  it('with no idle callback the loop sleeps until 2 ms before the next timer is due, and spins the rest', () => {
     const { page, glut } = lab();
     openWindow(glut);
     const fired: number[] = [];
@@ -320,9 +321,12 @@ describe('BB-LAB-22: Idle runs again and again, and timers fire in order at thei
     glut.mainLoop();
     expect(fired).toEqual([30, 80]);
     const sleeps = page.waits.filter((w) => w.index === CONTROL.SIGNAL);
+    // This clock doesn't move while the runtime spins, so the last 2 ms are a wait of their own.
     expect(sleeps.map((w) => [w.at, w.timeout])).toEqual([
-      [0, 30],
-      [30, 50],
+      [0, 28],
+      [28, 2],
+      [30, 48],
+      [78, 2],
     ]);
   });
 
@@ -720,6 +724,7 @@ describe('BB-LAB-30: Display lists and glutBitmapString draw through the context
       glut.leaveMainLoop();
     });
     glut.mainLoop();
+    page.refresh();
     expect(page.frames).toHaveLength(1);
     const frame = page.frames[0];
     // The same calls on a context of its own, with GLUT_BITMAP_9_BY_15 (handle 2) from glut-fonts.
@@ -758,6 +763,7 @@ describe('BB-LAB-30: Display lists and glutBitmapString draw through the context
       glut.leaveMainLoop();
     });
     glut.mainLoop();
+    page.refresh();
     expect(page.frames).toHaveLength(1);
     expect(Array.from(page.frames[0].pixels.subarray(0, 4))).toEqual([0, 255, 0, 255]);
   });
@@ -890,32 +896,37 @@ describe('BB-LAB-60: The worker always tells the page how the program ended', ()
   });
 });
 
-describe('BB-LAB-100: A program keeps one frame a page refresh however long its frames take to draw, as the editor’s Run does', () => {
+describe('BB-LAB-100: A program runs as fast as it can, as on the reference, and the page shows its newest frame each refresh', () => {
   /**
-   * An idle animation of `steps` steps in a 40 × 10 window: step n fills column n. Drawing a frame
-   * the page is shown costs `drawMs` of the clock, and the page refreshes every `refresh` ms,
-   * counting its refreshes as they pass. At step `sleepAt` the program calls Sleep(1000).
+   * An idle animation of `steps` steps in a `steps` × 10 window: step n fills column n. Each frame
+   * costs `frameMs` of the clock to run, and `drawMs` more when it is drawn rather than held. The
+   * page refreshes every `refresh` ms and takes the newest frame. At step `sleepAt` the program
+   * calls Sleep(1000).
    */
-  function animate({ drawMs, clears = true, refresh = 16, steps = 39, sleepAt = -1 }: { drawMs: number; clears?: boolean; refresh?: number; steps?: number; sleepAt?: number }) {
-    const { page, glut, io } = lab(undefined, undefined, refresh);
-    const tick = () => Atomics.store(page.views.control, CONTROL.TICK, Math.floor(page.clock / refresh));
-    openWindow(glut, 40, 10);
-    // Whether the runtime is running this frame only to catch up, so its drawing costs nothing.
-    const catchingUp = () => (glut as unknown as { catchingUp: boolean }).catchingUp;
+  function animate({ frameMs = 1, drawMs = 0, clears = true, refresh = 16, steps = 160, sleepAt = -1 }: { frameMs?: number; drawMs?: number; clears?: boolean; refresh?: number; steps?: number; sleepAt?: number }) {
+    const { page, glut, io } = lab();
+    openWindow(glut, steps, 10);
+    // Whether the runtime is holding this frame back from drawing, so its drawing costs nothing.
+    const holding = () => (glut as unknown as { holding: boolean }).holding;
+    let refreshes = 0;
+    const pass = (ms: number) => {
+      page.clock += ms;
+      while (Math.floor(page.clock / refresh) > refreshes) {
+        refreshes++;
+        page.refresh();
+      }
+    };
     let step = 0;
     const kinds: string[] = [];
     glut.displayFunc(() => {
       const gl = glut.gl;
       gl.matrixMode(GL.PROJECTION);
       gl.loadIdentity();
-      gl.ortho2D(0, 40, 0, 10);
+      gl.ortho2D(0, steps, 0, 10);
       if (clears) gl.clear(GL.COLOR_BUFFER_BIT);
       gl.rectf(step, 0, step + 1, 10);
-      kinds.push(catchingUp() ? 'held' : 'drawn');
-      if (!catchingUp()) {
-        page.clock += drawMs;
-        tick();
-      }
+      kinds.push(holding() ? 'held' : 'drawn');
+      pass(frameMs + (holding() ? 0 : drawMs));
       glut.swapBuffers();
     });
     glut.idleFunc(() => {
@@ -927,50 +938,331 @@ describe('BB-LAB-100: A program keeps one frame a page refresh however long its 
       glut.postRedisplay();
     });
     glut.mainLoop();
+    // The page's next refresh, after the program has stopped.
+    page.refresh();
     /** The columns each frame the page took has lit, from the left. */
-    const lit = page.frames.map((f) => Array.from({ length: 40 }, (_, x) => f.pixels[x * 4] === 255).flatMap((on, x) => (on ? [x] : [])));
+    const lit = page.frames.map((f) => Array.from({ length: steps }, (_, x) => f.pixels[x * 4] === 255).flatMap((on, x) => (on ? [x] : [])));
     return { clock: page.clock, frames: page.frames.length, lit, kinds };
   }
 
-  it('a frame quicker than a refresh is drawn every refresh', () => {
-    const run = animate({ drawMs: 0 });
-    expect(run.kinds.every((k) => k === 'drawn')).toBe(true);
-    expect(run.frames).toBe(39);
-    expect(run.clock).toBeLessThanOrEqual(40 * 16);
-  });
-
-  it('a frame that takes 2½ refreshes to draw still moves one step a refresh, and the page sees every third step or so', () => {
-    const run = animate({ drawMs: 40 });
-    // As many refreshes as steps, give or take the last frame's drawing and showing it. Drawing
-    // every frame would take three times as long.
-    expect(run.clock).toBeLessThanOrEqual(39 * 16 + 40 + 2 * 16);
-    expect(run.frames).toBeGreaterThanOrEqual(10);
-    expect(run.frames).toBeLessThanOrEqual(16);
-    // Each frame shown is its step's own: one column, further right each time.
+  it('a loop quicker than a refresh never waits for the page, and only the frames the page takes are drawn', () => {
+    const run = animate({});
+    // 160 frames of 1 ms: no frame waited for a refresh.
+    expect(run.clock).toBeLessThanOrEqual(161);
+    // About one frame a refresh reached the page, each its own step, in order, the last one last.
+    expect(run.frames).toBeGreaterThanOrEqual(9);
+    expect(run.frames).toBeLessThanOrEqual(13);
     for (const columns of run.lit) expect(columns).toHaveLength(1);
     const shown = run.lit.map(([x]) => x);
     expect(shown).toEqual([...shown].sort((a, b) => a - b));
     expect(new Set(shown).size).toBe(shown.length);
+    expect(shown.at(-1)).toBe(159);
+    expect(run.kinds.filter((k) => k === 'drawn').length).toBeLessThanOrEqual(run.frames + 1);
   });
 
-  it('on a 144 Hz display, with frames 11 refreshes long, it still moves one step a refresh', () => {
-    const run = animate({ drawMs: 80, refresh: 7 });
-    // Give or take a last drawn frame and showing the end; drawing every frame would take 39 × 87 ms.
-    expect(run.clock).toBeLessThanOrEqual(39 * 7 + 2 * (80 + 7));
-    expect(run.kinds.filter((k) => k === 'drawn').length).toBeLessThanOrEqual(6);
+  it('a scene slow to draw still runs every frame: those the page can’t show yet are held, and it sees the newest drawn', () => {
+    const run = animate({ drawMs: 40, steps: 39 });
+    // Drawing all 39 would take 39 × 41 ms; holding the frames the page couldn't show yet takes half that.
+    expect(run.clock).toBeLessThanOrEqual(25 * 41);
+    expect(run.kinds.filter((k) => k === 'held').length).toBeGreaterThanOrEqual(15);
+    for (const columns of run.lit) expect(columns).toHaveLength(1);
+    const shown = run.lit.map(([x]) => x);
+    expect(shown).toEqual([...shown].sort((a, b) => a - b));
+    expect(shown.at(-1)).toBe(38);
   });
 
   it('a program that draws over its last frame without clearing shows every step it has run, held or drawn', () => {
-    const run = animate({ drawMs: 40, clears: false });
-    expect(run.kinds.filter((k) => k === 'held').length).toBeGreaterThan(15);
+    const run = animate({ clears: false });
+    expect(run.kinds.filter((k) => k === 'held').length).toBeGreaterThan(100);
     for (const columns of run.lit) expect(columns).toEqual(Array.from({ length: columns.length }, (_, x) => x));
-    expect(run.lit.at(-1)).toHaveLength(39);
+    expect(run.lit.at(-1)).toHaveLength(160);
   });
 
-  it('after a Sleep it carries on from there, rather than running the slept time’s frames unseen', () => {
-    const run = animate({ drawMs: 0, sleepAt: 10 });
-    const after = run.kinds.slice(run.kinds.indexOf('sleep') + 1);
-    expect(after.filter((k) => k === 'held').length).toBeLessThanOrEqual(1);
-    expect(MAX_FRAMES_BEHIND).toBeGreaterThanOrEqual(120);
+  it('when the program stops to Sleep, the frame it last ran is the one on screen', () => {
+    const run = animate({ sleepAt: 50 });
+    expect(run.kinds[run.kinds.indexOf('sleep') - 1]).toBe('held');
+    expect(run.lit).toContainEqual([50]);
+  });
+});
+
+/**
+ * tests/fixtures/lab/glut/misuse.cpp, case for case, as the runtime's calls. A case's lines go to
+ * stdout through the Console, as the program's printf does.
+ */
+type Print = (line: string) => void;
+type MisuseCase = (glut: GlutRuntime, print: Print) => void;
+
+const FONT_9_BY_15 = 2;
+const BAD_FONT = 0x1234;
+const VAMS = bytes('VAMS');
+
+function misuseCalls(): [string, MisuseCase][] {
+  const display = (glut: GlutRuntime) => () => {
+    glut.gl.clear(GL.COLOR_BUFFER_BIT);
+    glut.swapBuffers();
+  };
+  const none = () => {};
+  const leave = (glut: GlutRuntime, print: Print) => () => {
+    print('timer\n');
+    glut.leaveMainLoop();
+  };
+  return [
+    ['glutInitWindowPosition', (g) => g.initWindowPosition(10, 20)],
+    ['glutInitWindowSize', (g) => g.initWindowSize(200, 100)],
+    ['glutInitDisplayMode', (g) => g.initDisplayMode(GLUT.DOUBLE)],
+    ['glutCreateWindow', (g, p) => p(`window ${g.createWindow('Misuse')}\n`)],
+    ['glutDestroyWindow', (g) => g.destroyWindow()],
+    ['glutGetWindow', (g, p) => p(`window ${g.getWindow()}\n`)],
+    ['glutSetWindowTitle', (g) => g.setWindowTitle('Title')],
+    ['glutReshapeWindow', (g) => g.reshapeWindow(120, 80)],
+    ['glutPositionWindow', (g) => g.positionWindow(5, 5)],
+    ['glutFullScreen', (g) => g.fullScreen()],
+    ['glutPostRedisplay', (g) => g.postRedisplay()],
+    ['glutSwapBuffers', (g) => g.swapBuffers()],
+    ['glutMainLoop', (g) => g.mainLoop()],
+    ['glutLeaveMainLoop', (g) => g.leaveMainLoop()],
+    ['glutSetOption', (g) => g.setOption(GLUT.ACTION_ON_WINDOW_CLOSE, GLUT.ACTION_GLUTMAINLOOP_RETURNS)],
+    ['glutDisplayFunc', (g) => g.displayFunc(display(g))],
+    ['glutReshapeFunc', (g) => g.reshapeFunc(none)],
+    ['glutKeyboardFunc', (g) => g.keyboardFunc(none)],
+    ['glutKeyboardUpFunc', (g) => g.keyboardUpFunc(none)],
+    ['glutSpecialFunc', (g) => g.specialFunc(none)],
+    ['glutSpecialUpFunc', (g) => g.specialUpFunc(none)],
+    ['glutMouseFunc', (g) => g.mouseFunc(none)],
+    ['glutMotionFunc', (g) => g.motionFunc(none)],
+    ['glutPassiveMotionFunc', (g) => g.passiveMotionFunc(none)],
+    ['glutMouseWheelFunc', (g) => g.mouseWheelFunc(none)],
+    ['glutCloseFunc', (g, p) => g.closeFunc(() => p('close callback\n'))],
+    ['glutIdleFunc', (g) => g.idleFunc(none)],
+    ['glutTimerFunc', (g, p) => g.timerFunc(10, leave(g, p), 1)],
+    ['glutCreateMenu', (g, p) => p(`menu ${g.createMenu(none)}\n`)],
+    ['glutDestroyMenu', (g) => g.destroyMenu(1)],
+    ['glutAddMenuEntry', (g) => g.addMenuEntry('Entry', 1)],
+    ['glutAddSubMenu', (g) => g.addSubMenu('Sub', 1)],
+    ['glutAttachMenu', (g) => g.attachMenu(GLUT.RIGHT_BUTTON)],
+    ['glutDetachMenu', (g) => g.detachMenu(GLUT.RIGHT_BUTTON)],
+    ['glutGet', (g, p) => p(`get ${g.get(GLUT.WINDOW_WIDTH)}\n`)],
+    ['glutGet-elapsed', (g, p) => p(`elapsed ${g.get(GLUT.ELAPSED_TIME) >= 0 ? 'counted' : 'negative'}\n`)],
+    ['glutGet-screen', (g, p) => p(`screen ${g.get(GLUT.SCREEN_WIDTH) > 0 ? 'known' : 'unknown'}\n`)],
+    [
+      'glutGet-init',
+      (g, p) => p(`init ${g.get(GLUT.INIT_WINDOW_X)} ${g.get(GLUT.INIT_WINDOW_Y)} ${g.get(GLUT.INIT_WINDOW_WIDTH)} ${g.get(GLUT.INIT_WINDOW_HEIGHT)}\n`),
+    ],
+    ['glutGetModifiers', (g, p) => p(`modifiers ${g.getModifiers()}\n`)],
+    ['glutBitmapCharacter', (g) => g.bitmapCharacter(FONT_9_BY_15, 86)],
+    ['glutBitmapString', (g) => g.bitmapString(FONT_9_BY_15, VAMS)],
+    ['glutBitmapWidth', (g, p) => p(`width ${g.bitmapWidth(FONT_9_BY_15, 86)}\n`)],
+    ['glutBitmapLength', (g, p) => p(`length ${g.bitmapLength(FONT_9_BY_15, VAMS)}\n`)],
+    ['glutBitmapHeight', (g, p) => p(`height ${g.bitmapHeight(FONT_9_BY_15)}\n`)],
+  ];
+}
+
+/** misuse.cpp's cases run with glutInit called and its window open. */
+function misuseWithWindow(): [string, MisuseCase][] {
+  const display = (glut: GlutRuntime) => () => {
+    glut.gl.clear(GL.COLOR_BUFFER_BIT);
+    glut.swapBuffers();
+  };
+  const leave = (glut: GlutRuntime, print: Print) => () => {
+    print('timer\n');
+    glut.leaveMainLoop();
+  };
+  const closed = (print: Print) => () => print('close callback\n');
+  const loopThenReport = (action: number) => (g: GlutRuntime, p: Print) => {
+    g.setOption(GLUT.ACTION_ON_WINDOW_CLOSE, action);
+    g.displayFunc(display(g));
+    g.closeFunc(closed(p));
+    g.timerFunc(10, leave(g, p), 1);
+    g.mainLoop();
+    p(`after the loop, window ${g.getWindow()}\n`);
+  };
+  return [
+    ['init-twice', (g) => g.init()],
+    ['get-unknown', (g, p) => p(`get ${g.get(0x7777)}\n`)],
+    ['bitmap-character-bad-font', (g) => g.bitmapCharacter(BAD_FONT, 86)],
+    ['bitmap-string-bad-font', (g) => g.bitmapString(BAD_FONT, VAMS)],
+    ['bitmap-width-bad-font', (g, p) => p(`width ${g.bitmapWidth(BAD_FONT, 86)}\n`)],
+    ['bitmap-length-bad-font', (g, p) => p(`length ${g.bitmapLength(BAD_FONT, VAMS)}\n`)],
+    ['bitmap-height-bad-font', (g, p) => p(`height ${g.bitmapHeight(BAD_FONT)}\n`)],
+    ['display-null', (g) => g.displayFunc(null)],
+    ['mainloop-no-display', (g) => g.mainLoop()],
+    [
+      'window-get',
+      (g, p) => p(`get ${g.get(GLUT.WINDOW_WIDTH)} ${g.get(GLUT.WINDOW_HEIGHT)} ${g.getWindow()} ${g.get(GLUT.INIT_WINDOW_WIDTH)}\n`),
+    ],
+    [
+      'menu-without-current',
+      (g) => {
+        g.addMenuEntry('Entry', 1);
+        g.attachMenu(GLUT.RIGHT_BUTTON);
+      },
+    ],
+    ['menu-destroy-unknown', (g) => g.destroyMenu(9)],
+    ['menu-null-callback', (g, p) => p(`menu ${g.createMenu(null)}\n`)],
+    [
+      'menu-submenu-unknown',
+      (g) => {
+        g.createMenu(() => {});
+        g.addSubMenu('Sub', 9);
+      },
+    ],
+    [
+      'leave-exit',
+      (g, p) => {
+        g.displayFunc(display(g));
+        g.closeFunc(closed(p));
+        g.timerFunc(10, leave(g, p), 1);
+        g.mainLoop();
+        p('after the loop\n');
+      },
+    ],
+    ['leave-returns', loopThenReport(GLUT.ACTION_GLUTMAINLOOP_RETURNS)],
+    ['leave-continues', loopThenReport(GLUT.ACTION_CONTINUE_EXECUTION)],
+    [
+      'destroy-then-loop',
+      (g, p) => {
+        g.displayFunc(display(g));
+        g.closeFunc(closed(p));
+        g.destroyWindow();
+        p('destroyed\n');
+        g.mainLoop();
+        p('after the loop\n');
+      },
+    ],
+    [
+      'size-refused-window',
+      (g, p) => {
+        g.initWindowSize(-5, 0);
+        g.initWindowSize(0, 50);
+        g.displayFunc(display(g));
+        p(`init ${g.get(GLUT.INIT_WINDOW_WIDTH)} ${g.get(GLUT.INIT_WINDOW_HEIGHT)}\n`);
+      },
+    ],
+    [
+      'position-half-negative',
+      (g, p) => {
+        g.initWindowPosition(30, -1);
+        p(`init ${g.get(GLUT.INIT_WINDOW_X)} ${g.get(GLUT.INIT_WINDOW_Y)}\n`);
+      },
+    ],
+    [
+      'destroy-then-call',
+      (g, p) => {
+        g.destroyWindow();
+        p(`window ${g.getWindow()}\n`);
+        g.postRedisplay();
+      },
+    ],
+  ];
+}
+
+/** misuse.cpp's cases run with glutInit called and no window. */
+function misuseWithoutWindow(): [string, MisuseCase][] {
+  return [
+    [
+      'size-refused',
+      (g, p) => {
+        g.initWindowSize(-5, 0);
+        p(`init ${g.get(GLUT.INIT_WINDOW_WIDTH)} ${g.get(GLUT.INIT_WINDOW_HEIGHT)}\n`);
+      },
+    ],
+    [
+      'position-negative',
+      (g, p) => {
+        g.initWindowPosition(-5, -7);
+        p(`init ${g.get(GLUT.INIT_WINDOW_X)} ${g.get(GLUT.INIT_WINDOW_Y)}\n`);
+      },
+    ],
+  ];
+}
+
+/** Every misuse case by its name in reference.json, with what main does before it runs. */
+function misuseCases(): Map<string, { before: 'nothing' | 'init' | 'window'; run: MisuseCase }> {
+  const cases = new Map<string, { before: 'nothing' | 'init' | 'window'; run: MisuseCase }>();
+  for (const [name, run] of misuseCalls()) {
+    cases.set(`noinit-${name}`, { before: 'nothing', run });
+    cases.set(`nowindow-${name}`, { before: 'init', run });
+  }
+  for (const [name, run] of misuseWithoutWindow()) cases.set(name, { before: 'init', run });
+  for (const [name, run] of misuseWithWindow()) cases.set(name, { before: 'window', run });
+  return cases;
+}
+
+/** Runs one case as misuse.cpp's main does: stdout, stderr and the exit code, the program's name written as <program>. */
+function runMisuse(before: 'nothing' | 'init' | 'window', run: MisuseCase) {
+  const { page, glut, io } = lab(undefined, { width: 1920, height: 1080 });
+  const print: Print = (line) => io.write('stdout', line);
+  let exit = 0;
+  try {
+    if (before !== 'nothing') glut.init();
+    if (before === 'window') {
+      glut.initDisplayMode(GLUT.DOUBLE);
+      glut.initWindowSize(200, 100);
+      glut.createWindow('Misuse');
+    }
+    run(glut, print);
+    print('after\n');
+  } catch (e) {
+    if (!(e instanceof ProgramExit)) throw e;
+    exit = e.code;
+  }
+  const named = (s: string) => s.replaceAll(PROGRAM_NAME, '<program>');
+  return { stdout: named(text(page, 'stdout')), stderr: named(text(page, 'stderr')), exit };
+}
+
+describe('BB-LAB-112: Each GLUT misuse prints, returns and exits as FreeGLUT 3.0.0 does on the reference', () => {
+  const recorded = reference.misuse as Record<string, { stdout: string; stderr: string; exit: number }>;
+  const cases = misuseCases();
+
+  it('every recorded case has its counterpart here, and every case here was recorded', () => {
+    expect([...cases.keys()].sort()).toEqual(Object.keys(recorded).sort());
+  });
+
+  it.each(Object.keys(recorded))('%s', (name) => {
+    const c = cases.get(name)!;
+    expect(runMisuse(c.before, c.run)).toEqual(recorded[name]);
+  });
+
+  it('the close button runs the close callback at once, tells the page, and the program exits with 0', () => {
+    const { page, glut, io } = lab();
+    openWindow(glut);
+    glut.setOption(GLUT.ACTION_ON_WINDOW_CLOSE, GLUT.ACTION_EXIT);
+    glut.displayFunc(() => glut.swapBuffers());
+    glut.closeFunc(() => io.write('stdout', `close callback, window ${glut.getWindow()}\n`));
+    page.send({ kind: 'close' });
+    expect(() => glut.mainLoop()).toThrow(new ProgramExit(0));
+    expect(text(page, 'stdout')).toBe('close callback, window 0\n');
+    expect(page.messages).toContainEqual({ type: 'windowClosed' });
+  });
+
+  it('with GLUT_ACTION_GLUTMAINLOOP_RETURNS the close button returns from glutMainLoop, and main carries on', () => {
+    const { page, glut, io } = lab();
+    openWindow(glut);
+    glut.displayFunc(() => glut.swapBuffers());
+    glut.closeFunc(() => io.write('stdout', 'close callback\n'));
+    page.send({ kind: 'close' });
+    glut.mainLoop();
+    io.write('stdout', `after the loop, window ${glut.getWindow()}\n`);
+    expect(text(page, 'stdout')).toBe('close callback\nafter the loop, window 0\n');
+  });
+
+  // Not in the recording, because FreeGLUT's outcome depends on when Windows paints: the Lab takes the clean one.
+  it('a window destroyed in the loop runs its close callback after the call returns, then the program exits with 0', () => {
+    const { page, glut, io } = lab();
+    openWindow(glut);
+    glut.setOption(GLUT.ACTION_ON_WINDOW_CLOSE, GLUT.ACTION_EXIT);
+    const print = (line: string) => io.write('stdout', line);
+    glut.displayFunc(() => glut.swapBuffers());
+    glut.closeFunc(() => print('close callback\n'));
+    glut.timerFunc(
+      10,
+      () => {
+        glut.destroyWindow();
+        print(`destroyed, window ${glut.getWindow()}\n`);
+      },
+      0,
+    );
+    expect(() => glut.mainLoop()).toThrow(new ProgramExit(0));
+    expect(text(page, 'stdout')).toBe('destroyed, window 0\nclose callback\n');
   });
 });

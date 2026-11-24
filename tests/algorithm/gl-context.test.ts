@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { GL, GLContext, MAX_DRAW_ELEMENTS, MAX_LIST_NESTING, MAX_STACK_DEPTH, type Framebuffer } from '@/shared/lib/gl-raster';
+import { GL, GLContext, MAX_DRAW_ELEMENTS, MAX_LIST_NESTING, MAX_MODELVIEW_STACK_DEPTH, MAX_PROJECTION_STACK_DEPTH, type Framebuffer } from '@/shared/lib/gl-raster';
 import { polygonPieces } from '@/shared/lib/gl-raster/assembly';
 import {
   GLUT_FONTS,
@@ -143,20 +143,25 @@ describe('ALG-LAB-09: Matrix stacks and the transform commands (2.11.2)', () => 
     expect(gl.getError()).toBe(GL.NO_ERROR);
   });
 
-  it.each([GL.MODELVIEW, GL.PROJECTION])('stack %d holds 32 matrices, then overflows and underflows', (mode) => {
-    expect(MAX_STACK_DEPTH).toBe(32);
+  // Intel's GL_MAX_MODELVIEW_STACK_DEPTH and GL_MAX_PROJECTION_STACK_DEPTH, measured on the reference.
+  it.each([
+    [GL.MODELVIEW, 32],
+    [GL.PROJECTION, 4],
+  ])('stack %d holds %d matrices, as on Intel, then overflows and underflows', (mode, depth) => {
+    expect(mode === GL.MODELVIEW ? MAX_MODELVIEW_STACK_DEPTH : MAX_PROJECTION_STACK_DEPTH).toBe(depth);
     const gl = new GLContext(10, 10);
     gl.matrixMode(mode);
-    for (let i = 1; i < 32; i++) {
+    for (let i = 1; i < depth; i++) {
       gl.pushMatrix();
       gl.translatef(1, 0, 0);
     }
     expect(gl.getError()).toBe(GL.NO_ERROR);
-    expect(affine(gl.currentMatrix(mode))[2]).toBe(31);
-    // The 33rd entry doesn't fit: GL_STACK_OVERFLOW, and the stack is unchanged.
+    expect(affine(gl.currentMatrix(mode))[2]).toBe(depth - 1);
+    // One more entry doesn't fit: GL_STACK_OVERFLOW, and the stack is unchanged.
     gl.pushMatrix();
     expect(gl.getError()).toBe(GL.STACK_OVERFLOW);
-    for (let i = 1; i < 32; i++) gl.popMatrix();
+    expect(affine(gl.currentMatrix(mode))[2]).toBe(depth - 1);
+    for (let i = 1; i < depth; i++) gl.popMatrix();
     expect(gl.getError()).toBe(GL.NO_ERROR);
     expect(affine(gl.currentMatrix(mode))[2]).toBe(0);
     gl.popMatrix();

@@ -18,7 +18,7 @@ import { EDITOR_HINT, LabWorkspace, runChip } from '@/widgets/lab-workspace';
 import LabTopBar from '@/widgets/lab-workspace/ui/LabTopBar';
 import { useLabStore } from '@/entities/lab-project';
 import { useLabStage } from '@/widgets/lab-workspace/model/stage-store';
-import { HIDDEN_READ_MS, runController, useLabRun, type WorkerLike } from '@/features/lab-run';
+import { CLOSE_WAIT_MS, HIDDEN_READ_MS, runController, useLabRun, type WorkerLike } from '@/features/lab-run';
 import type { StartMessage, WorkerMessage } from '@/features/lab-run/model/protocol';
 import {
   CONTROL,
@@ -258,6 +258,10 @@ describe('BB-LAB-46: ✕ ends the program, and Run starts a fresh worker', () =>
     expect(first.started!.type).toBe('start');
     expect(useLabRun.getState().status).toBe('running');
     await act(() => (host.querySelector('.canvas-window button[aria-label="Close"]') as HTMLButtonElement).click());
+    // A program that doesn't take the close event within CLOSE_WAIT_MS is stopped.
+    expect(first.events()).toEqual([{ kind: 'close' }]);
+    expect(first.terminated).toBe(false);
+    await act(() => new Promise<void>((resolve) => setTimeout(resolve, CLOSE_WAIT_MS + 50)));
     expect(first.terminated).toBe(true);
     expect(useLabRun.getState().status).toBe('idle');
     expect(windowEl(host)).toBeNull();
@@ -337,6 +341,34 @@ describe('BB-LAB-46: ✕ ends the program, and Run starts a fresh worker', () =>
     });
     expect(passed).toBe(true);
     expect(headers['cross-origin-embedder-policy']).toBe('require-corp');
+  });
+});
+
+describe('BB-LAB-114: ✕ is the window’s close button: the program closes its window and ends by itself', () => {
+  it('a program that takes the close loses its window at once, runs on, and ends with its own exit code', async () => {
+    setStage(1200, 800);
+    const host = mount();
+    const w = await runWithWindow(host);
+    await act(() => (host.querySelector('.canvas-window button[aria-label="Close"]') as HTMLButtonElement).click());
+    expect(w.events()).toEqual([{ kind: 'close' }]);
+    w.emit({ type: 'windowClosed' });
+    expect(windowEl(host)).toBeNull();
+    expect(useLabRun.getState().status).toBe('running');
+    // Well past the wait: the program took the close, so it isn't stopped.
+    await act(() => new Promise<void>((resolve) => setTimeout(resolve, CLOSE_WAIT_MS + 50)));
+    expect(w.terminated).toBe(false);
+    w.emit({ type: 'exit', code: 0 });
+    expect(useLabRun.getState()).toMatchObject({ status: 'exited', exitCode: 0 });
+  });
+
+  it('a program that destroys its own window loses it on the stage too', async () => {
+    setStage(1200, 800);
+    const host = mount();
+    const w = await runWithWindow(host);
+    expect(windowEl(host)).not.toBeNull();
+    w.emit({ type: 'windowClosed' });
+    expect(windowEl(host)).toBeNull();
+    expect(useLabRun.getState().status).toBe('running');
   });
 });
 

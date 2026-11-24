@@ -261,6 +261,8 @@ tests/
 │   ├── gl-draw.test.ts                          (ALG-RUN-*: the Run view's GL calls are
 │   │                                              the generated display()'s, in order,
 │   │                                              with its values)
+│   ├── run-pace.test.ts                         (ALG-RUN-03: Run steps 60 times a
+│   │                                              second, whatever the refresh rate)
 │   ├── gl-geometry.test.ts                      (ALG-FID-*: points, lines,
 │   │                                              stipple and FLAT colours by the
 │   │                                              OpenGL 1.5 multisample rules)
@@ -338,6 +340,17 @@ its export at 500 × 500, with the image paths shortened to the file name. They
 are frozen; `LAB_EXPORT_CHECK=1 npx vitest run tests/white-box/lab-battery.test.ts`
 checks that they still equal the export, and `LAB_EXPORT=1` rewrites them and
 the images they load, after which their references are recorded again.
+
+How FreeGLUT behaves, rather than draws, is recorded in
+`tests/fixtures/lab/glut/reference.json`: the misuse battery (`misuse.cpp`,
+replayed by BB-LAB-112 and sampled end to end by VIS-LAB-13) and the input
+battery (`events.cpp` playing `events.script.txt`, compared by VIS-LAB-15).
+`pace.cpp` (VIS-LAB-14) is checked against figures in its own comment. Record
+the batteries again with:
+
+```bash
+VAMS_GLUT_TOOLCHAIN=<path to the toolchain's mingw32 folder> node scripts/lab/capture-glut.mjs [misuse] [events]
+```
 `checkerboard.png` is an 8 × 8 RGBA image of one-texel cells, white where x + y
 is even and red (220, 30, 30) where it is odd, written once with `encodePng`.
 
