@@ -4,6 +4,7 @@ export {
   useLabRun,
   crashLine,
   HIDDEN_READ_MS,
+  CLOSE_WAIT_MS,
   type RunStatus,
   type ProgramWindow,
   type Picture,

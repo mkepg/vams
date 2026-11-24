@@ -270,6 +270,7 @@ export class GlutRuntime {
     if (!this.window) return;
     this.window = null;
     this.closing = true;
+    this.host.post({ type: 'windowClosed' });
     const close = this.callbacks.close;
     for (const name of Object.keys(this.callbacks) as WindowCallback[]) delete this.callbacks[name];
     if (close) this.callbacks.close = close;
@@ -688,6 +689,12 @@ export class GlutRuntime {
       }
       case 'entry':
         // The 2D set has no glutEntryFunc, so entering or leaving the window calls nothing.
+        return;
+      case 'close':
+        // FreeGLUT's WM_CLOSE: the window is destroyed and its close callback runs at once; the loop then ends.
+        if (!this.window) return;
+        this.destroyWindow();
+        this.closeWindows();
         return;
     }
   }

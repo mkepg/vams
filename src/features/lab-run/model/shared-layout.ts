@@ -147,7 +147,8 @@ export function openLayout(layout: SharedLayout): LayoutViews {
 /**
  * An event from the program window. Coordinates are window pixels with y down, as GLUT gives
  * them; `modifiers` is glutGetModifiers' GLUT_ACTIVE_SHIFT | CTRL | ALT. `menu` is a menu entry
- * chosen with its menu's id; `entry` is the pointer entering (1) or leaving (0) the window.
+ * chosen with its menu's id; `entry` is the pointer entering (1) or leaving (0) the window;
+ * `close` is the window's close button.
  */
 export type LabEvent =
   | { kind: 'key' | 'keyUp'; key: number; x: number; y: number; modifiers: number }
@@ -157,9 +158,10 @@ export type LabEvent =
   | { kind: 'motion' | 'passiveMotion'; x: number; y: number }
   | { kind: 'reshape'; width: number; height: number }
   | { kind: 'menu'; menu: number; value: number }
-  | { kind: 'entry'; state: number };
+  | { kind: 'entry'; state: number }
+  | { kind: 'close' };
 
-const KINDS = ['key', 'keyUp', 'special', 'specialUp', 'mouse', 'motion', 'passiveMotion', 'reshape', 'menu', 'entry', 'wheel'] as const;
+const KINDS = ['key', 'keyUp', 'special', 'specialUp', 'mouse', 'motion', 'passiveMotion', 'reshape', 'menu', 'entry', 'wheel', 'close'] as const;
 
 /** An event as its EVENT_WORDS words: the kind, then its fields in a fixed order. */
 function encode(e: LabEvent): number[] {
@@ -183,6 +185,8 @@ function encode(e: LabEvent): number[] {
       return [kind, e.menu, e.value];
     case 'entry':
       return [kind, e.state];
+    case 'close':
+      return [kind];
   }
 }
 
@@ -206,6 +210,8 @@ function decode(w: Int32Array, at: number): LabEvent {
       return { kind, width: a, height: b };
     case 'menu':
       return { kind, menu: a, value: b };
+    case 'close':
+      return { kind };
     default:
       return { kind: 'entry', state: a };
   }

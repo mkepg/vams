@@ -45,6 +45,8 @@ export interface AttachedMenu {
 export type WorkerMessage =
   /** glutCreateWindow, glutReshapeWindow or glutPositionWindow: the window to show, in screen pixels. */
   | { type: 'window'; title: string; width: number; height: number; x: number; y: number }
+  /** The window is gone: the close button was taken, or the program called glutDestroyWindow. */
+  | { type: 'windowClosed' }
   /** glutSetWindowTitle. */
   | { type: 'title'; title: string }
   /** glutFullScreen: the window fills the stage, and the page sends a reshape. */

@@ -1217,6 +1217,29 @@ describe('BB-LAB-112: Each GLUT misuse prints, returns and exits as FreeGLUT 3.0
     expect(runMisuse(c.before, c.run)).toEqual(recorded[name]);
   });
 
+  it('the close button runs the close callback at once, tells the page, and the program exits with 0', () => {
+    const { page, glut, io } = lab();
+    openWindow(glut);
+    glut.setOption(GLUT.ACTION_ON_WINDOW_CLOSE, GLUT.ACTION_EXIT);
+    glut.displayFunc(() => glut.swapBuffers());
+    glut.closeFunc(() => io.write('stdout', `close callback, window ${glut.getWindow()}\n`));
+    page.send({ kind: 'close' });
+    expect(() => glut.mainLoop()).toThrow(new ProgramExit(0));
+    expect(text(page, 'stdout')).toBe('close callback, window 0\n');
+    expect(page.messages).toContainEqual({ type: 'windowClosed' });
+  });
+
+  it('with GLUT_ACTION_GLUTMAINLOOP_RETURNS the close button returns from glutMainLoop, and main carries on', () => {
+    const { page, glut, io } = lab();
+    openWindow(glut);
+    glut.displayFunc(() => glut.swapBuffers());
+    glut.closeFunc(() => io.write('stdout', 'close callback\n'));
+    page.send({ kind: 'close' });
+    glut.mainLoop();
+    io.write('stdout', `after the loop, window ${glut.getWindow()}\n`);
+    expect(text(page, 'stdout')).toBe('close callback\nafter the loop, window 0\n');
+  });
+
   // Not in the recording, because FreeGLUT's outcome depends on when Windows paints: the Lab takes the clean one.
   it('a window destroyed in the loop runs its close callback after the call returns, then the program exits with 0', () => {
     const { page, glut, io } = lab();
