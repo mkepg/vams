@@ -63,6 +63,15 @@ export const GLUT = {
   ACTION_CONTINUE_EXECUTION: 2,
 } as const;
 
+/**
+ * The program's name in FreeGLUT's messages: its argv[0] on a lab PC, where x.bat builds it to
+ * c:\openglcpp\Program.exe.
+ */
+export const PROGRAM_NAME = 'c:\\openglcpp\\Program.exe';
+
+/** The window size FreeGLUT opens when glutInitWindowSize was refused, where Windows would choose one. */
+const DEFAULT_WINDOW_SIZE = { width: 300, height: 300 };
+
 /** What the program's main module gives the runtime once it has loaded. */
 export interface ProgramMemory {
   /** The program's memory, as it is now (it can grow). */
@@ -80,7 +89,7 @@ interface Timer {
 }
 
 interface Menu {
-  callback: Callback;
+  callback: Callback | null;
   entries: LabMenuEntry[];
 }
 
@@ -120,10 +129,15 @@ export class GlutRuntime {
 
   private initialised = false;
   private start: number;
-  private initPosition = { x: -1, y: -1 };
-  private initSize = { width: 300, height: 300 };
+  /** glutInitWindowPosition and glutInitWindowSize, used only when both values were accepted, as FreeGLUT's `Use`. */
+  private initPosition = { x: -1, y: -1, use: false };
+  private initSize = { ...DEFAULT_WINDOW_SIZE, use: true };
   private displayMode = 0;
   private window: Window | null = null;
+  /** glutDestroyWindow took the window away; its close callback runs when the loop next closes windows. */
+  private closing = false;
+  /** Whether an input callback is running, the only time glutGetModifiers has an answer. */
+  private inInput = false;
   private context = new GLContext(1, 1);
   private readonly callbacks: Partial<Record<WindowCallback, Callback>> = {};
   private idle: Callback | null = null;
@@ -167,29 +181,46 @@ export class GlutRuntime {
     return this.context;
   }
 
+  /** FreeGLUT's message prefix: the program's name is known only once glutInit has run. */
+  private get prefix(): string {
+    return this.initialised ? `freeglut (${PROGRAM_NAME}): ` : 'freeglut ';
+  }
+
   /** FreeGLUT's fgError: the message on stderr, then exit(1). */
   private fail(message: string): never {
-    this.console.write('stderr', `freeglut (program): ${message}\n`);
+    this.console.write('stderr', `${this.prefix}${message}\n`);
     return this.program.exit(1);
+  }
+
+  /** FreeGLUT's fgWarning: the message on stderr, and the program carries on. */
+  private warn(message: string): void {
+    this.console.write('stderr', `${this.prefix}${message}\n`);
   }
 
   private requireInit(name: string): void {
     if (!this.initialised) this.fail(` ERROR:  Function <${name}> called without first calling 'glutInit'.`);
   }
 
+  /** FREEGLUT_EXIT_IF_NO_WINDOW, for the calls that act on the current window. */
+  private requireWindow(name: string): void {
+    this.requireInit(name);
+    if (!this.window) this.fail(` ERROR:  Function <${name}> called with no current window defined.`);
+  }
+
   // Starting up.
 
   init(): void {
+    if (this.initialised) this.fail('illegal glutInit() reinitialization attempt');
     this.initialised = true;
     this.start = this.host.now();
   }
 
   initWindowPosition(x: number, y: number): void {
-    this.initPosition = { x, y };
+    this.initPosition = { x, y, use: x >= 0 && y >= 0 };
   }
 
   initWindowSize(width: number, height: number): void {
-    if (width > 0 && height > 0) this.initSize = { width, height };
+    this.initSize = { width, height, use: width > 0 && height > 0 };
   }
 
   initDisplayMode(mode: number): void {
@@ -208,8 +239,11 @@ export class GlutRuntime {
 
   createWindow(title: string): number {
     this.requireInit('glutCreateWindow');
-    const { width, height } = this.fit(this.initSize.width, this.initSize.height);
-    this.window = { title, x: this.initPosition.x, y: this.initPosition.y, width, height };
+    const size = this.initSize.use ? this.initSize : DEFAULT_WINDOW_SIZE;
+    const { width, height } = this.fit(size.width, size.height);
+    const { x, y } = this.initPosition.use ? this.initPosition : { x: -1, y: -1 };
+    this.window = { title, x, y, width, height };
+    this.closing = false;
     this.context = new GLContext(width, height, {
       multisample: (this.displayMode & GLUT.MULTISAMPLE) !== 0,
       memory: () => this.program.heap(),
@@ -227,10 +261,27 @@ export class GlutRuntime {
     if (w) this.host.post({ type: 'window', title: w.title, width: w.width, height: w.height, x: w.x, y: w.y });
   }
 
+  /**
+   * As FreeGLUT's fgAddToWindowDestroyList: the window stops being current and loses every callback
+   * but close at once; the close callback runs when the loop next closes windows (closeWindows).
+   */
   destroyWindow(): void {
+    this.requireInit('glutDestroyWindow');
     if (!this.window) return;
-    this.callbacks.close?.();
     this.window = null;
+    this.closing = true;
+    const close = this.callbacks.close;
+    for (const name of Object.keys(this.callbacks) as WindowCallback[]) delete this.callbacks[name];
+    if (close) this.callbacks.close = close;
+  }
+
+  /** FreeGLUT's fgCloseWindows: a destroyed window's close callback runs, and the window is gone. */
+  private closeWindows(): void {
+    if (!this.closing) return;
+    this.closing = false;
+    const close = this.callbacks.close;
+    delete this.callbacks.close;
+    close?.();
   }
 
   getWindow(): number {
@@ -238,30 +289,33 @@ export class GlutRuntime {
   }
 
   setWindowTitle(title: string): void {
-    if (!this.window) return;
-    this.window.title = title;
+    this.requireWindow('glutSetWindowTitle');
+    this.window!.title = title;
     this.host.post({ type: 'title', title });
   }
 
   /** Asks the page for a new size; the reshape callback runs when the page sends it back. */
   reshapeWindow(width: number, height: number): void {
-    if (!this.window) return;
-    this.host.post({ type: 'window', title: this.window.title, width, height, x: this.window.x, y: this.window.y });
+    this.requireWindow('glutReshapeWindow');
+    const w = this.window!;
+    this.host.post({ type: 'window', title: w.title, width, height, x: w.x, y: w.y });
   }
 
   positionWindow(x: number, y: number): void {
-    if (!this.window) return;
-    this.window.x = x;
-    this.window.y = y;
+    this.requireWindow('glutPositionWindow');
+    this.window!.x = x;
+    this.window!.y = y;
     this.postWindow();
   }
 
   fullScreen(): void {
-    if (this.window) this.host.post({ type: 'fullscreen' });
+    this.requireWindow('glutFullScreen');
+    this.host.post({ type: 'fullscreen' });
   }
 
   postRedisplay(): void {
-    if (this.window) this.redisplay = true;
+    this.requireWindow('glutPostRedisplay');
+    this.redisplay = true;
   }
 
   // Frames.
@@ -339,7 +393,8 @@ export class GlutRuntime {
   }
 
   swapBuffers(): void {
-    if (this.window) this.present();
+    this.requireWindow('glutSwapBuffers');
+    this.present();
   }
 
   /** glFlush: in a GLUT_SINGLE window the frame goes to the page; a double-buffered one shows it at the swap. */
@@ -355,53 +410,58 @@ export class GlutRuntime {
 
   // Callbacks.
 
-  private setWindowCallback(name: WindowCallback, callback: Callback | null): void {
+  /** Sets a callback of the current window; without one, FreeGLUT quietly does nothing. */
+  private setWindowCallback(name: WindowCallback, callback: Callback | null, fn: string): void {
+    this.requireInit(fn);
     if (!this.window) return;
     if (callback) this.callbacks[name] = callback;
     else delete this.callbacks[name];
   }
 
   displayFunc(callback: Callback | null): void {
+    this.requireInit('glutDisplayFunc');
     if (!callback) this.fail('Fatal error in program.  NULL display callback not permitted in GLUT 3.0+ or freeglut 2.0.1+');
-    this.setWindowCallback('display', callback);
+    this.setWindowCallback('display', callback, 'glutDisplayFunc');
   }
   reshapeFunc(callback: Callback | null): void {
-    this.setWindowCallback('reshape', callback);
+    this.setWindowCallback('reshape', callback, 'glutReshapeFunc');
   }
   keyboardFunc(callback: Callback | null): void {
-    this.setWindowCallback('keyboard', callback);
+    this.setWindowCallback('keyboard', callback, 'glutKeyboardFunc');
   }
   keyboardUpFunc(callback: Callback | null): void {
-    this.setWindowCallback('keyboardUp', callback);
+    this.setWindowCallback('keyboardUp', callback, 'glutKeyboardUpFunc');
   }
   specialFunc(callback: Callback | null): void {
-    this.setWindowCallback('special', callback);
+    this.setWindowCallback('special', callback, 'glutSpecialFunc');
   }
   specialUpFunc(callback: Callback | null): void {
-    this.setWindowCallback('specialUp', callback);
+    this.setWindowCallback('specialUp', callback, 'glutSpecialUpFunc');
   }
   mouseFunc(callback: Callback | null): void {
-    this.setWindowCallback('mouse', callback);
+    this.setWindowCallback('mouse', callback, 'glutMouseFunc');
   }
   motionFunc(callback: Callback | null): void {
-    this.setWindowCallback('motion', callback);
+    this.setWindowCallback('motion', callback, 'glutMotionFunc');
   }
   passiveMotionFunc(callback: Callback | null): void {
-    this.setWindowCallback('passiveMotion', callback);
+    this.setWindowCallback('passiveMotion', callback, 'glutPassiveMotionFunc');
   }
   mouseWheelFunc(callback: Callback | null): void {
-    this.setWindowCallback('wheel', callback);
+    this.setWindowCallback('wheel', callback, 'glutMouseWheelFunc');
   }
   closeFunc(callback: Callback | null): void {
-    this.setWindowCallback('close', callback);
+    this.setWindowCallback('close', callback, 'glutCloseFunc');
   }
 
   idleFunc(callback: Callback | null): void {
+    this.requireInit('glutIdleFunc');
     this.idle = callback;
   }
 
   /** glutTimerFunc: `callback(value)` once, `ms` from now; timers due at the same time fire in the order they were set. */
   timerFunc(ms: number, callback: Callback | null, value: number): void {
+    this.requireInit('glutTimerFunc');
     if (!callback) return;
     const due = this.host.now() + Math.max(0, ms);
     const at = this.timers.findIndex((t) => t.due > due);
@@ -410,8 +470,9 @@ export class GlutRuntime {
 
   // Menus.
 
+  /** glutCreateMenu: FreeGLUT makes the menu even with a NULL callback; choosing from it then calls nothing here. */
   createMenu(callback: Callback | null): number {
-    if (!callback) return 0;
+    this.requireInit('glutCreateMenu');
     const id = this.nextMenu++;
     this.menus.set(id, { callback, entries: [] });
     this.currentMenu = id;
@@ -420,6 +481,7 @@ export class GlutRuntime {
   }
 
   destroyMenu(id: number): void {
+    this.requireInit('glutDestroyMenu');
     if (!this.menus.delete(id)) return;
     for (const [button, menu] of this.attached) if (menu === id) this.attached.delete(button);
     if (this.currentMenu === id) this.currentMenu = 0;
@@ -434,20 +496,24 @@ export class GlutRuntime {
   }
 
   addMenuEntry(label: string, value: number): void {
+    this.requireInit('glutAddMenuEntry');
     this.addEntry({ label, value });
   }
 
   addSubMenu(label: string, submenu: number): void {
+    this.requireInit('glutAddSubMenu');
     if (this.menus.has(submenu)) this.addEntry({ label, submenu });
   }
 
   attachMenu(button: number): void {
+    this.requireInit('glutAttachMenu');
     if (!this.window || !this.menus.has(this.currentMenu)) return;
     this.attached.set(button, this.currentMenu);
     this.menusChanged = true;
   }
 
   detachMenu(button: number): void {
+    this.requireInit('glutDetachMenu');
     if (this.attached.delete(button)) this.menusChanged = true;
   }
 
@@ -463,7 +529,10 @@ export class GlutRuntime {
 
   // State.
 
+  /** glutGet. GLUT_ELAPSED_TIME answers before glutInit, as FreeGLUT's does; an unknown query warns and answers -1. */
   get(query: number): number {
+    if (query === GLUT.ELAPSED_TIME) return Math.floor(this.host.now() - this.start);
+    this.requireInit('glutGet');
     const w = this.window;
     switch (query) {
       case GLUT.WINDOW_X:
@@ -479,57 +548,68 @@ export class GlutRuntime {
       case GLUT.SCREEN_HEIGHT:
         return this.screen.height;
       case GLUT.INIT_WINDOW_X:
-        return this.initPosition.x;
+        return this.initPosition.use ? this.initPosition.x : -1;
       case GLUT.INIT_WINDOW_Y:
-        return this.initPosition.y;
+        return this.initPosition.use ? this.initPosition.y : -1;
       case GLUT.INIT_WINDOW_WIDTH:
-        return this.initSize.width;
+        return this.initSize.use ? this.initSize.width : -1;
       case GLUT.INIT_WINDOW_HEIGHT:
-        return this.initSize.height;
-      case GLUT.ELAPSED_TIME:
-        return Math.floor(this.host.now() - this.start);
+        return this.initSize.use ? this.initSize.height : -1;
     }
+    this.warn(`glutGet(): missing enum handle ${query}`);
     return -1;
   }
 
-  /** The Shift, Ctrl and Alt keys held for the event being handled; 0 outside an input callback. */
+  /** The Shift, Ctrl and Alt keys held for the event being handled. Outside an input callback FreeGLUT warns and answers 0. */
   getModifiers(): number {
+    this.requireInit('glutGetModifiers');
+    if (!this.inInput) {
+      this.warn('glutGetModifiers() called outside an input callback');
+      return 0;
+    }
     return this.modifiers;
   }
 
   setOption(option: number, value: number): void {
+    this.requireInit('glutSetOption');
     if (option === GLUT.ACTION_ON_WINDOW_CLOSE) this.actionOnClose = value;
   }
 
   // Bitmap text.
 
-  private font(handle: number): BitmapFont | null {
+  /** The bitmap font a handle names; any other handle warns, as FreeGLUT's fghFontByID does. */
+  private font(handle: number, fn: string): BitmapFont | null {
+    this.requireInit(fn);
     const name = GLUT_FONT_HANDLES[handle];
-    return name ? GLUT_FONTS[name] : null;
+    if (name) return GLUT_FONTS[name];
+    const address = (handle >>> 0).toString(16).toUpperCase().padStart(8, '0');
+    // FreeGLUT's own message ends in a newline, and fgWarning adds another.
+    this.warn(`${fn}: bitmap font 0x${address} not found. Make sure you're not passing a stroke font.\n`);
+    return null;
   }
 
   bitmapCharacter(handle: number, character: number): void {
-    const f = this.font(handle);
+    const f = this.font(handle, 'glutBitmapCharacter');
     if (f) glutBitmapCharacter(this.context, f, character);
   }
 
   bitmapString(handle: number, text: ArrayLike<number>): void {
-    const f = this.font(handle);
+    const f = this.font(handle, 'glutBitmapString');
     if (f) glutBitmapString(this.context, f, text);
   }
 
   bitmapWidth(handle: number, character: number): number {
-    const f = this.font(handle);
+    const f = this.font(handle, 'glutBitmapWidth');
     return f ? glutBitmapWidth(f, character) : 0;
   }
 
   bitmapLength(handle: number, text: ArrayLike<number>): number {
-    const f = this.font(handle);
+    const f = this.font(handle, 'glutBitmapLength');
     return f ? glutBitmapLength(f, text) : 0;
   }
 
   bitmapHeight(handle: number): number {
-    const f = this.font(handle);
+    const f = this.font(handle, 'glutBitmapHeight');
     return f ? glutBitmapHeight(f) : 0;
   }
 
@@ -553,12 +633,15 @@ export class GlutRuntime {
     this.redisplay = true;
   }
 
+  /** Runs an input callback, with glutGetModifiers answering `modifiers` while it runs. */
   private withModifiers(modifiers: number, run: () => void): void {
     this.modifiers = modifiers;
+    this.inInput = true;
     try {
       run();
     } finally {
       this.modifiers = 0;
+      this.inInput = false;
     }
   }
 
@@ -597,7 +680,7 @@ export class GlutRuntime {
         const current = this.currentMenu;
         this.currentMenu = e.menu;
         try {
-          menu.callback(e.value);
+          menu.callback?.(e.value);
         } finally {
           this.currentMenu = current;
         }
@@ -630,7 +713,15 @@ export class GlutRuntime {
 
   mainLoop(): void {
     this.requireInit('glutMainLoop');
-    if (this.window && !this.callbacks.display) this.fail(' ERROR:  No display callback registered for window 1');
+    if (!this.window && !this.closing) this.fail(' ERROR:  glutMainLoop called with no windows created.');
+    // FreeGLUT's own message ends in a newline, and fgError adds another.
+    const noDisplay = 'ERROR:  No display callback registered for window 1\n';
+    if (!this.window) {
+      // A window destroyed before the loop: FreeGLUT closes it, then finds it has no display callback.
+      this.closeWindows();
+      this.fail(noDisplay);
+    }
+    if (!this.callbacks.display) this.fail(noDisplay);
     this.running = true;
     while (this.running && this.window) {
       this.sendMenus();
@@ -653,10 +744,18 @@ export class GlutRuntime {
     }
     this.running = false;
     this.showUnshown();
+    this.closeWindows();
+    // FreeGLUT's fgDeinitialize: the window still open is closed, and glutInit is forgotten.
+    if (this.window) {
+      this.destroyWindow();
+      this.closeWindows();
+    }
+    this.initialised = false;
     if (this.actionOnClose === GLUT.ACTION_EXIT) this.program.exit(0);
   }
 
   leaveMainLoop(): void {
+    this.requireInit('glutLeaveMainLoop');
     this.running = false;
   }
 }

@@ -44,10 +44,11 @@ import {
 } from '@/features/lab-run/model/shared-layout';
 import { ConsoleIO, PAUSE_PROMPT, systemMessage } from '@/features/lab-run/worker/console-io';
 import type { WorkerHost } from '@/features/lab-run/worker/event-queue';
-import { GLUT, GlutRuntime } from '@/features/lab-run/worker/glut-runtime';
+import { GLUT, GlutRuntime, PROGRAM_NAME } from '@/features/lab-run/worker/glut-runtime';
 import { fileReports, installFiles, missingMessage, type FSStream, type LabFS } from '@/features/lab-run/worker/lab-files';
 import { runProgram } from '@/features/lab-run/worker/lab-worker';
 import type { ConsoleCall, ConsoleReply } from '../helpers/lab-console-worker';
+import reference from '../fixtures/lab/glut/reference.json';
 
 /** exit() from the program, as the fake program's C library throws it. */
 class ProgramExit extends Error {
@@ -189,6 +190,9 @@ describe('BB-LAB-20: Keyboard, special, mouse and motion callbacks get the windo
       { kind: 'mouse', button: GLUT.LEFT_BUTTON, state: GLUT.UP, x: 50, y: 60, modifiers: 0 },
       { kind: 'passiveMotion', x: 199, y: 0 },
     );
+    // Outside an input callback there are no modifiers, and FreeGLUT says so.
+    expect(glut.getModifiers()).toBe(0);
+    expect(text(page, 'stderr')).toBe(`freeglut (${PROGRAM_NAME}): glutGetModifiers() called outside an input callback\n`);
     glut.mainLoop();
     expect(got).toEqual([
       ['key', 97, 10, 20, 1],
@@ -200,8 +204,6 @@ describe('BB-LAB-20: Keyboard, special, mouse and motion callbacks get the windo
       ['mouse', GLUT.LEFT_BUTTON, GLUT.UP, 50, 60],
       ['passiveMotion', 199, 0],
     ]);
-    // Outside a callback there are no modifiers.
-    expect(glut.getModifiers()).toBe(0);
   });
 
   it('a wheel turn reaches the mouse callback as buttons 3 and 4 when there is no wheel callback', () => {
@@ -232,6 +234,7 @@ describe('BB-LAB-21: A reshape calls the reshape callback and resizes the frameb
     const { page, glut } = lab(200 * 100 * 4);
     openWindow(glut, 200, 100);
     const sizes: number[][] = [];
+    let reported: number[] = [];
     glut.reshapeFunc((w, h) => {
       sizes.push([w, h]);
       glut.gl.viewport(0, 0, w, h);
@@ -240,6 +243,7 @@ describe('BB-LAB-21: A reshape calls the reshape callback and resizes the frameb
       glut.gl.clearColor(0, 0, 1, 1);
       glut.gl.clear(GL.COLOR_BUFFER_BIT);
       glut.swapBuffers();
+      reported = [glut.get(GLUT.WINDOW_WIDTH), glut.get(GLUT.WINDOW_HEIGHT)];
       if (sizes.length === 2) glut.leaveMainLoop();
     });
     page.send({ kind: 'reshape', width: 320, height: 240 });
@@ -250,7 +254,7 @@ describe('BB-LAB-21: A reshape calls the reshape callback and resizes the frameb
       [320, 240],
     ]);
     expect([glut.gl.fb.width, glut.gl.fb.height]).toEqual([320, 240]);
-    expect([glut.get(GLUT.WINDOW_WIDTH), glut.get(GLUT.WINDOW_HEIGHT)]).toEqual([320, 240]);
+    expect(reported).toEqual([320, 240]);
     const posted = page.messages.filter((m) => m.type === 'framebuffer');
     expect(posted).toHaveLength(1);
     expect(posted[0].type === 'framebuffer' && posted[0].buffer.byteLength).toBeGreaterThanOrEqual(320 * 240 * 4);
@@ -972,5 +976,264 @@ describe('BB-LAB-100: A program keeps one frame a page refresh however long its 
     const after = run.kinds.slice(run.kinds.indexOf('sleep') + 1);
     expect(after.filter((k) => k === 'held').length).toBeLessThanOrEqual(1);
     expect(MAX_FRAMES_BEHIND).toBeGreaterThanOrEqual(120);
+  });
+});
+
+/**
+ * tests/fixtures/lab/glut/misuse.cpp, case for case, as the runtime's calls. A case's lines go to
+ * stdout through the Console, as the program's printf does.
+ */
+type Print = (line: string) => void;
+type MisuseCase = (glut: GlutRuntime, print: Print) => void;
+
+const FONT_9_BY_15 = 2;
+const BAD_FONT = 0x1234;
+const VAMS = bytes('VAMS');
+
+function misuseCalls(): [string, MisuseCase][] {
+  const display = (glut: GlutRuntime) => () => {
+    glut.gl.clear(GL.COLOR_BUFFER_BIT);
+    glut.swapBuffers();
+  };
+  const none = () => {};
+  const leave = (glut: GlutRuntime, print: Print) => () => {
+    print('timer\n');
+    glut.leaveMainLoop();
+  };
+  return [
+    ['glutInitWindowPosition', (g) => g.initWindowPosition(10, 20)],
+    ['glutInitWindowSize', (g) => g.initWindowSize(200, 100)],
+    ['glutInitDisplayMode', (g) => g.initDisplayMode(GLUT.DOUBLE)],
+    ['glutCreateWindow', (g, p) => p(`window ${g.createWindow('Misuse')}\n`)],
+    ['glutDestroyWindow', (g) => g.destroyWindow()],
+    ['glutGetWindow', (g, p) => p(`window ${g.getWindow()}\n`)],
+    ['glutSetWindowTitle', (g) => g.setWindowTitle('Title')],
+    ['glutReshapeWindow', (g) => g.reshapeWindow(120, 80)],
+    ['glutPositionWindow', (g) => g.positionWindow(5, 5)],
+    ['glutFullScreen', (g) => g.fullScreen()],
+    ['glutPostRedisplay', (g) => g.postRedisplay()],
+    ['glutSwapBuffers', (g) => g.swapBuffers()],
+    ['glutMainLoop', (g) => g.mainLoop()],
+    ['glutLeaveMainLoop', (g) => g.leaveMainLoop()],
+    ['glutSetOption', (g) => g.setOption(GLUT.ACTION_ON_WINDOW_CLOSE, GLUT.ACTION_GLUTMAINLOOP_RETURNS)],
+    ['glutDisplayFunc', (g) => g.displayFunc(display(g))],
+    ['glutReshapeFunc', (g) => g.reshapeFunc(none)],
+    ['glutKeyboardFunc', (g) => g.keyboardFunc(none)],
+    ['glutKeyboardUpFunc', (g) => g.keyboardUpFunc(none)],
+    ['glutSpecialFunc', (g) => g.specialFunc(none)],
+    ['glutSpecialUpFunc', (g) => g.specialUpFunc(none)],
+    ['glutMouseFunc', (g) => g.mouseFunc(none)],
+    ['glutMotionFunc', (g) => g.motionFunc(none)],
+    ['glutPassiveMotionFunc', (g) => g.passiveMotionFunc(none)],
+    ['glutMouseWheelFunc', (g) => g.mouseWheelFunc(none)],
+    ['glutCloseFunc', (g, p) => g.closeFunc(() => p('close callback\n'))],
+    ['glutIdleFunc', (g) => g.idleFunc(none)],
+    ['glutTimerFunc', (g, p) => g.timerFunc(10, leave(g, p), 1)],
+    ['glutCreateMenu', (g, p) => p(`menu ${g.createMenu(none)}\n`)],
+    ['glutDestroyMenu', (g) => g.destroyMenu(1)],
+    ['glutAddMenuEntry', (g) => g.addMenuEntry('Entry', 1)],
+    ['glutAddSubMenu', (g) => g.addSubMenu('Sub', 1)],
+    ['glutAttachMenu', (g) => g.attachMenu(GLUT.RIGHT_BUTTON)],
+    ['glutDetachMenu', (g) => g.detachMenu(GLUT.RIGHT_BUTTON)],
+    ['glutGet', (g, p) => p(`get ${g.get(GLUT.WINDOW_WIDTH)}\n`)],
+    ['glutGet-elapsed', (g, p) => p(`elapsed ${g.get(GLUT.ELAPSED_TIME) >= 0 ? 'counted' : 'negative'}\n`)],
+    ['glutGet-screen', (g, p) => p(`screen ${g.get(GLUT.SCREEN_WIDTH) > 0 ? 'known' : 'unknown'}\n`)],
+    [
+      'glutGet-init',
+      (g, p) => p(`init ${g.get(GLUT.INIT_WINDOW_X)} ${g.get(GLUT.INIT_WINDOW_Y)} ${g.get(GLUT.INIT_WINDOW_WIDTH)} ${g.get(GLUT.INIT_WINDOW_HEIGHT)}\n`),
+    ],
+    ['glutGetModifiers', (g, p) => p(`modifiers ${g.getModifiers()}\n`)],
+    ['glutBitmapCharacter', (g) => g.bitmapCharacter(FONT_9_BY_15, 86)],
+    ['glutBitmapString', (g) => g.bitmapString(FONT_9_BY_15, VAMS)],
+    ['glutBitmapWidth', (g, p) => p(`width ${g.bitmapWidth(FONT_9_BY_15, 86)}\n`)],
+    ['glutBitmapLength', (g, p) => p(`length ${g.bitmapLength(FONT_9_BY_15, VAMS)}\n`)],
+    ['glutBitmapHeight', (g, p) => p(`height ${g.bitmapHeight(FONT_9_BY_15)}\n`)],
+  ];
+}
+
+/** misuse.cpp's cases run with glutInit called and its window open. */
+function misuseWithWindow(): [string, MisuseCase][] {
+  const display = (glut: GlutRuntime) => () => {
+    glut.gl.clear(GL.COLOR_BUFFER_BIT);
+    glut.swapBuffers();
+  };
+  const leave = (glut: GlutRuntime, print: Print) => () => {
+    print('timer\n');
+    glut.leaveMainLoop();
+  };
+  const closed = (print: Print) => () => print('close callback\n');
+  const loopThenReport = (action: number) => (g: GlutRuntime, p: Print) => {
+    g.setOption(GLUT.ACTION_ON_WINDOW_CLOSE, action);
+    g.displayFunc(display(g));
+    g.closeFunc(closed(p));
+    g.timerFunc(10, leave(g, p), 1);
+    g.mainLoop();
+    p(`after the loop, window ${g.getWindow()}\n`);
+  };
+  return [
+    ['init-twice', (g) => g.init()],
+    ['get-unknown', (g, p) => p(`get ${g.get(0x7777)}\n`)],
+    ['bitmap-character-bad-font', (g) => g.bitmapCharacter(BAD_FONT, 86)],
+    ['bitmap-string-bad-font', (g) => g.bitmapString(BAD_FONT, VAMS)],
+    ['bitmap-width-bad-font', (g, p) => p(`width ${g.bitmapWidth(BAD_FONT, 86)}\n`)],
+    ['bitmap-length-bad-font', (g, p) => p(`length ${g.bitmapLength(BAD_FONT, VAMS)}\n`)],
+    ['bitmap-height-bad-font', (g, p) => p(`height ${g.bitmapHeight(BAD_FONT)}\n`)],
+    ['display-null', (g) => g.displayFunc(null)],
+    ['mainloop-no-display', (g) => g.mainLoop()],
+    [
+      'window-get',
+      (g, p) => p(`get ${g.get(GLUT.WINDOW_WIDTH)} ${g.get(GLUT.WINDOW_HEIGHT)} ${g.getWindow()} ${g.get(GLUT.INIT_WINDOW_WIDTH)}\n`),
+    ],
+    [
+      'menu-without-current',
+      (g) => {
+        g.addMenuEntry('Entry', 1);
+        g.attachMenu(GLUT.RIGHT_BUTTON);
+      },
+    ],
+    ['menu-destroy-unknown', (g) => g.destroyMenu(9)],
+    ['menu-null-callback', (g, p) => p(`menu ${g.createMenu(null)}\n`)],
+    [
+      'menu-submenu-unknown',
+      (g) => {
+        g.createMenu(() => {});
+        g.addSubMenu('Sub', 9);
+      },
+    ],
+    [
+      'leave-exit',
+      (g, p) => {
+        g.displayFunc(display(g));
+        g.closeFunc(closed(p));
+        g.timerFunc(10, leave(g, p), 1);
+        g.mainLoop();
+        p('after the loop\n');
+      },
+    ],
+    ['leave-returns', loopThenReport(GLUT.ACTION_GLUTMAINLOOP_RETURNS)],
+    ['leave-continues', loopThenReport(GLUT.ACTION_CONTINUE_EXECUTION)],
+    [
+      'destroy-then-loop',
+      (g, p) => {
+        g.displayFunc(display(g));
+        g.closeFunc(closed(p));
+        g.destroyWindow();
+        p('destroyed\n');
+        g.mainLoop();
+        p('after the loop\n');
+      },
+    ],
+    [
+      'size-refused-window',
+      (g, p) => {
+        g.initWindowSize(-5, 0);
+        g.initWindowSize(0, 50);
+        g.displayFunc(display(g));
+        p(`init ${g.get(GLUT.INIT_WINDOW_WIDTH)} ${g.get(GLUT.INIT_WINDOW_HEIGHT)}\n`);
+      },
+    ],
+    [
+      'position-half-negative',
+      (g, p) => {
+        g.initWindowPosition(30, -1);
+        p(`init ${g.get(GLUT.INIT_WINDOW_X)} ${g.get(GLUT.INIT_WINDOW_Y)}\n`);
+      },
+    ],
+    [
+      'destroy-then-call',
+      (g, p) => {
+        g.destroyWindow();
+        p(`window ${g.getWindow()}\n`);
+        g.postRedisplay();
+      },
+    ],
+  ];
+}
+
+/** misuse.cpp's cases run with glutInit called and no window. */
+function misuseWithoutWindow(): [string, MisuseCase][] {
+  return [
+    [
+      'size-refused',
+      (g, p) => {
+        g.initWindowSize(-5, 0);
+        p(`init ${g.get(GLUT.INIT_WINDOW_WIDTH)} ${g.get(GLUT.INIT_WINDOW_HEIGHT)}\n`);
+      },
+    ],
+    [
+      'position-negative',
+      (g, p) => {
+        g.initWindowPosition(-5, -7);
+        p(`init ${g.get(GLUT.INIT_WINDOW_X)} ${g.get(GLUT.INIT_WINDOW_Y)}\n`);
+      },
+    ],
+  ];
+}
+
+/** Every misuse case by its name in reference.json, with what main does before it runs. */
+function misuseCases(): Map<string, { before: 'nothing' | 'init' | 'window'; run: MisuseCase }> {
+  const cases = new Map<string, { before: 'nothing' | 'init' | 'window'; run: MisuseCase }>();
+  for (const [name, run] of misuseCalls()) {
+    cases.set(`noinit-${name}`, { before: 'nothing', run });
+    cases.set(`nowindow-${name}`, { before: 'init', run });
+  }
+  for (const [name, run] of misuseWithoutWindow()) cases.set(name, { before: 'init', run });
+  for (const [name, run] of misuseWithWindow()) cases.set(name, { before: 'window', run });
+  return cases;
+}
+
+/** Runs one case as misuse.cpp's main does: stdout, stderr and the exit code, the program's name written as <program>. */
+function runMisuse(before: 'nothing' | 'init' | 'window', run: MisuseCase) {
+  const { page, glut, io } = lab(undefined, { width: 1920, height: 1080 });
+  const print: Print = (line) => io.write('stdout', line);
+  let exit = 0;
+  try {
+    if (before !== 'nothing') glut.init();
+    if (before === 'window') {
+      glut.initDisplayMode(GLUT.DOUBLE);
+      glut.initWindowSize(200, 100);
+      glut.createWindow('Misuse');
+    }
+    run(glut, print);
+    print('after\n');
+  } catch (e) {
+    if (!(e instanceof ProgramExit)) throw e;
+    exit = e.code;
+  }
+  const named = (s: string) => s.replaceAll(PROGRAM_NAME, '<program>');
+  return { stdout: named(text(page, 'stdout')), stderr: named(text(page, 'stderr')), exit };
+}
+
+describe('BB-LAB-112: Each GLUT misuse prints, returns and exits as FreeGLUT 3.0.0 does on the reference', () => {
+  const recorded = reference.misuse as Record<string, { stdout: string; stderr: string; exit: number }>;
+  const cases = misuseCases();
+
+  it('every recorded case has its counterpart here, and every case here was recorded', () => {
+    expect([...cases.keys()].sort()).toEqual(Object.keys(recorded).sort());
+  });
+
+  it.each(Object.keys(recorded))('%s', (name) => {
+    const c = cases.get(name)!;
+    expect(runMisuse(c.before, c.run)).toEqual(recorded[name]);
+  });
+
+  // Not in the recording, because FreeGLUT's outcome depends on when Windows paints: the Lab takes the clean one.
+  it('a window destroyed in the loop runs its close callback after the call returns, then the program exits with 0', () => {
+    const { page, glut, io } = lab();
+    openWindow(glut);
+    glut.setOption(GLUT.ACTION_ON_WINDOW_CLOSE, GLUT.ACTION_EXIT);
+    const print = (line: string) => io.write('stdout', line);
+    glut.displayFunc(() => glut.swapBuffers());
+    glut.closeFunc(() => print('close callback\n'));
+    glut.timerFunc(
+      10,
+      () => {
+        glut.destroyWindow();
+        print(`destroyed, window ${glut.getWindow()}\n`);
+      },
+      0,
+    );
+    expect(() => glut.mainLoop()).toThrow(new ProgramExit(0));
+    expect(text(page, 'stdout')).toBe('destroyed, window 0\nclose callback\n');
   });
 });

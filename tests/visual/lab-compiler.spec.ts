@@ -14,6 +14,8 @@
  *    error, and the worker's script never runs
  *  - VIS-LAB-12: the gallery's jeepney, run in the editor and in the Lab, drives across the window
  *    at the same speed, though the Lab draws its frames in software
+ *  - VIS-LAB-13: a sample of the GLUT misuse battery, run end to end, prints FreeGLUT's messages
+ *    and ends with its exit codes
  */
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -271,6 +273,29 @@ test.describe('VIS-LAB: the compiler in the page', () => {
       const list = page.locator('.lab-log__list');
       for (let j = 0; j < group.length; j++) await expect(list).toContainText(`main.cpp:${FIRST + j}:`);
       for (const name of group) await expect(list).toContainText(`${name}${REJECTED_TEXT}`);
+    }
+  });
+
+  test('VIS-LAB-13: GLUT misuse ends a program in the Lab as FreeGLUT ends it on a lab PC', async ({ page }) => {
+    test.setTimeout(600_000);
+    await routeLab(page.context());
+    await openLab(page, 'light');
+    const misuse = readFileSync(join(process.cwd(), 'tests/fixtures/lab/glut/misuse.cpp'), 'utf8');
+    const recorded = JSON.parse(readFileSync(join(process.cwd(), 'tests/fixtures/lab/glut/reference.json'), 'utf8')).misuse;
+    await putProgram(page, misuse);
+    // One case of each kind: before glutInit, without a window, the loop's check, a warning, and the loop's end.
+    for (const name of ['noinit-glutDisplayFunc', 'nowindow-glutPostRedisplay', 'mainloop-no-display', 'get-unknown', 'leave-returns']) {
+      const want = recorded[name] as { stdout: string; stderr: string; exit: number };
+      await page.locator('.lab-top-bar__run').click();
+      const field = page.locator('#lab-console-input');
+      await expect(field).toBeVisible({ timeout: 90_000 });
+      await field.fill(name);
+      await field.press('Enter');
+      await expect(page.locator('.lab-top-bar__status')).toContainText(`Ended with exit code ${want.exit}`, { timeout: 30_000 });
+      const console = page.getByRole('tabpanel');
+      // The program's name in FreeGLUT's prefix is x.bat's Program.exe, as on a lab PC.
+      const lines = `${want.stdout}${want.stderr}`.replaceAll('<program>', 'c:\\openglcpp\\Program.exe').split('\n');
+      for (const line of lines.filter((l) => l.length > 0)) await expect(console, name).toContainText(line);
     }
   });
 });
