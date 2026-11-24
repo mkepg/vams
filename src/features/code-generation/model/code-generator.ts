@@ -1,6 +1,7 @@
 import type { SceneNode, ViewportLimits } from '@/core/types/scene';
 import type { TextureAsset } from '@/core/types/textures';
 import { PROGRAM_WINDOW_TITLE } from '@/shared/lib/program-window';
+import { MAX_CATCH_UP } from '@/shared/lib/run-pace';
 import { sanitizeName } from './generator/utils';
 import { generateState } from './generator/state';
 import { generateObjectDrawBody, indentBlock, type DrawEffects } from './generator/render';
@@ -136,12 +137,21 @@ export function generateAppOutput(
   if (needsIdle) {
     code += `// Internal VAMS wrapper: run per-frame animation and updates\n`;
     code += `void _vams_idle()\n{\n`;
-    // Per-frame buffer work, then the student's idle handler, then a redraw request.
-    if (needsBufferUpdate) code += `    update_buffers();\n`;
-    if (idleCb) code += `    ${idleCb.handlerName}();\n`;
+    // On the lab PCs idle runs as often as the PC can; the scene steps 60 times a second, as Run
+    // does (run-pace.ts), catching up at most MAX_CATCH_UP steps.
+    code += `    // GLUT calls idle as often as the PC can: step 60 times a second, as VAMS's Run does\n`;
+    code += `    static int done = -1;\n`;
+    code += `    int step = glutGet(GLUT_ELAPSED_TIME) * 60 / 1000;\n`;
+    code += `    // The first call, or one after a long pause, takes a single step\n`;
+    code += `    if (done < 0 || step - done > ${MAX_CATCH_UP}) done = step - 1;\n`;
+    code += `    for (; done < step; done++) {\n`;
+    // Per-step buffer work, then the student's idle handler, then a redraw request.
+    if (needsBufferUpdate) code += `        update_buffers();\n`;
+    if (idleCb) code += `        ${idleCb.handlerName}();\n`;
     // A registered handler's stub already calls glutPostRedisplay; otherwise
     // we must request the redraw ourselves so the motion is visible.
-    if (!idleCb) code += `    glutPostRedisplay();\n`;
+    if (!idleCb) code += `        glutPostRedisplay();\n`;
+    code += `    }\n`;
     code += `}\n\n`;
   }
   code += `int main(int argc, char** argv)\n{\n`;

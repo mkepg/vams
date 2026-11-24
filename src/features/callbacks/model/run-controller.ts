@@ -8,6 +8,7 @@ import {
   createRunState, dispatch, runStateColor, windowToWorld, type RunEvent, type RunState,
 } from './runtime';
 import { runView } from './run-view';
+import { stepPacer } from '@/shared/lib/run-pace';
 
 /**
  * The canvas Run state. It owns the event listeners and the frame loop, keeps a temporary
@@ -152,8 +153,8 @@ class RunController {
     });
   }
 
-  /** One frame: a resize of the program's window, pending motion, the idle pass, then a draw. */
-  stepFrame(): void {
+  /** One frame: a resize of the program's window, pending motion, `steps` idle passes, then a draw. */
+  stepFrame(steps = 1): void {
     if (!this.run || !this.snapshot.canvas || !this.snapshot.window) return;
     // Resizing the program's window resizes the canvas; GLUT reports that to the reshape handler.
     const canvas = renderBridge.getCanvasSize() ?? this.snapshot.canvas;
@@ -166,7 +167,7 @@ class RunController {
     if (motion) this.handle({ type: 'motion', x: motion.x, y: motion.y });
     if (!this.run) return;
     const state = useVamsStore.getState();
-    this.run = dispatch(this.run, state.callbacks, { type: 'idle' }).state;
+    for (let i = 0; i < steps; i++) this.run = dispatch(this.run, state.callbacks, { type: 'idle' }).state;
     this.draw();
   }
 
@@ -280,11 +281,14 @@ class RunController {
     }, FLASH_MS);
   }
 
+  /** Steps the run 60 times a second, as the exported _vams_idle does, whatever the display's refresh rate. */
   private startLoop(): void {
     if (typeof requestAnimationFrame !== 'function') return;
-    const frame = () => {
+    const due = stepPacer();
+    const frame = (time: number) => {
       if (!this.snapshot.running) return;
-      this.stepFrame();
+      const steps = due(time);
+      if (steps > 0) this.stepFrame(steps);
       this.rafId = requestAnimationFrame(frame);
     };
     this.rafId = requestAnimationFrame(frame);

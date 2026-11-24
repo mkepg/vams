@@ -584,7 +584,7 @@ export const TRANSFORMS_LESSONS: Record<string, Lesson> = {
         action: (state) => state.setCodePane('code'),
       },
       {
-        narration: 'Because the turn is counted per frame, a computer that draws more frames turns the triangle faster. In VAMS, Run draws one step per frame.',
+        narration: 'Because the turn is counted per frame, a computer that draws more frames turns the triangle faster. On a lab PC, GLUT calls idle as often as it can, so _vams_idle reads the clock with glutGet(GLUT_ELAPSED_TIME) and takes a step only 60 times a second, as Run does. The triangle turns at the same speed everywhere.',
         focusPanel: 'callbacks-panel',
       },
       {
@@ -593,6 +593,7 @@ export const TRANSFORMS_LESSONS: Record<string, Lesson> = {
           points: [
             'glutIdleFunc registers a function GLUT runs whenever it is free.',
             'Changing a transform value there, then calling glutPostRedisplay, animates the shape.',
+            'glutGet(GLUT_ELAPSED_TIME) gives the milliseconds since glutInit, so the animation can step 60 times a second on any PC.',
           ],
           calls: ['glutIdleFunc', 'glutPostRedisplay'],
         },

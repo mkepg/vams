@@ -856,7 +856,14 @@ void init()
 // Internal VAMS wrapper: run per-frame animation and updates
 void _vams_idle()
 {
-    onIdle();
+    // GLUT calls idle as often as the PC can: step 60 times a second, as VAMS's Run does
+    static int done = -1;
+    int step = glutGet(GLUT_ELAPSED_TIME) * 60 / 1000;
+    // The first call, or one after a long pause, takes a single step
+    if (done < 0 || step - done > 6) done = step - 1;
+    for (; done < step; done++) {
+        onIdle();
+    }
 }
 
 int main(int argc, char** argv)
