@@ -117,8 +117,9 @@ export const GL = {
   SRC_ALPHA_SATURATE: 0x0308,
 } as const;
 
-// GL_MAX_MODELVIEW_STACK_DEPTH and GL_MAX_PROJECTION_STACK_DEPTH.
-export const MAX_STACK_DEPTH = 32;
+// GL_MAX_MODELVIEW_STACK_DEPTH and GL_MAX_PROJECTION_STACK_DEPTH, as Intel reports them.
+export const MAX_MODELVIEW_STACK_DEPTH = 32;
+export const MAX_PROJECTION_STACK_DEPTH = 4;
 // GL_MAX_VIEWPORT_DIMS: glViewport clamps its width and height to this.
 export const MAX_VIEWPORT_SIZE = 16384;
 // The most elements one glDrawArrays or glDrawElements takes; a larger count draws nothing and is
@@ -239,8 +240,8 @@ export class GLContext {
   private vp: Viewport;
   private clearValue: RGBA = [0, 0, 0, 0];
   private matrixModeValue: number = GL.MODELVIEW;
-  private readonly modelview = new M.MatrixStack(MAX_STACK_DEPTH);
-  private readonly projection = new M.MatrixStack(MAX_STACK_DEPTH);
+  private readonly modelview = new M.MatrixStack(MAX_MODELVIEW_STACK_DEPTH);
+  private readonly projection = new M.MatrixStack(MAX_PROJECTION_STACK_DEPTH);
   private color: RGBA = [1, 1, 1, 1];
   private texCoord: [number, number] = [0, 0];
   private prim: { mode: number; vertices: ClipVertex[] } | null = null;
