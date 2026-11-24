@@ -9,10 +9,11 @@
 export const STEPS_PER_SECOND = 60;
 
 /**
- * The most steps one call catches up, as in _vams_idle: a tenth of a second. Further behind (the
- * first call, or one after a stall) it takes a single step rather than jump.
+ * The most steps one call catches up, as in _vams_idle: half a second, so a scene the Lab draws
+ * slowly in software (a frame of 400 ms) still keeps its pace. Further behind (the first call, or
+ * one after a longer stall) it takes a single step rather than jump.
  */
-export const MAX_CATCH_UP = 6;
+export const MAX_CATCH_UP = 30;
 
 const STEP_MS = 1000 / STEPS_PER_SECOND;
 

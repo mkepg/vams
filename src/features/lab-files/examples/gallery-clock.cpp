@@ -805,7 +805,7 @@ void _vams_idle()
     static int done = -1;
     int step = glutGet(GLUT_ELAPSED_TIME) * 60 / 1000;
     // The first call, or one after a long pause, takes a single step
-    if (done < 0 || step - done > 6) done = step - 1;
+    if (done < 0 || step - done > 30) done = step - 1;
     for (; done < step; done++) {
         onIdle();
     }
