@@ -102,16 +102,56 @@ export function resolvePending(fb: Framebuffer): void {
   // (RESOLVE[4v] is v), which a 32-bit comparison of the samples finds at once.
   const words = new Uint32Array(samples.buffer, samples.byteOffset, samples.length >> 2);
   const color = fb.color;
+  const colorWords = wordsOf(color);
   for (let k = 0; k < pending.count; k++) {
     const i = list[k];
     if (!flags[i]) continue;
     flags[i] = 0;
     const w = i * SAMPLES;
-    if (words[w] === words[w + 1] && words[w] === words[w + 2] && words[w] === words[w + 3]) {
-      color.set(samples.subarray(w * 4, w * 4 + 4), i * 4);
+    const first = words[w];
+    if (first === words[w + 1] && first === words[w + 2] && first === words[w + 3]) {
+      if (colorWords) colorWords[i] = first;
+      else color.set(samples.subarray(w * 4, w * 4 + 4), i * 4);
     } else resolvePixel(fb, i % fb.width, Math.floor(i / fb.width));
   }
   pending.count = 0;
+}
+
+/** The buffer as 32-bit words, a pixel each, or null when it doesn't start on a word. */
+function wordsOf(bytes: Uint8Array): Uint32Array | null {
+  return bytes.byteOffset % 4 === 0 ? new Uint32Array(bytes.buffer, bytes.byteOffset, bytes.length >> 2) : null;
+}
+
+const wordBytes = new Uint8Array(4);
+const wordOfBytes = new Uint32Array(wordBytes.buffer);
+
+/** The 32-bit word that holds the bytes r g b a in memory order, as the buffers' words do. */
+function word(r: number, g: number, b: number, a: number): number {
+  wordBytes[0] = r;
+  wordBytes[1] = g;
+  wordBytes[2] = b;
+  wordBytes[3] = a;
+  return wordOfBytes[0];
+}
+
+/**
+ * Sets pixels `xa` to `xb` of row `y` to the bytes `r g b a`, and every one of their samples, as
+ * storePixel does for each: one run of words.
+ */
+export function storeRun(fb: Framebuffer, y: number, xa: number, xb: number, r: number, g: number, b: number, a: number): void {
+  if (xb < xa) return;
+  const start = y * fb.width + xa;
+  const end = y * fb.width + xb + 1;
+  if (fb.pending) fb.pending.flags.fill(0, start, end);
+  const colorWords = wordsOf(fb.color);
+  if (!colorWords) {
+    for (let x = xa; x <= xb; x++) storePixel(fb, x, y, r, g, b, a);
+    return;
+  }
+  const value = word(r, g, b, a);
+  colorWords.fill(value, start, end);
+  const samples = fb.samples;
+  if (samples) new Uint32Array(samples.buffer, samples.byteOffset, samples.length >> 2).fill(value, start * SAMPLES, end * SAMPLES);
 }
 
 /** Sets pixel `x`, `y` to the bytes `r g b a`, and every one of its samples with it. */

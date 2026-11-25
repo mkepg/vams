@@ -768,6 +768,14 @@ export class GlutRuntime {
         if (!this.doubleBuffered && !this.published && this.window) this.present();
       }
       if (!this.running || !this.window) break;
+      // The page has taken the last frame since this one was held: draw it now, rather than spin
+      // until the program's next step brings a frame to draw. It is the newest frame the program ran.
+      if (this.unshown && this.pageTookLast()) {
+        this.showUnshown();
+        // Then as after any frame: the next is held until the page takes this one.
+        this.holding = !this.pageTookLast();
+        this.context.hold(this.holding);
+      }
       if (this.idle) this.idle();
       else this.sleepForWork();
     }

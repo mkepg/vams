@@ -294,6 +294,7 @@ export default function LabWorkspace({ compile = compileHere, download = downloa
             consoleRequest={consoleRequest}
             compilerRequest={compilerRequest}
             onFoldedChange={setLogFolded}
+            ran={status !== 'idle'}
           />
         </div>
         {!narrow && (

@@ -22,6 +22,7 @@ import {
   type WinVertex,
 } from '@/shared/lib/gl-raster';
 import type { RasterCall, RasterResult } from '../helpers/raster-worker';
+import { deferResolve, resolvePending, sampleStore, storePixel, storeRun, touchPixel } from '@/shared/lib/gl-raster/framebuffer';
 
 const WHITE: RGBA = [1, 1, 1, 1];
 const RED: RGBA = [1, 0, 0, 1];
@@ -384,5 +385,45 @@ describe('ALG-LAB-18: Non-finite vertices draw nothing, and sizes stop at the im
     // Width clamps to 2047: the parallelogram y 476.5..2523.5 takes the centres above its bottom edge
     // and on its top one, rows 477..2523, and columns 10..19.
     expect(r.covered).toEqual(block(10, 19, 477, 2523));
+  });
+});
+
+describe('ALG-LAB-41: A row run, and the deferred average, leave what pixel-by-pixel writes leave', () => {
+  /** A 7 × 3 framebuffer with samples of four different bytes in some pixels, and averages owed. */
+  function framebuffer(deferred: boolean): Framebuffer {
+    const fb = createFramebuffer(7, 3);
+    if (deferred) deferResolve(fb);
+    const samples = sampleStore(fb);
+    for (let i = 0; i < samples.length; i++) samples[i] = (i * 37) % 251;
+    for (let x = 0; x < 7; x++) for (let y = 0; y < 3; y++) touchPixel(fb, x, y);
+    return fb;
+  }
+
+  it.each([[true], [false]])('storeRun equals storePixel for each pixel of the run (deferred %s)', (deferred) => {
+    const byRun = framebuffer(deferred);
+    const byPixel = framebuffer(deferred);
+    storeRun(byRun, 1, 2, 5, 10, 20, 30, 40);
+    for (let x = 2; x <= 5; x++) storePixel(byPixel, x, 1, 10, 20, 30, 40);
+    resolvePending(byRun);
+    resolvePending(byPixel);
+    expect(byRun.color).toEqual(byPixel.color);
+    expect(byRun.samples).toEqual(byPixel.samples);
+    // An empty run writes nothing.
+    const before = byRun.color.slice();
+    storeRun(byRun, 0, 4, 3, 1, 2, 3, 4);
+    expect(byRun.color).toEqual(before);
+  });
+
+  it('averages a pixel of four equal samples to those bytes, and a mixed one by the Intel resolve', () => {
+    const fb = createFramebuffer(2, 1);
+    deferResolve(fb);
+    const samples = sampleStore(fb);
+    samples.set([9, 8, 7, 6, 9, 8, 7, 6, 9, 8, 7, 6, 9, 8, 7, 6], 0);
+    samples.set([0, 0, 0, 255, 255, 255, 255, 255, 0, 0, 0, 255, 255, 255, 255, 255], 16);
+    touchPixel(fb, 0, 0);
+    touchPixel(fb, 1, 0);
+    resolvePending(fb);
+    // (sum + 1) >> 2, except 127.5 rounds up: two of four at 255 give 128.
+    expect([...fb.color]).toEqual([9, 8, 7, 6, 128, 128, 128, 255]);
   });
 });

@@ -22,7 +22,15 @@ export interface LabLogProps {
   compilerRequest?: number;
   /** Told whether the log is folded, now and whenever that changes. */
   onFoldedChange?: (folded: boolean) => void;
+  /** Whether Run has been pressed this visit, so an empty tab can say the compile was clean or the program printed nothing. */
+  ran?: boolean;
 }
+
+/** What an empty tab says, before and after a Run. */
+export const EMPTY_TAB = {
+  compiler: { before: "The compiler's errors and warnings appear here when you press Run.", after: 'No errors or warnings.' },
+  console: { before: "Your program's output appears here while it runs.", after: "The program hasn't printed anything." },
+} as const;
 
 type Tab = 'compiler' | 'console';
 
@@ -51,6 +59,7 @@ export default function LabLog({
   consoleRequest,
   compilerRequest,
   onFoldedChange,
+  ran = false,
 }: LabLogProps) {
   // Unfolded in the first render, as the prerendered page is; the saved fold is read after hydration.
   const [folded, setFolded] = useState(false);
@@ -64,9 +73,11 @@ export default function LabLog({
     foldedChange.current = onFoldedChange;
   });
 
-  // Until the compiler or the program has something to say, the log is only its bar.
+  // Until the compiler or the program has something to say, the log is only its bar, but the
+  // student can still open it, to see that there is nothing there.
+  const [openedEmpty, setOpenedEmpty] = useState(false);
   const empty = diagnostics.length === 0 && !message && consoleLines.length === 0 && !input;
-  const shut = folded || empty;
+  const shut = folded || (empty && !openedEmpty);
 
   // Every fold is remembered once the saved one has been read: the student's own, and the unfold a request makes.
   useEffect(() => {
@@ -108,12 +119,22 @@ export default function LabLog({
     inputRef.current?.focus();
   }, [input, tab]);
 
-  const toggle = () => setFolded(!folded);
+  const open = () => {
+    setFolded(false);
+    setOpenedEmpty(true);
+  };
+  const toggle = () => {
+    if (shut) open();
+    else {
+      setFolded(true);
+      setOpenedEmpty(false);
+    }
+  };
 
   return (
     <section className="lab-log" data-folded={shut ? 'true' : 'false'} data-empty={empty ? 'true' : 'false'} aria-label="Log">
       <div className="lab-log__bar">
-        <button type="button" className="lab-log__fold" aria-expanded={!shut} aria-controls="lab-log-body" disabled={empty} onClick={toggle}>
+        <button type="button" className="lab-log__fold" aria-expanded={!shut} aria-controls="lab-log-body" onClick={toggle}>
           <svg className="lab-log__chevron" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
             <path d="M4.5 2.5 8 6l-3.5 3.5" />
           </svg>
@@ -131,8 +152,8 @@ export default function LabLog({
               className="lab-log__tab"
               onClick={() => {
                 setTab(t);
-                if (folded) {
-                  setFolded(false);
+                if (shut) {
+                  open();
                   writeFolded(false);
                 }
               }}
@@ -141,7 +162,7 @@ export default function LabLog({
             </button>
           ))}
         </div>
-        {empty ? <p className="lab-log__idle">The compiler's messages and your program's output appear here.</p> : null}
+        {empty && shut ? <p className="lab-log__idle">The compiler's messages and your program's output appear here.</p> : null}
       </div>
       {!shut && (
         <div id="lab-log-body" ref={bodyRef} className="lab-log__body" role="tabpanel" aria-labelledby={`lab-log-tab-${tab}`}>
@@ -152,6 +173,7 @@ export default function LabLog({
                   {message}
                 </p>
               ) : null}
+              {!message && diagnostics.length === 0 ? <p className="lab-log__empty">{ran ? EMPTY_TAB.compiler.after : EMPTY_TAB.compiler.before}</p> : null}
               <ul className="lab-log__list">
                 {diagnostics.map((d, i) => (
                   <li key={i} className={`lab-log__item lab-log__item--${d.severity}`}>
@@ -165,6 +187,7 @@ export default function LabLog({
             </>
           ) : (
             <>
+              {consoleLines.length === 0 && !input ? <p className="lab-log__empty">{ran ? EMPTY_TAB.console.after : EMPTY_TAB.console.before}</p> : null}
               <pre className="lab-log__console">
                 {consoleLines.map((l, i) => (
                   <span key={i} className={`lab-log__line lab-log__line--${l.stream}`}>

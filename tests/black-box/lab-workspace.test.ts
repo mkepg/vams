@@ -16,6 +16,7 @@ import { act } from 'preact/test-utils';
 import { EditorView } from '@codemirror/view';
 import { EDITOR_HINT, LabWorkspace, runChip } from '@/widgets/lab-workspace';
 import LabTopBar from '@/widgets/lab-workspace/ui/LabTopBar';
+import { EMPTY_TAB } from '@/widgets/lab-workspace/ui/LabLog';
 import { useLabStore } from '@/entities/lab-project';
 import { useLabStage } from '@/widgets/lab-workspace/model/stage-store';
 import { CLOSE_WAIT_MS, HIDDEN_READ_MS, runController, useLabRun, type WorkerLike } from '@/features/lab-run';
@@ -895,14 +896,35 @@ describe('BB-LAB-101: The top bar names the Lab, with no Experimental tag beside
 });
 
 describe('BB-LAB-108: The log is a slim bar until the compiler or the program has something to say', () => {
-  it('starts as its bar, with nothing to unfold, and says what will appear there', () => {
+  it('starts as its bar, and says what will appear there', () => {
     const host = mount();
     const log = host.querySelector('.lab-log')!;
     expect(log.getAttribute('data-folded')).toBe('true');
     expect(log.getAttribute('data-empty')).toBe('true');
-    expect((host.querySelector('.lab-log__fold') as HTMLButtonElement).disabled).toBe(true);
+    expect((host.querySelector('.lab-log__fold') as HTMLButtonElement).disabled).toBe(false);
     expect(host.querySelector('#lab-log-body')).toBeNull();
     expect(host.querySelector('.lab-log__idle')!.textContent).toBe("The compiler's messages and your program's output appear here.");
+  });
+
+  it('opens empty from Show log or a tab, and each tab says why it is empty', async () => {
+    const host = mount();
+    const log = host.querySelector('.lab-log')!;
+    await act(() => (host.querySelector('.lab-log__fold') as HTMLButtonElement).click());
+    expect(log.getAttribute('data-folded')).toBe('false');
+    expect(host.querySelector('.lab-log__empty')!.textContent).toBe(EMPTY_TAB.compiler.before);
+    await act(() => (host.querySelector('#lab-log-tab-console') as HTMLButtonElement).click());
+    expect(host.querySelector('.lab-log__empty')!.textContent).toBe(EMPTY_TAB.console.before);
+    await act(() => (host.querySelector('.lab-log__fold') as HTMLButtonElement).click());
+    expect(host.querySelector('#lab-log-body')).toBeNull();
+
+    // A program that compiles cleanly and prints nothing, as the gallery's jeepney: both tabs still open.
+    await run(host);
+    expect(log.getAttribute('data-folded')).toBe('true');
+    await act(() => (host.querySelector('#lab-log-tab-console') as HTMLButtonElement).click());
+    expect(log.getAttribute('data-folded')).toBe('false');
+    expect(host.querySelector('.lab-log__empty')!.textContent).toBe("The program hasn't printed anything.");
+    await act(() => (host.querySelector('#lab-log-tab-compiler') as HTMLButtonElement).click());
+    expect(host.querySelector('.lab-log__empty')!.textContent).toBe('No errors or warnings.');
   });
 
   it('opens for the compiler\'s errors, and the student can fold it again', async () => {
