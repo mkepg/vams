@@ -2,6 +2,7 @@ import { defineConfig, loadEnv, type Plugin } from 'vite'
 import preact from '@preact/preset-vite'
 import { fileURLToPath, URL } from 'node:url'
 import { DEFAULT_SITE_URL, prerenderRoutes, publishedRoutes } from './src/app/routes/route-meta'
+import { chunkCss, LAZY_ROUTE_PAGES, linkStylesheets, type CssChunk } from './src/app/routes/prerender-css'
 import { VitePWA } from 'vite-plugin-pwa'
 import { buildPwaOptions } from './src/app/pwa/pwa-options'
 import { buildRobots, buildSitemap } from './src/app/seo/sitemap'
@@ -55,6 +56,40 @@ function notFoundPage(): Plugin {
   }
 }
 
+/**
+ * A lazily loaded route's prerendered page links the CSS of the chunk it loads, so its markup
+ * paints styled instead of waiting for the chunk (src/app/routes/prerender-css.ts).
+ */
+function prerenderedRouteCss(): Plugin {
+  return {
+    name: 'vams-prerendered-route-css',
+    apply: 'build',
+    enforce: 'post',
+    generateBundle: {
+      // The prerender writes the pages during this hook, so link them afterwards.
+      order: 'post',
+      handler(_options, bundle) {
+        const chunks = new Map<string, CssChunk>()
+        for (const file of Object.values(bundle)) {
+          if (file.type !== 'chunk') continue
+          chunks.set(file.fileName, {
+            fileName: file.fileName,
+            facadeModuleId: file.facadeModuleId,
+            imports: file.imports,
+            importedCss: file.viteMetadata?.importedCss ?? [],
+          })
+        }
+        for (const [page, module] of Object.entries(LAZY_ROUTE_PAGES)) {
+          const html = Object.values(bundle).find((file) => file.fileName.replace(/\\/g, '/') === page)
+          const entry = [...chunks.values()].find((chunk) => chunk.facadeModuleId && module.test(chunk.facadeModuleId))
+          if (html?.type !== 'asset' || !entry) continue
+          html.source = linkStylesheets(String(html.source), chunkCss(entry, chunks))
+        }
+      },
+    },
+  }
+}
+
 export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), '')
   // A live build must load a published runtime: only the dev server answers /lab-runtime/dev/.
@@ -80,6 +115,7 @@ export default defineConfig(({ mode, command }) => {
       labDevServer(fileURLToPath(new URL('./lab/runtime/out', import.meta.url))),
       seoFiles(siteUrl, labOn),
       labOffDropsWorker(labOn),
+      prerenderedRouteCss(),
       notFoundPage(),
       VitePWA(buildPwaOptions()),
     ],

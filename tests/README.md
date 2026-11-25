@@ -138,9 +138,10 @@ tests/
 │   │                                        reported and a crash worded, and one
 │   │                                        frame a refresh however slow a frame
 │   │                                        is to draw)
-│   ├── lab-page.test.ts                  (BB-LAB-32 to 36, 59 and 65: the /lab
-│   │                                        route, its header link, isolation
-│   │                                        and the dev server)
+│   ├── lab-page.test.ts                  (BB-LAB-32 to 36, 59, 65 and 118: the
+│   │                                        /lab route, its header link,
+│   │                                        isolation, the dev server, and the
+│   │                                        prerendered page's CSS)
 │   ├── lab-editor.test.ts                (BB-LAB-37 to 42, 66 to 70, 93, 96 to
 │   │                                        98 and 102 to 105: the code editor,
 │   │                                        the compile client, the compiler's
@@ -247,7 +248,9 @@ tests/
 │   │                                        program on the course toolchain)
 │   ├── lab.spec.ts                       (VIS-LAB-01 to 04: /lab with the template
 │   │                                        running, at 1280 and 390 in both
-│   │                                        themes; LAB_RUNTIME_LOCAL=1)
+│   │                                        themes; LAB_RUNTIME_LOCAL=1. VIS-LAB-18:
+│   │                                        /lab paints styled from its first
+│   │                                        frame)
 │   ├── lab-drawing.spec.ts               (VIS-LAB-05: each Lab battery program,
 │   │                                        compiled and run in the Lab, against
 │   │                                        its FreeGLUT reference; LAB_RUNTIME_LOCAL=1)
@@ -381,7 +384,7 @@ The checks that run the real compiler need the runtime built in
 `lab/runtime/out/`, and skip without `LAB_RUNTIME_LOCAL=1`:
 
 ```bash
-LAB_RUNTIME_LOCAL=1 npm run test:visual -- lab.spec lab-drawing lab-compiler   # VIS-LAB-01 to 17
+LAB_RUNTIME_LOCAL=1 npm run test:visual -- lab.spec lab-drawing lab-compiler   # VIS-LAB-01 to 18
 ```
 
 The IDs the compile service's checks held (BB-LAB-05 to 07, WB-LAB-03 to 11,
