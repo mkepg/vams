@@ -51,7 +51,7 @@ It writes three files to `lab/runtime/out/`, which git leaves out:
 - `vams_main.mjs` and `vams_main.wasm`, the main module;
 - `lab-headers.json`, the headers pack.
 
-The pack holds the sysroot's `include` folder, without its graphics, audio and browser headers, and `lab/include`. Each file is keyed by its path under `/lab`, where the compiler's file tree mounts it.
+The pack holds the sysroot's `include` folder, without its graphics, audio and browser headers, and `lab/include`. Each file is keyed by its path under `/lab`, where the compiler's file tree mounts it. It also holds `symbols.txt`: every name a program's side module can find when it loads, which is the main module's exports and the functions of Emscripten's JavaScript library. wasm-ld reads it as `--allow-undefined-file`, so a program that uses a name it never defines stops at the link, as on a lab PC, instead of when it reaches the call.
 
 The main module is built with `-sDYNAMIC_EXECUTION=0`, so a program can't run JavaScript. Every path that would evaluate it aborts instead: `emscripten_run_script`, and the `EM_ASM` and `EM_JS` code a side module carries. VIS-LAB-08 checks this.
 
@@ -86,7 +86,7 @@ It then uploads each file with `wrangler kv key put --remote --metadata '{"encod
 
 The first published version measured 14.6 MB for `llvm.core.wasm`, 2.5 MB for `llvm-resources.tar` and 1.2 MB for the headers: about 18 MB in all.
 
-A build with `LAB_LIVE = true` refuses the version `dev`, so the version must be published before the Lab goes live. The first version, `4.0.10-76e5dc0b`, was published on 9 Nov 2026, and the Lab went live with it. The second, `4.0.10-bfcc5346`, was published on 25 Nov 2026: the main module gives a program a 2 MB stack and 2 GB of memory, and names an exception nothing caught ([The Lab in a class](specs/2026-11-25-lab-class-design.md)).
+A build with `LAB_LIVE = true` refuses the version `dev`, so the version must be published before the Lab goes live. The first version, `4.0.10-76e5dc0b`, was published on 9 Nov 2026, and the Lab went live with it. The second, `4.0.10-bfcc5346`, was published on 25 Nov 2026: the main module gives a program a 2 MB stack and 2 GB of memory, and names an exception nothing caught ([The Lab in a class](specs/2026-11-25-lab-class-design.md)). The third, `4.0.10-e8461e5b`, published the same day, adds `symbols.txt` to the pack, and `bits/stdc++.h`, `glew.h`, `GL/glext.h` and FreeGLUT's special keys to the headers ([Clear when refused](specs/2026-11-25-lab-refusals-design.md)).
 
 After the next deployment, check the live files:
 
@@ -156,6 +156,14 @@ A program has what a lab PC's program has: MinGW's 2 MB stack (`-sSTACK_SIZE` in
 - **The named differences:** a write through a null pointer doesn't crash, because a program's memory starts at address 0 in the browser. The stack sits after the runtime's data, so a program that overflows its 2 MB writes over that data before it stops; it stops either way, at the depth where a lab PC's would. The Lab compiles with `-O1` where `x.bat` doesn't optimise, so undefined behaviour can end differently: a function that ends without returning its value stops on "never reached", and `1 / x` becomes a comparison that never divides.
 
 A program that never ends is ended by the window's ✕, or Stop when it has no window. The code is never part of a run: a crash or a stop leaves the editor and its browser save as they were.
+
+## When the Lab refuses a program
+
+Each refusal names the line and says what to write instead ([Clear when refused](specs/2026-11-25-lab-refusals-design.md)):
+
+- **A GL, GLU or GLUT name the Lab leaves out:** `<name> isn't part of VAMS Lab's OpenGL.`, then what to use. The names `vams_rejected.h` declares unavailable carry their advice in the header. Every other name of a lab PC's headers has a rule in `src/features/lab-compile/model/refusals.ts`, and BB-LAB-117 holds that none is missing: when a FreeGLUT or MinGW update adds names, run `scripts/lab/reference-names.mjs` and give the new ones rules. A mistyped name keeps clang's "did you mean".
+- **A name used and never defined, or no `main`:** the link stops, and the Lab says it in plain words on the line that uses the name (`linkDiagnostics` in `diagnostics.ts`).
+- **An include or a directive:** the include check (`includes.ts`) says which header to write, or that the Lab compiles one file, or lists the headers there are. It names the directive a mistyped one meant, and blanks the pragmas g++ reads past.
 
 ## In a class
 
