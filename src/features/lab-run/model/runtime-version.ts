@@ -1,2 +1,2 @@
 /** The shared runtime the Lab loads from /lab-runtime/<version>/. Written by scripts/lab/publish-runtime.mjs. */
-export const runtimeVersion = '4.0.10-bfcc5346';
+export const runtimeVersion = '4.0.10-e8461e5b';
