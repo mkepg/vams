@@ -6,7 +6,8 @@
  */
 export { GL, GLContext, MAX_DRAW_ELEMENTS, MAX_MODELVIEW_STACK_DEPTH, MAX_PROJECTION_STACK_DEPTH, MAX_VIEWPORT_SIZE, type GLContextOptions, type Pointer } from './context';
 export { MAX_LIST_NESTING } from './lists';
-export { clearFramebuffer, createFramebuffer, type Framebuffer } from './framebuffer';
+export { balanceRows, clearFramebuffer, createFramebuffer, createSharedFramebuffer, deferResolve, splitRows, type Band, type Framebuffer } from './framebuffer';
+export { drawBand, runCommand, type DrawCommand, type RasterPool } from './commands';
 export type { Box, Scissor } from './clip';
 export {
   defaultRasterState,

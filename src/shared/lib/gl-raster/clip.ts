@@ -17,9 +17,12 @@ export interface Box {
   y1: number;
 }
 
-/** The pixels a fragment may land on: the window, cut down to the scissor when it is on. */
-export function fragmentBox(fb: Framebuffer, scissor: Scissor | null): Box {
-  const box = { x0: 0, y0: 0, x1: fb.width, y1: fb.height };
+/**
+ * The pixels a fragment may land on: the window, cut down to the scissor when it is on, and to the
+ * framebuffer's band of rows when it has one.
+ */
+export function fragmentBox(fb: Pick<Framebuffer, 'width' | 'height' | 'band'>, scissor: Scissor | null): Box {
+  const box = { x0: 0, y0: fb.band ? Math.max(0, fb.band.y0) : 0, x1: fb.width, y1: fb.band ? Math.min(fb.height, fb.band.y1) : fb.height };
   if (!scissor?.enabled) return box;
   return {
     x0: Math.max(box.x0, scissor.x),

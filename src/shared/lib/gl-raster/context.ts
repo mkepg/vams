@@ -12,10 +12,11 @@ import {
   type ArraySource,
   type BufferObject,
 } from './arrays';
-import { clearFramebuffer, createFramebuffer, deferResolve, resolvePending, type Framebuffer } from './framebuffer';
-import { defaultRasterState, type BlendFactor, type EnvMode, type Filter, type RasterState, type RGBA, type TextureUnit, type Wrap } from './fragment';
-import { drawPrimitive, GL_MODE, insideVolume, toWindow, type ClipVertex, type Target, type Viewport } from './assembly';
-import { drawBitmap, initialRasterPos } from './bitmap';
+import { runCommand, type DrawCommand, type RasterPool } from './commands';
+import { createFramebuffer, createSharedFramebuffer, deferResolve, resolvePending, type Band, type Framebuffer } from './framebuffer';
+import { defaultRasterState, type BlendFactor, type EnvMode, type Filter, type RasterState, type RGBA, type Wrap } from './fragment';
+import { GL_MODE, insideVolume, toWindow, type ClipVertex, type Viewport } from './assembly';
+import { initialRasterPos } from './bitmap';
 import { fragmentBox } from './clip';
 import { GL_LIST, DisplayLists } from './lists';
 import { MAX_LINE_WIDTH } from './lines';
@@ -217,7 +218,17 @@ export interface GLContextOptions {
   buffer?: SharedArrayBuffer;
   /** The program's memory, which a numeric pointer addresses when no buffer object is bound. */
   memory?: () => Uint8Array;
+  /**
+   * Threads to draw with: drawing is queued, and drawn a band of rows a thread when the
+   * framebuffer is next read. The framebuffer and texture images are then in shared memory.
+   */
+  pool?: RasterPool;
+  /** The rows to draw: the context draws only these, and the rest of the window stays 0. */
+  band?: Band;
 }
+
+/** The most commands queued for a pool before they are drawn, so a frame of many draws stays in bounds. */
+const MAX_QUEUED = 4096;
 
 /**
  * OpenGL 1.5 for a 2D program, drawn in software. Each method is one GL or GLU call, named
@@ -231,7 +242,13 @@ export class GLContext {
   /** Whether drawing is recorded in `held` rather than done (hold). */
   private holding = false;
   /** Drawing recorded while holding, oldest first, each with the state it was drawn in. */
-  private held: (() => void)[] = [];
+  private held: DrawCommand[] = [];
+  /** The threads drawing is shared between, or null to draw here, as each command comes. */
+  private readonly pool: RasterPool | null;
+  /** Drawing done but not yet drawn, for the pool: it is drawn when the framebuffer is next read. */
+  private queued: DrawCommand[] = [];
+  /** The rows this context draws (GLContextOptions.band), or null for all of them. */
+  private band: Band | null;
   /** The error flag (2.5): the first error since glGetError last read it, or GL_NO_ERROR. */
   error: number = GL.NO_ERROR;
 
@@ -259,6 +276,8 @@ export class GLContext {
   constructor(width: number, height: number, options: GLContextOptions = {}) {
     this.raster = defaultRasterState();
     this.raster.multisample = !!options.multisample;
+    this.pool = options.pool ?? null;
+    this.band = options.band ?? null;
     this.frame = this.newFramebuffer(width, height, options.buffer);
     this.memory = options.memory;
     this.raster.scissor = { enabled: false, x: 0, y: 0, width, height };
@@ -268,6 +287,7 @@ export class GLContext {
   /** The framebuffer, every pixel's colour up to date, with any drawing held back done. */
   get fb(): Framebuffer {
     this.replay();
+    this.drain();
     resolvePending(this.frame);
     return this.frame;
   }
@@ -289,37 +309,80 @@ export class GLContext {
    * and any read of `fb`, does the held drawing first, in order. The pixels are therefore always
    * those drawing everything would have given.
    */
+  /**
+   * Draws only the rows of `band` from now on, or every row (null), as GLContextOptions.band does.
+   * Drawing done before is drawn first, into the rows it was done for; rows outside the new band
+   * keep what they hold.
+   */
+  drawRows(band: Band | null): void {
+    this.replay();
+    this.drain();
+    this.band = band;
+    this.frame.band = band;
+  }
+
   hold(on: boolean): void {
     this.holding = on;
   }
 
-  /** Does `run` now, or records it while holding; `whole`: it clears the whole window. */
-  private draw(run: () => void, whole = false): void {
-    if (this.held.length) {
-      if (whole) this.held = [];
-      else if (!this.holding) this.replay();
+  /**
+   * Whether commands are kept to draw later, held or queued for the pool, so each takes a copy of
+   * the state it was issued in.
+   */
+  private get deferring(): boolean {
+    return this.holding || this.pool !== null;
+  }
+
+  /**
+   * Does `command` now, or records it while holding; `whole`: it clears the whole window, which
+   * covers every pixel the drawing before it touched, so that drawing is dropped.
+   */
+  private draw(command: DrawCommand, whole = false): void {
+    if (whole) {
+      this.held = [];
+      this.queued = [];
+    } else if (this.held.length && !this.holding) this.replay();
+    if (this.holding) this.held.push(command);
+    else this.run(command);
+  }
+
+  /** Draws `command` here, or queues it for the pool. */
+  private run(command: DrawCommand): void {
+    if (!this.pool) {
+      runCommand(this.frame, command);
+      return;
     }
-    if (this.holding) this.held.push(run);
-    else run();
+    this.queued.push(command);
+    if (this.queued.length >= MAX_QUEUED) this.drain();
   }
 
   private replay(): void {
     if (!this.held.length) return;
     const held = this.held;
     this.held = [];
-    for (const run of held) run();
+    for (const command of held) this.run(command);
+  }
+
+  /** Draws what is queued for the pool, on its threads. */
+  private drain(): void {
+    if (!this.pool || !this.queued.length) return;
+    const queued = this.queued;
+    this.queued = [];
+    this.pool.draw(this.frame, queued);
   }
 
   private newFramebuffer(width: number, height: number, buffer?: SharedArrayBuffer): Framebuffer {
-    const fb = createFramebuffer(width, height, buffer);
+    const fb = this.pool && !buffer ? createSharedFramebuffer(width, height, this.raster.multisample) : createFramebuffer(width, height, buffer);
     if (this.raster.multisample) deferResolve(fb);
+    fb.band = this.band;
     return fb;
   }
 
   /** A new window size: a fresh framebuffer, cleared to 0. The viewport stays as the program set it. */
   resize(width: number, height: number, buffer?: SharedArrayBuffer): void {
-    // The old framebuffer goes, and what was held for it with it.
+    // The old framebuffer goes, and what was held or queued for it with it.
     this.held = [];
+    this.queued = [];
     this.frame = this.newFramebuffer(width, height, buffer);
   }
 
@@ -375,26 +438,22 @@ export class GLContext {
 
   // Vertices and their attributes (2.6, 2.7).
 
-  /** Where a primitive draws, and with what; a copy of the state while holding, as later commands change it. */
-  private target(): Target {
-    const state = this.holding ? rasterSnapshot(this.raster) : this.raster;
-    return { fb: this.frame, state, viewport: this.vp, texture: this.textureView() };
-  }
-
-  /** The bound texture for a level of detail, when GL_TEXTURE_2D is on and the texture is complete. */
-  private textureView(): ((lambda: number) => TextureUnit) | null {
+  /**
+   * The bound texture, when GL_TEXTURE_2D is on and the texture is complete: a copy while
+   * deferring, as later commands change it.
+   */
+  private boundView(): TextureObject | null {
     if (!this.texture2D) return null;
     const bound = this.textures.get(this.boundTexture);
     if (!bound || !isComplete(bound)) return null;
-    // Images are replaced, never written into, so a copy of the object keeps what held drawing saw.
-    const t = this.holding ? { ...bound, levels: bound.levels.slice() } : bound;
-    return (lambda) => textureFor(t, lambda);
+    // Images are replaced, never written into, so a copy of the object keeps what later drawing sees.
+    return this.deferring ? { ...bound, levels: bound.levels.slice(), border: [...bound.border] } : bound;
   }
 
-  /** drawPrimitive through draw(). */
+  /** A primitive through draw(), with a copy of the state while deferring, as later commands change it. */
   private drawNow(mode: number, vertices: ClipVertex[]): void {
-    const t = this.target();
-    this.draw(() => drawPrimitive(t, mode, vertices));
+    const state = this.deferring ? rasterSnapshot(this.raster) : this.raster;
+    this.draw({ kind: 'primitive', mode, vertices, state, viewport: this.vp, texture: this.boundView() });
   }
 
   /** Object coordinates to clip coordinates: the model-view matrix, then the projection (2.11). */
@@ -571,13 +630,12 @@ export class GLContext {
     const copy = bits ? bits.slice() : null;
     this.compiled(() => {
       if (width < 0 || height < 0) return this.fail(GL.INVALID_VALUE);
-      const view = this.textureView();
-      const live = view ? { ...this.raster, texture: view(-Infinity) } : this.raster;
-      const state = this.holding ? rasterSnapshot(live) : live;
-      // Held, the bitmap draws from a copy of the raster position, and the position moves now.
-      const pos = this.holding ? { ...this.pos } : this.pos;
-      const fb = this.frame;
-      this.draw(() => drawBitmap(fb, state, pos, width, height, xorig, yorig, xmove, ymove, copy));
+      const view = this.boundView();
+      const live = view ? { ...this.raster, texture: textureFor(view, -Infinity) } : this.raster;
+      const state = this.deferring ? rasterSnapshot(live) : live;
+      // Deferred, the bitmap draws from a copy of the raster position, and the position moves now.
+      const pos = this.deferring ? { ...this.pos } : this.pos;
+      this.draw({ kind: 'bitmap', state, pos, width, height, xorig, yorig, xmove, ymove, bits: copy });
       if (pos !== this.pos && this.pos.valid) {
         // In 32-bit floats, as drawBitmap moves it.
         this.pos.x = Math.fround(this.pos.x + xmove);
@@ -702,7 +760,7 @@ export class GLContext {
         const scissor = this.raster.scissor && { ...this.raster.scissor };
         const box = fragmentBox(fb, scissor);
         const whole = box.x0 <= 0 && box.y0 <= 0 && box.x1 >= fb.width && box.y1 >= fb.height;
-        this.draw(() => clearFramebuffer(fb, value, scissor), whole);
+        this.draw({ kind: 'clear', value, scissor }, whole);
       }
     });
   }
@@ -1042,6 +1100,8 @@ export class GLContext {
       const bytes = typeof pixels === 'number' ? (this.memory?.().subarray(pixels) ?? null) : pixels;
       const size = typeSize(type);
       image = unpackImage(width, height, base, format, bytes, size, (view, at) => readNormalised(view, at, type), this.unpackAlignment);
+      // Drawn on the pool's threads, the image is read from shared memory.
+      if (this.pool) image.data = this.pool.share(image.data);
     }
     this.compiled(() => {
       if (error) return this.fail(error);
