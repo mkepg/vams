@@ -7,11 +7,13 @@
  *  - Every common 2D lab call and Windows extra named by the spec is declared
  *  - Appendix C's symbols, GLUT's shapes and the projection calls are rejected, never allowed
  *  - The rejection message and every replacement text keep to the Language Discipline
+ *  - Every name a lab PC's headers declare and the Lab's leave out has advice on what to use
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { generatorNames } from '../helpers/generator-names';
+import { FREEGLUT_EXT, LAB_FORMS, refusalAdvice, windowsAdvice } from '@/features/lab-compile/model/refusals';
 
 const INCLUDE = join(process.cwd(), 'lab/include');
 
@@ -108,8 +110,8 @@ describe('BB-LAB-01: Every name the generator emits is declared in the bundled h
 
   it('holds exactly the bundled header names', () => {
     expect(h.files.sort()).toEqual([
-      'GL/freeglut.h', 'GL/freeglut_ext.h', 'GL/freeglut_std.h', 'GL/gl.h', 'GL/glew.h', 'GL/glu.h', 'GL/glut.h',
-      'conio.h', 'stb_image.h', 'vams_rejected.h', 'windows.h',
+      'GL/freeglut.h', 'GL/freeglut_ext.h', 'GL/freeglut_std.h', 'GL/gl.h', 'GL/glew.h', 'GL/glext.h', 'GL/glu.h', 'GL/glut.h',
+      'bits/stdc++.h', 'conio.h', 'glew.h', 'stb_image.h', 'vams_rejected.h', 'windows.h',
     ]);
   });
 
@@ -185,5 +187,56 @@ describe('BB-LAB-04: The rejection message keeps to the Language Discipline', ()
 
   it('names something to use in every replacement', () => {
     expect(h.rejected.filter((r) => !/\bgl\w+/.test(r.use))).toEqual([]);
+  });
+});
+
+describe('BB-LAB-117: Every name a lab PC declares and the Lab leaves out is refused with what to use', () => {
+  const h = readHeaders();
+  const reference = readFileSync(join(process.cwd(), 'tests/fixtures/lab/reference-names.txt'), 'utf8')
+    .split(/\r?\n/)
+    .filter((l) => l && !l.startsWith('#'));
+  const rejected = new Set(h.rejected.map((r) => r.name));
+  const left = reference.filter((n) => !declared(h, n) && !rejected.has(n));
+
+  it('reads the reference names, and finds the Lab leaves hundreds out', () => {
+    expect(reference.length).toBeGreaterThan(1400);
+    expect(left.length).toBeGreaterThan(500);
+  });
+
+  it('gives each of them advice', () => {
+    expect(left.filter((n) => refusalAdvice(n) === null)).toEqual([]);
+  });
+
+  it('writes every piece of advice as a sentence in British English, within the Language Discipline', () => {
+    const advice = new Set([...left.map((n) => refusalAdvice(n)!), ...['MessageBox', 'GetAsyncKeyState', 'GetTickCount', 'PlaySound', 'GetSystemMetrics', 'SetConsoleTextAttribute', 'ZeroMemory', 'GetCursorPos', 'CreateThread', 'ExitProcess'].map((n) => windowsAdvice(n)!)]);
+    for (const a of advice) {
+      expect(a, a).toMatch(/^[A-Z].*[.)]$/);
+      expect(a, a).not.toMatch(BANNED);
+      expect(a, a).not.toMatch(/\bcolor\b|—/i);
+    }
+  });
+
+  it('names forms the Lab has, for a call in a form it lacks', () => {
+    for (const name of Object.values(LAB_FORMS).flat()) expect(declared(h, name), name).toBe(true);
+    expect(refusalAdvice('glVertex2iv')).toBe('Use glVertex2i(v[0], v[1]).');
+    expect(refusalAdvice('glColor3dv')).toBe('Use glColor3d(v[0], v[1], v[2]).');
+    expect(refusalAdvice('glColor3i')).toBe('Use glColor3f.');
+    expect(refusalAdvice('glVertex4f')).toBe('Use glVertex3f.');
+    expect(refusalAdvice('glTexCoord1f')).toBe('Use glTexCoord2f.');
+    expect(refusalAdvice('glRectfv')).toBe('Use glRectf(v1[0], v1[1], v2[0], v2[1]).');
+  });
+
+  it('declares the special keys FreeGLUT gives glutSpecialFunc, which the Lab sends', () => {
+    for (const key of ['GLUT_KEY_SHIFT_L', 'GLUT_KEY_SHIFT_R', 'GLUT_KEY_CTRL_L', 'GLUT_KEY_CTRL_R', 'GLUT_KEY_ALT_L', 'GLUT_KEY_ALT_R', 'GLUT_KEY_NUM_LOCK', 'GLUT_KEY_BEGIN', 'GLUT_KEY_DELETE']) {
+      expect(h.constants.has(key), key).toBe(true);
+    }
+  });
+
+  it('knows every name freeglut_ext.h declares, to say <GL/freeglut.h> brings it', () => {
+    const text = stripComments(readFileSync(join(INCLUDE, 'GL/freeglut_ext.h'), 'utf8'));
+    const names = [...text.matchAll(/^\s*#\s*define\s+(GLUT_\w+)[ \t]+\S/gm), ...text.matchAll(/\b(glut[A-Z]\w*)\s*\(/g)].map((m) => m[1]);
+    expect(names.length).toBeGreaterThan(15);
+    expect(names.filter((n) => !FREEGLUT_EXT.test(n))).toEqual([]);
+    expect(['glutInit', 'GLUT_KEY_F1', 'glutSwapBuffers'].filter((n) => FREEGLUT_EXT.test(n))).toEqual([]);
   });
 });

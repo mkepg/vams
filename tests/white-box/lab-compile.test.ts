@@ -9,18 +9,20 @@
  *  - The flags match lab/runtime/build.sh word for word
  *  - The strip removes .debug*, producers and name, and nothing else
  *  - A compile checks the source, runs clang++ then wasm-ld, and caps the compiler's messages
+ *  - A name used and never defined, or a missing main, stops the link in plain words
  */
 import { describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { rewriteDiagnostics, scrubPaths, type Diagnostic } from '@/features/lab-compile/model/diagnostics';
+import { linkDiagnostics, rewriteDiagnostics, scrubPaths, type Diagnostic } from '@/features/lab-compile/model/diagnostics';
 import { LAB_INCLUDE, LAB_SYSROOT, SIDE_CC_FLAGS, SIDE_LD_FLAGS, STRIP_SECTIONS } from '@/features/lab-compile/model/flags';
-import { stripSections } from '@/features/lab-compile/model/strip';
+import { exportNames, stripSections } from '@/features/lab-compile/model/strip';
 import {
   compileWith,
   COMPILE_STOPPED,
   LINK_STOPPED,
   MESSAGES_CAPPED,
+  NO_MAIN,
   OUT_CAP_BYTES,
   SOURCE_TOO_LARGE,
   type CompileTools,
@@ -51,18 +53,39 @@ describe('WB-LAB-01: A rejected or undeclared GL name gives the VAMS message on 
   });
 
   it.each([
-    ['glLightfv', "use of undeclared identifier 'glLightfv'"],
-    ['GL_DEPTH_TEST', "use of undeclared identifier 'GL_DEPTH_TEST'"],
-    ['GL_LIGHTING', "use of undeclared identifier 'GL_LIGHTING'"],
-    ['gluSphere', "use of undeclared identifier 'gluSphere'"],
-    ['glutStrokeCharacter', "use of undeclared identifier 'glutStrokeCharacter'"],
-    ['GLUT_STROKE_ROMAN', "use of undeclared identifier 'GLUT_STROKE_ROMAN'"],
-    ['glewIsSupported', "use of undeclared identifier 'glewIsSupported'"],
-    ['GLU_FILL', "use of undeclared identifier 'GLU_FILL'"],
-    ['GLUquadric', "unknown type name 'GLUquadric'"],
-  ])('turns an undeclared %s into the VAMS message', (name, clang) => {
+    ['glLightfv', "use of undeclared identifier 'glLightfv'", ' Use glColor3f or glColor4f.'],
+    ['GL_DEPTH_TEST', "use of undeclared identifier 'GL_DEPTH_TEST'", ' Leave it out: each shape is drawn over the ones drawn before it.'],
+    ['GL_LIGHTING', "use of undeclared identifier 'GL_LIGHTING'", ' Use glColor3f or glColor4f.'],
+    ['gluSphere', "use of undeclared identifier 'gluSphere'", ' Draw the shape with glBegin(GL_TRIANGLE_FAN), using cosf and sinf for its points.'],
+    ['glutStrokeCharacter', "use of undeclared identifier 'glutStrokeCharacter'", ' Use glutBitmapString or glutBitmapCharacter with a bitmap font, such as GLUT_BITMAP_9_BY_15.'],
+    ['GLUT_STROKE_ROMAN', "use of undeclared identifier 'GLUT_STROKE_ROMAN'", ' Use glutBitmapString or glutBitmapCharacter with a bitmap font, such as GLUT_BITMAP_9_BY_15.'],
+    ['glewIsSupported', "use of undeclared identifier 'glewIsSupported'", ''],
+    ['GLU_FILL', "use of undeclared identifier 'GLU_FILL'", ' Draw the shape with glBegin(GL_TRIANGLE_FAN), using cosf and sinf for its points.'],
+    ['GLUquadric', "unknown type name 'GLUquadric'", ' Draw the shape with glBegin(GL_TRIANGLE_FAN), using cosf and sinf for its points.'],
+    ['glVertex2iv', "use of undeclared identifier 'glVertex2iv'; did you mean 'glVertex2fv'?", ' Use glVertex2i(v[0], v[1]).'],
+    ['glGenBuffersARB', "use of undeclared identifier 'glGenBuffersARB'; did you mean 'glGenBuffers'?", ' Use glGenBuffers.'],
+  ])('turns an undeclared %s into the VAMS message, with what to use', (name, clang, advice) => {
     const [d] = rewriteDiagnostics(`main.cpp:5:14: error: ${clang}\n`);
-    expect(d).toEqual({ file: 'main.cpp', line: 5, col: 14, severity: 'error', message: `${name} isn't part of VAMS Lab's OpenGL.` });
+    expect(d).toEqual({ file: 'main.cpp', line: 5, col: 14, severity: 'error', message: `${name} isn't part of VAMS Lab's OpenGL.${advice}` });
+  });
+
+  it("keeps clang's suggestion for a mistyped GL name, and says what to use for a Windows call", () => {
+    const [typo] = rewriteDiagnostics("main.cpp:4:3: error: use of undeclared identifier 'glVertex2ff'; did you mean 'glVertex2f'?\n");
+    expect(typo.message).toBe("use of undeclared identifier 'glVertex2ff'; did you mean 'glVertex2f'?");
+    const [box] = rewriteDiagnostics("main.cpp:3:3: error: use of undeclared identifier 'MessageBox'\n");
+    expect(box.message).toBe("MessageBox isn't part of VAMS Lab's windows.h. Print the message with printf: it shows in the Console.");
+    const [mine] = rewriteDiagnostics("main.cpp:3:3: error: use of undeclared identifier 'DrawHouse'\n");
+    expect(mine.message).toBe("use of undeclared identifier 'DrawHouse'");
+    const [shift] = rewriteDiagnostics("main.cpp:4:10: error: use of undeclared identifier 'GLUT_KEY_SHIFT_L'\n");
+    expect(shift.message).toBe('GLUT_KEY_SHIFT_L is in <GL/freeglut.h>, which <GL/glut.h> leaves out. Write #include <GL/freeglut.h>.');
+  });
+
+  it('keeps only the VAMS message when clang reads on with its guess at an undeclared GL name', () => {
+    const out = rewriteDiagnostics(
+      "main.cpp:5:3: error: use of undeclared identifier 'glVertex2iv'; did you mean 'glVertex2fv'?\n" +
+        "main.cpp:5:15: error: cannot initialize a parameter of type 'const GLfloat *' (aka 'const float *') with an lvalue of type 'int[2]'\n",
+    );
+    expect(out.map((d) => d.message)).toEqual(["glVertex2iv isn't part of VAMS Lab's OpenGL. Use glVertex2i(v[0], v[1])."]);
   });
 
   it('leaves other diagnostics as clang wrote them', () => {
@@ -243,7 +266,9 @@ describe('WB-LAB-23: The strip removes the sections llvm-objcopy removed, and ke
   });
 });
 
-const WASM = module(custom('dylink.0'), custom('name'));
+/** An export section naming main, as a program's module has. */
+const EXPORTS_MAIN: [number, Uint8Array] = [7, new Uint8Array([1, 4, 0x6d, 0x61, 0x69, 0x6e, 0, 0])];
+const WASM = module(custom('dylink.0'), EXPORTS_MAIN, custom('name'));
 const tool = (out: FileTree | Error, stderr = '') =>
   vi.fn<CompileTools['clang']>(async (_args, _files, say) => {
     if (stderr) say(stderr);
@@ -259,7 +284,7 @@ describe('WB-LAB-24: One compile checks the source, runs clang++ then wasm-ld, a
     const result = await compileWith({ clang, ld }, '#include <Windows.h>\nint main() { int x; }', headers);
     expect(result.kind).toBe('ok');
     if (result.kind !== 'ok') return;
-    expect(new Uint8Array(result.module)).toEqual(module(custom('dylink.0')));
+    expect(new Uint8Array(result.module)).toEqual(module(custom('dylink.0'), EXPORTS_MAIN));
     expect(result.diagnostics).toMatchObject([{ line: 2, col: 18, severity: 'warning' }]);
     const [args, files] = clang.mock.calls[0];
     expect(args.slice(0, 2)).toEqual(['clang++', '--target=wasm32-unknown-emscripten']);
@@ -305,5 +330,63 @@ describe('WB-LAB-24: One compile checks the source, runs clang++ then wasm-ld, a
     const refused = await compileWith({ clang, ld: tool({}) }, '#include "/etc/passwd"', headers);
     expect(refused.kind).toBe('errors');
     expect(clang).not.toHaveBeenCalled();
+  });
+});
+
+describe('WB-LAB-26: A name used and never defined stops the link, in plain words, on the line that uses it', () => {
+  const SOURCE = [
+    '#include <GL/glut.h>', // 1
+    'void helper();', // 2
+    'extern int counter;', // 3
+    'struct A { void f(); virtual void g(); };', // 4
+    'struct Shape { virtual void draw(); };', // 5
+    'int main() {', // 6
+    '  helper();', // 7
+    '  A a;', // 8
+    '  a.f();', // 9
+    '  return counter;', // 10
+    '}', // 11
+  ].join('\n');
+
+  it.each([
+    ['helper()', 7, 3, 'helper() is declared but never defined. Write its body, or check that its name and parameters match the function you wrote.'],
+    ['A::f()', 9, 5, 'A::f() is declared but never defined. Write its body, or check that its name and parameters match the function you wrote.'],
+    ['counter', 10, 10, 'counter is declared but never defined. Define it once, outside any class and without extern.'],
+    ['vtable for Shape', 5, 1, "Shape declares a virtual function it never defines. Write the body of each of Shape's virtual functions."],
+  ])('says %s is never defined', (name, line, col, message) => {
+    const out = linkDiagnostics(`wasm-ld: error: main.o: undefined symbol: ${name}\n`, SOURCE);
+    expect(out).toEqual([{ file: 'main.cpp', line, col, severity: 'error', message }]);
+  });
+
+  it('gives wasm-ld the names the main module offers, from the pack', async () => {
+    const ld = tool({ 'main.wasm': WASM });
+    const clang = tool({ 'main.o': new Uint8Array([9]) });
+    const result = await compileWith({ clang, ld }, 'int main() {}', { ...headers, 'symbols.txt': 'main\nputs\n' });
+    expect(result.kind).toBe('ok');
+    const [args, files] = ld.mock.calls[0];
+    expect(args).toContain('--unresolved-symbols=report-all');
+    expect(args).toContain('--allow-undefined-file=/lab/symbols.txt');
+    expect(files).toEqual({ 'main.o': new Uint8Array([9]), lab: { 'symbols.txt': 'main\nputs\n' } });
+  });
+
+  it("puts an undefined symbol on its use when wasm-ld fails", async () => {
+    const ld = tool(new Error('exit 1'), 'wasm-ld: error: main.o: undefined symbol: helper()\n');
+    const clang = tool({ 'main.o': new Uint8Array([9]) });
+    const result = await compileWith({ clang, ld }, SOURCE, headers);
+    expect(result).toEqual({ kind: 'errors', diagnostics: [expect.objectContaining({ line: 7, col: 3, message: expect.stringMatching(/^helper\(\) is declared but never defined/) })] });
+  });
+});
+
+describe('WB-LAB-27: A program without main stops at the link, as on a lab PC', () => {
+  it('says to add main when the module exports none', async () => {
+    const ld = tool({ 'main.wasm': module(custom('dylink.0')) });
+    const result = await compileWith({ clang: tool({ 'main.o': new Uint8Array([9]) }), ld }, 'void f() {}', headers);
+    expect(result).toEqual({ kind: 'errors', diagnostics: [expect.objectContaining({ line: 1, col: 1, message: NO_MAIN })] });
+    expect(NO_MAIN).toBe('The program has no main function. Add int main(), where the program starts.');
+  });
+
+  it('reads the export names of a module', () => {
+    expect(exportNames(WASM)).toEqual(['main']);
+    expect(exportNames(module(custom('dylink.0')))).toEqual([]);
   });
 });

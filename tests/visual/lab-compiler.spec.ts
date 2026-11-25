@@ -23,6 +23,9 @@
  *  - VIS-LAB-16: each case of the crash battery prints what a lab PC prints and ends as it ends,
  *    a crash in plain words; a 1.5 MB local array and a 2 GB allocation behave as there; the
  *    code survives every case
+ *  - VIS-LAB-17: a name never defined, a missing main, a GL or Windows name the Lab leaves out, a
+ *    mistyped directive and a header the Lab lacks each say on their line what to write; the
+ *    headers and spellings a lab PC accepts compile and run
  */
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -424,5 +427,48 @@ test.describe('VIS-LAB: the compiler in the page', () => {
     await page.reload();
     await page.waitForSelector('.lab-top-bar__run');
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('vams-lab') ?? '{}').state?.source)).toBe(source);
+  });
+
+  test('VIS-LAB-17: A refused program says on its line what to write, and what a lab PC accepts runs', async ({ page }) => {
+    test.setTimeout(600_000);
+    await routeLab(page.context());
+    await openLab(page, 'light');
+    const G = '#include <GL/glut.h>\n#include <cstdio>\n';
+    const refused: [string, string, string][] = [
+      ['a function never defined', `${G}void helper();\nint main() {\n  helper();\n  return 0;\n}\n`, 'main.cpp:5:3 error: helper() is declared but never defined. Write its body'],
+      ['a variable never defined', `${G}extern int counter;\nint main() {\n  return counter;\n}\n`, 'main.cpp:5:10 error: counter is declared but never defined. Define it once'],
+      ['a static member never defined', `${G}struct Counter { static int count; };\nint main() {\n  return Counter::count;\n}\n`, 'main.cpp:5:19 error: Counter::count is declared but never defined.'],
+      ['no main', `${G}void f() {}\n`, 'main.cpp:1:1 error: The program has no main function. Add int main(), where the program starts.'],
+      ['GL_DEPTH_TEST', `${G}int main() {\n  glEnable(GL_DEPTH_TEST);\n  return 0;\n}\n`, "main.cpp:4:12 error: GL_DEPTH_TEST isn't part of VAMS Lab's OpenGL. Leave it out: each shape is drawn over the ones drawn before it."],
+      ['a form the Lab lacks', `${G}int main() {\n  int v[2] = {1, 2};\n  glVertex2iv(v);\n  return 0;\n}\n`, "main.cpp:5:3 error: glVertex2iv isn't part of VAMS Lab's OpenGL. Use glVertex2i(v[0], v[1])."],
+      ['a mistyped call', `${G}int main() {\n  glVertex2ff(0, 0);\n  return 0;\n}\n`, "main.cpp:4:3 error: use of undeclared identifier 'glVertex2ff'; did you mean 'glVertex2f'?"],
+      ['a FreeGLUT key with glut.h', `${G}int main() {\n  return GLUT_KEY_SHIFT_L;\n}\n`, 'GLUT_KEY_SHIFT_L is in <GL/freeglut.h>, which <GL/glut.h> leaves out. Write #include <GL/freeglut.h>.'],
+      ['a shader', `${G}#include <GL/glew.h>\nint main() {\n  GLuint s = glCreateShader(GL_VERTEX_SHADER);\n  return 0;\n}\n`, "GL_VERTEX_SHADER isn't part of VAMS Lab's OpenGL. Draw with glBegin and glEnd"],
+      ['a Windows call', '#include <windows.h>\nint main() {\n  MessageBox(NULL, "a", "b", 0);\n  return 0;\n}\n', "main.cpp:3:3 error: MessageBox isn't part of VAMS Lab's windows.h. Print the message with printf: it shows in the Console."],
+      ['a mistyped directive', '#inlcude <cstdio>\nint main() {\n  return 0;\n}\n', "main.cpp:1:1 error: #inlcude isn't a directive. Did you mean #include?"],
+      ['a header of its own', '#include "shapes.h"\nint main() {\n  return 0;\n}\n', 'main.cpp:1:10 error: "shapes.h" isn\'t one of VAMS Lab\'s headers. VAMS Lab compiles one file: put the code from shapes.h in main.cpp.'],
+      ['graphics.h', '#include <graphics.h>\nint main() {\n  return 0;\n}\n', "VAMS Lab draws with OpenGL and GLUT: write #include <GL/glut.h>."],
+    ];
+    const log = page.locator('.lab-log');
+    const status = page.locator('.lab-top-bar__status');
+    for (const [name, source, said] of refused) {
+      await putProgram(page, source);
+      await runUntilDone(page);
+      await expect(status, name).toContainText('1 error');
+      await expect(log, name).toContainText(said);
+    }
+
+    const accepted: [string, string, number, string?][] = [
+      ['bits/stdc++.h', '#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n  vector<int> v{3, 1, 2};\n  sort(v.begin(), v.end());\n  cout << v[0] << v[1] << v[2] << endl;\n  return 5;\n}\n', 5, '123'],
+      ['a backslash, the top glew.h, glext.h and a region', '#pragma region Includes\n#include <GL\\glut.h>\n#include <glew.h>\n#include <GL/glext.h>\n#pragma endregion\nint main() {\n  return 0;\n}\n', 0],
+      ['NULL from windows.h', '#include <windows.h>\nint main() {\n  void* p = NULL;\n  Sleep(1);\n  return p == NULL ? 3 : 4;\n}\n', 3],
+      ['a FreeGLUT key with freeglut.h', '#include <GL/freeglut.h>\nint main() {\n  return GLUT_KEY_SHIFT_L - 100;\n}\n', 12],
+    ];
+    for (const [name, source, code, printed] of accepted) {
+      await putProgram(page, source);
+      await runUntilDone(page);
+      await expect(status, name).toContainText(`Ended with exit code ${code}`);
+      if (printed) await expect(log, name).toContainText(printed);
+    }
   });
 });
