@@ -58,7 +58,7 @@ const ACTIONS: { key: Exclude<keyof LabFileActions, 'examples'>; label: string }
 ];
 
 /**
- * The wordmark with "LAB" in pixels beside it, and the Experimental tag; the file with Run's state in a chip, the file
+ * The wordmark with "LAB" in pixels beside it; the file with Run's state in a chip, the file
  * actions as one group, and ▶ Run on its own at the end.
  */
 export default function LabTopBar({ file, phase, onRun, examples, ...actions }: LabTopBarProps) {
@@ -72,7 +72,6 @@ export default function LabTopBar({ file, phase, onRun, examples, ...actions }: 
           <PixelWord />
           <span className="lab-top-bar__hidden">Lab</span>
         </h1>
-        <span className="lab-top-bar__tag">Experimental</span>
       </div>
       <p className="lab-top-bar__status" role="status">
         <span className="lab-top-bar__file">{file}</span>

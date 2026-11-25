@@ -146,19 +146,6 @@
   &__word-face { fill: var(--chrome-ink); }
   &__word-depth { fill: var(--logo-depth); }
   &__hidden { @include hidden-text; }
-  // A small amber outline beside the name: it marks the page without competing with Run.
-  &__tag {
-    flex: none;
-    padding: 1px 7px;
-    border: 1px solid var(--chrome-caution);
-    border-radius: 999px;
-    color: var(--chrome-caution);
-    font-size: var(--text-xs);
-    line-height: var(--lh-xs);
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    white-space: nowrap;
-  }
   // The file, quiet, then Run's state in its chip.
   &__status {
     display: flex;
