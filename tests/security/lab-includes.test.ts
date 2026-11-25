@@ -6,8 +6,11 @@
  *
  * Test focus:
  *  - Paths, quoted headers other than "stb_image.h" and unlisted angle headers are refused
- *  - Includes built from macros, #include_next, #embed, #import, __has_include, __has_embed
- *    and every #pragma but once are refused, however they are spelt
+ *  - Includes built from macros, #include_next, #embed, #import, __has_include and __has_embed
+ *    are refused, and every #pragma but once, MSVC's comment(...) and warning(...), and the ones
+ *    g++ reads past (region, endregion, mark, omp, message), however they are spelt; the ones
+ *    read past are blanked, so clang never sees them
+ *  - Each refusal says what to write instead
  *  - Inline assembly is refused however it is spelt: the keywords, and ## in the file
  *
  * SEC-LAB-03, 14 and 15 checked the compile service's image and clang's preprocessed
@@ -17,7 +20,7 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { BUNDLED_HEADERS, checkIncludes, STANDARD_HEADERS } from '@/features/lab-compile/model/includes';
+import { BUNDLED_HEADERS, checkIncludes, HEADER_LIST, STANDARD_HEADERS } from '@/features/lab-compile/model/includes';
 
 const refused = (source: string) => {
   const r = checkIncludes(source);
@@ -45,11 +48,9 @@ describe('SEC-LAB-01: Only the bundled and standard headers can be included, by 
     ['#include "/proc/self/environ"'],
     ['#include "../../proc/self/environ"'],
     ['#include <GL/../../etc/passwd>'],
-    ['#include "GL/../stb_image.h"'],
     ['#include "C:\\\\Users\\\\x\\\\Desktop\\\\header.h"'],
-    ['#include <GL\\glut.h>'],
+    ['#include <GL\\nope.h>'],
     ['#include "C:/Users/x/header.h"'],
-    ['#include <c:stdio.h>'],
     ['#include "~/header.h"'],
   ])('refuses the path in %s', (line) => {
     const r = refused(`int a;\n${line}\n`);
@@ -58,9 +59,25 @@ describe('SEC-LAB-01: Only the bundled and standard headers can be included, by 
   });
 
   it.each([
-    ['#include "myheader.h"', '"myheader.h" isn\'t one of VAMS Lab\'s headers.'],
-    ['#include "main.cpp"', '"main.cpp" isn\'t one of VAMS Lab\'s headers.'],
-    ['#include "GL/glutt.h"', '"GL/glutt.h" isn\'t one of VAMS Lab\'s headers.'],
+    ['#include "GL/../stb_image.h"', 'stb_image.h'],
+    ['#include "C:\\\\freeglut\\\\include\\\\GL\\\\glut.h"', 'GL/glut.h'],
+    ['#include <c:stdio.h>', 'stdio.h'],
+  ])('refuses the path in %s, and names the header to write', (line, header) => {
+    const r = refused(`int a;\n${line}\n`);
+    expect([r.line, r.col]).toEqual([2, 10]);
+    expect(r.message).toBe(`VAMS Lab includes headers by name, not by path: write #include <${header}>.`);
+  });
+
+  it("reads a backslash between a header's folder and its name as Windows does", () => {
+    expect(checkIncludes('#include <GL\\glut.h>\nint x;\n')).toEqual({ ok: true, source: '#include <GL/glut.h>\nint x;\n' });
+    expect(checkIncludes('#include "GL\\freeglut.h"\n')).toEqual({ ok: true, source: '#include <GL/freeglut.h>\n' });
+  });
+
+  it.each([
+    ['#include "myheader.h"', '"myheader.h" isn\'t one of VAMS Lab\'s headers. VAMS Lab compiles one file: put the code from myheader.h in main.cpp.'],
+    ['#include "main.cpp"', '"main.cpp" is the program itself: leave this line out.'],
+    ['#include "GL/glutt.h"', `"GL/glutt.h" isn't one of VAMS Lab's headers. ${HEADER_LIST}`],
+    ['#include "glut.h"', '"glut.h" isn\'t one of VAMS Lab\'s headers. Write #include <GL/glut.h>.'],
     ['#include "iostream"', 'Write #include <iostream> in VAMS Lab.'],
   ])('refuses the quoted include %s', (line, message) => {
     const r = refused(line);
@@ -95,14 +112,25 @@ describe('SEC-LAB-01: Only the bundled and standard headers can be included, by 
   });
 
   it.each([
-    ['#include <unistd.h>', '<unistd.h>'],
-    ['#include <bits/stdc++.h>', '<bits/stdc++.h>'],
     ['#include <vams_rejected.h>', '<vams_rejected.h>'],
     ['#include <GL/gl.h >', '<GL/gl.h >'],
     ['#include <passwd>', '<passwd>'],
-  ])('refuses the unlisted angle include %s', (line, shownName) => {
+    ['#include <bits/c++config.h>', '<bits/c++config.h>'],
+  ])('refuses the unlisted angle include %s, and lists the headers there are', (line, shownName) => {
     const r = refused(`\n\n   ${line}`);
-    expect(r).toEqual({ ok: false, line: 3, col: 13, message: `${shownName} isn't one of VAMS Lab's headers.` });
+    expect(r).toEqual({ ok: false, line: 3, col: 13, message: `${shownName} isn't one of VAMS Lab's headers. ${HEADER_LIST}` });
+  });
+
+  it.each([
+    ['#include <unistd.h>', 'For Sleep, write #include <windows.h>.'],
+    ['#include <iostream.h>', 'Write #include <iostream>, and put using namespace std; after the includes.'],
+    ['#include <graphics.h>', 'VAMS Lab draws with OpenGL and GLUT: write #include <GL/glut.h>.'],
+    ['#include <GLFW/glfw3.h>', 'VAMS Lab opens its window with GLUT: write #include <GL/glut.h>.'],
+    ['#include <GL/wglext.h>', 'Leave it out: <GL/glew.h> declares the buffer calls VAMS Lab has.'],
+    ['#include <glut.h>', 'Write #include <GL/glut.h>.'],
+  ])('says what to include instead of %s', (line, advice) => {
+    const name = /<([^>]+)>/.exec(line)![1];
+    expect(refused(line).message).toBe(`<${name}> isn't one of VAMS Lab's headers. ${advice}`);
   });
 
   it('gives the column in bytes, as clang does', () => {
@@ -165,7 +193,7 @@ describe('SEC-LAB-01: Only the bundled and standard headers can be included, by 
   it('writes every refusal without the banned wording', () => {
     const messages = [
       '#include "/etc/passwd"', '#include "x.h"', '#include "iostream"', '#include <x.h>', '#include X',
-      '#include_next <x.h>', '#embed "x"', '#pragma GCC poison x', '#if __has_include(<x.h>)\n#endif', '#line 1', '#pragma comment',
+      '#include_next <x.h>', '#embed "x"', '#pragma GCC poison x', '#inlcude <x.h>', '#include "x/y.h"', '#include <graphics.h>', '#if __has_include(<x.h>)\n#endif', '#line 1', '#pragma comment',
       '# 1 "x"', 'int \\u0061;', '\0', '#include <x.h',
     ].map((s) => refused(s).message);
     for (const m of messages) expect(m).not.toMatch(LANGUAGE_DISCIPLINE);
@@ -185,18 +213,29 @@ describe('SEC-LAB-02: Includes built from macros, file probes and pragmas are re
   });
 
   it.each([
-    ['#include_next <stdio.h>', 'include_next'],
-    ['#embed "/etc/passwd"', 'embed'],
-    ['#import <stdio.h>', 'import'],
-    ['#__include_macros "/etc/passwd"', '__include_macros'],
-    ['#line 1 "/etc/passwd"', 'line'],
-    ['#ident "x"', 'ident'],
-  ])('refuses %s', (line, name) => {
-    expect(refused(`int a;\n  ${line}\n`)).toEqual({ ok: false, line: 2, col: 3, message: `#${name} isn't available in VAMS Lab.` });
+    ['#include_next <stdio.h>', "#include_next isn't available in VAMS Lab. Use #include."],
+    ['#embed "/etc/passwd"', "#embed isn't available in VAMS Lab. Add the file to the Lab's file list, and read it with fopen or std::ifstream."],
+    ['#import <stdio.h>', "#import isn't available in VAMS Lab. Use #include."],
+    ['#__include_macros "/etc/passwd"', "#__include_macros isn't available in VAMS Lab. Remove the line."],
+    ['#line 1 "/etc/passwd"', "#line isn't available in VAMS Lab. Remove the line."],
+    ['#ident "x"', "#ident isn't available in VAMS Lab. Remove the line."],
+  ])('refuses %s', (line, message) => {
+    expect(refused(`int a;\n  ${line}\n`)).toEqual({ ok: false, line: 2, col: 3, message });
+  });
+
+  it.each([
+    ['#inlcude <stdio.h>', 'include'],
+    ['#incldue <stdio.h>', 'include'],
+    ['#defin X 1', 'define'],
+    ['#ifdeff X', 'ifdef'],
+    ['#Include <stdio.h>', 'include'],
+  ])('refuses the mistyped directive in %s, and names the one it meant', (line, meant) => {
+    const typed = /^#(\w+)/.exec(line)![1];
+    expect(refused(line)).toEqual({ ok: false, line: 1, col: 1, message: `#${typed} isn't a directive. Did you mean #${meant}?` });
   });
 
   it('refuses a line marker', () => {
-    expect(refused('# 1 "/etc/passwd"')).toEqual({ ok: false, line: 1, col: 1, message: "This directive isn't available in VAMS Lab." });
+    expect(refused('# 1 "/etc/passwd"')).toEqual({ ok: false, line: 1, col: 1, message: "This directive isn't available in VAMS Lab. Remove the line." });
   });
 
   it.each([
@@ -212,18 +251,31 @@ describe('SEC-LAB-02: Includes built from macros, file probes and pragmas are re
   });
 
   it.each([
-    ['#pragma GCC dependency "/etc/passwd"'],
-    ['#pragma clang system_header'],
-    ['#pragma once extra'],
-    ['#pragma'],
-    ['  #  pragma   message("hi")'],
-    ['#pragma comment'],
-    ['#pragma warning disable'],
-    ['#pragma comments(lib, "x.lib")'],
-  ])('refuses %s, which is not #pragma once, comment(...) or warning(...)', (line) => {
+    ['#pragma GCC dependency "/etc/passwd"', "#pragma GCC isn't available in VAMS Lab. Remove the line."],
+    ['#pragma clang system_header', "#pragma clang isn't available in VAMS Lab. Remove the line."],
+    ['#pragma once extra', 'Only #pragma once is available in VAMS Lab. Remove the line.'],
+    ['#pragma', 'Only #pragma once is available in VAMS Lab. Remove the line.'],
+    ['#pragma comment', "#pragma comment isn't available in VAMS Lab. Remove the line."],
+    ['#pragma warning disable', "#pragma warning isn't available in VAMS Lab. Remove the line."],
+    ['#pragma comments(lib, "x.lib")', "#pragma comments isn't available in VAMS Lab. Remove the line."],
+  ])('refuses %s, which is not #pragma once, comment(...), warning(...) or one g++ reads past', (line, message) => {
     const r = refused(`\n${line}\n`);
     expect(r.line).toBe(2);
-    expect(r.message).toBe('Only #pragma once is available in VAMS Lab.');
+    expect(r.message).toBe(message);
+  });
+
+  it.each([
+    ['#pragma region Shapes'],
+    ['#pragma endregion'],
+    ['  #  pragma   message("hi")'],
+    ['#pragma omp parallel for'],
+    ['#pragma mark - Drawing'],
+  ])('blanks %s, which g++ reads past as x.bat compiles', (line) => {
+    expect(checkIncludes(`int a;\n${line}\nint b;\n`)).toEqual({ ok: true, source: `int a;\n${line.replace(/./g, ' ')}\nint b;\n` });
+  });
+
+  it('still checks the line after a blanked #pragma region', () => {
+    expect(at('#pragma region "/etc/passwd"\n#include "/etc/passwd"')).toEqual([2, 10]);
   });
 
   it('allows #pragma once, with spaces and a comment', () => {
@@ -265,6 +317,7 @@ describe('SEC-LAB-02: Includes built from macros, file probes and pragmas are re
     ['a continuation inside #embed', '#em\\\nbed "/etc/passwd"', [1, 1]],
     ['a continuation inside __has_include', '#if __has_\\\ninclude(</etc/passwd>)\n#endif', [1, 5]],
     ['a continuation inside #pragma', '#prag\\\nma GCC dependency "/etc/passwd"', [1, 1]],
+    ['a continuation inside a blanked #pragma, then a directive', '#pragma region a\\\nb\n#include "/etc/passwd"', [3, 10]],
     ['a line comment continued onto the next line, then a directive', '// note \\\nstill a comment\n#embed "/etc/passwd"', [3, 1]],
   ])('refuses %s', (_name, source, pos) => {
     expect(at(source)).toEqual(pos);

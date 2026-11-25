@@ -29,6 +29,9 @@ export const BUNDLED_HEADERS = [
   'stb_image.h',
   'windows.h',
   'conio.h',
+  'glew.h',
+  'GL/glext.h',
+  'bits/stdc++.h',
 ] as const;
 
 /** The C++17 library headers and the C headers. */
@@ -56,6 +59,48 @@ export const QUOTED_HEADER = 'stb_image.h';
 /** MSVC pragmas a lab PC's MinGW ignores. They are blanked, as if they were not there. */
 const IGNORED_PRAGMAS = new Set(['comment', 'warning']);
 
+/**
+ * Pragmas a lab PC's g++ reads past without changing the program, as x.bat compiles: Visual
+ * Studio's regions, Xcode's marks, OpenMP's (x.bat has no -fopenmp) and message. They are blanked
+ * to the end of the line. GCC's own stay refused: #pragma GCC dependency reads a file.
+ */
+const IGNORED_LINE_PRAGMAS = new Set(['region', 'endregion', 'mark', 'omp', 'message']);
+
+/** What to include instead of a header the Lab doesn't have, for the ones programs reach for. */
+const HEADER_ADVICE: [RegExp, string][] = [
+  [/^(iostream|fstream|iomanip|strstream|complex)\.h$/i, 'Write #include <$1>, and put using namespace std; after the includes.'],
+  [/^(graphics|winbgim)\.h$/i, 'VAMS Lab draws with OpenGL and GLUT: write #include <GL/glut.h>.'],
+  [/^(GLFW\/glfw3|glad\/glad|SDL2?\/SDL|SDL|GL\/glaux|GL\/glcorearb|GL\/glut32)\.h$/i, 'VAMS Lab opens its window with GLUT: write #include <GL/glut.h>.'],
+  [/^(GL\/wglext|GL\/wgl|GL\/glxext|GL\/wglew|GL\/glxew|GL\/eglew|wglew|glxew|eglew)\.h$/i, 'Leave it out: <GL/glew.h> declares the buffer calls VAMS Lab has.'],
+  [/^(unistd|dos)\.h$/i, 'For Sleep, write #include <windows.h>.'],
+  [/^(mmsystem|process|io|direct|tchar|dirent|malloc)\.h$/i, 'Leave it out.'],
+];
+
+/** The headers a program may include, for a message that lists them. */
+export const HEADER_LIST = 'VAMS Lab has <GL/glut.h>, <GL/freeglut.h>, <GL/glew.h>, "stb_image.h", <windows.h>, <conio.h> and the C and C++ standard headers.';
+
+/** Directives clang may see, for the one a mistyped directive meant. */
+const SPELLING = ['include', 'define', 'undef', 'ifdef', 'ifndef', 'endif', 'else', 'elif', 'pragma', 'error', 'warning'];
+
+/** The directive a mistyped one most likely meant: one letter added, missing, changed or two swapped. */
+function meant(name: string): string | null {
+  const near = (a: string, b: string) => {
+    if (Math.abs(a.length - b.length) > 1) return false;
+    const d: number[][] = Array.from({ length: a.length + 1 }, (_, i) => Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)));
+    for (let i = 1; i <= a.length; i++) {
+      for (let j = 1; j <= b.length; j++) {
+        d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+      }
+    }
+    return d[a.length][b.length] <= 1;
+  };
+  return SPELLING.find((d) => near(name.toLowerCase(), d)) ?? null;
+}
+
+/** The headers by their last part, for an include written as a path. */
+const BY_FILE = new Map<string, string>();
+
 const BUNDLED = new Set<string>(BUNDLED_HEADERS);
 
 /** Directives clang may see. Any other is refused, #line, #import and #embed among them. */
@@ -73,6 +118,23 @@ const INLINE_ASSEMBLY = new Set(['asm', '__asm', '__asm__', '_asm']);
 const HEADERS = new Map<string, string>(
   [...BUNDLED_HEADERS, ...STANDARD_HEADERS].map((h) => [h.toLowerCase(), h]),
 );
+for (const h of [...BUNDLED_HEADERS, ...STANDARD_HEADERS]) {
+  const file = h.split('/').pop()!.toLowerCase();
+  // glew.h is both a header and GL/glew.h's last part; the path names GL/glew.h.
+  if (!BY_FILE.has(file) || h.includes('/')) BY_FILE.set(file, h);
+}
+
+/** What to write for a header the Lab doesn't have. */
+function unknownHeader(name: string, quoted: boolean): string {
+  const shown = quoted ? `"${short(name)}"` : `<${short(name)}>`;
+  const known = BY_FILE.get(name.toLowerCase());
+  if (known) return `${shown} isn't one of VAMS Lab's headers. Write #include <${known}>.`;
+  const advice = HEADER_ADVICE.find(([names]) => names.test(name));
+  if (advice) return `${shown} isn't one of VAMS Lab's headers. ${name.replace(advice[0], advice[1])}`;
+  if (quoted && name.toLowerCase() === 'main.cpp') return `${shown} is the program itself: leave this line out.`;
+  if (quoted && /^[\w.+-]+$/.test(name)) return `${shown} isn't one of VAMS Lab's headers. VAMS Lab compiles one file: put the code from ${short(name)} in main.cpp.`;
+  return `${shown} isn't one of VAMS Lab's headers. ${HEADER_LIST}`;
+}
 
 export type IncludeCheck =
   | { ok: true; source: string }
@@ -291,21 +353,28 @@ function scan(src: string): { includes: Include[]; blanks: [number, number][] } 
     let q = skipInLine(afterHash);
     if (q >= src.length || r.newline(q)) return q;
     const id = ident(q);
-    if (!id) throw new Refusal(hash, "This directive isn't available in VAMS Lab.");
+    if (!id) throw new Refusal(hash, "This directive isn't available in VAMS Lab. Remove the line.");
     const name = id.name;
-    if (!DIRECTIVES.has(name)) throw new Refusal(hash, `#${name} isn't available in VAMS Lab.`);
+    if (!DIRECTIVES.has(name)) {
+      const typo = meant(name);
+      if (typo) throw new Refusal(hash, `#${name} isn't a directive. Did you mean #${typo}?`);
+      if (name === 'import' || name === 'include_next') throw new Refusal(hash, `#${name} isn't available in VAMS Lab. Use #include.`);
+      if (name === 'embed') throw new Refusal(hash, "#embed isn't available in VAMS Lab. Add the file to the Lab's file list, and read it with fopen or std::ifstream.");
+      throw new Refusal(hash, `#${name} isn't available in VAMS Lab. Remove the line.`);
+    }
     q = id.end;
     if (name === 'error' || name === 'warning') return toLineEnd(q);
     if (name === 'pragma') {
       const arg = ident(skipInLine(q));
       const rest = arg ? skipInLine(arg.end) : q;
-      if (arg && IGNORED_PRAGMAS.has(arg.name) && src[rest] === '(') {
+      if (arg && ((IGNORED_PRAGMAS.has(arg.name) && src[rest] === '(') || IGNORED_LINE_PRAGMAS.has(arg.name))) {
         const end = directiveEnd(rest);
         blanks.push([hash, end]);
         return end;
       }
       if (!arg || arg.name !== 'once' || !(rest >= src.length || r.newline(rest))) {
-        throw new Refusal(hash, 'Only #pragma once is available in VAMS Lab.');
+        const what = arg && arg.name !== 'once' ? `#pragma ${arg.name} isn't available in VAMS Lab.` : 'Only #pragma once is available in VAMS Lab.';
+        throw new Refusal(hash, `${what} Remove the line.`);
       }
       return rest;
     }
@@ -330,10 +399,17 @@ function scan(src: string): { includes: Include[]; blanks: [number, number][] } 
       name += src[e];
       e++;
     }
+    // Windows reads GL\\glut.h as GL/glut.h; a backslash that spells a header's name is read so too.
+    const slashed = name.replace(/\\/g, '/');
+    if (name.includes('\\') && HEADERS.has(slashed.toLowerCase())) name = slashed;
     const isPath =
       name.startsWith('/') || name.includes('\\') || /^[A-Za-z]:/.test(name) || name.split('/').includes('..') ||
       name.startsWith('~');
-    if (isPath) throw new Refusal(q, 'VAMS Lab includes headers by name, not by path.');
+    if (isPath) {
+      const file = BY_FILE.get(name.split(/[\\/:]/).pop()!.toLowerCase());
+      const write = file ? `: write #include <${file}>.` : '.';
+      throw new Refusal(q, `VAMS Lab includes headers by name, not by path${write}`);
+    }
     const known = HEADERS.get(name.toLowerCase());
     if (open === '"') {
       if (known === QUOTED_HEADER) {
@@ -343,10 +419,10 @@ function scan(src: string): { includes: Include[]; blanks: [number, number][] } 
       } else if (known) {
         throw new Refusal(q, `Write #include <${known}> in VAMS Lab.`);
       } else {
-        throw new Refusal(q, `"${short(name)}" isn't one of VAMS Lab's headers.`);
+        throw new Refusal(q, unknownHeader(name, true));
       }
     } else {
-      if (!known) throw new Refusal(q, `<${short(name)}> isn't one of VAMS Lab's headers.`);
+      if (!known) throw new Refusal(q, unknownHeader(name, false));
       includes.push({ chars, name: known });
     }
     return e + 1;

@@ -8,6 +8,8 @@
 export const LAB_ROOT = '/lab';
 export const LAB_INCLUDE = `${LAB_ROOT}/include`;
 export const LAB_SYSROOT = `${LAB_ROOT}/sysroot`;
+/** The names a program's side module can find in the main module, one a line, from the headers pack. */
+export const LAB_SYMBOLS = `${LAB_ROOT}/symbols.txt`;
 
 /** The student's file, at the top of the tree. */
 export const MAIN_FILE = 'main.cpp';
@@ -39,7 +41,8 @@ export const SIDE_LD_FLAGS: readonly string[] = [
   '--export-if-defined=__main_argc_argv',
   '--export-if-defined=__wasm_apply_data_relocs',
   '--experimental-pic',
-  '--unresolved-symbols=import-dynamic',
+  '--unresolved-symbols=report-all',
+  `--allow-undefined-file=${LAB_SYMBOLS}`,
   '-shared',
 ];
 

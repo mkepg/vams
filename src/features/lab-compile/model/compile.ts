@@ -5,9 +5,9 @@
  */
 import type { Diagnostic } from '@/shared/lib/lab-diagnostic';
 import { checkIncludes } from './includes';
-import { rewriteDiagnostics } from './diagnostics';
+import { linkDiagnostics, rewriteDiagnostics } from './diagnostics';
 import { MAIN_FILE, REPORT_FLAGS, SIDE_CC_FLAGS, SIDE_LD_FLAGS } from './flags';
-import { stripSections } from './strip';
+import { exportNames, stripSections } from './strip';
 
 /** A folder of the compiler's file tree: each entry a file's text or bytes, or a folder. */
 export interface FileTree {
@@ -31,10 +31,11 @@ export const MAX_SOURCE_BYTES = 200 * 1024;
 /** How much of the compiler's messages a compile keeps. */
 export const OUT_CAP_BYTES = 256 * 1024;
 
-export const SOURCE_TOO_LARGE = 'The source is over 200 KB.';
+export const SOURCE_TOO_LARGE = 'The source is over 200 KB. Make main.cpp smaller: keep large data in a file in the file list, and read it with fopen or std::ifstream.';
 export const MESSAGES_CAPPED = `The compiler's messages passed ${OUT_CAP_BYTES / 1024} KB, so the compile was stopped. Fix the first error and compile again.`;
 export const COMPILE_STOPPED = 'The compiler stopped before it finished. Compile again.';
 export const LINK_STOPPED = 'Linking stopped before it finished. Compile again.';
+export const NO_MAIN = 'The program has no main function. Add int main(), where the program starts.';
 
 const fail = (line: number, col: number, message: string): Diagnostic => ({ file: 'main.cpp', line, col, severity: 'error', message });
 const hasError = (d: Diagnostic[]) => d.some((x) => x.severity === 'error');
@@ -94,8 +95,12 @@ export async function compileWith(tools: CompileTools, source: string, headers: 
     return { kind: 'errors', diagnostics };
   }
 
-  const ld = await step(tools.ld, ['wasm-ld', ...SIDE_LD_FLAGS, 'main.o', '-o', 'main.wasm'], { 'main.o': object });
-  const linked = rewriteDiagnostics(ld.text);
+  // wasm-ld reads the names the main module gives a program from the pack's symbols.txt.
+  const symbols = headers['symbols.txt'];
+  const ldFiles: FileTree = { 'main.o': object };
+  if (symbols instanceof Uint8Array || typeof symbols === 'string') ldFiles.lab = { 'symbols.txt': symbols };
+  const ld = await step(tools.ld, ['wasm-ld', ...SIDE_LD_FLAGS, 'main.o', '-o', 'main.wasm'], ldFiles);
+  const linked = linkDiagnostics(ld.text, source);
   if (ld.capped) return { kind: 'errors', diagnostics: [...diagnostics, ...linked, fail(1, 1, MESSAGES_CAPPED)] };
   const module = asBytes(ld.out?.['main.wasm']);
   if (!module) {
@@ -105,11 +110,15 @@ export async function compileWith(tools: CompileTools, source: string, headers: 
   diagnostics.push(...linked);
 
   let stripped: Uint8Array;
+  let exported: string[];
   try {
     stripped = stripSections(module);
+    exported = exportNames(stripped);
   } catch {
     return { kind: 'errors', diagnostics: [...diagnostics, fail(1, 1, LINK_STOPPED)] };
   }
+  // On a lab PC the linker stops a program with no main; here the module would load and do nothing.
+  if (!exported.includes('main') && !exported.includes('__main_argc_argv')) return { kind: 'errors', diagnostics: [...diagnostics, fail(1, 1, NO_MAIN)] };
   const buffer = new ArrayBuffer(stripped.length);
   new Uint8Array(buffer).set(stripped);
   return { kind: 'ok', module: buffer, diagnostics };

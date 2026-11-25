@@ -2,21 +2,24 @@
  * Turns clang's and wasm-ld's stderr into diagnostics on the student's lines.
  *
  * - A use of a rejected name keeps the VAMS message vams_rejected.h gives it.
- * - An undeclared GL, GLU, GLUT or GLEW name gets the same message form.
+ * - An undeclared GL, GLU, GLUT or GLEW name gets the same message form, with the advice
+ *   refusals.ts gives it; a mistyped one keeps clang's "did you mean". So does a Windows call the
+ *   Lab's windows.h leaves out.
+ * - wasm-ld's undefined symbols are said in plain words, on the line that uses the name.
  * - Anything reported inside a header moves to the line of main.cpp that led
  *   there; notes inside headers are dropped.
  * - No message names a path in the compiler's file tree.
  */
 
 import type { Diagnostic } from '@/shared/lib/lab-diagnostic';
+import { FREEGLUT_EXT, freeglutMessage, GL_NAME, GL_TYPE, REJECTED_TEXT, refusalAdvice, WINDOWS_TEXT, windowsAdvice } from './refusals';
 
 export type { Diagnostic };
 export type Severity = Diagnostic['severity'];
 
 export const MAIN_FILE = 'main.cpp';
 
-/** The text after a name that vams_rejected.h's VAMS_REJECT_MESSAGE writes. */
-export const REJECTED_TEXT = " isn't part of VAMS Lab's OpenGL.";
+export { REJECTED_TEXT };
 
 const LOCATED = /^(.+?):(\d+):(\d+): (fatal error|error|warning|note): (.*)$/;
 const UNLOCATED = /^(?:(?:clang(?:\+\+)?|wasm-ld|llvm-objcopy)(?:-\d+)?: )?(fatal error|error|warning): (.*)$/;
@@ -24,12 +27,8 @@ const INCLUDED_FROM = /^In file included from (.+?):(\d+):$/;
 const ALSO_INCLUDED_FROM = /^\s+from (.+?):(\d+):$/;
 
 const UNAVAILABLE = /^'([A-Za-z_]\w*)' is unavailable: (\1 isn't part of VAMS Lab's OpenGL\..*)$/;
-const UNDECLARED = /^use of undeclared identifier '([A-Za-z_]\w*)'(?:; did you mean .*)?$/;
-const UNKNOWN_TYPE = /^unknown type name '([A-Za-z_]\w*)'(?:; did you mean .*)?$/;
-
-/** GL, GLU, GLUT and GLEW names: functions, constants and types. */
-const GL_NAME = /^(?:gl|glu|glut|glew)[A-Z]\w*$|^(?:GL|GLU|GLUT|GLEW)_\w+$/;
-const GL_TYPE = /^(?:GL|GLU|GLUT|GLEW)[a-z]\w*$/;
+const UNDECLARED = /^use of undeclared identifier '([A-Za-z_]\w*)'(?:; did you mean (?:'(?:::)?([A-Za-z_][\w:]*)'|.*))?\??$/;
+const UNKNOWN_TYPE = /^unknown type name '([A-Za-z_]\w*)'(?:; did you mean (?:'(?:::)?([A-Za-z_][\w:]*)'|.*))?\??$/;
 
 /** Every file name clang prints for the student's file. */
 function isMain(file: string): boolean {
@@ -50,14 +49,32 @@ export function scrubPaths(message: string): string {
     .replace(/(^|[\s'"(=:<])\/[\w.+@-]+(?=$|[\s'")>:,])/g, (m, pre: string) => `${pre}${m.slice(pre.length + 1)}`);
 }
 
-function rewriteMessage(message: string): string {
+/**
+ * The message for a GL name the Lab's headers leave out, or for a Windows call its windows.h
+ * leaves out; null to keep clang's own. A mistyped GL name keeps clang's "did you mean".
+ */
+function refusal(name: string, suggestion: string | undefined, gl: boolean): string | null {
+  if (gl) {
+    if (FREEGLUT_EXT.test(name)) return freeglutMessage(name);
+    const advice = refusalAdvice(name, (stem) => stem === suggestion);
+    if (advice) return `${name}${REJECTED_TEXT} ${advice}`;
+    return suggestion ? null : `${name}${REJECTED_TEXT}`;
+  }
+  const windows = windowsAdvice(name);
+  return windows ? `${name}${WINDOWS_TEXT} ${windows}` : null;
+}
+
+/** The message to show for clang's, and whether it is a VAMS refusal, which the line's other errors follow from. */
+function rewriteMessage(message: string): { message: string; rejected: boolean } {
   const unavailable = UNAVAILABLE.exec(message);
-  if (unavailable) return unavailable[2];
+  if (unavailable) return { message: unavailable[2], rejected: true };
   const undeclared = UNDECLARED.exec(message);
-  if (undeclared && GL_NAME.test(undeclared[1])) return `${undeclared[1]}${REJECTED_TEXT}`;
+  const said = undeclared && refusal(undeclared[1], undeclared[2], GL_NAME.test(undeclared[1]));
+  if (said) return { message: said, rejected: true };
   const type = UNKNOWN_TYPE.exec(message);
-  if (type && (GL_NAME.test(type[1]) || GL_TYPE.test(type[1]))) return `${type[1]}${REJECTED_TEXT}`;
-  return scrubPaths(message);
+  const typed = type && refusal(type[1], type[2], GL_NAME.test(type[1]) || GL_TYPE.test(type[1]));
+  if (typed) return { message: typed, rejected: true };
+  return { message: scrubPaths(message), rejected: false };
 }
 
 interface Raw {
@@ -96,14 +113,14 @@ export function rewriteDiagnostics(stderr: string): Diagnostic[] {
     if (m) {
       chainOpen = false;
       const severity = severityOf(m[4]);
-      const message = rewriteMessage(m[5]);
+      const { message, rejected } = rewriteMessage(m[5]);
       const raw: Raw = {
         file: m[1],
         line: Number(m[2]),
         col: Number(m[3]),
         severity,
         message,
-        rejected: UNAVAILABLE.test(m[5]),
+        rejected,
       };
       if (severity === 'note') {
         groups.at(-1)?.notes.push(raw);
@@ -147,7 +164,7 @@ export function rewriteDiagnostics(stderr: string): Diagnostic[] {
     placed.push({ at, group: g });
   }
 
-  // A rejected function used as a value also gives a type error on its line; the VAMS message is the one to keep.
+  // A rejected name also gives a type error on its line (clang reads on with its best guess); the VAMS message is the one to keep.
   const rejectedLines = new Set(placed.filter((p) => p.group.primary.rejected).map((p) => p.at.line));
 
   const out: Diagnostic[] = [];
@@ -168,4 +185,54 @@ export function rewriteDiagnostics(stderr: string): Diagnostic[] {
     }
   }
   return out;
+}
+
+const UNDEFINED = /^(?:wasm-ld(?:-\d+)?: )?error: (?:[^:]*: )?undefined symbol: (.+)$/;
+
+/** Where the program uses a name it never defined: the first line that uses it and doesn't only declare it. */
+function lineUsing(source: string, name: string): { line: number; col: number } {
+  const owner = /^(?:vtable|typeinfo) for ([A-Za-z_][\w:]*)$/.exec(name);
+  const isFunction = name.endsWith(')');
+  const ident = (owner ? owner[1] : name.replace(/\(.*$/, '').replace(/<.*>/g, '')).split('::').pop()!.replace(/^operator.*/, '');
+  if (!/^[A-Za-z_]\w*$/.test(ident)) return { line: 1, col: 1 };
+  const qualifiers = '(?:(?:extern|static|inline|virtual|const|unsigned|signed)\\s+)*';
+  // A type, then the name: at a line's start or after { ; or :, and never a statement such as return x;.
+  const typed = `(?:^|[{;:])\\s*${qualifiers}(?!(?:return|else|throw|delete|case|goto|new)\\b)[A-Za-z_][\\w:<>,]*[\\s*&]+${ident}\\s*`;
+  // A class's line for its missing virtual functions; otherwise a use that isn't only a declaration.
+  const use = owner ? new RegExp(`\\b(?:class|struct)\\s+${ident}\\b`) : new RegExp(`\\b${ident}\\b${isFunction ? '\\s*\\(' : ''}`);
+  const declaration = owner
+    ? /(?!)/
+    : isFunction
+      ? new RegExp(`${typed}\\([^)]*\\)\\s*(?:const\\s*)?;`)
+      : new RegExp(`\\bextern\\b|${typed}(?:\\[[^\\]]*\\])?\\s*;`);
+  const lines = source.split(/\r\n|\n|\r/);
+  for (let i = 0; i < lines.length; i++) {
+    const m = use.exec(lines[i]);
+    if (m && !declaration.test(lines[i])) return { line: i + 1, col: new TextEncoder().encode(lines[i].slice(0, m.index)).length + 1 };
+  }
+  return { line: 1, col: 1 };
+}
+
+/** The plain words for a name the program uses and never defines, as wasm-ld demangles it. */
+export function undefinedMessage(name: string): string {
+  const vtable = /^(?:vtable|typeinfo) for (.+)$/.exec(name);
+  if (vtable) return `${vtable[1]} declares a virtual function it never defines. Write the body of each of ${vtable[1]}'s virtual functions.`;
+  if (name.endsWith(')')) return `${name} is declared but never defined. Write its body, or check that its name and parameters match the function you wrote.`;
+  return `${name} is declared but never defined. Define it once, outside any class and without extern.`;
+}
+
+/** wasm-ld's messages: each undefined symbol on the line that uses it, the rest as rewriteDiagnostics gives them. */
+export function linkDiagnostics(stderr: string, source: string): Diagnostic[] {
+  const out: Diagnostic[] = [];
+  const rest: string[] = [];
+  for (const line of stderr.split(/\r?\n/)) {
+    const m = UNDEFINED.exec(line);
+    if (!m) {
+      rest.push(line);
+      continue;
+    }
+    const name = m[1].trim();
+    out.push({ file: MAIN_FILE, ...lineUsing(source, name), severity: 'error', message: undefinedMessage(name) });
+  }
+  return [...out, ...rewriteDiagnostics(rest.join('\n'))];
 }

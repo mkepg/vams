@@ -124,7 +124,9 @@ tests/
 │   │                                        and capstones across the lessons)
 │   ├── lab-api.test.ts                   (BB-LAB-*: the Lab's 2D set, as the
 │   │                                        bundled headers in lab/include
-│   │                                        declare and reject it)
+│   │                                        declare and reject it; BB-LAB-117:
+│   │                                        advice for every name a lab PC
+│   │                                        declares and the Lab leaves out)
 │   ├── lab-functions.test.ts             (BB-LAB-05 to 08: the Pages Functions
 │   │                                        that forward compiles and serve the
 │   │                                        runtime)
@@ -192,13 +194,15 @@ tests/
 │   │                                        image rule)
 │   ├── british-spelling.test.ts          (WB-SPELL-*: British spelling in every
 │   │                                        string students read)
-│   ├── lab-compile.test.ts               (WB-LAB-01, 02, 13, 23 and 24: the
-│   │                                        browser's compile: diagnostics, the
-│   │                                        flags build.sh holds, the section
-│   │                                        strip and one compile's steps)
+│   ├── lab-compile.test.ts               (WB-LAB-01, 02, 13, 23, 24, 26 and 27:
+│   │                                        the browser's compile: diagnostics
+│   │                                        and refusals, the flags build.sh
+│   │                                        holds, the section strip, one
+│   │                                        compile's steps, undefined names and
+│   │                                        a missing main at the link)
 │   ├── lab-runtime-build.test.ts         (WB-LAB-21 and 22: the main module
 │   │                                        without dynamic execution, and the
-│   │                                        headers pack)
+│   │                                        headers pack with its symbols.txt)
 │   ├── lab-publish.test.ts               (WB-LAB-15 and 25: the runtime version,
 │   │                                        the compressed files, the manifest
 │   │                                        and the publish checks, offline)
@@ -207,8 +211,9 @@ tests/
 │                                            from)
 ├── security/                     ← What a Lab program may include, use and reach.
 │   ├── lab-includes.test.ts              (SEC-LAB-01, 02 and 11 to 13: include
-│   │                                        and directive checks, and inline
-│   │                                        assembly refused in the file)
+│   │                                        and directive checks with what to
+│   │                                        write instead, and inline assembly
+│   │                                        refused in the file)
 │   └── lab-sandbox.test.ts               (SEC-LAB-16: the program's worker loses
 │                                            its storage, network and worker
 │                                            globals before main runs)
@@ -246,13 +251,14 @@ tests/
 │   ├── lab-drawing.spec.ts               (VIS-LAB-05: each Lab battery program,
 │   │                                        compiled and run in the Lab, against
 │   │                                        its FreeGLUT reference; LAB_RUNTIME_LOCAL=1)
-│   ├── lab-compiler.spec.ts              (VIS-LAB-07 to 16: the compiler's
+│   ├── lab-compiler.spec.ts              (VIS-LAB-07 to 17: the compiler's
 │   │                                        download, no JavaScript, storage or
 │   │                                        worker from a program, the 2D set
 │   │                                        compiled in the page, the jeepney
 │   │                                        as fast as in the editor, and the
 │   │                                        misuse, pace, input and crash
-│   │                                        batteries; LAB_RUNTIME_LOCAL=1)
+│   │                                        batteries, and the refusals;
+│   │                                        LAB_RUNTIME_LOCAL=1)
 │   └── helpers/lab.ts                    (the routes that stand in for
 │                                            production in front of the preview
 │                                            server: the local runtime and the
@@ -350,6 +356,10 @@ replayed by BB-LAB-112 and sampled end to end by VIS-LAB-13) and the input
 battery (`events.cpp` playing `events.script.txt`, compared by VIS-LAB-15),
 and the crash battery (`crash.cpp`, a console program that goes wrong, run case
 by case by VIS-LAB-16).
+`tests/fixtures/lab/reference-names.txt` lists the names a lab PC's GL, GLU
+and FreeGLUT headers declare, which BB-LAB-117 holds the refusals to; write it
+again with `scripts/lab/reference-names.mjs`, under the same
+`VAMS_GLUT_TOOLCHAIN`.
 `pace.cpp` (VIS-LAB-14) is checked against figures in its own comment. Record
 the batteries again with:
 
@@ -371,7 +381,7 @@ The checks that run the real compiler need the runtime built in
 `lab/runtime/out/`, and skip without `LAB_RUNTIME_LOCAL=1`:
 
 ```bash
-LAB_RUNTIME_LOCAL=1 npm run test:visual -- lab.spec lab-drawing lab-compiler   # VIS-LAB-01 to 16
+LAB_RUNTIME_LOCAL=1 npm run test:visual -- lab.spec lab-drawing lab-compiler   # VIS-LAB-01 to 17
 ```
 
 The IDs the compile service's checks held (BB-LAB-05 to 07, WB-LAB-03 to 11,

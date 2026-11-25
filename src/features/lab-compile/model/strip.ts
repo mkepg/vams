@@ -48,3 +48,23 @@ export function stripSections(wasm: Uint8Array, names: readonly string[] = STRIP
   }
   return out;
 }
+
+/** The names a module exports, from its export section; a module without one exports none. */
+export function exportNames(wasm: Uint8Array): string[] {
+  const names: string[] = [];
+  let at = 8;
+  while (at < wasm.length) {
+    const id = wasm[at++];
+    const [size, body] = leb(wasm, at);
+    at = body + size;
+    if (id !== 7) continue;
+    let [count, p] = leb(wasm, body);
+    while (count-- > 0) {
+      const [length, nameAt] = leb(wasm, p);
+      names.push(new TextDecoder().decode(wasm.subarray(nameAt, nameAt + length)));
+      // The export's kind (one byte), then its index.
+      p = leb(wasm, nameAt + length + 1)[1];
+    }
+  }
+  return names;
+}

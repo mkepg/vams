@@ -883,14 +883,13 @@ describe('BB-LAB-95: Two Runs during the first download compile once, with the n
   });
 });
 
-describe('BB-LAB-101: The top bar labels the Lab experimental, beside its name', () => {
-  it('shows one Experimental tag straight after the Lab heading', () => {
+describe('BB-LAB-101: The top bar names the Lab, with no Experimental tag beside it', () => {
+  it('shows the Lab heading alone in the brand, and no tag', () => {
     const host = document.createElement('div');
     render(h(LabTopBar, { file: 'main.cpp', phase: { label: 'Ready', tone: 'idle' }, onRun: () => {} }), host);
-    const tags = host.querySelectorAll('.lab-top-bar__tag');
-    expect(tags).toHaveLength(1);
-    expect(tags[0].textContent).toBe('Experimental');
-    expect(host.querySelector('.lab-top-bar__name')?.nextElementSibling).toBe(tags[0]);
+    expect(host.querySelectorAll('.lab-top-bar__tag')).toHaveLength(0);
+    expect(host.textContent).not.toMatch(/experimental/i);
+    expect(host.querySelector('.lab-top-bar__name')?.nextElementSibling).toBeNull();
     render(null, host);
   });
 });

@@ -8,6 +8,9 @@
  * max macros.
  */
 
+/* NULL and size_t, which a program that includes only windows.h still has on Windows. */
+#include <stddef.h>
+
 #ifndef WINAPI
 #define WINAPI
 #endif

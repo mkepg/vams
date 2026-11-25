@@ -19,6 +19,10 @@ ENVIRONMENT=${ENVIRONMENT:-worker}
 # below mounts at /lab in its file tree.
 LAB_INCLUDE=${LAB_INCLUDE:-/lab/include}
 LAB_SYSROOT=${LAB_SYSROOT:-/lab/sysroot}
+# The names a program's side module can find in the main module, which the pack holds as
+# symbols.txt: wasm-ld reports any other name the program uses and never defines, as a lab PC's
+# linker does.
+LAB_ROOT=${LAB_ROOT:-/lab}
 
 # What every compile of a student's program shares.
 SIDE_COMMON="-std=c++17 -O1 -fPIC -fwasm-exceptions -nostdinc++ -isystem $LAB_INCLUDE -isystem $LAB_SYSROOT/include/c++/v1"
@@ -34,19 +38,19 @@ SIDE_FLAGS="$SIDE_COMMON -sSIDE_MODULE=1"
 #   then the sections SIDE_STRIP_FLAGS names are removed (llvm-objcopy, or strip.ts)
 SIDE_LLVM_FLAGS="-mllvm -combiner-global-alias-analysis=false -mllvm -wasm-enable-sjlj -mllvm -wasm-use-legacy-eh -mllvm -disable-lsr"
 SIDE_CC_FLAGS="--target=wasm32-unknown-emscripten --sysroot=$LAB_SYSROOT -fvisibility=default $SIDE_LLVM_FLAGS -DEMSCRIPTEN -Xclang -iwithsysroot/include/fakesdl -Xclang -iwithsysroot/include/compat $SIDE_COMMON"
-SIDE_LD_FLAGS="$SIDE_LLVM_FLAGS -mllvm -wasm-enable-eh -mllvm -exception-model=wasm --import-memory --strip-debug --export-dynamic --export=__wasm_call_ctors --export-if-defined=main --export-if-defined=__main_argc_argv --export-if-defined=__wasm_apply_data_relocs --experimental-pic --unresolved-symbols=import-dynamic -shared"
+SIDE_LD_FLAGS="$SIDE_LLVM_FLAGS -mllvm -wasm-enable-eh -mllvm -exception-model=wasm --import-memory --strip-debug --export-dynamic --export=__wasm_call_ctors --export-if-defined=main --export-if-defined=__main_argc_argv --export-if-defined=__wasm_apply_data_relocs --experimental-pic --unresolved-symbols=report-all --allow-undefined-file=$LAB_ROOT/symbols.txt -shared"
 SIDE_STRIP_FLAGS="--remove-section=.debug* --remove-section=producers --remove-section=name"
 
 # The main module: libc, libc++, stb_image and the bridges, shared by every program.
 # EXIT_RUNTIME makes exit() run atexit handlers and static destructors, so files are written.
 # DYNAMIC_EXECUTION=0 turns every path that evaluates a program's JavaScript (emscripten_run_script,
 # and the EM_ASM and EM_JS code a side module carries) into an abort, so a program runs only wasm.
-# STACK_SIZE is MinGW's 2 MB, the stack a lab PC's program has, and STACK_FIRST puts it below
-# everything else, so a program that overflows it stops on a bad memory access instead of writing
-# over the main module's data. getExceptionMessage names an exception nothing caught, for the
+# STACK_SIZE is MinGW's 2 MB, the stack a lab PC's program has. It sits after the main module's
+# data: Emscripten keeps a main module's stack there, whatever --stack-first asks, so a program
+# that overflows it writes over that data before it stops. getExceptionMessage names an exception nothing caught, for the
 # message libstdc++ prints. Growth stops at 2 GB, as a 32-bit program's memory does.
 MAIN_SOURCES="$HERE/vams_main.c $HERE/conio.c $HERE/windows.c $HERE/glew.c $HERE/stb_image_impl.c"
-MAIN_FLAGS="-O2 -fwasm-exceptions -sMAIN_MODULE=1 -sMODULARIZE -sEXPORT_ES6 -sENVIRONMENT=$ENVIRONMENT -sALLOW_MEMORY_GROWTH -sMAXIMUM_MEMORY=2147483648 -sSTACK_SIZE=2097152 -Wl,--stack-first -sEXPORT_EXCEPTION_HANDLING_HELPERS -sEXPORT_NAME=createVamsMain -sEXPORTED_RUNTIME_METHODS=FS,ccall,getExceptionMessage -sEXIT_RUNTIME=1 -sDYNAMIC_EXECUTION=0"
+MAIN_FLAGS="-O2 -fwasm-exceptions -sMAIN_MODULE=1 -sMODULARIZE -sEXPORT_ES6 -sENVIRONMENT=$ENVIRONMENT -sALLOW_MEMORY_GROWTH -sMAXIMUM_MEMORY=2147483648 -sSTACK_SIZE=2097152 -sEXPORT_EXCEPTION_HANDLING_HELPERS -sEXPORT_NAME=createVamsMain -sEXPORTED_RUNTIME_METHODS=FS,ccall,getExceptionMessage -sEXIT_RUNTIME=1 -sDYNAMIC_EXECUTION=0"
 
 case "${1:-}" in
   --side-flags) echo "$SIDE_FLAGS"; exit 0 ;;
@@ -60,7 +64,8 @@ esac
 mkdir -p "$OUT"
 # shellcheck disable=SC2086
 emcc $MAIN_FLAGS -isystem "$HERE/../include" --js-library "$HERE/library_vams.js" $MAIN_SOURCES -o "$OUT/vams_main.mjs"
-# The headers the browser's compiler reads, from this image's sysroot and lab/include.
+# The headers the browser's compiler reads, from this image's sysroot and lab/include, and the
+# names the main module gives a program.
 SYSROOT_INCLUDE=${SYSROOT_INCLUDE:-/emsdk/upstream/emscripten/cache/sysroot/include}
-node "$HERE/pack-headers.mjs" "$SYSROOT_INCLUDE" "$HERE/../include" "$OUT/lab-headers.json"
+node "$HERE/pack-headers.mjs" "$SYSROOT_INCLUDE" "$HERE/../include" "$OUT/lab-headers.json" "$OUT/vams_main.mjs"
 echo "built $OUT/vams_main.mjs, $OUT/vams_main.wasm and $OUT/lab-headers.json"
