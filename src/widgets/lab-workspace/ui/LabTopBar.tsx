@@ -41,9 +41,21 @@ const LAB_PATH = LAB_PIXELS.flatMap((row, y) =>
   [...row.matchAll(/X+/g)].map((run) => `M${run.index} ${y}h${run[0].length}v1h-${run[0].length}z`),
 ).join('');
 
+/** The wordmark's height in the top bar, in pixels; the stylesheet sets the same. */
+const WORD_HEIGHT = 17;
+
 function PixelWord() {
+  const [columns, rows] = [LAB_PIXELS[0].length, LAB_PIXELS.length];
+  // Its own size too, so the wordmark stays small before the stylesheet arrives instead of filling the window.
   return (
-    <svg className="lab-top-bar__word" viewBox={`0 0 ${LAB_PIXELS[0].length} ${LAB_PIXELS.length}`} aria-hidden="true" focusable="false">
+    <svg
+      className="lab-top-bar__word"
+      viewBox={`0 0 ${columns} ${rows}`}
+      width={Math.round((WORD_HEIGHT * columns) / rows)}
+      height={WORD_HEIGHT}
+      aria-hidden="true"
+      focusable="false"
+    >
       <path className="lab-top-bar__word-depth" d={LAB_PATH} transform="translate(0.45 0.45)" />
       <path className="lab-top-bar__word-face" d={LAB_PATH} />
     </svg>

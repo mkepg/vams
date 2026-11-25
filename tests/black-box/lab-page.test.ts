@@ -1,7 +1,8 @@
 /**
  * BLACK-BOX TEST SUITE — BB-LAB
  * The /lab page: its route, its header link, the isolation its worker needs, and the dev server
- * that serves the runtime built on this machine.
+ * that serves the runtime built on this machine; and its prerendered page, which links the Lab's
+ * CSS so it paints styled.
  */
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -20,6 +21,8 @@ import { LAB_ENABLED } from '@/shared/config/lab';
 import LabPage from '@/pages/lab';
 import { ISOLATION_RELOAD_KEY } from '@/pages/lab/model/isolation';
 import { devManifest, isLabPage, labDevServer, labRuntimeFile } from '../../scripts/lab/vite-lab-dev';
+import { chunkCss, LAZY_ROUTE_PAGES, linkStylesheets, type CssChunk } from '@/app/routes/prerender-css';
+import LabTopBar from '@/widgets/lab-workspace/ui/LabTopBar';
 
 describe('BB-LAB-32: /lab is a route, and the header lists Lab after Gallery', () => {
   it('has indexable metadata, a nav link after Gallery and a prerender entry', () => {
@@ -419,5 +422,57 @@ describe('BB-LAB-92: A live build refuses the development runtime', () => {
     const config = readFileSync('vite.config.ts', 'utf8');
     expect(config).toContain("import { runtimeVersion } from './src/features/lab-run/model/runtime-version'");
     expect(config).toContain("assertLiveRuntime({ live: LAB_LIVE, build: command === 'build', runtimeVersion })");
+  });
+});
+
+describe('BB-LAB-118: The prerendered /lab paints styled, and its wordmark keeps its size', () => {
+  const chunk = (fileName: string, imports: string[], css: string[], facadeModuleId: string | null = null): CssChunk => ({
+    fileName,
+    facadeModuleId,
+    imports,
+    importedCss: new Set(css),
+  });
+
+  it('collects the CSS of the route chunk and the chunks it imports, once each', () => {
+    const chunks = new Map<string, CssChunk>([
+      ['lab.js', chunk('lab.js', ['shared.js', 'dialog.js'], ['assets/lab.css'], 'C:/repo/src/pages/lab/index.ts')],
+      ['shared.js', chunk('shared.js', ['dialog.js'], ['assets/window.css'])],
+      ['dialog.js', chunk('dialog.js', ['shared.js'], ['assets/dialog.css', 'assets/window.css'])],
+    ]);
+    expect(chunkCss(chunks.get('lab.js')!, chunks)).toEqual(['assets/dialog.css', 'assets/window.css', 'assets/lab.css']);
+    expect(LAZY_ROUTE_PAGES['lab/index.html'].test('C:\\repo\\src\\pages\\lab\\index.ts')).toBe(true);
+    expect(LAZY_ROUTE_PAGES['lab/index.html'].test('/repo/src/pages/labs/index.ts')).toBe(false);
+  });
+
+  it('links each missing stylesheet after the last one, and leaves a linked one alone', () => {
+    const page = '<head><link rel="stylesheet" crossorigin href="/assets/main.css"><link rel="manifest" href="/m"></head>';
+    expect(linkStylesheets(page, ['assets/main.css', 'assets/lab.css'])).toBe(
+      '<head><link rel="stylesheet" crossorigin href="/assets/main.css"><link rel="stylesheet" crossorigin href="/assets/lab.css"><link rel="manifest" href="/m"></head>',
+    );
+    expect(linkStylesheets(page, ['assets/main.css'])).toBe(page);
+    expect(linkStylesheets('<head></head>', ['assets/lab.css'])).toBe('<head><link rel="stylesheet" crossorigin href="/assets/lab.css"></head>');
+  });
+
+  it('gives the wordmark its own size, so it stays small with no stylesheet', () => {
+    const host = document.createElement('div');
+    render(h(LabTopBar, { file: 'main.cpp', phase: { label: 'Ready', tone: 'idle' }, onRun: () => {} }), host);
+    const word = host.querySelector('svg.lab-top-bar__word')!;
+    expect(word.getAttribute('height')).toBe('17');
+    const [, , columns, rows] = word.getAttribute('viewBox')!.split(' ').map(Number);
+    expect(Number(word.getAttribute('width'))).toBe(Math.round((17 * columns) / rows));
+    render(null, host);
+  });
+
+  it('links the Lab chunk\'s CSS in the built /lab page, when there is a build', () => {
+    const built = join(process.cwd(), 'dist/lab/index.html');
+    let html = '';
+    try {
+      html = readFileSync(built, 'utf8');
+    } catch {
+      return;
+    }
+    const sheets = [...html.matchAll(/<link rel="stylesheet"[^>]*href="\/(assets\/[^"]+\.css)"/g)].map((m) => m[1]);
+    const styled = sheets.filter((file) => readFileSync(join(process.cwd(), 'dist', file), 'utf8').includes('.lab-top-bar__word'));
+    expect(styled.length).toBe(1);
   });
 });
