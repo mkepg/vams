@@ -94,6 +94,8 @@
 }
 
 .lab-log__message { margin: 0 0 var(--space-2); font-family: var(--font-ui); }
+// An open tab with nothing in it says so, quietly.
+.lab-log__empty { margin: 0; color: var(--ink-dim); font-family: var(--font-ui); font-size: var(--text-sm); }
 
 .lab-log__list { margin: 0; padding: 0; list-style: none; }
 .lab-log__item { padding: 2px 0; }
