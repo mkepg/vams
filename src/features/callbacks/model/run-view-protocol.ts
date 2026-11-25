@@ -13,3 +13,15 @@ export interface RunViewReply {
   height: number;
   pixels: Uint8ClampedArray<ArrayBuffer>;
 }
+
+/** The Run view worker to one of its band workers: the scene, then each band of a frame to draw. */
+export type RunBandRequest =
+  | { type: 'scene'; scene: GlScene; images: { id: string; dataUrl: string }[] }
+  | { type: 'band'; seq: number; frame: GlFrame; width: number; height: number; band: { y0: number; y1: number } };
+
+/** A band worker's rows, top row first, RGBA, and how long they took to draw; null when it couldn't draw them. */
+export interface RunBandReply {
+  seq: number;
+  pixels: Uint8ClampedArray<ArrayBuffer> | null;
+  ms: number;
+}
