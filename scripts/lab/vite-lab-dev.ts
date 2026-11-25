@@ -66,10 +66,11 @@ export function isLabPage(pathname: string): boolean {
 
 /**
  * The Lab's workers, as the build names them: the program worker from
- * src/features/lab-run/worker/lab-worker.ts and the compiler worker from
+ * src/features/lab-run/worker/lab-worker.ts, the drawing threads it starts from
+ * src/features/lab-run/worker/lab-raster.ts, and the compiler worker from
  * src/features/lab-compile/worker/lab-compiler.ts.
  */
-const LAB_WORKERS = ['lab-worker', 'lab-compiler'];
+const LAB_WORKERS = ['lab-worker', 'lab-raster', 'lab-compiler'];
 
 /**
  * Where the build puts each worker script. The Lab's workers go under /lab/, so they get
@@ -99,6 +100,17 @@ export function labDevServer(dir: string, compilerDir = COMPILER_DIR): Plugin {
   return {
     name: 'vams-lab-dev-server',
     apply: 'serve',
+    // vite preview sends the isolation headers public/_headers gives the Lab in production, so the
+    // workers the Lab's workers start (lab-raster) load there too, as no browser routing reaches them.
+    configurePreviewServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (isLabPage((req.url ?? '').split(/[?#]/)[0])) {
+          res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+          res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+        }
+        next();
+      });
+    },
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const pathname = (req.url ?? '').split(/[?#]/)[0];

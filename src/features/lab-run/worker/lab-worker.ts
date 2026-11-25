@@ -17,7 +17,7 @@
  * "terminate called" lines, as on a lab PC. If that post fails, it posts `crash` as a last resort. The
  * worker never stops a program itself: the page terminates the worker.
  */
-import type { GLContext } from '@/shared/lib/gl-raster';
+import type { GLContext, RasterPool } from '@/shared/lib/gl-raster';
 import { ABORTED, UNCAUGHT_EXCEPTION } from '../model/crash-words';
 import type { PageMessage, StartMessage, WorkerMessage } from '../model/protocol';
 import { runtimeVersion } from '../model/runtime-version';
@@ -25,6 +25,7 @@ import { openLayout } from '../model/shared-layout';
 import { ConsoleIO } from './console-io';
 import { atomicsHost } from './event-queue';
 import { GlutRuntime, type ProgramMemory } from './glut-runtime';
+import { helperCount, startRasterPool, type HelperWorker } from './raster-pool';
 import { fileReports, installFiles, type LabFS } from './lab-files';
 import { sealProgramScope } from './seal-scope';
 
@@ -95,18 +96,20 @@ export function terminateText(main: Pick<MainModule, 'getExceptionMessage'>, exc
 /**
  * Runs the program in `start`, posting what it does with `post`, and the main module from
  * `loadMain`. `seal` runs once the main module is loaded and the files are in place, just before
- * the program's main; a seal that throws stops the program there.
+ * the program's main; a seal that throws stops the program there. `pool`: the threads the window
+ * is drawn with, started before the seal takes workers away.
  */
 export async function runProgram(
   start: StartMessage,
   post: (message: WorkerMessage) => void,
   loadMain: () => Promise<CreateMain>,
   seal: () => void = () => {},
+  pool: RasterPool | null = null,
 ): Promise<void> {
   const views = openLayout(start.shared);
   const host = atomicsHost(views, post);
   const io = new ConsoleIO(views, host);
-  const glut = new GlutRuntime({ views, host, console: io, screen: start.screen });
+  const glut = new GlutRuntime({ views, host, console: io, screen: start.screen, pool });
   const lab: VamsLab = {
     connect: (memory) => glut.connect(memory),
     get gl() {
@@ -169,6 +172,11 @@ if (typeof WorkerGlobalScope !== 'undefined' && globalThis instanceof WorkerGlob
   scope.onmessage = (event) => {
     if (event.data.type !== 'start') return;
     scope.onmessage = null;
+    // The drawing threads start now, while they load the program's runtime, and before the seal.
+    const pool = startRasterPool(
+      () => new Worker(new URL('./lab-raster.ts', import.meta.url), { type: 'module', name: 'lab-raster' }) as unknown as HelperWorker,
+      helperCount(navigator.hardwareConcurrency),
+    );
     void runProgram(
       event.data,
       (message) => scope.postMessage(message),
@@ -177,6 +185,7 @@ if (typeof WorkerGlobalScope !== 'undefined' && globalThis instanceof WorkerGlob
         return module.default;
       },
       () => sealProgramScope(globalThis),
+      pool,
     );
   };
 }

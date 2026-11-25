@@ -16,6 +16,62 @@ export interface Framebuffer {
   readonly color: Uint8Array;
   samples: Uint8Array | null;
   pending?: PendingPixels | null;
+  /**
+   * The rows drawing may touch, when the window is drawn a band a thread (fragmentBox). Every pixel
+   * of the band takes the fragments it would take drawn whole, in the same order, so its bytes are
+   * the same; rows outside it are left as they are.
+   */
+  band?: Band | null;
+}
+
+/** Rows y0 ≤ y < y1 of a window. */
+export interface Band {
+  y0: number;
+  y1: number;
+}
+
+/**
+ * `count` bands, bottom up, that share the `height` rows of a window between them as evenly as
+ * whole rows allow; fewer when there are fewer rows than bands.
+ */
+export function splitRows(height: number, count: number): Band[] {
+  const n = Math.max(1, Math.min(count, height));
+  return Array.from({ length: n }, (_, i) => ({ y0: Math.floor((i * height) / n), y1: Math.floor(((i + 1) * height) / n) }));
+}
+
+/**
+ * `count` bands for the next frame, from the last frame's `bands` and the time each took: the rows
+ * move towards where each band costs the same, taking every row of a band to cost the same, half
+ * way at a time so a frame that differs doesn't swing them. A scene with most of its drawing in a
+ * few rows therefore gives those rows to more threads. Even bands when the last split doesn't fit.
+ */
+export function balanceRows(height: number, bands: readonly Band[], times: readonly number[], count: number): Band[] {
+  const n = Math.max(1, Math.min(count, height));
+  const fits =
+    bands.length === n &&
+    times.length === n &&
+    bands[0].y0 === 0 &&
+    bands[n - 1].y1 === height &&
+    bands.every((b, i) => b.y1 > b.y0 && (i === 0 || b.y0 === bands[i - 1].y1)) &&
+    times.every((t) => Number.isFinite(t) && t >= 0);
+  const total = fits ? times.reduce((a, b) => a + b, 0) : 0;
+  if (!fits || !(total > 0)) return splitRows(height, count);
+  // A band that took no time still costs a little a row, so its rows don't all go to it.
+  const cost = times.map((t) => Math.max(t, total / (20 * n)));
+  const sum = cost.reduce((a, b) => a + b, 0);
+  const cuts = [0];
+  let band = 0;
+  let before = 0;
+  for (let k = 1; k < n; k++) {
+    const target = (sum * k) / n;
+    while (before + cost[band] < target) before += cost[band++];
+    const b = bands[band];
+    const at = b.y0 + ((target - before) / cost[band]) * (b.y1 - b.y0);
+    const cut = Math.round((bands[k].y0 + at) / 2);
+    cuts.push(Math.min(height - (n - k), Math.max(cuts[k - 1] + 1, cut)));
+  }
+  cuts.push(height);
+  return cuts.slice(0, n).map((y0, i) => ({ y0, y1: cuts[i + 1] }));
 }
 
 /** The pixels whose samples changed since their colour was last averaged, each once. */
@@ -54,6 +110,17 @@ export function createFramebuffer(width: number, height: number, buffer?: Shared
     throw new RangeError(`A ${width} × ${height} framebuffer needs ${bytes} bytes; the buffer has ${buffer.byteLength}.`);
   }
   return { width, height, color: buffer ? new Uint8Array(buffer, 0, bytes) : new Uint8Array(bytes), samples: null };
+}
+
+/**
+ * A framebuffer in shared memory, its sample store too when it is multisampled, so several threads
+ * can draw bands of it. Both start at 0, as a new framebuffer's colour and its first samples do.
+ */
+export function createSharedFramebuffer(width: number, height: number, multisample: boolean): Framebuffer {
+  const bytes = width * height * 4;
+  const fb = createFramebuffer(width, height, new SharedArrayBuffer(bytes));
+  if (multisample) fb.samples = new Uint8Array(new SharedArrayBuffer(bytes * SAMPLES));
+  return fb;
 }
 
 /** The sample store, made from the colour buffer the first time it is needed. */

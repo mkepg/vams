@@ -19,7 +19,7 @@
  * Nothing here relies on the program stopping by itself: the page ends a program by terminating
  * its worker.
  */
-import { GLContext } from '@/shared/lib/gl-raster';
+import { GLContext, type RasterPool } from '@/shared/lib/gl-raster';
 import {
   GLUT_FONTS,
   GLUT_FONT_HANDLES,
@@ -112,6 +112,8 @@ export interface GlutOptions {
   console: ConsoleIO;
   /** What GLUT_SCREEN_WIDTH and GLUT_SCREEN_HEIGHT answer. */
   screen?: { width: number; height: number };
+  /** The threads the window is drawn with (raster-pool.ts); without them, the program's own. */
+  pool?: RasterPool | null;
 }
 
 const noProgram: ProgramMemory = {
@@ -127,6 +129,7 @@ export class GlutRuntime {
   private readonly console: ConsoleIO;
   private readonly events: EventQueue;
   private readonly screen: { width: number; height: number };
+  private readonly pool: RasterPool | null;
   private program: ProgramMemory = noProgram;
 
   private initialised = false;
@@ -162,7 +165,8 @@ export class GlutRuntime {
   /** How long before a timer is due the runtime spins rather than sleeps (waitForTimer). */
   private spinMs = TIMER_SPIN_MS;
 
-  constructor({ views, host, console, screen }: GlutOptions) {
+  constructor({ views, host, console, screen, pool }: GlutOptions) {
+    this.pool = pool ?? null;
     this.views = views;
     this.host = host;
     this.console = console;
@@ -248,6 +252,7 @@ export class GlutRuntime {
     this.context = new GLContext(width, height, {
       multisample: (this.displayMode & GLUT.MULTISAMPLE) !== 0,
       memory: () => this.program.heap(),
+      pool: this.pool ?? undefined,
     });
     this.ensureFramebuffer(width * height * 4);
     this.postWindow();

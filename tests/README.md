@@ -156,6 +156,9 @@ tests/
 │   │                                        empty too, and the keyboard help)
 │   ├── lab-shared-layout.test.ts         (BB-LAB-61 to 64: the rings the page
 │   │                                        and the program's worker share)
+│   ├── lab-raster-pool.test.ts           (BB-LAB-119: the drawing threads the
+│   │                                        program's worker draws each frame
+│   │                                        with, a band of rows each)
 │   ├── lab-files.test.ts                 (BB-LAB-52 to 57, 78 to 86, 88 to 91 and
 │   │                                        116: the browser save and a second
 │   │                                        tab, Save, Open, New,
@@ -282,6 +285,10 @@ tests/
 │   │                                              Lab's rasteriser, pixel by pixel, by
 │   │                                              the OpenGL 1.5 rules with and without
 │   │                                              multisampling, and its row runs)
+│   ├── gl-bands.test.ts                         (ALG-LAB-42: a window drawn a band of
+│   │                                              rows a thread, as the Lab and the Run
+│   │                                              view draw it, has the pixels drawing
+│   │                                              it whole gives)
 │   └── gl-context.test.ts                       (ALG-LAB-09 to 16 and 19 to 40: the Lab's
 │                                                  OpenGL 1.5 state machine, display lists,
 │                                                  textures and GLUT's bitmap fonts, and
