@@ -152,8 +152,8 @@ tests/
 │   ├── lab-workspace.test.ts             (BB-LAB-43 to 51, 71 to 77, 94, 95,
 │   │                                        101, 108 to 111 and 114: the workspace,
 │   │                                        the stage, the program's window, the
-│   │                                        top bar, the log's bar and the
-│   │                                        keyboard help)
+│   │                                        top bar, the log's bar, which opens
+│   │                                        empty too, and the keyboard help)
 │   ├── lab-shared-layout.test.ts         (BB-LAB-61 to 64: the rings the page
 │   │                                        and the program's worker share)
 │   ├── lab-files.test.ts                 (BB-LAB-52 to 57, 78 to 86, 88 to 91 and
@@ -278,10 +278,10 @@ tests/
 │   ├── gl-geometry.test.ts                      (ALG-FID-*: points, lines,
 │   │                                              stipple and FLAT colours by the
 │   │                                              OpenGL 1.5 multisample rules)
-│   ├── gl-raster.test.ts                        (ALG-LAB-01 to 08, 17 and 18: the Lab's
-│   │                                              rasteriser, pixel by pixel, by the
-│   │                                              OpenGL 1.5 rules with and without
-│   │                                              multisampling)
+│   ├── gl-raster.test.ts                        (ALG-LAB-01 to 08, 17, 18 and 41: the
+│   │                                              Lab's rasteriser, pixel by pixel, by
+│   │                                              the OpenGL 1.5 rules with and without
+│   │                                              multisampling, and its row runs)
 │   └── gl-context.test.ts                       (ALG-LAB-09 to 16 and 19 to 40: the Lab's
 │                                                  OpenGL 1.5 state machine, display lists,
 │                                                  textures and GLUT's bitmap fonts, and
