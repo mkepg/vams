@@ -1,6 +1,6 @@
 import { fragmentBox, type Box } from './clip';
-import { SAMPLE_OFFSETS, type Framebuffer } from './framebuffer';
-import { drawable, emitFragment, fillSolid, FULL_COVERAGE, solidBytes, type RasterState, type RGBA, type WinVertex } from './fragment';
+import { SAMPLE_OFFSETS, SAMPLES, sampleStore, storePixel, storeRun, touchPixel, type Framebuffer } from './framebuffer';
+import { drawable, emitFragment, FULL_COVERAGE, solidBytes, type RasterState, type WinVertex } from './fragment';
 import { rasterLine } from './lines';
 import { rasterPoint } from './points';
 
@@ -70,6 +70,126 @@ function covers(f: Edge, x: number, y: number): boolean {
   return e > 0 || (e === 0 && f.takesTies);
 }
 
+/** One fragment's colour and texture coordinate, reused from pixel to pixel: emitFragment keeps neither. */
+const shade: [number, number, number, number] = [0, 0, 0, 0];
+const coord: [number, number] = [0, 0];
+
+/**
+ * Bytes r g b a into pixel x, y of a fragment that is untextured and unblended, as emitFragment
+ * writes them: the pixel itself without multisampling, else the samples in `mask`. The pixel is
+ * inside the fragment box, as fillTriangle's rows and columns are.
+ */
+function writeCovered(fb: Framebuffer, state: RasterState, x: number, y: number, r: number, g: number, b: number, a: number, mask: number): void {
+  if (!state.multisample) {
+    storePixel(fb, x, y, r, g, b, a);
+    return;
+  }
+  const samples = sampleStore(fb);
+  const p = (y * fb.width + x) * 4 * SAMPLES;
+  for (let k = 0; k < SAMPLES; k++) {
+    if (!(mask & (1 << k))) continue;
+    const at = p + k * 4;
+    samples[at] = r;
+    samples[at + 1] = g;
+    samples[at + 2] = b;
+    samples[at + 3] = a;
+  }
+  touchPixel(fb, x, y);
+}
+
+/**
+ * fillTriangle for a shaded triangle that is untextured and unblended: each covered pixel takes
+ * the bytes of its colour at the pixel centre, as emitFragment would write them. The arithmetic is
+ * fillTriangle's, step for step, so every pixel is the same; only the colours are read once, into
+ * numbers, and nothing is made a pixel.
+ */
+function fillShaded(
+  fb: Framebuffer,
+  state: RasterState,
+  x0: number,
+  x1: number,
+  y0: number,
+  y1: number,
+  a: WinVertex,
+  b: WinVertex,
+  c: WinVertex,
+  bc: Edge,
+  ca: Edge,
+  ab: Edge,
+  area: number,
+  perspective: boolean,
+): void {
+  const multisample = state.multisample;
+  const offsets = multisample ? SAMPLE_OFFSETS : CENTRE;
+  const full = (1 << offsets.length) - 1;
+  // mix(fa, fb, fc) is fa + (fb − fa)·wb + (fc − fa)·wc; the differences are the same every pixel.
+  const ar = +a.color[0], ag = +a.color[1], ab_ = +a.color[2], aa = +a.color[3];
+  const rb = +b.color[0] - ar, gb = +b.color[1] - ag, bb = +b.color[2] - ab_, alb = +b.color[3] - aa;
+  const rc = +c.color[0] - ar, gc = +c.color[1] - ag, bcc = +c.color[2] - ab_, alc = +c.color[3] - aa;
+  const aw = a.w, bw = b.w, cw = c.w;
+  // edgeAt(ca, …) and edgeAt(ab, …), the weights' edges, as numbers.
+  const cdx = ca.dx, cdy = ca.dy, cox = ca.ox, coy = ca.oy, cneg = ca.negate;
+  const bdx = ab.dx, bdy = ab.dy, box_ = ab.ox, boy = ab.oy, bneg = ab.negate;
+  const width = fb.width;
+  const samples = multisample ? sampleStore(fb) : null;
+  const span: [number, number] = [x0, x1];
+  const inner: [number, number] = [x0, x1];
+  for (let y = y0; y <= y1; y++) {
+    span[0] = inner[0] = x0;
+    span[1] = inner[1] = x1;
+    narrow(bc, y, span, inner);
+    narrow(ca, y, span, inner);
+    narrow(ab, y, span, inner);
+    const py = y + 0.5;
+    for (let x = span[0]; x <= span[1]; x++) {
+      let coverage = full;
+      if (x < inner[0] || x > inner[1]) {
+        coverage = 0;
+        for (let k = 0; k < offsets.length; k++) {
+          const sx = x + 0.5 + offsets[k][0];
+          const sy = y + 0.5 + offsets[k][1];
+          if (covers(bc, sx, sy) && covers(ca, sx, sy) && covers(ab, sx, sy)) coverage |= 1 << k;
+        }
+        if (!coverage) continue;
+      }
+      const px = x + 0.5;
+      let ec = cdx * (py - coy) - cdy * (px - cox);
+      if (cneg) ec = -ec;
+      let eb = bdx * (py - boy) - bdy * (px - box_);
+      if (bneg) eb = -eb;
+      let wb = ec / area;
+      let wc = eb / area;
+      if (perspective) {
+        const qa = (1 - wb - wc) / aw;
+        const qb = wb / bw;
+        const qc = wc / cw;
+        const sum = qa + qb + qc;
+        wb = qb / sum;
+        wc = qc / sum;
+      }
+      const r = Math.round(Math.min(1, Math.max(0, ar + rb * wb + rc * wc)) * 255);
+      const g = Math.round(Math.min(1, Math.max(0, ag + gb * wb + gc * wc)) * 255);
+      const bl = Math.round(Math.min(1, Math.max(0, ab_ + bb * wb + bcc * wc)) * 255);
+      const al = Math.round(Math.min(1, Math.max(0, aa + alb * wb + alc * wc)) * 255);
+      // Every sample covered: the pixel is these bytes, which averaging four of them would give.
+      if (!samples || coverage === full) {
+        storePixel(fb, x, y, r, g, bl, al);
+        continue;
+      }
+      const p = (y * width + x) * 4 * SAMPLES;
+      for (let k = 0; k < SAMPLES; k++) {
+        if (!(coverage & (1 << k))) continue;
+        const at = p + k * 4;
+        samples[at] = r;
+        samples[at + 1] = g;
+        samples[at + 2] = bl;
+        samples[at + 3] = al;
+      }
+      touchPixel(fb, x, y);
+    }
+  }
+}
+
 /** The value at weights wb, wc of b and c (a takes the rest), written so equal values stay exact. */
 function mix(fa: number, fb: number, fc: number, wb: number, wc: number): number {
   return fa + (fb - fa) * wb + (fc - fa) * wc;
@@ -115,6 +235,11 @@ export function fillTriangle(
   const solid = !textured && (!perspective || flatW) && same(0) && same(1) && same(2) && same(3) ? a.color : null;
   // Unblended, the inside of such a triangle is one set of bytes.
   const bytes = solid ? solidBytes(state, solid) : null;
+  // Shaded, untextured and unblended, as most gradients are: a pixel's bytes are its colour's.
+  if (!solid && !textured && !state.blend.enabled) {
+    fillShaded(fb, state, x0, x1, y0, y1, a, b, c, bc, ca, ab, area, perspective);
+    return;
+  }
   const span: [number, number] = [x0, x1];
   const inner: [number, number] = [x0, x1];
   for (let y = y0; y <= y1; y++) {
@@ -127,7 +252,9 @@ export function fillTriangle(
       let coverage = 0;
       if (x >= inner[0] && x <= inner[1]) {
         if (bytes) {
-          fillSolid(fb, state, x, y, bytes);
+          // The whole covered run of the row at once, as fillSolid writes each of its pixels.
+          storeRun(fb, y, x, inner[1], bytes[0], bytes[1], bytes[2], bytes[3]);
+          x = inner[1];
           continue;
         }
         coverage = (1 << offsets.length) - 1;
@@ -140,6 +267,11 @@ export function fillTriangle(
       }
       if (!coverage) continue;
       const mask = state.multisample ? coverage : FULL_COVERAGE;
+      if (bytes) {
+        // An edge pixel of a solid, unblended shape: its bytes, into the samples it covers.
+        writeCovered(fb, state, x, y, bytes[0], bytes[1], bytes[2], bytes[3], mask);
+        continue;
+      }
       if (solid) {
         emitFragment(fb, state, box, x, y, solid, undefined, mask);
         continue;
@@ -155,15 +287,17 @@ export function fillTriangle(
         wb = qb / sum;
         wc = qc / sum;
       }
-      const color: RGBA = [
-        mix(a.color[0], b.color[0], c.color[0], wb, wc),
-        mix(a.color[1], b.color[1], c.color[1], wb, wc),
-        mix(a.color[2], b.color[2], c.color[2], wb, wc),
-        mix(a.color[3], b.color[3], c.color[3], wb, wc),
-      ];
-      const st: [number, number] | undefined = tex
-        ? [mix(tex[0][0], tex[1][0], tex[2][0], wb, wc), mix(tex[0][1], tex[1][1], tex[2][1], wb, wc)]
-        : undefined;
+      const color = shade;
+      color[0] = mix(a.color[0], b.color[0], c.color[0], wb, wc);
+      color[1] = mix(a.color[1], b.color[1], c.color[1], wb, wc);
+      color[2] = mix(a.color[2], b.color[2], c.color[2], wb, wc);
+      color[3] = mix(a.color[3], b.color[3], c.color[3], wb, wc);
+      let st: [number, number] | undefined;
+      if (tex) {
+        st = coord;
+        st[0] = mix(tex[0][0], tex[1][0], tex[2][0], wb, wc);
+        st[1] = mix(tex[0][1], tex[1][1], tex[2][1], wb, wc);
+      }
       emitFragment(fb, state, box, x, y, color, st, mask);
     }
   }
