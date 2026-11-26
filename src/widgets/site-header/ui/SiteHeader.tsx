@@ -28,8 +28,10 @@ export default function SiteHeader({ current }: { current?: string } = {}) {
         <div className="site-header__actions">
           <SiteSearch />
           <ThemeToggleButton className="site-header__theme" />
-          <a className="site-header__cta" href="/app">
-            Open <span className="site-header__cta-the">the </span>app
+          {/* The Lab is a tool too, so the button names the one it opens; narrow screens show the short label. */}
+          <a className="site-header__cta" href="/app" aria-label="Open the editor">
+            <span className="site-header__cta-long">Open the editor</span>
+            <span className="site-header__cta-short" aria-hidden="true">Editor</span>
           </a>
         </div>
       </header>

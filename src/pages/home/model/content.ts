@@ -91,7 +91,7 @@ export const TEAM_MORE = { href: '/about', label: 'The full story' };
 
 export const TRY_IT = {
   title: 'Try it.',
-  cta: 'Open the app',
+  cta: 'Open the editor',
   note: 'Runs in your desktop browser. Nothing to install.',
   startFrom: 'Start from:',
   gallery: 'Or open a finished scene from the gallery',

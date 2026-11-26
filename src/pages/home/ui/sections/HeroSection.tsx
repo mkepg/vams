@@ -13,7 +13,7 @@ export default function HeroSection() {
           No compiler, no setup. Just the concept.
         </p>
         <p className="home__actions">
-          <a className="home__cta" href="/app">Open the app</a>
+          <a className="home__cta" href="/app">Open the editor</a>
           <a className="home__cta home__cta--secondary" href="/learn">
             <GraduationCap aria-hidden="true" />
             Browse the lessons

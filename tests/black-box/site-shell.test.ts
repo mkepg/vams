@@ -568,18 +568,21 @@ describe('BB-SITE-32: The footer links run Learn, Gallery, About, then the sourc
   });
 });
 
-describe('BB-SITE-33: On narrow screens the header CTA reads Open app', () => {
-  it('wraps "the " in a span that the 760 px rule hides', async () => {
+describe('BB-SITE-33: The header CTA reads Open the editor, and Editor on narrow screens', () => {
+  it('holds both labels, and the 760 px rule swaps the long one for the short one', async () => {
     const host = document.createElement('div');
     host.innerHTML = (await prerenderAt('/')).html;
     const cta = host.querySelector('.site-header__cta')!;
-    expect(cta.textContent).toBe('Open the app');
-    expect(cta.querySelector('.site-header__cta-the')!.textContent).toBe('the ');
+    expect(cta.getAttribute('href')).toBe('/app');
+    expect(cta.getAttribute('aria-label')).toBe('Open the editor');
+    expect(cta.querySelector('.site-header__cta-long')!.textContent).toBe('Open the editor');
+    expect(cta.querySelector('.site-header__cta-short')!.textContent).toBe('Editor');
     const scss = readFileSync('src/widgets/site-header/ui/site-header.scss', 'utf8').replace(/\r\n/g, '\n');
     const start = scss.indexOf('@media (max-width: 760px)');
     expect(start).toBeGreaterThanOrEqual(0);
     const phone = scss.slice(start, scss.indexOf('@media', start + 1));
-    expect(phone).toMatch(/\.site-header__cta-the\s*\{\s*display:\s*none;\s*\}/);
+    expect(phone).toMatch(/\.site-header__cta-long\s*\{\s*display:\s*none;\s*\}/);
+    expect(phone).toMatch(/\.site-header__cta-short\s*\{\s*display:\s*inline;\s*\}/);
   });
 });
 
