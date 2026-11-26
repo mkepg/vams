@@ -11,7 +11,7 @@ export default function NotFoundPage() {
         <h1 className="not-found__title">Page not found</h1>
         <p className="not-found__text">The page you were looking for is not here.</p>
         <p className="not-found__actions">
-          <a href="/">Go to the home page</a> · <a href="/app">Open the app</a>
+          <a href="/">Go to the home page</a> · <a href="/app">Open the editor</a>
         </p>
       </main>
       <SiteFooter />

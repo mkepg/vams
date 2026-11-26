@@ -488,7 +488,7 @@ describe('BB-HOME-22: The curriculum slide links to every lesson on /learn', () 
 });
 
 describe('BB-HOME-23: The hero offers the lessons beside the app', () => {
-  it('renders an outlined /learn button after Open the app', async () => {
+  it('renders an outlined /learn button after Open the editor', async () => {
     window.history.replaceState(null, '', '/');
     const { html } = await prerender({ url: '/' });
     const host = document.createElement('div');

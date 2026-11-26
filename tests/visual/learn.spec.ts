@@ -103,7 +103,7 @@ test('VIS-LEARN-05: The header page switcher fits every width from 320 to 760 px
         if (seen.overlap > 0) problems.push(`${label}: the switcher runs ${Math.ceil(seen.overlap)} px into the buttons`);
         if (seen.home) problems.push(`${label}: Home is shown`);
         if (seen.pages.length) problems.push(`${label}: ${seen.pages.join(', ')} hidden`);
-        if (seen.cta !== 'Open app') problems.push(`${label}: the button reads ${seen.cta}`);
+        if (seen.cta !== 'Editor') problems.push(`${label}: the button reads ${seen.cta}`);
       }
     }
   }

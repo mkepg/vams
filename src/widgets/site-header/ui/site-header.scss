@@ -88,7 +88,6 @@
 &__cta {
     display: inline-flex;
     align-items: center;
-    gap: 0.25em; /* flex items drop edge spaces, so the words in "Open the app" are spaced here */
     min-height: 36px;
     padding: 0 var(--space-4);
     background: var(--accent);
@@ -100,17 +99,19 @@
     transition: filter 120ms ease;
     &:hover { filter: brightness(1.08); }
   }
+  &__cta-short { display: none; }
 }
 
 /* Narrow screens: the logo links home, so the switcher drops its Home segment and its icons,
-   and the button reads Open app.
+   and the button reads Editor.
    Each band below holds until the next one engages, so each is sized to fit at its narrowest width:
    760 to 701, 700 to 641, 640 to 601, 600 to 451, 450 to 401, 400 to 380, and 379 to 320. VIS-LEARN-05
    checks every 10 px, with five links and with six. */
 @media (max-width: 760px) {
   .site-header__pages li:has(> .site-header__link[href='/']) { display: none; }
   .site-header__link svg { display: none; }
-  .site-header__cta-the { display: none; }
+  .site-header__cta-long { display: none; }
+  .site-header__cta-short { display: inline; }
 }
 
 /* The gaps close up first; the header keeps the page's gutter until the gutter narrows at 640 px. */

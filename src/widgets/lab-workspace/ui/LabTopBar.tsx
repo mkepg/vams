@@ -1,4 +1,5 @@
 import Logo from '@/shared/ui/logo';
+import ToolSwitch from '@/shared/ui/tool-switch';
 import { Button, MenuButton, type MenuEntry } from '@/shared/ui/controls';
 
 /** The file actions. Each shows only once it has something to do. */
@@ -70,8 +71,8 @@ const ACTIONS: { key: Exclude<keyof LabFileActions, 'examples'>; label: string }
 ];
 
 /**
- * The wordmark with "LAB" in pixels beside it; the file with Run's state in a chip, the file
- * actions as one group, and ▶ Run on its own at the end.
+ * The wordmark with "LAB" in pixels beside it and the Editor | Lab switch; the file with Run's state
+ * in a chip, the file actions as one group, and ▶ Run on its own at the end.
  */
 export default function LabTopBar({ file, phase, onRun, examples, ...actions }: LabTopBarProps) {
   return (
@@ -84,6 +85,7 @@ export default function LabTopBar({ file, phase, onRun, examples, ...actions }: 
           <PixelWord />
           <span className="lab-top-bar__hidden">Lab</span>
         </h1>
+        <ToolSwitch current="lab" />
       </div>
       <p className="lab-top-bar__status" role="status">
         <span className="lab-top-bar__file">{file}</span>
