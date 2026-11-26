@@ -11,6 +11,7 @@ import { PassThrough } from 'node:stream';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { h, render } from 'preact';
 import { act } from 'preact/test-utils';
+import { renderToString } from 'preact-render-to-string';
 import { findRouteMeta, prerenderRoutes, publishedRoutes, ROUTES } from '@/app/routes/route-meta';
 import { buildSitemap } from '@/app/seo/sitemap';
 import { buildPwaOptions } from '@/app/pwa/pwa-options';
@@ -474,5 +475,41 @@ describe('BB-LAB-118: The prerendered /lab paints styled, and its wordmark keeps
     const sheets = [...html.matchAll(/<link rel="stylesheet"[^>]*href="\/(assets\/[^"]+\.css)"/g)].map((m) => m[1]);
     const styled = sheets.filter((file) => readFileSync(join(process.cwd(), 'dist', file), 'utf8').includes('.lab-top-bar__word'));
     expect(styled.length).toBe(1);
+  });
+});
+
+describe('BB-LAB-120: The Lab page holds one toast region, and the log names its panel only while it is open', () => {
+  afterEach(() => {
+    sessionStorage.clear();
+    Reflect.deleteProperty(window, 'crossOriginIsolated');
+  });
+
+  it('leaves the toasts out of the prerendered page, so the browser mounts the only one', () => {
+    // A prerendered region was kept beside the one the browser mounts, so the page had two of the same name.
+    Object.defineProperty(window, 'crossOriginIsolated', { value: true, configurable: true });
+    const html = renderToString(h(LabPage, { reload: () => {} }));
+    expect(html).toContain('lab-workspace');
+    expect(html).not.toContain('Notifications');
+  });
+
+  it('points the fold and the tabs at the log body only while the body is in the page', async () => {
+    Object.defineProperty(window, 'crossOriginIsolated', { value: true, configurable: true });
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    await act(() => render(h(LabPage, { reload: () => {} }), host));
+    const dangling = () => [...host.querySelectorAll('[aria-controls]')].filter((el) => !document.getElementById(el.getAttribute('aria-controls')!));
+    const fold = host.querySelector<HTMLButtonElement>('.lab-log__fold')!;
+    const tabs = () => [...host.querySelectorAll('.lab-log__tab')];
+    expect(fold.getAttribute('aria-expanded')).toBe('false');
+    expect(host.querySelector('#lab-log-body')).toBeNull();
+    expect(dangling()).toEqual([]);
+    expect(tabs().map((t) => t.getAttribute('aria-controls'))).toEqual([null, null]);
+    await act(() => fold.click());
+    expect(host.querySelector('#lab-log-body')).not.toBeNull();
+    expect(fold.getAttribute('aria-controls')).toBe('lab-log-body');
+    expect(tabs().map((t) => t.getAttribute('aria-controls'))).toEqual(['lab-log-body', 'lab-log-body']);
+    expect(dangling()).toEqual([]);
+    render(null, host);
+    host.remove();
   });
 });

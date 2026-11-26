@@ -16,6 +16,7 @@ import type { CurriculumSection } from '@/core/store/types';
 import { h, render } from 'preact';
 import { useVamsStore } from '@/core/store';
 import HelpCenter from '@/features/help/ui/HelpCenter';
+import { HelpBlockView } from '@/features/help/ui/HelpBlocks';
 import WelcomeCard from '@/features/onboarding/ui/WelcomeCard';
 import { SHORTCUT_GROUPS } from '@/features/help/model/shortcuts';
 import { getState } from '../helpers/store';
@@ -296,5 +297,15 @@ describe("BB-HELP-12: Help says the program window takes the viewing volume's sh
   it('says it opens and maximises to that shape, so a square draws square, and that an edge drag stretches it', () => {
     const text = JSON.stringify(HELP_TOPICS);
     expect(text).toMatch(/opens, and maximises, in the viewing volume’s shape, so a square draws square; dragging an edge stretches it\./);
+  });
+});
+
+describe('BB-HELP-13: A code block or table that scrolls sideways can be scrolled from the keyboard', () => {
+  it('lets each take focus, so the arrow keys scroll it', () => {
+    const host = document.createElement('div');
+    render(h('div', null, h(HelpBlockView, { block: { kind: 'code', code: 'glBegin(GL_TRIANGLES);' } }), h(HelpBlockView, { block: { kind: 'table', headers: ['Mode'], rows: [['GL_STATIC_DRAW']] } })), host);
+    expect(host.querySelector('pre.help-block-code')!.getAttribute('tabindex')).toBe('0');
+    expect(host.querySelector('.help-block-table-wrap')!.getAttribute('tabindex')).toBe('0');
+    render(null, host);
   });
 });

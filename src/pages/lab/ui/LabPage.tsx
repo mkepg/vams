@@ -26,7 +26,11 @@ function sessionStore(): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> {
 
 export default function LabPage({ reload = () => window.location.reload() }: LabPageProps) {
   const [needsReload, setNeedsReload] = useState(false);
+  // The toasts mount in the browser only: a prerendered container was kept beside the live one, two regions of the same name.
+  const [mounted, setMounted] = useState(false);
   const theme = useSiteTheme();
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     // Only the browser knows whether the page is isolated, so the server's page renders the workspace.
@@ -46,7 +50,7 @@ export default function LabPage({ reload = () => window.location.reload() }: Lab
       <>
         <LabWorkspace />
         <ConfirmDialog />
-        <Toaster position="bottom-center" theme={theme} />
+        {mounted ? <Toaster position="bottom-center" theme={theme} /> : null}
       </>
     );
 
