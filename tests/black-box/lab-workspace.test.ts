@@ -890,7 +890,10 @@ describe('BB-LAB-101: The top bar names the Lab, with no Experimental tag beside
     render(h(LabTopBar, { file: 'main.cpp', phase: { label: 'Ready', tone: 'idle' }, onRun: () => {} }), host);
     expect(host.querySelectorAll('.lab-top-bar__tag')).toHaveLength(0);
     expect(host.textContent).not.toMatch(/experimental/i);
-    expect(host.querySelector('.lab-top-bar__name')?.nextElementSibling).toBeNull();
+    // Beside the heading is only the Editor | Lab switch.
+    const next = host.querySelector('.lab-top-bar__name')?.nextElementSibling;
+    expect(next?.classList.contains('tool-switch')).toBe(true);
+    expect(next?.nextElementSibling).toBeNull();
     render(null, host);
   });
 });

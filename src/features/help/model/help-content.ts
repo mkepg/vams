@@ -79,7 +79,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       },
       {
         kind: 'paragraph',
-        text: 'The top bar holds File and Learn, then your scene’s name: click it to rename the scene, and the note beside it says whether the scene is saved. On the right are undo and redo, Settings (the theme and the keyboard shortcuts), Help and Share. The canvas is drawn as your program’s window, titled VAMS Preview with its size, the same title and size the generated main() gives it. The header above it shows the viewing volume, the cursor position when the coordinate tracker is on, the View menu (axes, gridlines, grid numbers and the tracker) and Run. If Run can’t start, click it: it tells you why and offers a button that fixes it.',
+        text: 'The top bar holds the Editor and Lab switch, File and Learn, then your scene’s name: click it to rename the scene, and the note beside it says whether the scene is saved. On the right are undo and redo, Settings (the theme and the keyboard shortcuts), Help and Share. The canvas is drawn as your program’s window, titled VAMS Preview with its size, the same title and size the generated main() gives it. The header above it shows the viewing volume, the cursor position when the coordinate tracker is on, the View menu (axes, gridlines, grid numbers and the tracker) and Run. If Run can’t start, click it: it tells you why and offers a button that fixes it.',
       },
       {
         kind: 'paragraph',
@@ -126,6 +126,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'list',
         items: [
+          'Editor | Lab: switch to the Lab, where you write the C++ yourself, and back. Each keeps your work in this browser.',
           'Learn — open the course map and start a demo or an exercise.',
           'File — start a new workspace, open My scenes, open or save a project file, or export the C++ code.',
           'Undo / Redo — step backward and forward through your edits.',

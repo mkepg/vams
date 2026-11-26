@@ -1,0 +1,39 @@
+/* The Editor | Lab switch on the ink chrome: the site header's page switcher, sized for a tool's top bar. */
+.tool-switch {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+  background: var(--chrome-well);
+  border: 1px solid var(--chrome-lip);
+  border-radius: 6px;
+
+  &__link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: 0 var(--space-3);
+    border-radius: 4px;
+    color: var(--ink-muted);
+    font-family: var(--font-ui);
+    font-size: var(--text-base);
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background-color 120ms ease, color 120ms ease;
+
+    &:hover { color: var(--ink); background: var(--chrome-hover); }
+    &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+    &[aria-current='page'] {
+      color: var(--ink);
+      background: var(--paper-raised);
+      box-shadow: inset 0 -2px 0 var(--accent-text);
+      cursor: default;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tool-switch__link { transition: none; }
+}

@@ -14,6 +14,7 @@ import { LAB_HANDOFF_TOO_LARGE } from '@/features/project-io/model/lab-handoff';
 import { getPreset } from '@/entities/project/model/scene-presets';
 import { readThemeChoice, setThemeChoice } from '@/shared/lib/theme';
 import { LAB_ENABLED } from '@/shared/config/lab';
+import ToolSwitch from '@/shared/ui/tool-switch';
 
 async function settle() {
   for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
@@ -335,6 +336,50 @@ describe('BB-TOP-08: Open in Lab hands the program and its images to the Lab', (
     expect(LAB_HANDOFF_TOO_LARGE).toBe('The scene is too large to open in the Lab. Export C++ code instead.');
     expect(assign).not.toHaveBeenCalled();
     for (const spy of [assign, setItem, error]) spy.mockRestore();
+    unmount(host);
+  });
+});
+
+describe('BB-TOP-09: The Editor | Lab switch sits beside the logo and opens the Lab', () => {
+  it('marks Editor as the current tool, links the Lab with a full page load, and stays live during Run', async () => {
+    const host = mount(h(TopBar, {}));
+    await settle();
+    const nav = host.querySelector('nav.tool-switch');
+    if (!LAB_ENABLED) {
+      expect(nav).toBeNull();
+      unmount(host);
+      return;
+    }
+    expect(nav!.getAttribute('aria-label')).toBe('Tools');
+    expect(nav!.previousElementSibling!.classList.contains('top-bar__home')).toBe(true);
+    // Outside the left group, which Run makes inert.
+    expect(nav!.closest('.top-bar__left')).toBeNull();
+    const links = [...nav!.querySelectorAll('a')];
+    expect(links.map((a) => [a.textContent, a.getAttribute('href'), a.getAttribute('target'), a.getAttribute('aria-current')])).toEqual([
+      ['Editor', '/app', '_top', 'page'],
+      ['Lab', '/lab', '_top', null],
+    ]);
+    // Pressing the current tool does nothing; the other is an ordinary link.
+    const press = (a: Element) => {
+      const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+      a.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(press(links[0])).toBe(true);
+    // The Lab link is left to the browser; the test stops the navigation only after reading that.
+    let leftToBrowser = false;
+    links[1].addEventListener('click', (e) => {
+      leftToBrowser = !e.defaultPrevented;
+      e.preventDefault();
+    });
+    press(links[1]);
+    expect(leftToBrowser).toBe(true);
+    unmount(host);
+  });
+
+  it('shows nothing in a build without the Lab', () => {
+    const host = mount(h(ToolSwitch, { current: 'editor', labOn: false }));
+    expect(host.innerHTML).toBe('');
     unmount(host);
   });
 });

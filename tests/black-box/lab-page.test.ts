@@ -476,3 +476,17 @@ describe('BB-LAB-118: The prerendered /lab paints styled, and its wordmark keeps
     expect(styled.length).toBe(1);
   });
 });
+
+describe('BB-LAB-121: The Lab top bar holds the Editor | Lab switch, with Lab current', () => {
+  it('puts the switch after the wordmark and links the editor with a full page load', () => {
+    const host = document.createElement('div');
+    render(h(LabTopBar, { file: 'main.cpp', phase: { label: 'Ready', tone: 'idle' }, onRun: () => {} }), host);
+    const nav = host.querySelector('.lab-top-bar__brand > nav.tool-switch')!;
+    expect(nav.previousElementSibling!.classList.contains('lab-top-bar__name')).toBe(true);
+    expect([...nav.querySelectorAll('a')].map((a) => [a.textContent, a.getAttribute('href'), a.getAttribute('target'), a.getAttribute('aria-current')])).toEqual([
+      ['Editor', '/app', '_top', null],
+      ['Lab', '/lab', '_top', 'page'],
+    ]);
+    render(null, host);
+  });
+});

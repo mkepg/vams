@@ -1,5 +1,6 @@
 import { Toaster } from 'sonner';
 import Logo from '@/shared/ui/logo';
+import ToolSwitch from '@/shared/ui/tool-switch';
 import { useSiteTheme } from '@/shared/lib/theme';
 import { useVamsStore } from '@/core/store';
 import HistoryControls from '@/features/history-controls/ui/HistoryControls';
@@ -13,7 +14,10 @@ import { useRunSnapshot } from '@/features/callbacks';
 import FileMenu from './FileMenu';
 import './top-bar.scss';
 
-/** Layout B: File, Learn and the scene on the left; history, settings, help and Share on the right. */
+/**
+ * Layout B: the Editor | Lab switch, File, Learn and the scene on the left; history, settings, help
+ * and Share on the right. The switch stays live during Run: leaving ends the run as the page goes.
+ */
 export default function TopBar() {
   const theme = useSiteTheme();
   const running = useRunSnapshot().running;
@@ -28,6 +32,7 @@ export default function TopBar() {
       <a className="top-bar__home" href="/" aria-label="VAMS home">
         <Logo />
       </a>
+      <ToolSwitch current="editor" />
       <div className="top-bar__left" inert={running || undefined}>
         <FileMenu />
         <LearnButton />
