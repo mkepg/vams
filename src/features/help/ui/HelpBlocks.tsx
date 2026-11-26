@@ -79,13 +79,14 @@ export function HelpBlockView({ block, startTour, headingLevel = 3, termAnchors 
       );
     case 'code':
       return (
-        <pre className="help-block-code">
+        // A wide block scrolls sideways, so it takes focus for the arrow keys to scroll it.
+        <pre className="help-block-code" tabIndex={0}>
           <code>{block.code}</code>
         </pre>
       );
     case 'table':
       return (
-        <div className="help-block-table-wrap">
+        <div className="help-block-table-wrap" tabIndex={0}>
           <table className="help-block-table">
             <thead>
               <tr>

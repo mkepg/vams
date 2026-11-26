@@ -134,7 +134,8 @@ export default function LabLog({
   return (
     <section className="lab-log" data-folded={shut ? 'true' : 'false'} data-empty={empty ? 'true' : 'false'} aria-label="Log">
       <div className="lab-log__bar">
-        <button type="button" className="lab-log__fold" aria-expanded={!shut} aria-controls="lab-log-body" onClick={toggle}>
+        {/* The body is only in the page while the log is open, so only then does anything point at it. */}
+        <button type="button" className="lab-log__fold" aria-expanded={!shut} aria-controls={shut ? undefined : 'lab-log-body'} onClick={toggle}>
           <svg className="lab-log__chevron" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
             <path d="M4.5 2.5 8 6l-3.5 3.5" />
           </svg>
@@ -148,7 +149,7 @@ export default function LabLog({
               role="tab"
               id={`lab-log-tab-${t}`}
               aria-selected={tab === t}
-              aria-controls="lab-log-body"
+              aria-controls={shut ? undefined : 'lab-log-body'}
               className="lab-log__tab"
               onClick={() => {
                 setTab(t);
