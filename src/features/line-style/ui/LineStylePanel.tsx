@@ -152,7 +152,7 @@ export default function LineStylePanel() {
               <div
                 className="lsp-bits"
                 role="group"
-                aria-label="Stipple pattern bits — click to toggle"
+                aria-label="Stipple pattern bits: click one to toggle it"
               >
                 {bits!.map((on, i) => (
                   <button

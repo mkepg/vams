@@ -10,7 +10,7 @@ import { useMyScenesDialog } from '../model/dialog-store';
 import { backupLabel, downloadEntry, isSceneEmpty, replaceScene, saveCurrentScene } from '../model/scene-ops';
 import './my-scenes.scss';
 
-const STORED_HERE = 'Scenes are stored in this browser. Clearing site data removes them — use Download to keep a copy.';
+const STORED_HERE = 'Scenes are stored in this browser. Clearing site data removes them, so use Download to keep a copy.';
 const TAB_ONLY = 'This browser is not keeping scenes after you close the tab. Use Download to keep a copy.';
 const timeFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 

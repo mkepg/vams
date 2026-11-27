@@ -19,15 +19,15 @@ const def = (type: PrimitiveType, name: string, minVertices: number, stride: num
 
 export const PRIMITIVE_DEFS: readonly PrimitiveDef[] = [
   def('POINTS', 'Points', 1, null, 'Each click places an independent point.'),
-  def('LINES', 'Lines', 2, 2, 'Click pairs of vertices — each pair forms one segment.'),
+  def('LINES', 'Lines', 2, 2, 'Click pairs of vertices. Each pair forms one segment.'),
   def('LINE_STRIP', 'Line strip', 2, null, 'Each new vertex connects to the previous one.'),
-  def('LINE_LOOP', 'Line loop', 3, null, 'Like Line Strip, but the last vertex connects back to the first.'),
-  def('TRIANGLES', 'Triangles', 3, 3, 'Click groups of 3 — each triple forms one triangle.'),
+  def('LINE_LOOP', 'Line loop', 3, null, 'Like Line strip, but the last vertex connects back to the first.'),
+  def('TRIANGLES', 'Triangles', 3, 3, 'Click groups of 3. Each triple forms one triangle.'),
   def('TRIANGLE_STRIP', 'Triangle strip', 3, null, 'Each new vertex forms a triangle with the previous two.'),
-  def('TRIANGLE_FAN', 'Triangle fan', 3, null, 'First vertex is the centre — all triangles fan outward from it.'),
-  def('QUADS', 'Quads', 4, 4, 'Click groups of 4 — each quad is split into two triangles.'),
+  def('TRIANGLE_FAN', 'Triangle fan', 3, null, 'The first vertex is the centre. All triangles fan outward from it.'),
+  def('QUADS', 'Quads', 4, 4, 'Click groups of 4. Each quad is split into two triangles.'),
   def('QUAD_STRIP', 'Quad strip', 4, 2, 'Click pairs of vertices forming columns of quads.'),
-  def('POLYGON', 'Polygon', 3, null, 'Vertices of a single convex polygon — order matters.'),
+  def('POLYGON', 'Polygon', 3, null, 'Vertices of a single convex polygon, in order.'),
 ];
 
 export function primitiveDef(type: PrimitiveType): PrimitiveDef {

@@ -147,7 +147,7 @@ export default function CustomShapeBuilderPanel() {
         <div className="vertex-list">
           <GlHint call="glVertex2f" args="x, y" />
           {pendingVertices.length === 0 ? (
-            <div className="vertex-empty-msg">No vertices yet — click the canvas or add one below</div>
+            <div className="vertex-empty-msg">No vertices. Click the canvas or add one below.</div>
           ) : (
             <DataTable
               caption="Vertices"
