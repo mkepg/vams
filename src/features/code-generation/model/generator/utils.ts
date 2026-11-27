@@ -52,7 +52,7 @@ export function rasterStateBefore(o: SceneNode): string {
     }
   }
   if (o.type === 'POINTS') {
-    out += `    // Adjust visible point size — default is 1px
+    out += `    // Adjust visible point size (the default is 1px)
 `;
     out += `    glPointSize(${POINT_SIZE}.0f);
 `;

@@ -67,7 +67,7 @@ export function generateTextureInitBody(
     const fileHint = asset ? textureFileName(asset) : 'image.png';
 
     lines.push('');
-    lines.push(`    // ${o.name} — texture object`);
+    lines.push(`    // ${o.name}: texture object`);
     lines.push(`    glGenTextures(1, &tex_${safe});`);
     lines.push(`    glBindTexture(GL_TEXTURE_2D, tex_${safe});`);
     lines.push(`    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, ${wrap});`);

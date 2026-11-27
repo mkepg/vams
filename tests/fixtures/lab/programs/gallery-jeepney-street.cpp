@@ -2232,7 +2232,7 @@ void draw_Stars()
 
     // Render
     glShadeModel(GL_FLAT);
-    // Adjust visible point size — default is 1px
+    // Adjust visible point size (the default is 1px)
     glPointSize(8.0f);
 
     glBegin(GL_POINTS);
@@ -2371,7 +2371,7 @@ void display()
 {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // 2D orthographic projection — see glOrtho editor in VAMS
+    // 2D orthographic projection: the viewing volume set in VAMS
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(-1.6000, 1.6000, -0.9000, 0.9000, -1.0, 1.0);
@@ -2417,7 +2417,7 @@ void init()
     // OpenGL expects the 0.0 Y-coordinate to be at the bottom, but images store it at the top
     stbi_set_flip_vertically_on_load(true);
 
-    // Store sign — texture object
+    // Store sign: texture object
     glGenTextures(1, &tex_Store_sign);
     glBindTexture(GL_TEXTURE_2D, tex_Store_sign);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -2437,7 +2437,14 @@ void init()
 // Internal VAMS wrapper: run per-frame animation and updates
 void _vams_idle()
 {
-    onIdle();
+    // GLUT calls idle as often as the PC can: step 60 times a second, as VAMS's Run does
+    static int done = -1;
+    int step = glutGet(GLUT_ELAPSED_TIME) * 60 / 1000;
+    // The first call, or one after a long pause, takes a single step
+    if (done < 0 || step - done > 30) done = step - 1;
+    for (; done < step; done++) {
+        onIdle();
+    }
 }
 
 int main(int argc, char** argv)

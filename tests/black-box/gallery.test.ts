@@ -212,3 +212,12 @@ describe('BB-GALLERY-10: Gallery copy stays silent about gaps', () => {
     expect(text).not.toMatch(/\bcolor\b/);
   });
 });
+
+describe('BB-GALLERY-11: Every gallery scene exports plain ASCII C++', () => {
+  // A student's editor may open the file in a legacy code page, where any other character turns to junk.
+  it.each(GALLERY_SCENES.map((s) => s.slug))('%s', (slug) => {
+    const cpp = program(slug);
+    const bad = [...cpp].filter((c) => c.charCodeAt(0) > 0x7e || (c.charCodeAt(0) < 0x20 && c !== '\n'));
+    expect(bad, `non-ASCII in ${slug}: ${[...new Set(bad)].join(' ')}`).toEqual([]);
+  });
+});

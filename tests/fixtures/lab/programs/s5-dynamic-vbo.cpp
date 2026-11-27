@@ -57,7 +57,7 @@ void draw()
 
 void update_buffers()
 {
-    // TRIANGLES_1 — push updated bytes to the GPU (DYNAMIC)
+    // TRIANGLES_1: push updated bytes to the GPU (DYNAMIC)
     glBindBuffer(GL_ARRAY_BUFFER, vbo_TRIANGLES_1);
     // Modify verts_TRIANGLES_1[...] above, then push the changed range:
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(verts_TRIANGLES_1), verts_TRIANGLES_1);
@@ -70,7 +70,7 @@ void display()
 {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // 2D orthographic projection — see glOrtho editor in VAMS
+    // 2D orthographic projection: the viewing volume set in VAMS
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(-1.0000, 1.0000, -1.0000, 1.0000, -1.0, 1.0);
@@ -86,7 +86,7 @@ void display()
 // One-time setup, called once before the main loop
 void init()
 {
-    // TRIANGLES_1 — upload to GPU
+    // TRIANGLES_1: upload to GPU
     glGenBuffers(1, &vbo_TRIANGLES_1);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_TRIANGLES_1);
     glBufferData(GL_ARRAY_BUFFER, sizeof(verts_TRIANGLES_1), verts_TRIANGLES_1, GL_DYNAMIC_DRAW);
@@ -101,8 +101,15 @@ void init()
 // Internal VAMS wrapper: run per-frame animation and updates
 void _vams_idle()
 {
-    update_buffers();
-    glutPostRedisplay();
+    // GLUT calls idle as often as the PC can: step 60 times a second, as VAMS's Run does
+    static int done = -1;
+    int step = glutGet(GLUT_ELAPSED_TIME) * 60 / 1000;
+    // The first call, or one after a long pause, takes a single step
+    if (done < 0 || step - done > 30) done = step - 1;
+    for (; done < step; done++) {
+        update_buffers();
+        glutPostRedisplay();
+    }
 }
 
 int main(int argc, char** argv)

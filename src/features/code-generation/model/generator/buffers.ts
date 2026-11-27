@@ -84,7 +84,7 @@ export function generateInitBody(allObjects: SceneNode[]): string {
     const safe = sanitizeName(o.name);
     const usage = bufferUsageMacro(o);
     const dedup = deduplicate(o);
-    lines.push(`    // ${o.name} — upload to GPU`);
+    lines.push(`    // ${o.name}: upload to GPU`);
     lines.push(`    glGenBuffers(1, &vbo_${safe});`);
     lines.push(`    glBindBuffer(GL_ARRAY_BUFFER, vbo_${safe});`);
     lines.push(`    glBufferData(GL_ARRAY_BUFFER, sizeof(verts_${safe}), verts_${safe}, ${usage});`);
@@ -127,7 +127,7 @@ export function generateUpdateBuffersBody(allObjects: SceneNode[]): string {
     if (effectiveVerts(o).length === 0) continue;
     if (o.bufferUsage === 'STREAM') {
       const usage = bufferUsageMacro(o);
-      lines.push(`    // ${o.name} — re-upload every frame (GL_STREAM_DRAW)`);
+      lines.push(`    // ${o.name}: re-upload every frame (GL_STREAM_DRAW)`);
       lines.push(`    glBindBuffer(GL_ARRAY_BUFFER, vbo_${safe});`);
       lines.push(`    // Regenerate your data here (e.g. particles, deforming mesh):`);
       lines.push(`    glBufferData(GL_ARRAY_BUFFER, sizeof(verts_${safe}), verts_${safe}, ${usage});`);
@@ -137,12 +137,12 @@ export function generateUpdateBuffersBody(allObjects: SceneNode[]): string {
     // DYNAMIC: branch on updateMethod
     const method = o.updateMethod ?? 'BUFFER_SUB_DATA';
     if (method === 'MAP_BUFFER') {
-      lines.push(`    // ${o.name} — update via mapped pointer (DYNAMIC)`);
+      lines.push(`    // ${o.name}: update via mapped pointer (DYNAMIC)`);
       lines.push(`    glBindBuffer(GL_ARRAY_BUFFER, vbo_${safe});`);
       lines.push(`    {`);
       lines.push(`        GLfloat* ptr = (GLfloat*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);`);
       lines.push(`        if (ptr != NULL) {`);
-      lines.push(`            // Edit individual cells in place — no full re-upload:`);
+      lines.push(`            // Edit individual cells in place, with no full re-upload:`);
       lines.push(`            // ptr[0] = newX0;`);
       lines.push(`            // ptr[1] = newY0;`);
       lines.push(`            glUnmapBuffer(GL_ARRAY_BUFFER);`);
@@ -150,7 +150,7 @@ export function generateUpdateBuffersBody(allObjects: SceneNode[]): string {
       lines.push(`    }`);
       lines.push('');
     } else {
-      lines.push(`    // ${o.name} — push updated bytes to the GPU (DYNAMIC)`);
+      lines.push(`    // ${o.name}: push updated bytes to the GPU (DYNAMIC)`);
       lines.push(`    glBindBuffer(GL_ARRAY_BUFFER, vbo_${safe});`);
       lines.push(`    // Modify verts_${safe}[...] above, then push the changed range:`);
       lines.push(`    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(verts_${safe}), verts_${safe});`);

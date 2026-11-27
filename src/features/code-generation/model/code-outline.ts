@@ -100,7 +100,7 @@ const SECTION_HEADERS: Array<[string, DataKind]> = [
 
 const OWNER_REF = /\b(?:state|initial|verts|colors|uvs|indices|vbo|cbo|ebo|uvbo|tex)_(\w+)/;
 const STATE_REF = /\bstate_(\w+)\./;
-const SETUP_HEADER = /^ {4}\/\/ .+ — /;
+const SETUP_HEADER = /^ {4}\/\/ .+: (?:upload to GPU|re-upload every frame|update via mapped pointer|push updated bytes|texture object)/;
 const DECLARATION = /^void \w+\(\);$/;
 const STATE_LINE = /^(const )?ObjectState /;
 
@@ -233,7 +233,7 @@ function owners(block: CodeBlock, text: string[]): (string | null)[] {
     }
     case 'init':
     case 'update-buffers': {
-      // Each object's setup starts with `    // <name> — …` and runs to a blank line or the next one.
+      // Each object's setup starts with `    // <name>: …` and runs to a blank line or the next one.
       for (let l = block.signature! + 2; l < block.close!; l++) {
         if (!SETUP_HEADER.test(text[l])) continue;
         let last = l;

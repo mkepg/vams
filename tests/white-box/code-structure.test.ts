@@ -88,9 +88,9 @@ describe('WB-CODE-04: Each line knows the object it belongs to', () => {
     expect(ownerOf(o, 'GLuint vbo_TRIANGLES_1 = 0;')).toBe('TRIANGLES_1');
     expect(ownerOf(o, 'GLuint tex_QUADS_1 = 0;')).toBe('QUADS_1');
     expect(ownerOf(o, 'glDrawElements(GL_QUADS')).toBe('QUADS_1');
-    expect(ownerOf(o, '// TRIANGLES_1 — upload to GPU')).toBe('TRIANGLES_1');
+    expect(ownerOf(o, '// TRIANGLES_1: upload to GPU')).toBe('TRIANGLES_1');
     expect(ownerOf(o, 'glGenBuffers(1, &cbo_TRIANGLES_1)')).toBe('TRIANGLES_1');
-    expect(ownerOf(o, '// QUADS_1 — texture object')).toBe('QUADS_1');
+    expect(ownerOf(o, '// QUADS_1: texture object')).toBe('QUADS_1');
     expect(ownerOf(o, 'glTexImage2D(')).toBe('QUADS_1');
     expect(ownerOf(o, 'glBufferSubData(')).toBe('TRIANGLES_1');
     expect(ownerOf(o, 'glRasterPos2f(')).toBe('TEXT_1');
@@ -112,7 +112,7 @@ describe('WB-CODE-05: Only lines that do something are explainable', () => {
       'state_TRIANGLES_1.x += 0.10f;', 'stbi_load(', 'if (glewInit() != GLEW_OK) {', 'void onMouse(int button', '    draw();', 'int main(']) {
       expect(explainable(yes), yes).toBe(true);
     }
-    for (const no of ['// --- Global State ---', '    // QUADS_1 — texture object', 'return 0;', 'int width, height, channels;']) {
+    for (const no of ['// --- Global State ---', '    // QUADS_1: texture object', 'return 0;', 'int width, height, channels;']) {
       expect(explainable(no), no).toBe(false);
     }
     expect(o.lines.filter((l) => /^\s*[{}]\s*$/.test(l.text) || l.text.trim() === '').every((l) => !l.explainable)).toBe(true);

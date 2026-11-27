@@ -101,7 +101,7 @@ export function generateAppOutput(
   }
   code += `void display()\n{\n`;
   code += `    glClear(GL_COLOR_BUFFER_BIT);\n\n`;
-  code += `    // 2D orthographic projection — see glOrtho editor in VAMS\n`;
+  code += `    // 2D orthographic projection: the viewing volume set in VAMS\n`;
   code += `    glMatrixMode(GL_PROJECTION);\n`;
   code += `    glLoadIdentity();\n`;
   if (plan.needsView) {

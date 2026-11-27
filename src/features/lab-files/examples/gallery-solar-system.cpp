@@ -729,7 +729,7 @@ void draw_Stars()
     glRotatef(state_Stars.rotation, 0.0f, 0.0f, 1.0f);
     glScalef(state_Stars.scaleX, state_Stars.scaleY, 1.0f);
     glShadeModel(GL_SMOOTH);
-    // Adjust visible point size — default is 1px
+    // Adjust visible point size (the default is 1px)
     glPointSize(8.0f);
 
     // Bind GPU buffers
@@ -803,7 +803,7 @@ void display()
 {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // 2D orthographic projection — see glOrtho editor in VAMS
+    // 2D orthographic projection: the viewing volume set in VAMS
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(-1.6000, 1.6000, -0.9000, 0.9000, -1.0, 1.0);
@@ -841,7 +841,7 @@ void onIdle()
 // One-time setup, called once before the main loop
 void init()
 {
-    // Stars — upload to GPU
+    // Stars: upload to GPU
     glGenBuffers(1, &vbo_Stars);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_Stars);
     glBufferData(GL_ARRAY_BUFFER, sizeof(verts_Stars), verts_Stars, GL_STATIC_DRAW);

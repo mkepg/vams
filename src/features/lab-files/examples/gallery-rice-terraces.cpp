@@ -391,7 +391,7 @@ void display()
 {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // 2D orthographic projection — see glOrtho editor in VAMS
+    // 2D orthographic projection: the viewing volume set in VAMS
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(viewMinX, viewMaxX, viewMinY, viewMaxY, -1.0, 1.0);
@@ -437,7 +437,7 @@ void onDrag(int x, int y)
 // One-time setup, called once before the main loop
 void init()
 {
-    // Terrace 4 — upload to GPU
+    // Terrace 4: upload to GPU
     glGenBuffers(1, &vbo_Terrace_4);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_Terrace_4);
     glBufferData(GL_ARRAY_BUFFER, sizeof(verts_Terrace_4), verts_Terrace_4, GL_STATIC_DRAW);
@@ -448,7 +448,7 @@ void init()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_Terrace_4);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices_Terrace_4), indices_Terrace_4, GL_STATIC_DRAW);
 
-    // Terrace 3 — upload to GPU
+    // Terrace 3: upload to GPU
     glGenBuffers(1, &vbo_Terrace_3);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_Terrace_3);
     glBufferData(GL_ARRAY_BUFFER, sizeof(verts_Terrace_3), verts_Terrace_3, GL_STATIC_DRAW);
@@ -459,7 +459,7 @@ void init()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_Terrace_3);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices_Terrace_3), indices_Terrace_3, GL_STATIC_DRAW);
 
-    // Terrace 2 — upload to GPU
+    // Terrace 2: upload to GPU
     glGenBuffers(1, &vbo_Terrace_2);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_Terrace_2);
     glBufferData(GL_ARRAY_BUFFER, sizeof(verts_Terrace_2), verts_Terrace_2, GL_STATIC_DRAW);
@@ -470,7 +470,7 @@ void init()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_Terrace_2);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices_Terrace_2), indices_Terrace_2, GL_STATIC_DRAW);
 
-    // Terrace 1 — upload to GPU
+    // Terrace 1: upload to GPU
     glGenBuffers(1, &vbo_Terrace_1);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_Terrace_1);
     glBufferData(GL_ARRAY_BUFFER, sizeof(verts_Terrace_1), verts_Terrace_1, GL_STATIC_DRAW);
@@ -481,7 +481,7 @@ void init()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_Terrace_1);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices_Terrace_1), indices_Terrace_1, GL_STATIC_DRAW);
 
-    // Mountains — upload to GPU
+    // Mountains: upload to GPU
     glGenBuffers(1, &vbo_Mountains);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_Mountains);
     glBufferData(GL_ARRAY_BUFFER, sizeof(verts_Mountains), verts_Mountains, GL_STATIC_DRAW);
@@ -489,7 +489,7 @@ void init()
     glBindBuffer(GL_ARRAY_BUFFER, cbo_Mountains);
     glBufferData(GL_ARRAY_BUFFER, sizeof(colors_Mountains), colors_Mountains, GL_STATIC_DRAW);
 
-    // Sun — upload to GPU
+    // Sun: upload to GPU
     glGenBuffers(1, &vbo_Sun);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_Sun);
     glBufferData(GL_ARRAY_BUFFER, sizeof(verts_Sun), verts_Sun, GL_STATIC_DRAW);
