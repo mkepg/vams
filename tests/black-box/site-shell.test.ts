@@ -551,14 +551,15 @@ describe('BB-SITE-31: About is current only on /about, and has no icon', () => {
   });
 });
 
-describe('BB-SITE-32: The footer links run Learn, Gallery, About, then the source', () => {
-  it('lists the site pages ahead of the source and license links', () => {
+describe('BB-SITE-32: The footer links run Learn, Gallery, Lab, Guide, Teaching, About, then the source', () => {
+  it('lists the site pages in the header order ahead of the source and license links', () => {
     const host = document.createElement('div');
     render(h(SiteFooter, {}), host);
     const links = [...host.querySelectorAll('.site-footer__links a')];
     expect(links.map((a) => [a.textContent, a.getAttribute('href')])).toEqual([
       ['Learn', '/learn'],
       ['Gallery', '/gallery'],
+      ['Lab', '/lab'],
       ['Guide', '/guide'],
       ['Teaching', '/teach'],
       ['About', '/about'],

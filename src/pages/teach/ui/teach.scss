@@ -8,10 +8,10 @@
   &__title {
     margin: 0 0 var(--space-3);
     font-family: var(--font-display);
-    font-weight: 400;
+    font-weight: 700;
     font-size: var(--text-2xl);
     line-height: var(--lh-2xl);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.03em;
   }
   &__lede {
     margin: 0;
@@ -32,9 +32,11 @@
     margin: 0 0 var(--space-3);
     padding-bottom: var(--space-2);
     border-bottom: 1px solid var(--rule);
+    font-family: var(--font-display);
     font-size: var(--text-xl);
     line-height: var(--lh-xl);
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
   &__intro { margin: 0 0 var(--space-5); max-width: 68ch; color: var(--ink-muted); }
   &__sub { margin: var(--space-6) 0 var(--space-3); font-size: var(--text-md); font-weight: 700; }
