@@ -505,7 +505,7 @@ describe('BB-SITE-29: /learn is a finished, linked, prerendered page', () => {
     const meta = findRouteMeta('/learn');
     expect(meta.path).toBe('/learn');
     expect(meta.indexable).toBe(true);
-    expect(meta.title).toBe('Learn | VAMS');
+    expect(meta.title).toBe('Learn');
     expect(NAV_LINKS.map(({ href, label }) => ({ href, label }))).toEqual([
       { href: '/', label: 'Home' },
       { href: '/learn', label: 'Learn' },
@@ -519,7 +519,7 @@ describe('BB-SITE-29: /learn is a finished, linked, prerendered page', () => {
     const result = await prerenderAt('/learn');
     expect(result.html).toContain('class="learn"');
     expect(currentNavHref(result.html)).toEqual(['/learn']);
-    expect(result.head.title).toBe('Learn | VAMS');
+    expect(result.head.title).toBe('Learn');
   });
 
   it('marks Home current on the home page and nothing current on the not-found page', async () => {
@@ -655,8 +655,8 @@ describe('BB-SITE-37: Netlify publishes only the forwarding site, and only when 
 describe('BB-SITE-38: A stored share link has the editor’s title and metadata', () => {
   it('maps /s/<id> to the /app route', () => {
     expect(findRouteMeta('/s/k3x9q2Ab')).toBe(findRouteMeta('/app'));
-    expect(findRouteMeta('/s/k3x9q2Ab/').title).toBe('Editor | VAMS');
-    expect(findRouteMeta('/s').title).not.toBe('Editor | VAMS');
+    expect(findRouteMeta('/s/k3x9q2Ab/').title).toBe('Editor');
+    expect(findRouteMeta('/s').title).not.toBe('Editor');
   });
 });
 
@@ -679,14 +679,12 @@ describe('BB-SITE-40: The Try it slide carries a QR code to the site', () => {
     expect(html).toContain('vams.pages.dev');
   });
 });
-describe('BB-SITE-41: Every page but the home page is titled "<Page> | VAMS"', () => {
-  it('puts the page first and the product last, the editor and the Lab alike', () => {
+describe('BB-SITE-41: Every tab is titled with the page\'s name alone', () => {
+  it('names each page plainly, the editor and the Lab alike, and the home page VAMS', () => {
     for (const route of ROUTES.filter((r) => r.path !== '/')) {
-      expect(route.title, route.path).toMatch(/^[A-Z][^|]* \| VAMS$/);
+      expect(route.title, route.path).toMatch(/^[A-Z][a-z]+( [a-z]+)*$/);
     }
-    expect(findRouteMeta('/app').title).toBe('Editor | VAMS');
-    expect(findRouteMeta('/lab').title).toBe('Lab | VAMS');
-    expect(findRouteMeta('/teach').title).toBe('Teaching | VAMS');
+    expect(ROUTES.map((r) => r.title)).toEqual(['VAMS', 'Learn', 'Gallery', 'Guide', 'Teaching', 'About', 'Lab', 'Editor', 'Page not found']);
   });
 });
 
