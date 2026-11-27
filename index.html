@@ -31,6 +31,23 @@
        if (location.pathname === '/' && new URLSearchParams(location.search).has('stage')) root.classList.add('stage');
      })();
    </script>
+   <script>
+     (function () {
+       // Tool switch: the editor and the Lab fade into each other (global.scss); any other page opens at once.
+       var TOOL = /^\/(app|lab)\/?$/;
+       var bare = function (path) { return path.replace(/\/$/, ''); };
+       window.addEventListener('pagereveal', function (event) {
+         if (!event.viewTransition) return;
+         var from = null;
+         try {
+           var entry = window.navigation && window.navigation.activation && window.navigation.activation.from;
+           if (entry && entry.url) from = new URL(entry.url).pathname;
+         } catch (e) {}
+         var to = window.location.pathname;
+         if (!from || !TOOL.test(from) || !TOOL.test(to) || bare(from) === bare(to)) event.viewTransition.skipTransition();
+       });
+     })();
+   </script>
  </head>
  <body>
    <div id="root"></div>

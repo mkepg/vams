@@ -28,7 +28,10 @@ export default function TopBar() {
   const lessonLabel = lesson ? `${lesson.title} · Step ${Math.min(step + 1, total)} of ${total}` : null;
   return (
     <header className="top-bar">
-      <Toaster position="bottom-center" theme={theme} />
+      {/* Out of the bar's row, so the wordmark starts where the Lab's does. */}
+      <div className="top-bar__toasts">
+        <Toaster position="bottom-center" theme={theme} />
+      </div>
       <a className="top-bar__home" href="/" aria-label="VAMS home">
         <Logo />
       </a>

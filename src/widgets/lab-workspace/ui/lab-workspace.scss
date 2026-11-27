@@ -119,33 +119,26 @@
   gap: var(--space-4);
   /* The editor's top bar height, so the Editor | Lab switch stays put between tools. */
   min-height: 44px;
+  /* One name with the editor's bar: switching tools fades the pages and holds the bar still. The
+     name makes the bar a stacking context, so it is raised for its menus to drop over the panes. */
+  view-transition-name: tool-bar;
+  position: relative;
+  z-index: 40;
   padding: 0 10px 0 14px;
   flex-wrap: wrap;
 
   &__brand { display: flex; align-items: center; gap: var(--space-3); flex: none; }
+  /* The wordmark at the editor's size: it scales with this font size. */
   &__home {
     display: inline-flex;
     align-items: center;
+    font-size: var(--text-base);
     border-radius: var(--radius-m);
     text-decoration: none;
     &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
   }
-  // "LAB" in pixels beside the wordmark, white on the same cyan depth and with the same lean, as
-  // one lockup. Drawn, not set in the font, so its B stays a B at this size.
-  &__name {
-    display: flex;
-    margin: 0;
-    line-height: 1;
-  }
-  &__word {
-    display: block;
-    width: auto;
-    height: 17px;
-    overflow: visible;
-    transform: skewX(-10deg);
-  }
-  &__word-face { fill: var(--chrome-ink); }
-  &__word-depth { fill: var(--logo-depth); }
+  // The page's heading, for screen readers: the switch beside the wordmark shows the tool.
+  &__name { @include hidden-text; }
   &__hidden { @include hidden-text; }
   // The file, quiet, then Run's state in its chip.
   &__status {

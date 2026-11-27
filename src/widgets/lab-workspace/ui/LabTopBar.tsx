@@ -23,46 +23,6 @@ interface LabTopBarProps extends LabFileActions {
   onRun: () => void;
 }
 
-/**
- * "LAB" drawn on a pixel grid, one string per row and X for a pixel, to stand beside the pixel
- * wordmark. The font's own B closes its bowls at this size; these leave each a two-pixel hole.
- */
-const LAB_PIXELS = [
-  'XX.......XXXX...XXXXX.',
-  'XX......XX..XX..XX..XX',
-  'XX......XX..XX..XX..XX',
-  'XX......XXXXXX..XXXXX.',
-  'XX......XX..XX..XX..XX',
-  'XXXXXX..XX..XX..XX..XX',
-  'XXXXXX..XX..XX..XXXXX.',
-];
-
-/** The pixels of LAB_PIXELS as one path of unit squares, row by row, runs merged. */
-const LAB_PATH = LAB_PIXELS.flatMap((row, y) =>
-  [...row.matchAll(/X+/g)].map((run) => `M${run.index} ${y}h${run[0].length}v1h-${run[0].length}z`),
-).join('');
-
-/** The wordmark's height in the top bar, in pixels; the stylesheet sets the same. */
-const WORD_HEIGHT = 17;
-
-function PixelWord() {
-  const [columns, rows] = [LAB_PIXELS[0].length, LAB_PIXELS.length];
-  // Its own size too, so the wordmark stays small before the stylesheet arrives instead of filling the window.
-  return (
-    <svg
-      className="lab-top-bar__word"
-      viewBox={`0 0 ${columns} ${rows}`}
-      width={Math.round((WORD_HEIGHT * columns) / rows)}
-      height={WORD_HEIGHT}
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path className="lab-top-bar__word-depth" d={LAB_PATH} transform="translate(0.45 0.45)" />
-      <path className="lab-top-bar__word-face" d={LAB_PATH} />
-    </svg>
-  );
-}
-
 const ACTIONS: { key: Exclude<keyof LabFileActions, 'examples'>; label: string }[] = [
   { key: 'onNew', label: 'New' },
   { key: 'onOpen', label: 'Open' },
@@ -71,8 +31,9 @@ const ACTIONS: { key: Exclude<keyof LabFileActions, 'examples'>; label: string }
 ];
 
 /**
- * The wordmark with "LAB" in pixels beside it and the Editor | Lab switch; the file with Run's state
- * in a chip, the file actions as one group, and ▶ Run on its own at the end.
+ * The wordmark and the Editor | Lab switch, placed and sized as in the editor's top bar, with the
+ * page's name for screen readers only: the switch already shows which tool this is. Then the file
+ * with Run's state in a chip, the file actions as one group, and ▶ Run on its own at the end.
  */
 export default function LabTopBar({ file, phase, onRun, examples, ...actions }: LabTopBarProps) {
   return (
@@ -81,10 +42,7 @@ export default function LabTopBar({ file, phase, onRun, examples, ...actions }: 
         <a className="lab-top-bar__home" href="/" aria-label="VAMS home">
           <Logo />
         </a>
-        <h1 className="lab-top-bar__name">
-          <PixelWord />
-          <span className="lab-top-bar__hidden">Lab</span>
-        </h1>
+        <h1 className="lab-top-bar__name">Lab</h1>
         <ToolSwitch current="lab" />
       </div>
       <p className="lab-top-bar__status" role="status">

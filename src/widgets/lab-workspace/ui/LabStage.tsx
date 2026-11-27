@@ -306,7 +306,7 @@ export default function LabStage() {
 function StageMark() {
   return (
     <span className="lab-stage__mark" aria-hidden="true">
-      VAMS LAB
+      VAMS
     </span>
   );
 }

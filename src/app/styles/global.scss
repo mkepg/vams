@@ -40,6 +40,18 @@ input, select {
   outline-offset: 2px;
 }
 
+/* Switching between the editor and the Lab is a full page load: the Lab needs its own isolation
+   headers. Both pages opt in to a short fade, and their top bars share one name, so the bar holds
+   still while the page below it changes. index.html skips the fade between any other pages. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+}
+::view-transition-group(*) {
+  animation-duration: 180ms;
+}
+
 /* Site pages: keep in-page anchor targets clear of the sticky header
    (about 4.3rem tall) so focused and linked content is not hidden under it. */
 html:not(.route-editor) {

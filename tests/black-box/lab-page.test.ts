@@ -454,13 +454,11 @@ describe('BB-LAB-118: The prerendered /lab paints styled, and its wordmark keeps
     expect(linkStylesheets('<head></head>', ['assets/lab.css'])).toBe('<head><link rel="stylesheet" crossorigin href="/assets/lab.css"></head>');
   });
 
-  it('gives the wordmark its own size, so it stays small with no stylesheet', () => {
+  it('draws no picture in the top bar that could fill the window before the stylesheet arrives', () => {
     const host = document.createElement('div');
     render(h(LabTopBar, { file: 'main.cpp', phase: { label: 'Ready', tone: 'idle' }, onRun: () => {} }), host);
-    const word = host.querySelector('svg.lab-top-bar__word')!;
-    expect(word.getAttribute('height')).toBe('17');
-    const [, , columns, rows] = word.getAttribute('viewBox')!.split(' ').map(Number);
-    expect(Number(word.getAttribute('width'))).toBe(Math.round((17 * columns) / rows));
+    // The run icon is the bar's only drawing, and it carries no size of its own to lose.
+    expect([...host.querySelectorAll('svg')].map((svg) => svg.getAttribute('class'))).toEqual(['lab-top-bar__run-icon']);
     render(null, host);
   });
 
@@ -473,7 +471,7 @@ describe('BB-LAB-118: The prerendered /lab paints styled, and its wordmark keeps
       return;
     }
     const sheets = [...html.matchAll(/<link rel="stylesheet"[^>]*href="\/(assets\/[^"]+\.css)"/g)].map((m) => m[1]);
-    const styled = sheets.filter((file) => readFileSync(join(process.cwd(), 'dist', file), 'utf8').includes('.lab-top-bar__word'));
+    const styled = sheets.filter((file) => readFileSync(join(process.cwd(), 'dist', file), 'utf8').includes('.lab-top-bar__status'));
     expect(styled.length).toBe(1);
   });
 });
