@@ -81,14 +81,14 @@ test.describe("VIS-LAB: the Lab's Share dialog", () => {
 test.describe('VIS-LAB-18: /lab paints styled from its first frame', () => {
   test.use({ serviceWorkers: 'block' });
 
-  test('the wordmark keeps its 17 px height on every frame while the page loads, opened directly or from the header', async ({ page }) => {
+  test("the wordmark keeps the editor's 23 px height on every frame while the page loads, opened directly or from the header", async ({ page }) => {
     await routeLab(page.context());
     // Every frame from the first, the wordmark's height, while it is in the page.
     await page.addInitScript(() => {
       const seen: number[] = [];
       (window as unknown as { __wordHeights: number[] }).__wordHeights = seen;
       const tick = () => {
-        const word = document.querySelector('.lab-top-bar__word');
+        const word = document.querySelector('.lab-top-bar .vams-logo__word');
         if (word) seen.push(Math.round(word.getBoundingClientRect().height));
         if (performance.now() < 4000) requestAnimationFrame(tick);
       };
@@ -97,11 +97,11 @@ test.describe('VIS-LAB-18: /lab paints styled from its first frame', () => {
     const heights = () => page.evaluate(() => (window as unknown as { __wordHeights: number[] }).__wordHeights);
     for (const open of [() => page.goto('/lab'), async () => { await page.goto('/'); await page.locator('a[href="/lab"]').first().click(); }]) {
       await open();
-      await page.waitForSelector('.lab-top-bar__word');
+      await page.waitForSelector('.lab-top-bar .vams-logo__word');
       await page.waitForTimeout(2000);
       const seen = await heights();
       expect(seen.length).toBeGreaterThan(10);
-      expect(Math.max(...seen)).toBeLessThanOrEqual(17);
+      expect(Math.max(...seen)).toBeLessThanOrEqual(23);
     }
   });
 });

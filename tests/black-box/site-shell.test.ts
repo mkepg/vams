@@ -485,10 +485,9 @@ describe('BB-SITE-28: On light paper the wordmark sits on an ink plate', () => {
     render(null, host);
   });
 
-  it('uses the plate on the loading screen and the footer, and draws it only in the light theme', () => {
-    for (const file of ['src/pages/editor/ui/EditorLoading.tsx', 'src/widgets/site-footer/ui/SiteFooter.tsx']) {
-      expect(readFileSync(file, 'utf8'), file).toMatch(/<Logo[^>]*\bplate\b/);
-    }
+  it('uses the plate in the footer, and draws it only in the light theme; the loading screen sets it on its ink bar', () => {
+    expect(readFileSync('src/widgets/site-footer/ui/SiteFooter.tsx', 'utf8')).toMatch(/<Logo[^>]*\bplate\b/);
+    expect(readFileSync('src/pages/editor/ui/EditorLoading.tsx', 'utf8')).not.toMatch(/<Logo[^>]*\bplate\b/);
     const logo = readFileSync('src/shared/ui/logo/logo.scss', 'utf8').replace(/\r\n/g, '\n');
     expect(logo).toMatch(/:root:not\(\[data-theme='dark'\]\) \.vams-logo--plate \{[^}]*background: var\(--chrome\);/);
   });
@@ -656,8 +655,8 @@ describe('BB-SITE-37: Netlify publishes only the forwarding site, and only when 
 describe('BB-SITE-38: A stored share link has the editor’s title and metadata', () => {
   it('maps /s/<id> to the /app route', () => {
     expect(findRouteMeta('/s/k3x9q2Ab')).toBe(findRouteMeta('/app'));
-    expect(findRouteMeta('/s/k3x9q2Ab/').title).toBe('VAMS Editor');
-    expect(findRouteMeta('/s').title).not.toBe('VAMS Editor');
+    expect(findRouteMeta('/s/k3x9q2Ab/').title).toBe('Editor | VAMS');
+    expect(findRouteMeta('/s').title).not.toBe('Editor | VAMS');
   });
 });
 
@@ -678,5 +677,87 @@ describe('BB-SITE-40: The Try it slide carries a QR code to the site', () => {
     expect(html).toMatch(/role="img" aria-label="QR code for vams\.pages\.dev"/);
     expect(html).toMatch(/<svg[^>]+viewBox="0 0 \d+ \d+"/);
     expect(html).toContain('vams.pages.dev');
+  });
+});
+describe('BB-SITE-41: Every page but the home page is titled "<Page> | VAMS"', () => {
+  it('puts the page first and the product last, the editor and the Lab alike', () => {
+    for (const route of ROUTES.filter((r) => r.path !== '/')) {
+      expect(route.title, route.path).toMatch(/^[A-Z][^|]* \| VAMS$/);
+    }
+    expect(findRouteMeta('/app').title).toBe('Editor | VAMS');
+    expect(findRouteMeta('/lab').title).toBe('Lab | VAMS');
+    expect(findRouteMeta('/teach').title).toBe('Teaching | VAMS');
+  });
+});
+
+describe('BB-SITE-42: The editor loads under its own top bar, so switching tools keeps the bar still', () => {
+  it('draws the ink bar with the wordmark and the Editor | Lab switch while the editor loads', async () => {
+    const result = await prerenderAt('/app');
+    const host = document.createElement('div');
+    host.innerHTML = result.html;
+    const bar = host.querySelector('.editor-loading > header.editor-loading__bar')!;
+    expect(bar).not.toBeNull();
+    expect(bar.querySelector('a.editor-loading__home[href="/"] .vams-logo')).not.toBeNull();
+    expect(bar.querySelector('.vams-logo--plate')).toBeNull();
+    const links = [...bar.querySelectorAll('nav.tool-switch a')];
+    expect(links.map((a) => [a.textContent, a.getAttribute('aria-current')])).toEqual([
+      ['Editor', 'page'],
+      ['Lab', null],
+    ]);
+    expect(host.querySelector('[role="status"]')!.textContent).toBe('Loading the editor…');
+  });
+
+  it('sets the wordmark at one size in the editor bar, its loading bar and the Lab bar', () => {
+    for (const file of [
+      'src/widgets/layout/top-bar/top-bar.scss',
+      'src/pages/editor/ui/editor-loading.scss',
+      'src/widgets/lab-workspace/ui/lab-workspace.scss',
+    ]) {
+      const home = /&__home \{([^}]*)/.exec(readFileSync(file, 'utf8'));
+      expect(home, file).not.toBeNull();
+      expect(home![1], file).toMatch(/font-size: var\(--text-base\);/);
+    }
+  });
+});
+
+describe('BB-SITE-43: Switching between the editor and the Lab fades, with the top bar held still', () => {
+  const html = readFileSync('index.html', 'utf8');
+  const script = /<script>\s*\(function \(\) \{\s*\/\/ Tool switch:([\s\S]*?)<\/script>/.exec(html);
+
+  it('opts both pages into a fade only when the reader allows motion, and names each tool bar', () => {
+    const global = readFileSync('src/app/styles/global.scss', 'utf8');
+    expect(global).toMatch(/@media \(prefers-reduced-motion: no-preference\) \{\s*@view-transition \{\s*navigation: auto;/);
+    for (const file of ['src/widgets/layout/top-bar/top-bar.scss', 'src/pages/editor/ui/editor-loading.scss', 'src/widgets/lab-workspace/ui/lab-workspace.scss']) {
+      expect(readFileSync(file, 'utf8'), file).toContain('view-transition-name: tool-bar;');
+    }
+    // The name makes a bar a stacking context: the two bars with menus are raised, or the menus
+    // drop behind the columns below them.
+    for (const file of ['src/widgets/layout/top-bar/top-bar.scss', 'src/widgets/lab-workspace/ui/lab-workspace.scss']) {
+      expect(readFileSync(file, 'utf8'), file).toMatch(/view-transition-name: tool-bar;\s*position: relative;\s*z-index: 40;/);
+    }
+  });
+
+  it('keeps the fade for a switch between the two tools and skips it for every other page', () => {
+    expect(script).not.toBeNull();
+    const run = (from: string | null, to: string) => {
+      let handler: ((event: unknown) => void) | undefined;
+      let skipped = false;
+      const win = {
+        addEventListener: (type: string, fn: (event: unknown) => void) => { if (type === 'pagereveal') handler = fn; },
+        navigation: from === null ? undefined : { activation: { from: { url: 'https://vams.pages.dev' + from } } },
+        location: { pathname: to },
+      };
+      new Function('window', 'document', script![0].replace(/^<script>|<\/script>$/g, ''))(win, { referrer: '' });
+      handler!({ viewTransition: { skipTransition: () => { skipped = true; } } });
+      handler!({ viewTransition: null });
+      return !skipped;
+    };
+    expect(run('/app', '/lab')).toBe(true);
+    expect(run('/lab', '/app')).toBe(true);
+    expect(run('/lab/', '/app/')).toBe(true);
+    expect(run('/', '/app')).toBe(false);
+    expect(run('/lab', '/learn')).toBe(false);
+    expect(run('/gallery', '/lab')).toBe(false);
+    expect(run(null, '/lab')).toBe(false);
   });
 });

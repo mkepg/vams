@@ -8,10 +8,21 @@
   height: 44px;
   padding: 0 10px 0 14px;
   @include ink-chrome;
+  /* One name with the Lab's bar: switching tools fades the pages and holds the bar still. The name
+     makes the bar a stacking context, so it is raised above the workspace (the rail is 31) for the
+     File menu to drop over the columns. */
+  view-transition-name: tool-bar;
+  position: relative;
+  z-index: 40;
 
+  /* The toasts show fixed at the foot of the window; their region takes no place in the row. */
+  &__toasts { position: absolute; }
+
+  /* The wordmark scales with this font size; the Lab's bar and the loading bar set the same. */
   &__home {
     display: inline-flex;
     align-items: center;
+    font-size: var(--text-base);
     color: var(--ink);
     text-decoration: none;
     border-radius: var(--radius-m);

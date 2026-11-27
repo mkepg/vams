@@ -10,7 +10,10 @@ export interface RouteMeta {
 export const SITE_NAME = 'VAMS';
 export const DEFAULT_SITE_URL = 'https://vams.pages.dev';
 
-/** Add a route here only when its page is finished. */
+/**
+ * Add a route here only when its page is finished. Titles read "<Page> | VAMS", the page first and the
+ * product last, so tabs tell the pages apart; only the home page leads with the product.
+ */
 export const ROUTES: readonly RouteMeta[] = [
   {
     path: '/',
@@ -42,7 +45,7 @@ export const ROUTES: readonly RouteMeta[] = [
   },
   {
     path: '/teach',
-    title: 'Teaching with VAMS',
+    title: 'Teaching | VAMS',
     description:
       'For instructors: how the VAMS course lines up with an OpenGL class, the links that open a lesson or scene, running a lab, and a one-hour session plan.',
     indexable: true,
@@ -62,7 +65,7 @@ export const ROUTES: readonly RouteMeta[] = [
   },
   {
     path: '/app',
-    title: 'VAMS Editor',
+    title: 'Editor | VAMS',
     description: 'Author 2D scenes and read the generated OpenGL 1.5 code and math side by side.',
     indexable: false,
   },
