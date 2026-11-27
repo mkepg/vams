@@ -43,7 +43,10 @@
     outline-offset: 1px;
   }
 
-  .primitive-drawing { color: var(--accent-text); }
+  /* Ink at rest; the accent marks the tile under the pointer. */
+  .primitive-drawing { color: var(--ink-muted); }
+  &:hover .primitive-drawing,
+  &:focus-visible .primitive-drawing { color: var(--accent-text); }
 
   &__name {
     font-size: var(--text-xs);

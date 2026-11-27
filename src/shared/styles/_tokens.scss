@@ -136,7 +136,7 @@ $header-height: 3.7rem;
   --run-fired-wash: rgba(21, 128, 61, 0.10);
   /* The quietest readable text (notes, hints, comments, table heads), and line numbers below it. */
   --ink-dim: #626b85;
-  --line-number: #7d87a1;
+  --line-number: #5f6882; /* 5.2:1 on --code-bg, 4.7:1 on --paper */
   --channel-r: #b91c1c;
   --channel-g: #166534;
   --channel-b: #1d4ed8;
@@ -251,7 +251,7 @@ $header-height: 3.7rem;
   --run-fired: #4ade80;
   --run-fired-wash: rgba(74, 222, 128, 0.10);
   --ink-dim: #7a84a0;
-  --line-number: #5d6680;
+  --line-number: #7f88a2; /* 4.8:1 on --code-bg */
   --channel-r: #f87171;
   --channel-g: #4ade80;
   --channel-b: #60a5fa;

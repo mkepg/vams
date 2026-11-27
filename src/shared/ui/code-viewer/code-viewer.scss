@@ -67,7 +67,8 @@ $fold-col: 20px;
 
 // The header's toggles are plain words: faint until hovered or switched on.
 .code-word {
-  padding: 1px 5px;
+  min-height: 24px;
+  padding: 2px 6px;
   border: 0;
   border-radius: var(--radius-s);
   background: none;
@@ -76,8 +77,9 @@ $fold-col: 20px;
   color: var(--ink-faint);
   cursor: pointer;
 
-  &:hover,
-  &[aria-pressed='true'] { color: var(--ink); }
+  &:hover { color: var(--ink); }
+  /* On is shown by a fill as well as the colour. */
+  &[aria-pressed='true'] { color: var(--accent-text); background: var(--accent-tint); }
   &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 }
 

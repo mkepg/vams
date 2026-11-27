@@ -105,8 +105,8 @@
     position: relative;
     padding: var(--space-3) 84px var(--space-3) var(--space-3);
     border-radius: var(--radius-m);
-    background: var(--code-bg);
-    border: 1px solid var(--rule);
+    /* A well inside the record card, not a second card. */
+    background: var(--paper-sunken);
     &[hidden] { display: none; }
   }
   &__text {

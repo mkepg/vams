@@ -19,8 +19,7 @@
     linear-gradient(135deg, rgba(var(--accent-blue-rgb), 0.05), transparent 70%),
     rgba(var(--well-rgb), 0.25);
   border: 1px solid $border-color;
-  border-left: 3px solid rgba(var(--accent-blue-rgb), 0.5);
-  border-radius: 5px;
+  border-radius: var(--radius-m);
 
   .tx-binding-key {
     font-family: $font-mono;
@@ -131,8 +130,7 @@
     linear-gradient(135deg, rgba(var(--accent-blue-rgb), 0.06), transparent 70%),
     rgba(var(--well-rgb), 0.36);
   border: 1px solid $border-color;
-  border-left: 2px solid var(--accent-blue-light);
-  border-radius: 4px;
+  border-radius: var(--radius-m);
   font-family: $font-mono;
   font-size: var(--text-xs);
   line-height: 1.55;

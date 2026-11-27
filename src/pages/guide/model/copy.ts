@@ -7,5 +7,5 @@ export const GUIDE_COPY = {
   tour: 'In the editor, Help has a Start the tour button here: six short steps through the workspace.',
   tourLink: 'Open the editor',
   teach: 'Teaching with VAMS?',
-  teachLink: 'Read the guide for instructors',
+  teachLink: 'Read Teaching with VAMS',
 } as const;

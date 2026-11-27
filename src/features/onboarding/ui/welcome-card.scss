@@ -13,14 +13,14 @@
     color: $text-muted;
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 6px;
+    border-radius: var(--radius-m);
     cursor: pointer;
     &:hover { background-color: rgba(var(--border-rgb), 0.4); color: $text-main; }
     &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
   }
 
   h2 { margin: 0 0 0.4rem; font-size: var(--text-lg); }
-  .welcome-lead { margin: 0 0 1.25rem; color: $text-muted; font-size: var(--text-sm); line-height: 1.5; }
+  .welcome-lead { margin: 0 0 1.25rem; color: $text-muted; font-size: var(--text-base); line-height: 1.5; }
 
   .welcome-regions {
     list-style: none;
@@ -36,8 +36,8 @@
       gap: 0.75rem;
       svg { flex-shrink: 0; margin-top: 2px; color: $accent-blue-text; }
       div { display: flex; flex-direction: column; gap: 0.1rem; }
-      strong { font-size: var(--text-sm); }
-      span { font-size: var(--text-xs); color: $text-muted; line-height: 1.45; }
+      strong { font-size: var(--text-base); }
+      span { font-size: var(--text-sm); color: $text-muted; line-height: 1.45; }
     }
   }
 
@@ -49,9 +49,9 @@
 
   .welcome-btn {
     padding: 0.5rem 1.05rem;
-    font-size: var(--text-xs);
+    font-size: var(--text-sm);
     font-weight: 600;
-    border-radius: 6px;
+    border-radius: var(--radius-m);
     border: 1px solid transparent;
     cursor: pointer;
     transition: background-color 0.15s, border-color 0.15s;
@@ -63,10 +63,11 @@
       border-color: $border-color;
       &:hover { background-color: rgba(var(--border-rgb), 0.4); }
     }
+    /* The first primary a student meets is the same cobalt as Run and Share. */
     &.primary {
-      color: var(--on-accent-blue);
-      background-color: $accent-blue;
-      &:hover { background-color: var(--accent-blue-light); color: var(--on-accent-light); }
+      color: var(--on-accent);
+      background-color: var(--accent);
+      &:hover { filter: brightness(1.08); }
     }
   }
 }

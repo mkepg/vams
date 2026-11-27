@@ -84,14 +84,14 @@
   }
   &__run {
     margin: 0;
-    font-size: var(--text-sm);
+    font-size: var(--text-base);
     line-height: 1.5;
     color: var(--ink);
   }
   &__run-label {
     margin-right: var(--space-2);
-    font-weight: 600;
-    color: var(--accent-text);
+    font-weight: 700;
+    color: var(--ink);
   }
   &__open {
     margin-top: auto;

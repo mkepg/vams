@@ -14,6 +14,9 @@
 /* Zero-specificity defaults, so any component class (such as a filled button) can override them. */
 :where(.site-page) main { flex: 1; }
 :where(.site-page) a { color: inherit; }
+/* No single word left alone on a paragraph's last line, and headings break evenly. */
+:where(.site-page) :is(p, li, dd) { text-wrap: pretty; }
+:where(.site-page) :is(h1, h2, h3) { text-wrap: balance; }
 
 @media (max-width: 640px) {
   .site-page { --site-gutter: var(--space-4); }

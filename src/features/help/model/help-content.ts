@@ -239,9 +239,9 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'definitions',
         items: [
-          { term: 'Coordinate Playground', description: 'The live editing canvas, so you can experiment while thinking about the pipeline.' },
-          { term: 'Pipeline Diagram', description: 'A strip of the stages in order, each drawn with your selected shape (or a triangle when the scene is empty), with the program line that does that stage. Click a stage, or use the arrow keys, to see it large.' },
-          { term: 'Raster vs. Vector', description: 'Your shape as exact vector geometry beside the pixels OpenGL fills for it. Change the pixels across, and turn GLUT_MULTISAMPLE on or off to see the edges soften.' },
+          { term: 'Playground', description: 'The live editing canvas, so you can experiment while thinking about the pipeline.' },
+          { term: 'Diagram', description: 'A strip of the stages in order, each drawn with your selected shape (or a triangle when the scene is empty), with the program line that does that stage. Click a stage, or use the arrow keys, to see it large.' },
+          { term: 'Raster vs vector', description: 'Your shape as exact vector geometry beside the pixels OpenGL fills for it. Change the pixels across, and turn GLUT_MULTISAMPLE on or off to see the edges soften.' },
         ],
       },
       { kind: 'heading', text: 'From vertex to pixel' },
