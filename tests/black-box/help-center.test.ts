@@ -309,3 +309,26 @@ describe('BB-HELP-13: A code block or table that scrolls sideways can be scrolle
     render(null, host);
   });
 });
+
+describe('BB-HELP-14: The guide reads in sentence case, with no ampersands or em dashes', () => {
+  it('names its groups in sentence case and its text without an & or a long dash', () => {
+    for (const { label } of HELP_CATEGORIES) {
+      expect(label, label).toMatch(/^[A-Z][a-z]+( [a-z]+)*$/);
+    }
+    for (const topic of HELP_TOPICS) {
+      expect(topic.title, topic.title).not.toContain('&');
+      for (const block of topic.blocks) {
+        if (block.kind === 'heading') expect(block.text, block.text).not.toContain('&');
+      }
+    }
+    expect(JSON.stringify(HELP_TOPICS)).not.toContain('—');
+    expect(JSON.stringify(HELP_TOPICS)).not.toMatch(/Help Cent(re|er)/);
+  });
+
+  it('calls the dialog the guide, as the site does', () => {
+    const labels = SHORTCUT_GROUPS.flatMap((group) => group.items.map((s) => s.label));
+    expect(labels).toContain('Open this guide');
+    expect(labels).toContain('Close the guide');
+    expect(labels.join(' ')).not.toMatch(/Help Cent(re|er)/);
+  });
+});
