@@ -36,7 +36,7 @@
     padding: var(--space-3);
     font-size: var(--text-md);
     border: 1px solid var(--rule-strong);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-m);
     background: var(--paper-raised);
   }
 
@@ -63,7 +63,7 @@
     min-height: 240px;
     overflow: auto;
     border: 1px solid var(--rule);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-m);
 
     &[hidden] { display: none; }
     .code-viewer-container { position: relative; }
@@ -74,6 +74,17 @@
     font-size: var(--text-sm);
     color: var(--ink-muted);
   }
+
+  /* A bare editor or lesson link: what it is, where the editor opens, and what works here. */
+  &__intro {
+    display: grid;
+    gap: var(--space-3);
+    font-size: var(--text-md);
+    line-height: var(--lh-md);
+    p { margin: 0; text-wrap: pretty; }
+    a { color: var(--accent-text); text-underline-offset: 3px; }
+  }
+  &__detail { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--ink-muted); }
 
   &__actions {
     display: flex;

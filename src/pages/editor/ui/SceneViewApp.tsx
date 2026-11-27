@@ -13,10 +13,27 @@ import { Button, SegmentedControl } from '@/shared/ui/controls';
 import Logo from '@/shared/ui/logo';
 import { useCanvasSize } from '@/shared/lib/use-canvas-size';
 import { getActiveTheme, subscribeTheme, toEditorTheme, useSiteTheme } from '@/shared/lib/theme';
+import { getPreset } from '@/entities/project/model/scene-presets';
+import { LESSON_CATALOG } from '@/features/lesson-engine/model/catalog';
 import { editorAnywayUrl, parseShareLink } from '../model/share-link';
 
 type Pane = 'scene' | 'code';
-type ViewState = { status: 'loading' } | { status: 'ready'; name: string } | { status: 'error'; message: string };
+type ViewState =
+  | { status: 'loading' }
+  | { status: 'ready'; name: string }
+  | { status: 'error'; message: string }
+  | { status: 'intro'; name: string; detail: string | null };
+
+/** What this address opens on a phone: a shared or prepared scene, or the editor itself. */
+function initialView(): ViewState {
+  const { pathname, search, hash } = window.location;
+  const params = new URLSearchParams(search);
+  if (parseShareLink(pathname, hash) || getPreset(params.get('scene') ?? '')) return { status: 'loading' };
+  const lesson = LESSON_CATALOG.find((entry) => entry.id === params.get('lesson'));
+  if (!lesson) return { status: 'intro', name: 'The VAMS editor', detail: null };
+  const kind = lesson.type === 'demo' ? 'Demo' : 'Exercise';
+  return { status: 'intro', name: lesson.title, detail: `${kind} · ${lesson.section} · ${lesson.steps} steps` };
+}
 
 /** A full page load, so the editor starts from the visitor's own saved scene. */
 const goTo = (href: string) => (event: { preventDefault: () => void }) => {
@@ -47,11 +64,7 @@ function SharedScene({ pane }: { pane: Pane }) {
 }
 
 export default function SceneViewApp() {
-  const [view, setView] = useState<ViewState>(() => {
-    return parseShareLink(window.location.pathname, window.location.hash)
-      ? { status: 'loading' }
-      : { status: 'error', message: SHARE_MESSAGES.damaged };
-  });
+  const [view, setView] = useState<ViewState>(initialView);
   const [pane, setPane] = useState<Pane>('scene');
   const theme = useSiteTheme();
 
@@ -63,7 +76,17 @@ export default function SceneViewApp() {
 
   useEffect(() => {
     const link = parseShareLink(window.location.pathname, window.location.hash);
-    if (!link) return;
+    if (!link) {
+      // A prepared scene is bundled with the page, so it opens at once.
+      const preset = getPreset(new URLSearchParams(window.location.search).get('scene') ?? '');
+      if (!preset) return;
+      loadProjectData(preset.data, { sceneId: '', sceneName: preset.title });
+      useVamsStore.setState({ selectedObjectId: null, appMode: 'Author', activeLessonId: null });
+      // The scene goes into the store first, so the view switches to it only once it is there.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setView({ status: 'ready', name: preset.title });
+      return;
+    }
     void resolveSharedScene(link)
       .then((r) => {
         if (!r.ok) {
@@ -86,11 +109,21 @@ export default function SceneViewApp() {
         <a className="scene-view__home" href="/" aria-label="VAMS home" onClick={goTo('/')}>
           <Logo />
         </a>
-        <h1 className="scene-view__name">{view.status === 'ready' ? view.name : 'Shared scene'}</h1>
+        <h1 className="scene-view__name">{view.status === 'ready' || view.status === 'intro' ? view.name : 'Shared scene'}</h1>
         <ThemeToggleButton className="vbtn vbtn--quiet vbtn--md vbtn--icon" />
       </header>
       {view.status === 'error' && <p className="scene-view__error" role="alert">{view.message}</p>}
       {view.status === 'loading' && <p className="scene-view__note" role="status">Opening the scene…</p>}
+      {view.status === 'intro' && (
+        <div className="scene-view__intro">
+          {view.detail && <p className="scene-view__detail">{view.detail}</p>}
+          <p>The editor opens in a window at least 960 pixels wide, on a laptop or a desktop.</p>
+          <p>
+            On this phone, the <a href="/gallery">gallery</a> scenes open to look at, and the{' '}
+            <a href="/learn">lessons</a> and the <a href="/guide">guide</a> read as they do anywhere.
+          </p>
+        </div>
+      )}
       {view.status === 'ready' && (
         <>
           <SegmentedControl
