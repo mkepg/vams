@@ -383,3 +383,13 @@ describe('BB-TOP-09: The Editor | Lab switch sits beside the logo and opens the 
     unmount(host);
   });
 });
+
+describe('BB-TOP-10: The group that holds the File menu never clips it', () => {
+  it('leaves overflow visible on .top-bar__left, so the menu can drop below the bar', async () => {
+    const { readFileSync } = await import('node:fs');
+    const scss = readFileSync('src/widgets/layout/top-bar/top-bar.scss', 'utf8');
+    const left = /&__left \{([^}]*)\}/.exec(scss);
+    expect(left).not.toBeNull();
+    expect(left![1]).not.toMatch(/overflow/);
+  });
+});
