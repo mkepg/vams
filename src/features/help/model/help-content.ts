@@ -3,10 +3,10 @@ import type { HelpBlock, HelpCategory, HelpTopic, HelpTopicId } from './types';
 
 /** Display order of the left-nav categories. */
 export const HELP_CATEGORIES: HelpCategory[] = [
-  { id: 'getting-started', label: 'Getting Started' },
-  { id: 'workspace', label: 'The Workspace' },
-  { id: 'sections', label: 'Section Guides' },
-  { id: 'panels', label: 'Panels & Tools' },
+  { id: 'getting-started', label: 'Getting started' },
+  { id: 'workspace', label: 'The workspace' },
+  { id: 'sections', label: 'Section guides' },
+  { id: 'panels', label: 'Panels and tools' },
   { id: 'reference', label: 'Reference' },
 ];
 
@@ -20,7 +20,7 @@ export const HELP_TOPICS: HelpTopic[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: 'VAMS (Visual Animation Modeling Simulator) is a teaching tool for the OpenGL 1.5 fixed-function pipeline. You build a scene visually and VAMS shows you the exact OpenGL/C++ code and the math behind it, in real time — so you can connect what you see on screen to the code that produces it.',
+        text: 'VAMS (Visual Animation Modeling Simulator) is a teaching tool for the OpenGL 1.5 fixed-function pipeline. You build a scene visually and VAMS shows you the exact OpenGL/C++ code and the math behind it, in real time, so you can connect what you see on screen to the code that produces it.',
       },
       {
         kind: 'paragraph',
@@ -31,7 +31,7 @@ export const HELP_TOPICS: HelpTopic[] = [
         kind: 'list',
         items: [
           'Create every OpenGL 1.5 primitive and edit its vertices, colour, and line style.',
-          'Switch geometry between immediate mode, vertex arrays, and VBOs — and see the code change.',
+          'Switch geometry between immediate mode, vertex arrays, and VBOs, and see the code change.',
           'Translate, rotate, scale, and group objects, and set the orthographic view.',
           'Give GLUT callbacks rules and press Run to play them, including idle rules that animate a shape every frame.',
           'Upload textures and map them onto shapes with a UV editor.',
@@ -45,13 +45,13 @@ export const HELP_TOPICS: HelpTopic[] = [
         items: [
           'Add a shape from the Add panel on the rail (or click “Add a shape” on the empty canvas).',
           'Watch the generated OpenGL code appear on the right.',
-          'Select the shape and edit its colour or position in the Scene panel — notice the code and math update live.',
+          'Select the shape and edit its colour or position in the Scene panel, and watch the code and math update live.',
         ],
       },
       {
         kind: 'callout',
         tone: 'tip',
-        text: 'New here? Take the tour from the Workspace Tour topic: six short steps through the workspace. Press ? or F1 any time to reopen this Help Centre.',
+        text: 'New here? Take the tour from the Workspace tour topic: six short steps through the workspace. Press ? or F1 any time to open this guide again.',
       },
     ],
     related: ['workspace-tour', 'canvas-basics', 'modes', 'shortcuts'],
@@ -72,9 +72,9 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'list',
         items: [
-          'Left — Build. A rail of four panels: Add, Scene, Settings and Callbacks. One panel shows at a time.',
-          'Centre — See. The canvas, where your scene is drawn and where you place vertices. The canvas is drawn as your program’s window, with the View menu and Run in the header above it.',
-          'Right — Read. The generated OpenGL code, or the math behind it, with a Code / Math switch at the top.',
+          'Left: Build. A rail of four panels: Add, Scene, Settings and Callbacks. One panel shows at a time.',
+          'Centre: See. The canvas, where your scene is drawn and where you place vertices. The canvas is drawn as your program’s window, with the View menu and Run in the header above it.',
+          'Right: Read. The generated OpenGL code, or the math behind it, with a Code / Math switch at the top.',
         ],
       },
       {
@@ -83,7 +83,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       },
       {
         kind: 'paragraph',
-        text: 'The window works like a window on your desktop. It opens, and maximises, in the viewing volume’s shape, so a square draws square; dragging an edge stretches it. Drag its title bar to move it; that changes nothing in your drawing or your code. Drag its right edge, bottom edge or corner to resize it: the scene stretches to fill the window, and the size in glutInitWindowSize follows. The — button minimises it and the ▢ button maximises or restores it (double-clicking the title bar does the same). ✕ closes it and stops a running program; the chip at the bottom of the stage, or pressing Run, brings it back.',
+        text: 'The window works like a window on your desktop. It opens, and maximises, in the viewing volume’s shape, so a square draws square; dragging an edge stretches it. Drag its title bar to move it; that changes nothing in your drawing or your code. Drag its right edge, bottom edge or corner to resize it: the scene stretches to fill the window, and the size in glutInitWindowSize follows. Its three buttons minimise it, maximise or restore it (double-clicking the title bar does the same), and close it. Closing stops a running program; the chip at the bottom of the stage, or pressing Run, brings it back.',
       },
       { kind: 'heading', text: 'The rail and its panels' },
       {
@@ -127,13 +127,13 @@ export const HELP_TOPICS: HelpTopic[] = [
         kind: 'list',
         items: [
           'Editor | Lab: switch to the Lab, where you write the C++ yourself, and back. Each keeps your work in this browser.',
-          'Learn — open the course map and start a demo or an exercise.',
-          'File — start a new workspace, open My scenes, open or save a project file, or export the C++ code.',
-          'Undo / Redo — step backward and forward through your edits.',
-          'Scene name — click it to rename the scene. The note beside it shows whether the scene is saved: Saving…, Saved or Not saved.',
-          'Settings — choose the theme and open the shortcut list.',
-          'Share — make a link and a QR code for your scene.',
-          'Help — open this Help Centre (also ? or F1).',
+          'Learn: open the course map and start a demo or an exercise.',
+          'File: start a new workspace, open My scenes, open or save a project file, or export the C++ code.',
+          'Undo and Redo: step backward and forward through your edits.',
+          'Scene name: click it to rename the scene. The note beside it shows whether the scene is saved: Saving…, Saved or Not saved.',
+          'Settings: choose the theme and open the shortcut list.',
+          'Share: make a link and a QR code for your scene.',
+          'Help: open this guide (also ? or F1).',
         ],
       },
       {
@@ -154,7 +154,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { kind: 'heading', text: 'The coordinate system' },
       {
         kind: 'paragraph',
-        text: 'The canvas shows your world coordinates. By default the visible window runs from -1 to 1 on both axes — the same Normalised Device Coordinates (NDC) that OpenGL clips against. The origin (0, 0) sits at the centre; X increases to the right and Y increases upward, matching OpenGL (not screen pixels, where Y points down).',
+        text: 'The canvas shows your world coordinates. By default the visible window runs from -1 to 1 on both axes: the same Normalised Device Coordinates (NDC) that OpenGL clips against. The origin (0, 0) sits at the centre; X increases to the right and Y increases upward, matching OpenGL (not screen pixels, where Y points down).',
       },
       { kind: 'heading', text: 'Selecting objects' },
       {
@@ -172,10 +172,10 @@ export const HELP_TOPICS: HelpTopic[] = [
         text: 'Press Run in the canvas header to play your callbacks. Keys, clicks and drags go to your handlers, and the program window’s title bar shows the last call GLUT made. Drag the window’s edges or corner to resize it. Press Esc or Stop to end the run: your scene is just as you built it.',
       },
       { kind: 'shortcuts' },
-      { kind: 'heading', text: 'Grid snapping & coordinates' },
+      { kind: 'heading', text: 'Grid snapping and coordinates' },
       {
         kind: 'paragraph',
-        text: 'Turn on grid snapping so clicks land on tidy increments instead of arbitrary decimals — useful for clean, predictable geometry. The coordinate tracker (switch it on in the View menu beside Run) shows the world X/Y under your cursor as you move.',
+        text: 'Turn on grid snapping so clicks land on tidy increments instead of arbitrary decimals, which keeps geometry clean, predictable geometry. The coordinate tracker (switch it on in the View menu beside Run) shows the world X/Y under your cursor as you move.',
       },
       {
         kind: 'callout',
@@ -239,9 +239,9 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'definitions',
         items: [
-          { term: 'Coordinate Playground', description: 'The live editing canvas, so you can experiment while thinking about the pipeline.' },
-          { term: 'Pipeline Diagram', description: 'A strip of the stages in order, each drawn with your selected shape (or a triangle when the scene is empty), with the program line that does that stage. Click a stage, or use the arrow keys, to see it large.' },
-          { term: 'Raster vs. Vector', description: 'Your shape as exact vector geometry beside the pixels OpenGL fills for it. Change the pixels across, and turn GLUT_MULTISAMPLE on or off to see the edges soften.' },
+          { term: 'Playground', description: 'The live editing canvas, so you can experiment while thinking about the pipeline.' },
+          { term: 'Diagram', description: 'A strip of the stages in order, each drawn with your selected shape (or a triangle when the scene is empty), with the program line that does that stage. Click a stage, or use the arrow keys, to see it large.' },
+          { term: 'Raster vs vector', description: 'Your shape as exact vector geometry beside the pixels OpenGL fills for it. Change the pixels across, and turn GLUT_MULTISAMPLE on or off to see the edges soften.' },
         ],
       },
       { kind: 'heading', text: 'From vertex to pixel' },
@@ -324,13 +324,13 @@ export const HELP_TOPICS: HelpTopic[] = [
           ['0.5, 0.5, 0.5', '128, 128, 128', 'Grey'],
         ],
       },
-      { kind: 'heading', text: 'Line styling & text' },
+      { kind: 'heading', text: 'Line styling and text' },
       {
         kind: 'list',
         items: [
-          'Line width — glLineWidth makes lines thicker.',
-          'Stipple — glLineStipple dashes a line using a 16-bit on/off pattern and a repeat factor.',
-          'Text — bitmap text is drawn with glRasterPos2f to set where each line starts and glutBitmapCharacter for each glyph. The letters are GLUT_BITMAP_9_BY_15: always 9 × 15 window pixels, running right from the raster position, whatever the scale, rotation or viewing volume.',
+          'Line width: glLineWidth makes lines thicker.',
+          'Stipple: glLineStipple dashes a line using a 16-bit on/off pattern and a repeat factor.',
+          'Text: bitmap text is drawn with glRasterPos2f to set where each line starts and glutBitmapCharacter for each glyph. The letters are GLUT_BITMAP_9_BY_15: always 9 × 15 window pixels, running right from the raster position, whatever the scale, rotation or viewing volume.',
         ],
       },
       {
@@ -356,14 +356,14 @@ export const HELP_TOPICS: HelpTopic[] = [
     blocks: [
       {
         kind: 'paragraph',
-        text: 'The Buffers section covers how geometry is stored and sent to the GPU. Switch an object between three rendering modes and watch the generated code change structurally — not just cosmetically.',
+        text: 'The Buffers section covers how geometry is stored and sent to the GPU. Switch an object between three rendering modes and watch the generated code change in structure, not just in appearance.',
       },
       {
         kind: 'table',
         headers: ['Mode', 'How geometry is sent', 'Key calls'],
         rows: [
           ['Immediate', 'One vertex at a time, every frame', 'glBegin / glVertex / glEnd'],
-          ['Vertex Array', 'Client-side arrays, drawn in one call', 'glVertexPointer / glDrawArrays'],
+          ['Vertex array', 'Client-side arrays, drawn in one call', 'glVertexPointer / glDrawArrays'],
           ['VBO', 'Uploaded once into GPU memory, reused', 'glGenBuffers / glBufferData / glDrawArrays'],
         ],
       },
@@ -377,7 +377,7 @@ export const HELP_TOPICS: HelpTopic[] = [
         items: [
           { term: 'GL_STATIC_DRAW', description: 'Set the data once and draw it many times. Best for geometry that never changes.' },
           { term: 'GL_DYNAMIC_DRAW', description: 'Update the data occasionally and draw it many times.' },
-          { term: 'GL_STREAM_DRAW', description: 'Set the data and use it only a few times — typically once per frame.' },
+          { term: 'GL_STREAM_DRAW', description: 'Set the data and use it only a few times, typically once per frame.' },
         ],
       },
       { kind: 'heading', text: 'Indexed drawing' },
@@ -392,7 +392,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'callout',
         tone: 'info',
-        text: 'VBO uploads are hoisted into a one-time init() function in the generated code, while drawing stays in display() — exactly how a real program separates setup from rendering.',
+        text: 'VBO uploads are hoisted into a one-time init() function in the generated code, while drawing stays in display(), exactly how a real program separates setup from rendering.',
       },
     ],
     related: ['code-panel', 'math-panel', 'section-primitives', 'glossary'],
@@ -419,7 +419,7 @@ export const HELP_TOPICS: HelpTopic[] = [
           ['Set the view', 'glOrtho(left, right, bottom, top, ...)'],
         ],
       },
-      { kind: 'heading', text: 'The matrix stack & hierarchy' },
+      { kind: 'heading', text: 'The matrix stack and hierarchy' },
       {
         kind: 'paragraph',
         text: 'Grouping objects builds a parent-child hierarchy that maps to nested glPushMatrix / glPopMatrix pairs: a child inherits its parent’s transform, then adds its own. Push saves the current matrix, pop restores it.',
@@ -431,7 +431,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       { kind: 'heading', text: 'Orthographic viewing' },
       {
         kind: 'paragraph',
-        text: 'glOrtho defines the viewing window — the range of world coordinates mapped onto the viewport. Widening the window zooms out; narrowing it zooms in. The math panel shows the window-to-viewport mapping.',
+        text: 'glOrtho defines the viewing window: the range of world coordinates mapped onto the viewport. Widening the window zooms out; narrowing it zooms in. The math panel shows the window-to-viewport mapping.',
       },
       {
         kind: 'callout',
@@ -469,7 +469,7 @@ export const HELP_TOPICS: HelpTopic[] = [
           'Choose filtering and wrapping to control sampling.',
         ],
       },
-      { kind: 'heading', text: 'Filtering & wrapping' },
+      { kind: 'heading', text: 'Filtering and wrapping' },
       {
         kind: 'definitions',
         items: [
@@ -489,7 +489,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'scene-hierarchy',
     category: 'panels',
-    title: 'Scene hierarchy & grouping',
+    title: 'Scene hierarchy and grouping',
     summary: 'Organise, rename, group, reorder, and show or hide your objects.',
     keywords: ['hierarchy', 'scene', 'list', 'group', 'ungroup', 'rename', 'duplicate', 'delete', 'visibility', 'reorder', 'drag', 'parent', 'child', 'tree'],
     blocks: [
@@ -501,12 +501,12 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'list',
         items: [
-          'Select — click a row to select that object and edit it in the inspector below the list (its code opens in Code).',
-          'Rename — double-click a name, or press F2 with a row selected.',
-          'Duplicate or Delete — from the Scene toolbar; a delete can be undone.',
-          'Show or hide — toggle an object’s visibility without deleting it.',
-          'Group or ungroup — turn on Select several in the Scene toolbar, choose more than one object, and press Group to put them under a parent.',
-          'Reorder — drag a row above or below another, or drop it onto a group to nest it inside.',
+          'Select: click a row to select that object and edit it in the inspector below the list (its code opens in Code).',
+          'Rename: double-click a name, or press F2 with a row selected.',
+          'Duplicate or Delete: from the Scene toolbar; a delete can be undone.',
+          'Show or hide: toggle an object’s visibility without deleting it.',
+          'Group or ungroup: turn on Select several in the Scene toolbar, choose more than one object, and press Group to put them under a parent.',
+          'Reorder: drag a row above or below another, or drop it onto a group to nest it inside.',
         ],
       },
       { kind: 'heading', text: 'Groups and the matrix stack' },
@@ -662,7 +662,7 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: 'saving-loading',
     category: 'panels',
-    title: 'Saving & loading',
+    title: 'Saving and loading',
     summary: 'Save your scene to a project file and load it back later.',
     keywords: ['save', 'load', 'project', 'file', 'json', 'import', 'export', 'reset', 'autosave'],
     blocks: [
@@ -673,7 +673,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'definitions',
         items: [
-          { term: 'Save project file', description: 'Writes the entire scene — objects, colours, transforms, buffers, callbacks, and textures — to a project file you can keep or share.' },
+          { term: 'Save project file', description: 'Writes the entire scene (objects, colours, transforms, buffers, callbacks and textures) to a project file you can keep or share.' },
           { term: 'Open project file', description: 'Reads a project file back into the workspace, replacing the current scene.' },
           { term: 'New workspace', description: 'Clears the scene to a blank slate (with a confirmation first).' },
         ],
@@ -686,7 +686,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'callout',
         tone: 'tip',
-        text: 'Your work is also kept in the browser between visits, so reopening VAMS restores your last scene automatically — saving to a file is for backups and sharing.',
+        text: 'Your work is also kept in the browser between visits, so reopening VAMS restores your last scene automatically. Saving to a file is for backups and sharing.',
       },
       {
         kind: 'callout',
@@ -737,7 +737,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'callout',
         tone: 'info',
-        text: 'Backspace no longer deletes a selected object — use Delete — so an accidental Backspace can’t navigate away and lose your work.',
+        text: 'Delete removes a selected object. Backspace does not, so an accidental Backspace can’t navigate away and lose your work.',
       },
     ],
     related: ['canvas-basics'],
@@ -755,23 +755,23 @@ export const HELP_TOPICS: HelpTopic[] = [
         items: [
           { term: 'OpenGL 1.5', description: 'A version of the OpenGL graphics API using the fixed-function pipeline (no programmable shaders).' },
           { term: 'Fixed-function pipeline', description: 'The built-in, configurable (but not programmable) sequence of stages that turns geometry into pixels.' },
-          { term: 'GLUT', description: 'The OpenGL Utility Toolkit — handles windows, input, and the main loop so you can focus on drawing.' },
+          { term: 'GLUT', description: 'The OpenGL Utility Toolkit: it handles windows, input, and the main loop so you can focus on drawing.' },
           { term: 'Primitive', description: 'A basic drawable shape: point, line, triangle, quad, or polygon.' },
           { term: 'Vertex', description: 'A point with a position (and optionally colour and texture coordinates) that defines a primitive’s corner.' },
-          { term: 'NDC', description: 'Normalised Device Coordinates — the -1 to 1 space geometry maps into before the viewport transform.' },
+          { term: 'NDC', description: 'Normalised Device Coordinates: the -1 to 1 space geometry maps into before the viewport transform.' },
           { term: 'Rasterisation', description: 'Turning vector geometry into the pixels (fragments) that fill it.' },
           { term: 'Fragment', description: 'A candidate pixel produced by rasterisation, before it is written to the screen.' },
           { term: 'Immediate mode', description: 'Drawing one vertex at a time between glBegin and glEnd, every frame.' },
           { term: 'Vertex array', description: 'Client-side arrays of vertex data drawn in a single call with glDrawArrays.' },
-          { term: 'VBO', description: 'Vertex Buffer Object — vertex data stored in GPU memory and reused, avoiding per-frame uploads.' },
+          { term: 'VBO', description: 'Vertex Buffer Object: vertex data stored in GPU memory and reused, avoiding per-frame uploads.' },
           { term: 'Indexed drawing', description: 'Reusing shared vertices via an index list with glDrawElements, saving memory.' },
           { term: 'Usage hint', description: 'A flag (STATIC / DYNAMIC / STREAM) telling the driver how often buffer data will change.' },
-          { term: 'Barycentric coordinates', description: 'Weights (α, β, γ) that blend a triangle’s three corners — used to interpolate vertex colours across the face.' },
+          { term: 'Barycentric coordinates', description: 'Weights (α, β, γ) that blend a triangle’s three corners, used to interpolate vertex colours across the face.' },
           { term: 'Stipple', description: 'A 16-bit on/off pattern that dashes a line, set with glLineStipple.' },
           { term: 'glOrtho', description: 'Defines the orthographic viewing window mapping world units onto the viewport.' },
           { term: 'Matrix stack', description: 'The glPushMatrix / glPopMatrix stack of transforms used to build object hierarchies.' },
           { term: 'UV coordinates', description: 'Per-vertex (u, v) values from 0 to 1 that map a texture image onto geometry.' },
-          { term: 'Callback', description: 'A function you register so GLUT calls it on an event — a key press, mouse click, window resize, or idle frame.' },
+          { term: 'Callback', description: 'A function you register so GLUT calls it on an event: a key press, mouse click, window resize, or idle frame.' },
           { term: 'Idle callback', description: 'A callback registered with glutIdleFunc that fires every frame when idle; it is how animation advances a transform over time.' },
           { term: 'Animation', description: 'A transform that changes a little each frame, driven by a rule on the idle callback.' },
           { term: 'Group / hierarchy', description: 'A parent object whose transform is inherited by its children, generated as nested glPushMatrix / glPopMatrix pairs.' },
@@ -815,7 +815,7 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         kind: 'callout',
         tone: 'tip',
-        text: 'You can reopen this Help Centre any time with the ? or F1 key, or from the Help button in the top bar.',
+        text: 'You can open this guide again any time with the ? or F1 key, or from the Help button in the top bar.',
       },
     ],
     related: ['welcome', 'shortcuts'],

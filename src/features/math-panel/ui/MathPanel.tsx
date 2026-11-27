@@ -10,7 +10,7 @@ import JourneyFollow from './journey/JourneyFollow';
 import JourneyTrack from './journey/JourneyTrack';
 
 interface MathPanelProps {
-  /** Replaces the "Math & data" title, such as the column's switch. */
+  /** Replaces the "Math and data" title, such as the column's switch. */
   headerLead?: ComponentChildren;
   /** Rendered at the end of the header. */
   headerTrail?: ComponentChildren;
@@ -51,7 +51,7 @@ export default function MathPanel({ headerLead, headerTrail, contentInert = fals
   return (
     <div className="math-panel-container">
       <div className={headerLead ? 'math-header math-header--lead' : 'math-header'}>
-        {headerLead ?? <span className="math-title">Math &amp; data</span>}
+        {headerLead ?? <span className="math-title">Math and data</span>}
         {headerTrail && <span className="math-header__trail">{headerTrail}</span>}
       </div>
       <div className="journey" inert={contentInert || undefined}>

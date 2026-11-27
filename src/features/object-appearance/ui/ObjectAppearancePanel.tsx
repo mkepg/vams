@@ -133,19 +133,19 @@ export default function ObjectAppearancePanel() {
   const glCall = objColorMode === 'BYTE' ? 'glColor3ub' : 'glColor3f';
 
   return (
-    <CollapsibleSection panelId="appearance-panel" title="Colour & shading" icon={<Palette size={14} />} defaultOpen={true}>
+    <CollapsibleSection panelId="appearance-panel" title="Colour and shading" icon={<Palette size={14} />} defaultOpen={true}>
       <div className="color-section">
 
-        {/* Emission Mode Toggle */}
+        {/* Colour values: glColor3f or glColor3ub */}
         <div className="emission-mode">
           <div className="emission-label">
-            <span>Emission</span>
+            <span>Colour values</span>
             <span className="emission-hint">
               {objColorMode === 'FLOAT' ? 'glColor3f · 0.0–1.0' : 'glColor3ub · 0–255'}
             </span>
           </div>
           <SegmentedControl
-            label="Colour emission"
+            label="Colour values"
             mono
             options={EMISSION_OPTIONS}
             value={objColorMode === 'BYTE' ? '3ub' : '3f'}
@@ -157,9 +157,9 @@ export default function ObjectAppearancePanel() {
         {supportsPerVertexColor && (
           <div className="color-mode-section" ref={toggleContainerRef}>
             <div className="mode-label">
-              <span>Colour Mode</span>
+              <span>Colour mode</span>
               <span className="mode-hint">
-                {colorMode === 'OBJECT' ? 'Solid Fill' : 'Barycentric Gradient'}
+                {colorMode === 'OBJECT' ? 'Solid fill' : 'Barycentric gradient'}
               </span>
             </div>
             <SegmentedControl
@@ -214,7 +214,7 @@ export default function ObjectAppearancePanel() {
               </div>
 
               <div className="gradient-presets">
-                <div className="shading-header">Quick Gradients</div>
+                <div className="shading-header">Quick gradients</div>
                 <div className="preset-buttons">
                   {GRADIENT_PRESETS.map((preset) => (
                     <button

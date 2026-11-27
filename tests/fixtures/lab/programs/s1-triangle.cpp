@@ -46,7 +46,7 @@ void display()
 {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // 2D orthographic projection — see glOrtho editor in VAMS
+    // 2D orthographic projection: the viewing volume set in VAMS
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(-1.0000, 1.0000, -1.0000, 1.0000, -1.0, 1.0);

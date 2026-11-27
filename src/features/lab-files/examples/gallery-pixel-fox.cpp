@@ -114,7 +114,7 @@ void display()
 {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // 2D orthographic projection — see glOrtho editor in VAMS
+    // 2D orthographic projection: the viewing volume set in VAMS
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(viewMinX, viewMaxX, viewMinY, viewMaxY, -1.0, 1.0);
@@ -182,7 +182,7 @@ void onReshape(int width, int height)
 // One-time setup, called once before the main loop
 void init()
 {
-    // Fox — upload to GPU
+    // Fox: upload to GPU
     glGenBuffers(1, &vbo_Fox);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_Fox);
     glBufferData(GL_ARRAY_BUFFER, sizeof(verts_Fox), verts_Fox, GL_STATIC_DRAW);
@@ -201,7 +201,7 @@ void init()
     // OpenGL expects the 0.0 Y-coordinate to be at the bottom, but images store it at the top
     stbi_set_flip_vertically_on_load(true);
 
-    // Fox — texture object
+    // Fox: texture object
     glGenTextures(1, &tex_Fox);
     glBindTexture(GL_TEXTURE_2D, tex_Fox);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -219,7 +219,7 @@ void init()
         }
     }
 
-    // Clouds — texture object
+    // Clouds: texture object
     glGenTextures(1, &tex_Clouds);
     glBindTexture(GL_TEXTURE_2D, tex_Clouds);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);

@@ -751,7 +751,7 @@ void display()
 {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // 2D orthographic projection — see glOrtho editor in VAMS
+    // 2D orthographic projection: the viewing volume set in VAMS
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(-1.6000, 1.6000, -0.9000, 0.9000, -1.0, 1.0);
@@ -801,7 +801,14 @@ void init()
 // Internal VAMS wrapper: run per-frame animation and updates
 void _vams_idle()
 {
-    onIdle();
+    // GLUT calls idle as often as the PC can: step 60 times a second, as VAMS's Run does
+    static int done = -1;
+    int step = glutGet(GLUT_ELAPSED_TIME) * 60 / 1000;
+    // The first call, or one after a long pause, takes a single step
+    if (done < 0 || step - done > 30) done = step - 1;
+    for (; done < step; done++) {
+        onIdle();
+    }
 }
 
 int main(int argc, char** argv)

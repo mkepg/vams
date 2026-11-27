@@ -25,7 +25,7 @@ interface ModeOption {
 
 const MODE_OPTIONS: ModeOption[] = [
   { id: 'IMMEDIATE',    label: 'Immediate',    api: 'glBegin / glEnd', hint: 're-sent each frame',          call: 'glBegin',         args: 'mode' },
-  { id: 'VERTEX_ARRAY', label: 'Vertex Array', api: 'glDrawArrays',    hint: 'sent each frame', call: 'glVertexPointer', args: '2, GL_FLOAT, 0, verts' },
+  { id: 'VERTEX_ARRAY', label: 'Vertex array', api: 'glDrawArrays',    hint: 'sent each frame', call: 'glVertexPointer', args: '2, GL_FLOAT, 0, verts' },
   { id: 'VBO',          label: 'VBO',          api: 'glBufferData',    hint: 'uploaded once',    call: 'glBufferData',    args: 'GL_ARRAY_BUFFER, size, data, usage' },
 ];
 
@@ -54,7 +54,7 @@ interface UpdateMethodOption {
 const UPDATE_METHOD_OPTIONS: UpdateMethodOption[] = [
   {
     id: 'BUFFER_SUB_DATA',
-    label: 'Sub Data',
+    label: 'Sub data',
     api: 'glBufferSubData',
     hint: 'rewrites a GPU range',
     call: 'glBufferSubData',
@@ -62,7 +62,7 @@ const UPDATE_METHOD_OPTIONS: UpdateMethodOption[] = [
   },
   {
     id: 'MAP_BUFFER',
-    label: 'Map Buffer',
+    label: 'Map buffer',
     api: 'glMapBuffer',
     hint: 'writes by pointer',
     call: 'glMapBuffer',
@@ -155,7 +155,7 @@ export default function BuffersPanel() {
     return (
       <CollapsibleSection
         panelId="buffers-panel"
-        title="Memory & Buffers"
+        title="Memory and buffers"
         icon={<Database size={14} />}
         defaultOpen={true}
         hint="glVertexPointer"
@@ -172,7 +172,7 @@ export default function BuffersPanel() {
     return (
       <CollapsibleSection
         panelId="buffers-panel"
-        title="Memory & Buffers"
+        title="Memory and buffers"
         icon={<Database size={14} />}
         defaultOpen={true}
         hint="glVertexPointer"
@@ -197,7 +197,7 @@ export default function BuffersPanel() {
   return (
     <CollapsibleSection
       panelId="buffers-panel"
-      title="Memory & Buffers"
+      title="Memory and buffers"
       icon={<Database size={14} />}
       defaultOpen={true}
       hint="glVertexPointer"
@@ -207,7 +207,7 @@ export default function BuffersPanel() {
         {/* ---- Rendering Mode cards ---- */}
         <div className="bp-block">
           <div className="bp-block-head">
-            <span className="bp-block-label">Rendering Mode</span>
+            <span className="bp-block-label">Rendering mode</span>
             <span className="bp-block-hint">{modeOption.api}</span>
           </div>
           <CardGroup
@@ -225,7 +225,7 @@ export default function BuffersPanel() {
         {showUsage && (
           <div className="bp-block">
             <div className="bp-block-head">
-              <span className="bp-block-label">Buffer Usage</span>
+              <span className="bp-block-label">Buffer usage</span>
               <span className="bp-block-hint">{USAGE_OPTIONS.find((u) => u.id === usage)!.macro}</span>
             </div>
             <CardGroup
@@ -246,7 +246,7 @@ export default function BuffersPanel() {
         {showUpdateMethod && (
           <div className="bp-block">
             <div className="bp-block-head">
-              <span className="bp-block-label">Update Method</span>
+              <span className="bp-block-label">Update method</span>
               <span className="bp-block-hint">{methodOption.api}</span>
             </div>
             <CardGroup
@@ -264,7 +264,7 @@ export default function BuffersPanel() {
         {/* ---- Indexed Drawing toggle ---- */}
         <div className="bp-block">
           <div className="bp-block-head">
-            <span className="bp-block-label">Indexed Drawing</span>
+            <span className="bp-block-label">Indexed drawing</span>
             <span className="bp-block-hint">{indexed ? 'glDrawElements' : 'glDrawArrays'}</span>
           </div>
           <Switch
@@ -275,7 +275,7 @@ export default function BuffersPanel() {
           <span className="bp-indexed-sub">
             {indexed
               ? 'Vertices reused via an index array.'
-              : 'Each vertex is emitted in order — repetition is allowed.'}
+              : 'Each vertex is emitted in order, and repeats are allowed.'}
           </span>
         </div>
 
@@ -283,8 +283,8 @@ export default function BuffersPanel() {
         <div className="bp-note" role="note">
           <Info size={12} className="bp-note-icon" aria-hidden />
           <p>
-            Visual output is identical across modes — switching changes the
-            generated code structure. Watch the code panel for the diff, especially
+            Visual output is identical across modes. Switching changes the
+            structure of the generated code. Watch the code panel for the diff, especially
             when you change usage or update method.
           </p>
         </div>

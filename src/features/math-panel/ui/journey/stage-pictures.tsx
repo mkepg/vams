@@ -304,7 +304,7 @@ export function StagePictures({ stage, node, deeper, deeperId, world, ndc }: Pic
           {world && stage.point && <OrthoFormula world={world} limits={volume} ndc={stage.point} widened={stage.volume?.widened ?? false} />}
           {(deeper || !node) && (
             <div id={deeperId}>
-            <TransformsSection title="glOrtho — viewing volume">
+            <TransformsSection title="glOrtho: viewing volume">
               <p className="explanation">
                 <code>glOrtho</code> defines the rectangle of world space that maps to the visible
                 window. Anything outside is clipped.

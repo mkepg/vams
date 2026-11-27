@@ -92,7 +92,7 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
         action: () => { addShape('TRIANGLES', TRIANGLE); },
       },
       {
-        narration: 'Now its Rendering Mode is Vertex Array. The corners move out of the draw function into verts_, a list of x, y pairs at the top of the program.',
+        narration: 'Now its Rendering mode is Vertex array. The corners move out of the draw function into verts_, a list of x, y pairs at the top of the program.',
         focusPanel: 'buffers-panel',
         action: (state) => {
           const o = first(state);
@@ -156,7 +156,7 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
         action: () => { addShape('TRIANGLES', TRIANGLE, 'VERTEX_ARRAY'); },
       },
       {
-        narration: 'The Rendering Mode is now VBO. Look at init(), which runs once before the first frame.',
+        narration: 'The Rendering mode is now VBO. Look at init(), which runs once before the first frame.',
         focusPanel: 'buffers-panel',
         action: (state) => {
           const o = first(state);
@@ -288,7 +288,7 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
     section: 'Buffers',
     steps: [
       {
-        narration: 'A Dynamic buffer can be updated two ways. Sub Data sends bytes from your array; Map Buffer writes straight into the buffer.',
+        narration: 'A Dynamic buffer can be updated two ways. Sub data sends bytes from your array; Map buffer writes straight into the buffer.',
         focusPanel: 'buffers-panel',
         action: () => {
           const o = addShape('TRIANGLES', TRIANGLE, 'VBO', 'DYNAMIC');
@@ -301,7 +301,7 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
         codeChangeFocus: ['glBufferSubData'],
       },
       {
-        narration: 'Here the Update Method is Map Buffer instead. update_buffers() now asks for a pointer into the buffer and writes through it.',
+        narration: 'Here the Update method is Map buffer instead. update_buffers() now asks for a pointer into the buffer and writes through it.',
         focusPanel: 'buffers-panel',
         action: (state) => {
           const o = first(state);
@@ -351,8 +351,8 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
         dmaStep: 4,
         predict: {
           options: [
-            { id: 'map', label: 'Map Buffer', why: "You write through the driver's pointer; Sub Data copies from your own array." },
-            { id: 'sub', label: 'Sub Data', why: 'glBufferSubData copies bytes from an array in your program, so you keep one.' },
+            { id: 'map', label: 'Map buffer', why: "You write through the driver's pointer; Sub data copies from your own array." },
+            { id: 'sub', label: 'Sub data', why: 'glBufferSubData copies bytes from an array in your program, so you keep one.' },
             { id: 'neither', label: 'Neither', why: 'Mapping writes straight into the buffer, with no array of your own.' },
           ],
           correctId: 'map',
@@ -389,7 +389,7 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
         focusPanel: 'buffers-panel',
         goals: [{ label: 'Drawn from a VBO', check: (state) => modeOf(first(state)) === 'VBO' }],
         task: 'Switch the triangle to VBO',
-        hints: ['Select the triangle. Buffers is in its inspector.', 'Under Rendering Mode, pick VBO.'],
+        hints: ['Select the triangle. Buffers is in its inspector.', 'Under Rendering mode, pick VBO.'],
         action: () => { addShape('TRIANGLES', TRIANGLE); },
         solve: (state) => {
           const o = first(state);
@@ -434,7 +434,7 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
         focusPanel: 'buffers-panel',
         goals: [{ label: 'The logo is Static', check: (state) => usageOf(first(state)) === 'STATIC' && modeOf(first(state)) === 'VBO' }],
         task: 'Set the logo to Static',
-        hints: ['Select the logo. Buffer Usage is in its Buffers group.', 'Data set once and drawn many times is Static.'],
+        hints: ['Select the logo. Buffer usage is in its Buffers group.', 'Data set once and drawn many times is Static.'],
         action: () => { addShape('QUADS', SQUARE, 'VBO', 'DYNAMIC'); },
         solve: (state) => {
           const o = first(state);
@@ -483,7 +483,7 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
         focusPanel: 'buffers-panel',
         goals: [{ label: 'Indexed drawing on', check: (state) => !!first(state)?.useIndexed }],
         task: 'Switch on indexed drawing',
-        hints: ['Select the square. Indexed Drawing is at the bottom of its Buffers group.', 'Switch on Deduplicate vertices.'],
+        hints: ['Select the square. Indexed drawing is at the bottom of its Buffers group.', 'Switch on Deduplicate vertices.'],
         action: () => { addShape('TRIANGLES', TWO_TRIANGLES, 'VERTEX_ARRAY'); },
         solve: (state) => {
           const o = first(state);
@@ -510,7 +510,7 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
         focusPanel: 'buffers-panel',
         goals: [{ label: 'Drawn from a VBO', check: (state) => modeOf(first(state)) === 'VBO' && !!first(state)?.useIndexed }],
         task: 'Switch the square to VBO',
-        hints: ['Under Rendering Mode, pick VBO. Leave indexed drawing on.'],
+        hints: ['Under Rendering mode, pick VBO. Leave indexed drawing on.'],
         solve: (state) => {
           const o = first(state);
           if (!o) return;
@@ -619,7 +619,7 @@ export const BUFFERS_LESSONS: Record<string, Lesson> = {
         task: 'Set up a Static VBO shape',
         hints: [
           'Add a shape from Add, then open its Buffers group.',
-          'Rendering Mode: VBO. Buffer Usage: Static. Leave Deduplicate vertices off.',
+          'Rendering mode: VBO. Buffer usage: Static. Leave Deduplicate vertices off.',
         ],
         solve: (state) => {
           const o = capstoneShape(state);

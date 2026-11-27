@@ -3,17 +3,19 @@
 .inspector {
   padding-bottom: 2rem;
 
+  /* The name keeps its line; when the column is tight, the GL meta drops below it instead of squeezing it. */
   &__head {
     display: flex;
-    align-items: center;
+    flex-wrap: wrap;
+    align-items: baseline;
     justify-content: space-between;
-    gap: 8px;
+    gap: 2px 8px;
     padding: 10px 12px;
     border-bottom: 1px solid var(--rule);
     background: var(--paper-raised);
   }
   &__name { margin: 0; font-size: var(--text-base); font-weight: 600; }
-  &__meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-faint); }
+  &__meta { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--ink-faint); }
 }
 
 /* Each group is a raised card on the page, so the inspector reads as separate tools. */

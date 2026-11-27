@@ -167,3 +167,42 @@ describe('BB-VIEW-06: A load that throws still ends in a message', () => {
     vi.doUnmock('@/features/share/model/resolve-shared');
   });
 });
+
+describe('BB-VIEW-07: A phone opens a prepared scene to look at', () => {
+  it('loads ?scene=parol read-only, with its name and code', async () => {
+    window.history.replaceState(null, '', '/app?scene=parol');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    render(h(SceneViewApp, {}), host);
+    await settle();
+    expect(host.querySelector('.scene-view__name')!.textContent).toBe('Parol at night');
+    expect(host.querySelector('.canvas-wrapper')).not.toBeNull();
+    expect(host.querySelector('.scene-view__code')!.textContent).toContain('glBegin(GL_TRIANGLE_FAN)');
+    render(null, host);
+    host.remove();
+  });
+});
+
+describe('BB-VIEW-08: A phone on an editor or lesson link is told where the editor opens', () => {
+  it('names the lesson, says the editor needs 960 pixels, and points to what works here', async () => {
+    window.history.replaceState(null, '', '/app?lesson=primitives-demo-2');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    render(h(SceneViewApp, {}), host);
+    await settle();
+    expect(host.querySelector('.scene-view__name')!.textContent).toBe('Painting with Barycentrics');
+    expect(host.querySelector('.scene-view__detail')!.textContent).toBe('Demo · Primitives · 10 steps');
+    expect(host.textContent).toContain('at least 960 pixels wide');
+    expect([...host.querySelectorAll('.scene-view__intro a')].map((a) => a.getAttribute('href'))).toEqual(['/gallery', '/learn', '/guide']);
+    expect(host.querySelector('.canvas-wrapper')).toBeNull();
+    expect((host.querySelector('.scene-view__anyway') as HTMLAnchorElement).getAttribute('href')).toBe('/app?lesson=primitives-demo-2&editor=1');
+    render(null, host);
+    window.history.replaceState(null, '', '/app');
+    render(h(SceneViewApp, {}), host);
+    await settle();
+    expect(host.querySelector('.scene-view__name')!.textContent).toBe('The VAMS editor');
+    expect(host.querySelector('.scene-view__detail')).toBeNull();
+    render(null, host);
+    host.remove();
+  });
+});

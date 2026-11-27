@@ -265,7 +265,7 @@ describe('BB-JOURNEY-09: Every card from the old tabs is still in its stage', ()
     await open('Projected');
     (host.querySelector('.journey-open__deeper') as HTMLButtonElement).click();
     await settle();
-    expect(host.textContent).toContain('glOrtho — viewing volume');
+    expect(host.textContent).toContain('glOrtho: viewing volume');
     await open('Assembled');
     expect(host.textContent).toContain('Vertices');
     await open('Rasterised');

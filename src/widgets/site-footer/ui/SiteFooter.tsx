@@ -1,5 +1,6 @@
 import type { ComponentChildren } from 'preact';
 import Logo from '@/shared/ui/logo';
+import { LAB_ENABLED } from '@/shared/config/lab';
 import './site-footer.scss';
 
 const REPO_URL = 'https://github.com/mkepg/vams';
@@ -17,6 +18,11 @@ export default function SiteFooter({ actions }: { actions?: ComponentChildren })
       <p className="site-footer__links">
         <a href="/learn">Learn</a>
         <a href="/gallery">Gallery</a>
+        {LAB_ENABLED && (
+          <a href="/lab" target="_top">
+            Lab
+          </a>
+        )}
         <a href="/guide">Guide</a>
         <a href="/teach">Teaching</a>
         <a href="/about">About</a>

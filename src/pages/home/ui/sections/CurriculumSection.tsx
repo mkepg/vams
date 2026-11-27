@@ -22,6 +22,7 @@ export default function CurriculumSection() {
           </li>
         ))}
       </ol>
+      <h3 className="mode-list-title">Two modes</h3>
       <dl className="mode-list">
         {CURRICULUM.modes.map((mode) => (
           <div key={mode.name}>

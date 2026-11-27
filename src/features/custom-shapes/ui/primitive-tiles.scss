@@ -20,6 +20,8 @@
 
 .primitive-tile {
   display: grid;
+  /* Tiles in a row share its height; their contents pack from the top so drawings and names line up. */
+  align-content: start;
   justify-items: center;
   gap: 2px;
   min-width: 0;
@@ -41,7 +43,10 @@
     outline-offset: 1px;
   }
 
-  .primitive-drawing { color: var(--accent-text); }
+  /* Ink at rest; the accent marks the tile under the pointer. */
+  .primitive-drawing { color: var(--ink-muted); }
+  &:hover .primitive-drawing,
+  &:focus-visible .primitive-drawing { color: var(--accent-text); }
 
   &__name {
     font-size: var(--text-xs);

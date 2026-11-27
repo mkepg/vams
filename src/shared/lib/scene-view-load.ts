@@ -17,10 +17,14 @@ interface LocationLike {
   hash: string;
 }
 
+/**
+ * A phone gets the scene view for a share link and for every editor address: a prepared scene
+ * opens read-only, and a bare editor or lesson link says where the editor opens. ?editor=1 opts out.
+ */
 export function shouldShowSceneView(width: number, loc: LocationLike): boolean {
   if (width >= PHONE_MAX_WIDTH) return false;
   if (new URLSearchParams(loc.search).has('editor')) return false;
-  return parseShareLink(loc.pathname, loc.hash) !== null;
+  return parseShareLink(loc.pathname, loc.hash) !== null || /^\/app\/?$/.test(loc.pathname);
 }
 
 /** The same link, asking for the editor even on a narrow window. */

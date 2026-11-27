@@ -11,7 +11,7 @@ export default function TextEditField() {
     <div className="text-edit">
       <span className="vfield-label text-edit__label">
         <Edit3 size={14} aria-hidden="true" />
-        <span>Edit Selected Text</span>
+        <span>Edit selected text</span>
       </span>
       <textarea
         value={selected.textContent || ''}

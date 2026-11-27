@@ -62,7 +62,7 @@ void display()
 {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // 2D orthographic projection — see glOrtho editor in VAMS
+    // 2D orthographic projection: the viewing volume set in VAMS
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(-1.0000, 1.0000, -1.0000, 1.0000, -1.0, 1.0);
@@ -85,7 +85,7 @@ void init()
     // OpenGL expects the 0.0 Y-coordinate to be at the bottom, but images store it at the top
     stbi_set_flip_vertically_on_load(true);
 
-    // QUADS_1 — texture object
+    // QUADS_1: texture object
     glGenTextures(1, &tex_QUADS_1);
     glBindTexture(GL_TEXTURE_2D, tex_QUADS_1);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);

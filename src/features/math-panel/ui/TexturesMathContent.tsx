@@ -145,7 +145,7 @@ function SamplingDiagram({ filter }: { filter: 'NEAREST' | 'LINEAR' }) {
           ))}
         </div>
         <div className="tx-sampling-foot">
-          1 texel chosen — sharp, blocky scaling
+          1 texel chosen: sharp, blocky scaling
         </div>
       </div>
     );
@@ -163,7 +163,7 @@ function SamplingDiagram({ filter }: { filter: 'NEAREST' | 'LINEAR' }) {
         </div>
       </div>
       <div className="tx-sampling-foot">
-        4 texels blended by α, β — smooth gradient
+        4 texels blended by α, β: a smooth gradient
       </div>
     </div>
   );
@@ -264,7 +264,7 @@ export default function TexturesMathContent() {
   if (!selected || !TEXTURABLE_TYPES.has(selected.type)) {
     return (
       <div className="empty-state">
-        Select a fillable primitive — triangle, quad, or polygon — to see how
+        Select a fillable primitive (a triangle, quad or polygon) to see how
         its UV coordinates and sampling rules turn pixels into surface colour.
       </div>
     );
@@ -273,7 +273,7 @@ export default function TexturesMathContent() {
   if (!selected.texture || !selected.uvs) {
     return (
       <div className="empty-state">
-        {selected.name} has no texture attached yet — apply one from the library
+        {selected.name} has no texture. Apply one from the library
         to inspect its UV mapping and sampler equations.
       </div>
     );
@@ -362,7 +362,7 @@ v(p) = λ₀·v₀ + λ₁·v₁ + λ₂·v₂`}</pre>
         <TriangleUVDiagram uvs={selected.uvs} />
         <p className="explanation">
           That smoothly-varying <code>(u, v)</code> is what each fragment hands to the
-          sampler — so the texture follows the geometry across the whole face.
+          sampler, so the texture follows the geometry across the whole face.
         </p>
       </Section>
     </div>

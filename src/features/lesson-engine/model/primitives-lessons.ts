@@ -357,7 +357,7 @@ export const PRIMITIVES_LESSONS: Record<string, Lesson> = {
         },
       },
       {
-        narration: 'The picture is the same: glColor3ub(255, 0, 0) and glColor3f(1.00f, 0.00f, 0.00f) are the same red. Emission in Appearance switches between them.',
+        narration: 'The picture is the same: glColor3ub(255, 0, 0) and glColor3f(1.00f, 0.00f, 0.00f) are the same red. Colour values in Appearance switches between them.',
         pane: 'code',
         codeChangeFocus: ['glColor3ub'],
       },
@@ -730,7 +730,7 @@ export const PRIMITIVES_LESSONS: Record<string, Lesson> = {
         focusPanel: 'appearance-panel',
         goals: [{ label: 'Colours as glColor3ub', check: (state) => firstOfType(state, 'TRIANGLES')?.colorMode === 'BYTE' }],
         task: 'Switch the colours to glColor3ub',
-        hints: ['Emission is in Appearance, above the colours.', 'Pick glColor3ub.'],
+        hints: ['Colour values is in Appearance, above the colours.', 'Pick glColor3ub.'],
         solve: (state) => {
           const t = firstOfType(state, 'TRIANGLES');
           if (t) state.updateObjectColorMode(t.id, 'BYTE');
@@ -821,7 +821,7 @@ export const PRIMITIVES_LESSONS: Record<string, Lesson> = {
         focusPanel: 'text-node-panel',
         goals: [{ label: 'Says Hello World', check: (state) => state.objects.some((o) => o.type === 'TEXT' && !!o.textContent?.toLowerCase().replace(/\s+/g, ' ').includes('hello world')) }],
         task: 'Add text that says Hello World',
-        hints: ['In Add, type into Create New Text, then press Enter.'],
+        hints: ['In Add, type into Create text, then press Enter.'],
         solve: (state) => state.addTextObject('Hello World', 0, 0),
       },
       {
@@ -833,7 +833,7 @@ export const PRIMITIVES_LESSONS: Record<string, Lesson> = {
         narration: 'Now put Hello and World on two lines.',
         goals: [{ label: 'Two lines', check: (state) => !!firstOfType(state, 'TEXT')?.textContent?.includes('\n') }],
         task: 'Put the text on two lines',
-        hints: ['Select the text. Edit Selected Text is at the top of its inspector.', 'Press Enter between Hello and World.'],
+        hints: ['Select the text. Edit selected text is at the top of its inspector.', 'Press Enter between Hello and World.'],
         solve: (state) => {
           const t = firstOfType(state, 'TEXT');
           if (t) state.updateTextContent(t.id, 'Hello\nWorld');
@@ -1004,7 +1004,7 @@ export const PRIMITIVES_LESSONS: Record<string, Lesson> = {
         hints: [
           'Add a filled shape, then colour its corners with Per vertex in Appearance.',
           'Add a line shape, then use Line width or Line stipple in Appearance.',
-          'Add text with Create New Text.',
+          'Add text with Create text.',
         ],
         solve: (state) => {
           if (!state.objects.some((o) => isFilled(o) && multicolour(o))) {

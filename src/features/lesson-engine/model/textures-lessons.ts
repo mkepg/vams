@@ -483,7 +483,7 @@ export const TEXTURES_LESSONS: Record<string, Lesson> = {
         action: () => { addTextured('QUADS', QUAD, 'Wall', SAMPLE_BRICKS); },
       },
       {
-        narration: 'We will switch it to Vertex Array. Where will its four glTexCoord2f values go?',
+        narration: 'We will switch it to Vertex array. Where will its four glTexCoord2f values go?',
         predict: {
           options: [
             { id: 'array', label: 'Into an array, uvs_Wall', why: 'Like verts_ and colors_, the UVs become an array of numbers.' },

@@ -292,7 +292,12 @@ describe('BB-LINK-15: Shared links are recognised by path or hash', () => {
     expect(shouldShowSceneView(959, { pathname: '/app', search: '', hash: '#s=abc' })).toBe(true);
     expect(shouldShowSceneView(960, stored)).toBe(false);
     expect(shouldShowSceneView(390, { ...stored, search: '?editor=1' })).toBe(false);
-    expect(shouldShowSceneView(390, { pathname: '/app', search: '', hash: '' })).toBe(false);
+    expect(shouldShowSceneView(390, { pathname: '/app', search: '', hash: '' })).toBe(true);
+    expect(shouldShowSceneView(390, { pathname: '/app', search: '?scene=parol', hash: '' })).toBe(true);
+    expect(shouldShowSceneView(390, { pathname: '/app', search: '?lesson=primitives-demo-2', hash: '' })).toBe(true);
+    expect(shouldShowSceneView(390, { pathname: '/app', search: '?editor=1', hash: '' })).toBe(false);
+    expect(shouldShowSceneView(960, { pathname: '/app', search: '', hash: '' })).toBe(false);
+    expect(shouldShowSceneView(390, { pathname: '/lab', search: '', hash: '' })).toBe(false);
     expect(editorAnywayUrl(stored)).toBe('/s/k3x9q2Ab?editor=1');
     expect(editorAnywayUrl({ pathname: '/app', search: '', hash: '#s=abc' })).toBe('/app?editor=1#s=abc');
   });

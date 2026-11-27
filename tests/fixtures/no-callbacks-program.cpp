@@ -168,7 +168,7 @@ void display()
 {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // 2D orthographic projection — see glOrtho editor in VAMS
+    // 2D orthographic projection: the viewing volume set in VAMS
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(-1.0000, 1.0000, -1.0000, 1.0000, -1.0, 1.0);
@@ -184,7 +184,7 @@ void display()
 // One-time setup, called once before the main loop
 void init()
 {
-    // QUADS_1 — upload to GPU
+    // QUADS_1: upload to GPU
     glGenBuffers(1, &vbo_QUADS_1);
     glBindBuffer(GL_ARRAY_BUFFER, vbo_QUADS_1);
     glBufferData(GL_ARRAY_BUFFER, sizeof(verts_QUADS_1), verts_QUADS_1, GL_STATIC_DRAW);

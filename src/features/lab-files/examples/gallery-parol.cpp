@@ -347,7 +347,7 @@ void draw_Night_sky()
 
     // Render
     glShadeModel(GL_SMOOTH);
-    // Adjust visible point size — default is 1px
+    // Adjust visible point size (the default is 1px)
     glPointSize(8.0f);
 
     glBegin(GL_POINTS);
@@ -451,7 +451,7 @@ void display()
 {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // 2D orthographic projection — see glOrtho editor in VAMS
+    // 2D orthographic projection: the viewing volume set in VAMS
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(-1.6000, 1.6000, -0.9000, 0.9000, -1.0, 1.0);

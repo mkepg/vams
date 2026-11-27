@@ -20,12 +20,15 @@
     &:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
   }
 
+  /* On a narrow window this group gives way first: it clips at its edge instead of sliding under the actions. */
   &__left {
     display: flex;
     align-items: center;
     gap: 4px;
     min-width: 0;
     flex: 1;
+    overflow: clip;
+    overflow-clip-margin: 4px;
   }
 
   &__actions {
@@ -49,4 +52,10 @@
   .vbtn--quiet.vbtn--icon { width: 30px; min-width: 30px; }
 
   .vbtn__icon svg { width: 17px; height: 17px; }
+}
+
+@media (max-width: 600px) {
+  .top-bar { gap: 6px; padding: 0 6px 0 8px; }
+  .top-bar__home svg { height: 20px; }
+  .top-bar__sep { margin: 0 2px; }
 }

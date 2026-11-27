@@ -199,7 +199,7 @@ describe('BB-PANEL-08: Appearance shows the colour values GL receives', () => {
     const fill = host.querySelector('input[aria-label="Fill hex value"]');
     expect(fill).not.toBeNull();
     expect(hints(host).some((t) => t?.startsWith('glColor3f('))).toBe(true);
-    const emission = host.querySelector('[role="radiogroup"][aria-label="Colour emission"]')!;
+    const emission = host.querySelector('[role="radiogroup"][aria-label="Colour values"]')!;
     ([...emission.querySelectorAll('[role="radio"]')].find((r) => r.textContent === 'glColor3ub') as HTMLButtonElement).click();
     await settle();
     expect(hints(host).some((t) => t?.startsWith('glColor3ub('))).toBe(true);
@@ -755,7 +755,7 @@ describe('BB-PANEL-32: The Add panel groups the primitives, then Text, then the 
       ['Quads', 'Quad strip', 'Polygon'],
     ]);
     const triangles = [...host.querySelectorAll('.primitive-tile')].find((t) => t.querySelector('.primitive-tile__name')!.textContent === 'Triangles')!;
-    expect(triangles.getAttribute('title')).toBe('Click groups of 3 — each triple forms one triangle.');
+    expect(triangles.getAttribute('title')).toBe('Click groups of 3. Each triple forms one triangle.');
     for (const tile of host.querySelectorAll('.primitive-tile')) expect(tile.querySelector('svg')).not.toBeNull();
     expect(host.querySelector('[data-panel-id="text-node-panel"]')).not.toBeNull();
     expect(host.querySelector('.add-samples__title')!.textContent).toBe('Or start from a sample');
@@ -904,7 +904,7 @@ describe('BB-PANEL-38: Buffers lists each choice as a row with its description',
   it('gives every option a marker, a name and a one-line description, and marks the chosen row', async () => {
     const { host } = await mountVbo();
     const rows = radios(host, 'Rendering mode');
-    expect(text(rows, '.bp-row__name')).toEqual(['Immediate', 'Vertex Array', 'VBO']);
+    expect(text(rows, '.bp-row__name')).toEqual(['Immediate', 'Vertex array', 'VBO']);
     expect(text(rows, '.bp-row__desc')).toEqual(['re-sent each frame', 'sent each frame', 'uploaded once']);
     expect(rows.every((r) => r.querySelector('.bp-row__mark'))).toBe(true);
     expect(rows.find((r) => r.getAttribute('aria-checked') === 'true')!.classList.contains('active')).toBe(true);
@@ -920,12 +920,12 @@ describe('BB-PANEL-38: Buffers lists each choice as a row with its description',
   it('labels each block on the left and names its GL call on the right', async () => {
     const { host } = await mountVbo();
     const heads = [...host.querySelectorAll('.bp-block-head')].map((hd) => hd.textContent);
-    expect(heads[0]).toBe('Rendering ModeglBufferData');
-    expect(heads[1]).toBe('Buffer UsageGL_STATIC_DRAW');
+    expect(heads[0]).toBe('Rendering modeglBufferData');
+    expect(heads[1]).toBe('Buffer usageGL_STATIC_DRAW');
     unmount(host);
   });
 
-  it('keeps Home, End and the arrows, and shows Update Method only for VBO with Dynamic', async () => {
+  it('keeps Home, End and the arrows, and shows Update method only for VBO with Dynamic', async () => {
     const { host, tri } = await mountVbo();
     const checked = () => radios(host, 'Rendering mode').findIndex((r) => r.getAttribute('aria-checked') === 'true');
     const modeOf = () => useVamsStore.getState().objects.find((o) => o.id === tri.id)!.renderingMode;
@@ -948,7 +948,7 @@ describe('BB-PANEL-38: Buffers lists each choice as a row with its description',
     expect(group(host, 'Buffer update method')).toBeNull();
     radios(host, 'Buffer usage hint')[1].click();
     await settle();
-    expect(text(radios(host, 'Buffer update method'), '.bp-row__name')).toEqual(['Sub Data', 'Map Buffer']);
+    expect(text(radios(host, 'Buffer update method'), '.bp-row__name')).toEqual(['Sub data', 'Map buffer']);
     expect(text(radios(host, 'Buffer update method'), '.bp-row__desc')).toEqual([
       'rewrites a GPU range',
       'writes by pointer',

@@ -204,7 +204,7 @@ function MemoryComparison({ obj }: { obj: SceneNode }) {
       <div className={`bm-memory-delta ${positive ? 'win' : 'tie'}`}>
         {positive
           ? `Saves ${savings} B (${Math.round((savings / arrayBytes) * 100)}%) by deduplicating`
-          : 'No savings — every vertex is unique.'}
+          : 'No savings: every vertex is unique.'}
       </div>
     </div>
   );
@@ -321,7 +321,7 @@ function flowProfile(mode: RenderingMode, usage: BufferUsage): FlowProfile {
   if (mode === 'VERTEX_ARRAY') {
     return {
       transfers: [1, 2, 3, 4, 5, 6, 7, 8],
-      legend: 'One batched send per frame — better than immediate, but still continuous traffic.',
+      legend: 'One batched send per frame: better than immediate, but still continuous traffic.',
       severity: 'high',
     };
   }
@@ -335,13 +335,13 @@ function flowProfile(mode: RenderingMode, usage: BufferUsage): FlowProfile {
   if (usage === 'DYNAMIC') {
     return {
       transfers: [1, 4, 7],
-      legend: 'Sent at init and whenever the data changes — sparse traffic afterwards.',
+      legend: 'Sent at init and whenever the data changes, so traffic is sparse afterwards.',
       severity: 'mid',
     };
   }
   return {
     transfers: [1, 2, 3, 4, 5, 6, 7, 8],
-    legend: 'Re-sent every frame — fast on the GPU side but heavy for short-lived data.',
+    legend: 'Re-sent every frame: fast on the GPU side but heavy for short-lived data.',
     severity: 'high',
   };
 }
@@ -359,7 +359,7 @@ function BufferFlow({ profile }: { profile: FlowProfile }) {
             <div
               key={i}
               className={`bm-flow-cell ${transferSet.has(i + 1) ? 'send' : ''}`}
-              title={`Frame ${i + 1}${transferSet.has(i + 1) ? ' — upload' : ''}`}
+              title={`Frame ${i + 1}${transferSet.has(i + 1) ? ', upload' : ''}`}
             />
           ))}
         </div>
@@ -407,7 +407,7 @@ const MAP_STEPS: MapStep[] = [
   },
   {
     code: 'float* ptr = (float*)\n  glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);',
-    caption: 'Map the buffer. The driver hands back a pointer to GPU memory you can write to directly — no upload, no copy.',
+    caption: 'Map the buffer. The driver hands back a pointer to GPU memory you can write to directly, with no upload and no copy.',
     mapped: true,
     cursor: 0,
     written: [],
@@ -428,7 +428,7 @@ const MAP_STEPS: MapStep[] = [
   },
   {
     code: 'ptr[2] = -0.3f;\nptr[3] = 0.2f;',
-    caption: 'Continue writing only the cells that need to change. Untouched cells keep their previous values — no full re-upload required.',
+    caption: 'Continue writing only the cells that need to change. Untouched cells keep their previous values, so there is no full re-upload.',
     mapped: true,
     cursor: 4,
     written: [0, 1, 2, 3],
@@ -719,7 +719,7 @@ export default function BuffersMathContent() {
       {mode !== 'IMMEDIATE' && (
         <Section title="Layout: separate arrays">
           <p className="explanation">
-            In Vertex Array and VBO modes your program keeps one array per attribute. Positions,
+            In Vertex array and VBO modes your program keeps one array per attribute. Positions,
             colours and UVs each have their own array, and glVertexPointer, glColorPointer and
             glTexCoordPointer each point at one.
             {selected.useIndexed &&
@@ -730,9 +730,9 @@ export default function BuffersMathContent() {
       )}
 
       <Section title={
-        mode === 'IMMEDIATE'    ? 'CPU → GPU traffic — immediate'    :
-        mode === 'VERTEX_ARRAY' ? 'CPU → GPU traffic — vertex array' :
-                                  `CPU → GPU traffic — VBO · ${usage}`
+        mode === 'IMMEDIATE'    ? 'CPU → GPU traffic: immediate'    :
+        mode === 'VERTEX_ARRAY' ? 'CPU → GPU traffic: vertex array' :
+                                  `CPU → GPU traffic: VBO · ${usage}`
       }>
         <BufferFlow profile={profile} />
       </Section>
